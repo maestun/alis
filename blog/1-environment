@@ -1,0 +1,26 @@
+# The work environment
+
+## Inspiration
+
+Over the past few years, many talented hackers managed to rewrite good old games for modern platforms.
+They didn't recode the games from scratch, but instead reimplemented the virtual machines that ran those games.
+Here are some examples of those projects:
+
+- ScummVM
+- RAW (Rewrite of Another World)
+
+In the early 90's, a lot of home computer models were available on the market, meaning that game developers had to ship many different ports of their games.
+Instead of rewriting each game from scratch for a new platform, they wrote their games for custom, in-house virtual machines ("VM").
+When shipping a game for a new platform, only the VM was ported (plus some graphics and sound adjustments for the target computer). A huge benefit when the market was moving at a fast pace !
+One of those game developers was Silmarils.
+
+## ALIS
+
+I read in an interview somewhere on the web that the Silmarils were running on a in-house virtual machine called ALIS, which ran game scripts at runtime.
+
+
+
+
+## Software used
+
+* I'm running macOS

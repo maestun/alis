@@ -1,0 +1,21 @@
+ALIS VM
+-------
+
+./alis
+VM source code
+
+./data
+Data files to run with VM
+
+./ghidra
+Ghidra projets for reversing
+
+./imgui
+Dear ImGui source code
+
+./macOS
+Platform dependencies
+
+./tools
+Other tools for reversing
+On macOS Catalina run the atari emulator with 'wine64 Debugger64DD.exe NODD'

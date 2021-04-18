@@ -1,0 +1,31 @@
+# what is this ?
+
+## The 90's
+
+When I was a kid, in the nineties, I loved playing the Ishar series of games (or at least the two first episodes), made by a french company called Silmarils.
+I ran those games on my good old Atari ST, and was amazed of good looking and atmosphere-filled they were.
+
+## The 2k's
+
+Fast forward a good decade. I became a (bad) software developer, working with bloated'n'buggy enterprise software, and was super bored at work. 
+I loved playing on my Gameboy Advance console, and was also trying to code for it.
+Hey, wouldn't it be cool to code a dungeon-crawling game like Ishar ? Oh, it'd be sooo cool to reuse those oldskool looking graphics !
+Okay, time to crack the inner workings of this old game, that should be that diffi... oh.
+
+So yeah, I quickly realized that my knownledge was far from sufficient to grab the inner workings of these games.
+PC version, Atari version, Amiga version: none of the file formats were matching anything I knew of.
+I tried to reverse-engineer the games but was quickly overwhelmed by the amount of work to do.
+
+I ended up coding a little demo (which you can still find on the interwebz) called "ishar gba" (or "ishar advance" ?), made using screenshots of the PC version of Ishar 1 and 2, captured using the DOSBox emulator (lame !). 
+The demo didn't do much, you cound only crawl into a small dungeon and display the players' inventory.
+Oh, and I didn't know anything about version control or saving your precious data at the time, so of course when my computer was stolen I lost all my precious source code, which took me forever to write.
+
+Sad ending, but at least:
+* I learned low-level and bare-metal coding in C
+* The demo embedded a primitive scripting system using .ini files, xml and lua (xml on a GBA... don't do it :)
+* I showed the demo to a friend who was building a small startup related to mobile development (in 2008, so that scene was quite the hype), who then offered me a much better paying job, and so much fun too !
+
+## Now
+
+Fast forward many more years, I've gained some coding experience and decided to finally understand how this f***g Ishar games were really working !
+Time to fire up an Atari ST emulator, some coding IDEs, Ghidra, and get to work !

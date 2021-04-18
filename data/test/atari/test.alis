@@ -1,0 +1,14 @@
+	cjmp8 __start 					; 08 02
+	cnul							; 00
+	cnul							; 00
+__start:
+	cjsr8 __store					; 05 03
+	cjsr8 __file					; 05 08
+	cstop							; 42 08
+__store:							
+	cstore oimmb #$ff slocb #$426d	; 1e 00 ff 06 42 6d
+	cret							; 11
+__file:
+	cfopen 'test.ao\0', #$01		; 70 74 65 73 74 2e 61 6f 00 01
+	cfclose							; 71
+	cret							; 11

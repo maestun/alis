@@ -1,0 +1,10 @@
+DerivedData/
+.DS_Store
+tools/pytools/*.log
+tools/pytools/*.txt
+tools/pytools/venv
+tools/pytools/__pycache__
+tools/pytools/__pycache__
+tools/pytools/venv
+build
+**/xcuserdata

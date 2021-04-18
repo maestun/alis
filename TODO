@@ -1,0 +1,52 @@
+
+RE: OPCODES PRIORITAIRES
+========================
+CSTOP
+CKILL
+CSTOPRET
+CRET
+CEXIT
+CDEFMOUSE
+
+
+
+ATARI ST: USE OF HOST REGISTERS FOR ALIS VM
+===========================================
+
+D0: main-purpose data register, used by host for syscalls
+D1: main-purpose data register, used by host for syscalls
+D2: main-purpose data register, used by host for syscalls
+D3:
+D4: virtual stack offset (in vram):
+    there's a stack pointer where we store 32-bit return addresses,
+    so the address of this pointer is (A6 + D4).
+D5: ??? seems used as a flag for exit conditions ?
+D6: alis save data register (16bit), used to to save D7 values if needed
+D7: alis main data register (16bit), opcodes return values stored here
+
+
+A0: main-purpose address register
+A1:
+A2: pointer on the table of opcodes jump addresses
+A3: pointer on next byte to read from currently loaded script
+A4: address of virtual accumulator (stack)
+A5: pointer on the table of opnames jump addresses
+A6: address of virtual memory start.
+    some alis data is also stored before the address at A6,
+    using negative offsets
+A7: host stack pointer
+
+
+
+
+
+cdefsc à implémenter:
+deviner ce qu'est
+* DAT_0001955e
+-> écrit 1 seule fois à $1868c, vaut (DAT_19556)+0x8000 => $303e0
+    -> DAT_19556 écrit une seule fois à $185d2 => $283e0
+    -> ça vient de DAT_1992e (à $185a4)
+* W_00019562
+  
+* FUN_00013d82
+* FUN_00013dda
