@@ -107,15 +107,17 @@ void alis_init(sPlatform platform) {
     
     alis.platform = platform;
     
-    // TODO: seems to be vram for alis vm start
-    alis.vram_alloc = alis.mem + 0x22400;
-    alis.vram_org = alis.mem + 0x224f0;
+    // set the vram origin at some abitrary location (same as atari, to ease debug)
+    alis.vram_org = alis.mem + ALIS_VM_RAM_ORG;
+    
+    // the script data address table is located at vram start
+    alis.script_data_orgs = (u32 *)alis.vram_org;
     
     // TODO: init virtual accumulator
 //    alis.acc_org = alis.script->vram_org;
 //    alis.acc = alis.script->vram_org + kVirtualRAMSize;
     alis.acc = alis.acc_org = (alis.mem + 0x198e2);
-    alis.script_count = 0;
+    //alis.script_count = 0;
     
     // init host system stuff
     alis.pixelbuf.w = alis.platform.width;
@@ -125,6 +127,7 @@ void alis_init(sPlatform platform) {
 
 void alis_deinit() {
     // free scripts
+    // TODO: use real script table / cunload
     for(int i = 0; i < kMaxScripts; i++) {
         script_unload(alis.script);
     }
@@ -152,7 +155,7 @@ void alis_loop() {
 void alis_register_script(sAlisScript * script) {
     u8 id = script->header.id;
     alis.scripts[id] = script;
-    alis.script_id_stack[alis.script_count++] = id;
+    // alis.script_id_stack[alis.script_count++] = id;
 }
 
 
@@ -167,10 +170,15 @@ u8 alis_main() {
     // run !
     alis.running = 1;
     while (alis.running) {
+        
+        alis._cstopret = 0;
+        alis._callentity = 0;
+        
+        
 
         // fetch script to run
-        u8 id = alis.script_id_stack[alis.script_index];
-        alis.script = alis.scripts[id];
+        // u8 id = alis.script_id_stack[alis.script_index];
+        // alis.script = alis.scripts[id];
         // alis.sid = alis.script->header.id;
         alis.script->pc = alis.mem + alis.script->context._0x8_script_ret_offset;
         
@@ -204,53 +212,6 @@ u8 alis_main() {
     return ret;
 }
 
-
-
-
-
-//
-//u8 _alis_main() {
-//    u8 ret = 0;
-//    alis.running = 1;
-//    while(alis.running) {
-//        alis_loop();
-//        
-//        // save virtual accumulator offset
-//        vram_write16(VRAM_OFFSET_VACC_OFFSET_D4, alis.script->vacc_off);
-//        
-//        // save script pointer offset
-//        vram_write16(VRAM_OFFSET_SCRIPT_PTR_ADDR, alis.script->pc - alis.script->pc_org);
-//        
-//        // save script origin offset
-//        u32 offset = alis.script->header.ret_offset;
-//        if (offset != 0) {
-//            // the current script has an 'offset' in its header
-//            // so we must perform a change of script... within the same script O_o
-//            // the address to jump to is:
-//            alis.script->pc = alis.script->data_org + offset + 6;
-//            alis_loop();
-//            
-//            // TODO: FUN_RETURN_FROM_CSTOP
-//            
-//            
-//            // TODO: what is this ?
-//            u8 b = vram_read8(VRAM_OFFSET_UNKNOWN_2);
-//            vram_write8(VRAM_OFFSET_CSTART, b);
-//            
-//            // TODO: compute next script and set pc
-//            alis_loop();
-//        }
-//        //        u8 next_id = alis.scriptID;
-//        //        u8 current_id = alis.script->ID;
-//        //        alis.script = alis.scripts[next_id];
-//        //        alis.scriptID = current_id;
-//        // TODO: save current script program counter
-//        // TODO: change script
-//        
-//        // alis_next_script();
-//    }
-//    return ret;
-//}
 
 
 void alis_error(u8 errnum, ...) {

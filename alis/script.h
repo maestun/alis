@@ -16,6 +16,24 @@
 #define kDepackFolder           "depack"
 #define kDepackExtension        "bin"
 
+
+//typedef struct {
+//    struct {
+//        u8      is_packed;          // should be a1
+//        u32     depacked_len[3];    // !!! in real header, we use 3 bytes !!!
+//        u16     id;                 // should be zero
+//    } header;
+//
+//    struct {
+//        u16     script_vram_tab_offset;
+//        u16     script_vram_tab_count;
+//        u8      unknown[12];
+//    } alis_data;
+//
+//    u8          depack_dic[8];
+//} sPackedMainScriptHeader;
+
+
 // =============================================================================
 // MARK: - SCRIPT
 // =============================================================================

@@ -14,7 +14,7 @@
 #include "vram.h"
 
 
-#define kVMHeaderLen            (16 * sizeof(u8))
+// #define kVMHeaderLen            (16 * sizeof(u8))
 // #define kHostRAMSize            (1024 * 1024 * sizeof(u8))
 // #define kVirtualRAMSize         (0xffff * sizeof(u8))
 #define kMaxScripts             (256)
@@ -44,14 +44,6 @@ typedef struct {
 
 
 // =============================================================================
-// MARK: - SPECIAL OFFSETS IN ALIS RAM (A6)
-// =============================================================================
-#define AO_CLINKING             (0xffd6)
-#define AO_SC_POSITION          (0xffea)
-#define AO_LOC_TP               (0xfffe)
-
-
-// =============================================================================
 // MARK: - OPCODES
 // =============================================================================
 typedef void    alisRet;
@@ -67,6 +59,11 @@ typedef struct {
 } sAlisOpcode;
 
 
+typedef struct __attribute__((packed)) {
+    u32         vram_offset;
+    u16         offset;
+} sScriptLoc ;
+
 // =============================================================================
 // MARK: - VM
 // =============================================================================
@@ -74,8 +71,35 @@ typedef struct {
     // platform
     sPlatform       platform;
     
-    // TODO: vm header, loaded from main script ?
-    u8              header[kVMHeaderLen];
+    // vm specs, loaded from packed main script header
+    // TODO: what is the remaingin data ?
+    struct {
+        u16     script_data_tab_len;
+        u16     script_vram_tab_len;
+        u8      unknown[12];
+    } vm_specs;
+    
+    
+    // Absolute address of vm's virtual ram.
+    // On atari the operating system gives us $22400.
+    #define ALIS_VM_RAM_ORG (0x22400)
+    u8 *            vram_org;
+    
+    // On atari, it's a stack of absolute script data adresses,
+    //   each address being 4 bytes long.
+    // The maximum count of script data adresses is given by
+    //   the packed main script header (word at offset $6).
+    // This table is located at ALIS_VM_RAM_ORG.
+    u32 *           script_data_orgs;
+    
+    // A stack of tuples made of:
+    //   absolute script vram adresses (u32)
+    //   offset (u16)
+    //
+    // Located at VRAM_ORG + (max_script_addrs * sizeof(u32))
+    // On atari it's ($22400 + ($3c * 4)) ==> $224f0
+    // $224f0
+    sScriptLoc *    script_vram_orgs;
     
     // true if disasm only
     u8              disasm;
@@ -83,70 +107,34 @@ typedef struct {
     // true if vm is running
     u8              running;
     
-    // virtual program counter
-////    u8 *            pc;
-////    u8 *            pc_org;
-//
-//    // virtual 16-bit accumulator (A4)
+    // virtual 16-bit accumulator (A4)
     s16 *           acc;
     s16 *           acc_org;
     
-    // virtual ram
-    // Sur atari, l'adresse de la vram de alis est stockée dans le registre A6.
-    // Par contre il y a aussi des données situées avant cette adresse,
-    //   donc on y accède avec (A6 - offset)
-    
-    /*
-     VIRTUAL RAM / STACK
-        located at address contained in A6 register.
-        There's also a stack pointer where we store 32-bit return addresses,
-        the address of this pointer is (A6 + D4).
-     
-     0x2f bytes are reserved before A6 to store VM status
-     |
-     |           A6 = vram / virtual ram
-     |           |                           sp
-     |           | <-- D4 = stack offset --> |
-     v           v                           v
-     ___________________________________ ... ____
-     |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| ... |_|_|
-                 
-                 <---------- 65k bytes ---------->
-    */
-    
-    
     // MEMORY
     u8 *            mem; // host: system memory (hardware)
-    
-    u8 *            vram_alloc; // allocated by host
-    // u8 *            vram_alloc; // allocated by host
     
     // in atari, located at $22400
     // contains the addresses of the loaded scripts' data
     // 60 dwords max (from $22400 -> $224f0)
     // u32             script_data_offsets[kMaxScripts];
-    u8              script_id_stack[kMaxScripts]; // TODO: use a real stack ?
-    u8              script_count;
+    // u8              script_id_stack[kMaxScripts]; // TODO: use a real stack ?
+    // u8              script_count;
     u8              script_index;
-    
-    // in atari, located at $224f0
-    u8 *            vram_org;   // virtual machine's own ram
     
     // SCRIPTS
     // global table containing all depacked scripts
     sAlisScript *   scripts[kMaxScripts];
     
-    // current script ID
-    // TODO: not needed ?
-    // u16             sid;
-    
     // pointer to current script
     sAlisScript *   script;
         
     // virtual registers
-    s16             varD5;
     s16             varD6;
     s16             varD7;
+    
+    // branching register
+    u16             varD5;
     
     // virtual array registers
     u8 *           bssChunk1;
@@ -154,7 +142,7 @@ typedef struct {
     u8 *           bssChunk3;
     
     // helper: executed instructions count
-    u32             icount;
+    u32            icount;
         
     // unknown vars
     u32 DAT_000194fe;
@@ -165,15 +153,6 @@ typedef struct {
         u8 neg: 1;
     } sr;
     
-//    
-    // A6 => contient adresse du début de la ram virtuelle (ou pile virtuelle ?)
-    //       qui a l'air de faire 65k (0xffff) au total.
-    // D4 => un offset qui dit où se trouve le pointeur de pile
-    //       dans la ram virtuelle
-    // par exemple pour main.ao a6 vaut $22690, et d4 vaut $ffff
-    // donc le virtual stack pointer pointe à l'adresse $3268f
-    
-    
     // helpers
     u8          oeval_loop;
     
@@ -181,6 +160,8 @@ typedef struct {
     FILE *      fp;
     
     // unknown variables
+    u8          _cstopret;
+    u8          _callentity;
     u8          _cclipping;
     u8          _ctiming;
 //    s16         _a6_minus_1a; // used by cforme
@@ -198,8 +179,6 @@ typedef struct {
 } sAlisVM;
 
 extern sAlisVM alis;
-
-//extern u32 script_addrs[kMaxScripts];
 
 
 // =============================================================================

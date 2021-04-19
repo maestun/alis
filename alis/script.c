@@ -483,22 +483,59 @@ sAlisScript * script_load(const char * script_path) {
         if(is_packed(pak_buf)) {
             debug(EDebugVerbose, "Unpacking file...\n");
             
-            depak_sz = get_depacked_size(pak_buf);
             if(is_main(pak_buf)) {
-                // main script: load main header into vm
-                debug(EDebugVerbose, "Main script detected. Packed header:\n");
+                debug(EDebugVerbose, "Main script detected:\n");
                 main = 1;
-                for(uint8_t idx = 0; idx < kVMHeaderLen; idx++) {
-                    alis.header[idx] = pak_buf[HEADER_MAGIC_LEN_SZ + HEADER_CHECK_SZ + idx];
-                    debug(EDebugVerbose, "0x%02x ", alis.header[idx]);
+
+                // main script: packed header contains vm info !
+                u8 * ptr = pak_buf + HEADER_MAGIC_LEN_SZ + HEADER_CHECK_SZ;
+                
+                // word: script data addresses table length
+                alis.vm_specs.script_data_tab_len = (ptr[0] << 8) + ptr[1];
+                
+                // word: script (vram addresses + offsets) table length
+                alis.vm_specs.script_vram_tab_len = (ptr[2] << 8) + ptr[3];
+                
+                // set the location of scripts' vrams table
+                alis.script_vram_orgs = (sScriptLoc *)(alis.vram_org + (alis.vm_specs.script_data_tab_len * sizeof(u32)));
+                
+                // compute the end address of the scripts' vrams table
+                u32 script_vram_end = (u32)((u8 *)alis.script_vram_orgs - alis.mem + (alis.vm_specs.script_vram_tab_len * sizeof(sScriptLoc)));
+                
+                // populate the script vrams table with the offsets (routine at $18cd8)
+                for(int idx = 0; idx < alis.vm_specs.script_vram_tab_len; idx++) {
+                    u16 offset = (1 + idx) * sizeof(sScriptLoc);
+                    alis.script_vram_orgs[idx] = (sScriptLoc){0, offset};
+                }
+
+                // get dword at offset $8 from main packed header (routine at $185c6)
+                u32 max_allocatable_vram = (ptr[8] << 24) + (ptr[9] << 16) + (ptr[10] << 8) + ptr[11];
+                u32 script_vram_max_addr = (script_vram_end + max_allocatable_vram) | 0b111;
+                ++script_vram_max_addr;
+                
+                // get dword at offset $12 from main packed header (routine at $185d8)
+                u32 d1 = (ptr[12] << 24) + (ptr[13] << 16) + (ptr[14] << 8) + ptr[15];
+                d1 += 3;
+                d1 *= 0x28;
+                u32 main_script_data_addr = script_vram_max_addr + d1;
+                
+                debug(EDebugVerbose, "- script data table count: %d, located at 0x%x\n- script vram table count: %d, located at 0x%x\n",
+                      alis.vm_specs.script_data_tab_len, (u8 *)alis.script_data_orgs - alis.mem,
+                      alis.vm_specs.script_vram_tab_len, (u8 *)alis.script_vram_orgs - alis.mem);
+                
+                debug(EDebugVerbose, "Unknown header bytes:\n");
+                for(uint8_t idx = 0; idx < 8; idx++) {
+                    alis.vm_specs.unknown[idx] = pak_buf[HEADER_MAGIC_LEN_SZ + HEADER_CHECK_SZ + 8 + idx];
+                    debug(EDebugVerbose, "0x%02x ", alis.vm_specs.unknown[idx]);
                 }
                 debug(EDebugVerbose, "\n");
             }
 
             // alloc and depack
+            depak_sz = get_depacked_size(pak_buf);
             u8 dic_offset = HEADER_MAGIC_LEN_SZ +
                             HEADER_CHECK_SZ +
-                            (main ? kVMHeaderLen : 0);
+                            (main ? sizeof(alis.vm_specs) : 0);
             u8 pak_offset = dic_offset + HEADER_DIC_SZ;
             u8 * depak_buf = malloc(depak_sz * sizeof(u8));
             depak(pak_buf + pak_offset,

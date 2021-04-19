@@ -17,5 +17,6 @@ char *      strupper(char * str);
 u32         reverse_bytes_32(s32 value);
 s16         extend_w(s8 value);
 s32         extend_l(s16 value);
+u32         read_big_endian(u8 * data, size_t sz);
 
 #endif /* utils_h */
