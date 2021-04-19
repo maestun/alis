@@ -29,7 +29,7 @@ typedef struct {
         u16     id;
         u16     w_0x1700;       // seems to be always 0x1700 on atari, copied at (vram - $2e)
         u16     code_loc_offset;// where does code start from (script header + id) ? on atari, always $16
-        u32     ret_offset;
+        u32     ret_offset;     // some scripts have a "sub-script" into them: this is the offset to their code location
         u32     dw_unknown3;
         u32     dw_unknown4;
         u16     w_unknown5;     // almost always 0x20 (is 0xa for "message*" and 0x4 for "objet")
@@ -46,6 +46,18 @@ typedef struct {
     
     // CONTEXT: each script has some context data, stored before vram origin
     struct {
+        // vram - 0x33: ???
+        u8 _0x33_unknown;
+        
+        // vram - 0x30: ???
+        u8 _0x32_unknown;
+        
+        // vram - 0x30: ???
+        u8 _0x31_unknown;
+        
+        // vram - 0x30: ???
+        u8 _0x30_unknown;
+        
         // vram - 0x2f: chsprite
         u8 _0x2f_chsprite;
         

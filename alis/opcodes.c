@@ -253,6 +253,7 @@ static void cload() {
         // TODO: init some stuff ?
         
         // reset vm ?
+        // in ishar this is never reached
     }
     else {
         // not main script, depack and load into vm

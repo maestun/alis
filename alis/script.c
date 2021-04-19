@@ -542,7 +542,8 @@ sAlisScript * script_load(const char * script_path) {
         sScriptDebug debug_data = script_debug_data[script->header.id];
 
         // tell where the script vram is located in host memory
-        script->vram_org = alis.mem + debug_data.vram_org;
+        script->vram_org = alis.mem + debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
+        u32 test = sizeof(script->context) + script->header.w_unknown5 + script->header.w_unknown7;
         script->vacc_off = debug_data.vacc_off;
         script->data_org = alis.mem + debug_data.data_org;
         

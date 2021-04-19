@@ -92,6 +92,9 @@ void alis_init(sPlatform platform) {
     
     // init virtual registers
     alis.varD6 = alis.varD7 = 0;
+    
+    // init temp chunks
+    // TODO: might as well (static) alloc some ram.
     alis.bssChunk1 = alis.mem + 0x1a1e6;
     alis.bssChunk2 = alis.mem + 0x1a2e6;
     alis.bssChunk3 = alis.mem + 0x1a3e6;
@@ -112,7 +115,7 @@ void alis_init(sPlatform platform) {
 //    alis.acc_org = alis.script->vram_org;
 //    alis.acc = alis.script->vram_org + kVirtualRAMSize;
     alis.acc = alis.acc_org = (alis.mem + 0x198e2);
-    alis.script_index = 0;
+    alis.script_count = 0;
     
     // init host system stuff
     alis.pixelbuf.w = alis.platform.width;
@@ -135,15 +138,6 @@ void alis_deinit() {
 }
 
 
-//void alis_next_script() {
-//    u8 next_id = alis.sid;
-//    u8 current_id = alis.script->header.id;
-//    alis.script = alis.scripts[next_id];
-//    alis.sid = current_id;
-//    script_debug(alis.script);
-//}
-
-
 void alis_loop() {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
@@ -158,7 +152,7 @@ void alis_loop() {
 void alis_register_script(sAlisScript * script) {
     u8 id = script->header.id;
     alis.scripts[id] = script;
-    alis.script_id_stack[alis.script_index++] = id;
+    alis.script_id_stack[alis.script_count++] = id;
 }
 
 
@@ -168,13 +162,14 @@ u8 alis_main() {
     // load main script
     sAlisScript * main_script = script_load(alis.platform.main);
     alis_register_script(main_script);
+    alis.script_index = 0;
     
     // run !
     alis.running = 1;
     while (alis.running) {
 
         // fetch script to run
-        u8 id = alis.script_id_stack[alis.script_index - 1];
+        u8 id = alis.script_id_stack[alis.script_index];
         alis.script = alis.scripts[id];
         // alis.sid = alis.script->header.id;
         alis.script->pc = alis.mem + alis.script->context._0x8_script_ret_offset;
@@ -197,10 +192,11 @@ u8 alis_main() {
             // the address to jump to is:
             alis.script->pc = alis.script->data_org + offset + 6; /* skip ID, word 1, word 2: 6 bytes */
             alis_loop();
+            alis.script_index++;
         }
         else {
             // return to previous script ?
-            
+            alis.script_index--;
         }
     }
     

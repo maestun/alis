@@ -125,8 +125,8 @@ typedef struct {
     // contains the addresses of the loaded scripts' data
     // 60 dwords max (from $22400 -> $224f0)
     // u32             script_data_offsets[kMaxScripts];
-    
-    u8              script_id_stack[kMaxScripts];
+    u8              script_id_stack[kMaxScripts]; // TODO: use a real stack ?
+    u8              script_count;
     u8              script_index;
     
     // in atari, located at $224f0
