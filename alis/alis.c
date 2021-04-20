@@ -123,6 +123,11 @@ void alis_init(sPlatform platform) {
     alis.pixelbuf.w = alis.platform.width;
     alis.pixelbuf.h = alis.platform.height;
     alis.pixelbuf.data = (u8 *)malloc(alis.pixelbuf.w * alis.pixelbuf.h);
+    
+    // load main script
+    sAlisScript * main_script = script_load(alis.platform.main);
+    alis_register_script(main_script);
+    alis.script_index = 0;
 }
 
 
@@ -212,11 +217,6 @@ void alis_register_script(sAlisScript * script) {
 
 u8 alis_main() {
     u8 ret = 0;
-    
-    // load main script
-    sAlisScript * main_script = script_load(alis.platform.main);
-    alis_register_script(main_script);
-    alis.script_index = 0;
     
     // run !
     alis.running = 1;

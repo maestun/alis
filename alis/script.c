@@ -452,7 +452,7 @@ sAlisScript * script_load(const char * script_path) {
         rewind(fp);
 
         // read file into buffer
-        u8 * pak_buf = malloc(pak_sz * sizeof(u8));
+        u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
         fread(pak_buf, sizeof(u8), pak_sz, fp);
         
         u8 main = 0;
@@ -479,7 +479,7 @@ sAlisScript * script_load(const char * script_path) {
                             HEADER_CHECK_SZ +
                             (main ? HEADER_MAIN_SZ : 0);
             u8 pak_offset = dic_offset + HEADER_DIC_SZ;
-            u8 * depak_buf = malloc(depak_sz * sizeof(u8));
+            u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
             depak(pak_buf + pak_offset,
                   depak_buf,
                   pak_sz - pak_offset,
