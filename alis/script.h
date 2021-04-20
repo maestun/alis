@@ -9,29 +9,8 @@
 #include "config.h"
 
 #define kMainScriptID           (0)
-// #define kMainScriptHeaderLen    (24 * sizeof(u8))
-// #define kScriptHeaderLen        (24 * sizeof(u8)) // TODO: remove, this is given by script header word #2
-// #define kScriptRAMSize          (0xffff * sizeof(u8)) // TODO: seems to be 65k ?
-
 #define kDepackFolder           "depack"
 #define kDepackExtension        "bin"
-
-
-//typedef struct {
-//    struct {
-//        u8      is_packed;          // should be a1
-//        u32     depacked_len[3];    // !!! in real header, we use 3 bytes !!!
-//        u16     id;                 // should be zero
-//    } header;
-//
-//    struct {
-//        u16     script_vram_tab_offset;
-//        u16     script_vram_tab_count;
-//        u8      unknown[12];
-//    } alis_data;
-//
-//    u8          depack_dic[8];
-//} sPackedMainScriptHeader;
 
 
 // =============================================================================
@@ -55,11 +34,11 @@ typedef struct {
         u16     w_unknown7;     // almost always 0x20 (is 0x4 for "message*" and "objet")
     } header;
         
-    // script data
-    u8 *    data_org;
+    // offset to script data
+    u32     data_org;
     
     // each script has its own virtual context and memory
-    u8 *    vram_org;
+    u32     vram_org;
     u16     vacc_off;
     
     // CONTEXT: each script has some context data, stored before vram origin
@@ -177,8 +156,8 @@ typedef struct {
     } context;
     
     u8      running;
-    u8 *    pc_org;
-    u8 *    pc;
+    u32     pc_org; // offset in memory
+    u32     pc;     // offset in memory
 } sAlisScript;
 
 
@@ -186,8 +165,7 @@ sAlisScript *   script_load(const char * script_path);
 void            script_unload(sAlisScript * script);
 
 //void            script_run(sAlisScript * script);
-
-u32             script_pc(sAlisScript * script);
+// u32             script_pc(sAlisScript * script);
 
 
 // read data from script, these will increase the virtual program counter

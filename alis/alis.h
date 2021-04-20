@@ -76,7 +76,8 @@ typedef struct {
     struct {
         u16     script_data_tab_len;
         u16     script_vram_tab_len;
-        u8      unknown[12];
+        u32     script_vram_max_addr;
+        u32     unused;
     } vm_specs;
     
     
@@ -185,6 +186,7 @@ extern sAlisVM alis;
 // MARK: - API
 // =============================================================================
 void            alis_init(sPlatform platform);
+void            alis_config_vm(u8 * packed_main_header_data);
 u8              alis_main(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);

@@ -689,7 +689,7 @@ static void cinitab() {
 
 static void cfopen() {
     u16 id = 0;
-    if(*alis.script->pc == 0xff) {
+    if(*(alis.mem + alis.script->pc) == 0xff) {
 //        ++(alis.script->pc);
         script_jump(1);
         readexec_opername_swap();

@@ -210,44 +210,26 @@ static uint8_t * p_dic;
 
 // byte 0 -> magic
 // byte 1..3 -> depacked size (24 bits)
-#define HEADER_MAGIC_LEN_SZ (sizeof(uint32_t))
+#define HEADER_MAGIC_LEN_SZ (sizeof(u32))
 // byte 4..5 -> main script if zero
-#define HEADER_CHECK_SZ     (sizeof(uint16_t))
+#define HEADER_CHECK_SZ     (sizeof(u16))
 // if main: byte 6..21 -> main header
-// #define HEADER_MAIN_SZ      kMainScriptHeaderLen
+#define HEADER_MAIN_SZ      (16 * sizeof(u8))
 // if main: byte 22..29 -> dic
 // if not main: byte 6..13 -> dic
-#define HEADER_DIC_SZ       (2 * sizeof(uint32_t))
-
-typedef struct {
-    u8      magic;
-    u8      depacked_size[3];
-    u16     id;
-    u8      header[16];
-    u8      dic[8];
-    u8 *    packed_data;
-} sPackedMainScript;
-
-typedef struct {
-    u8      magic;
-    u8      depacked_size[3];
-    u16     id;
-    u8      dic[8];
-    u8 *    packed_data;
-} sPackedScript;
-
+#define HEADER_DIC_SZ       (2 * sizeof(u32))
 
 // TODO: valid only for big endian
-int is_packed(uint8_t * pak_buffer) {
-    return (pak_buffer[0] & 0xf0) == 0xa0;
+u8 is_packed(u8 * pak_buffer) {
+    return (*pak_buffer & 0xf0) == 0xa0;
 }
 
-uint32_t get_depacked_size(uint8_t * pak_buffer) {
-    return (pak_buffer[1] << 16) + (pak_buffer[2] << 8) + pak_buffer[3];
+u32 get_depacked_size(u8 * pak_buffer) {
+    return read_big_endian(pak_buffer + 1, sizeof(u16) + sizeof(u8));// (pak_buffer[1] << 16) + (pak_buffer[2] << 8) + pak_buffer[3];
 }
 
-int is_main(uint8_t * pak_buffer) {
-    return !((pak_buffer[HEADER_MAGIC_LEN_SZ] << 8) + pak_buffer[HEADER_MAGIC_LEN_SZ + 1]);
+int is_main(u8 * pak_buffer) {
+    return kMainScriptID == read_big_endian(pak_buffer + HEADER_MAGIC_LEN_SZ, sizeof(u16));
 }
 
 
@@ -486,56 +468,16 @@ sAlisScript * script_load(const char * script_path) {
             if(is_main(pak_buf)) {
                 debug(EDebugVerbose, "Main script detected:\n");
                 main = 1;
-
+                
                 // main script: packed header contains vm info !
-                u8 * ptr = pak_buf + HEADER_MAGIC_LEN_SZ + HEADER_CHECK_SZ;
-                
-                // word: script data addresses table length
-                alis.vm_specs.script_data_tab_len = (ptr[0] << 8) + ptr[1];
-                
-                // word: script (vram addresses + offsets) table length
-                alis.vm_specs.script_vram_tab_len = (ptr[2] << 8) + ptr[3];
-                
-                // set the location of scripts' vrams table
-                alis.script_vram_orgs = (sScriptLoc *)(alis.vram_org + (alis.vm_specs.script_data_tab_len * sizeof(u32)));
-                
-                // compute the end address of the scripts' vrams table
-                u32 script_vram_end = (u32)((u8 *)alis.script_vram_orgs - alis.mem + (alis.vm_specs.script_vram_tab_len * sizeof(sScriptLoc)));
-                
-                // populate the script vrams table with the offsets (routine at $18cd8)
-                for(int idx = 0; idx < alis.vm_specs.script_vram_tab_len; idx++) {
-                    u16 offset = (1 + idx) * sizeof(sScriptLoc);
-                    alis.script_vram_orgs[idx] = (sScriptLoc){0, offset};
-                }
-
-                // get dword at offset $8 from main packed header (routine at $185c6)
-                u32 max_allocatable_vram = (ptr[8] << 24) + (ptr[9] << 16) + (ptr[10] << 8) + ptr[11];
-                u32 script_vram_max_addr = (script_vram_end + max_allocatable_vram) | 0b111;
-                ++script_vram_max_addr;
-                
-                // get dword at offset $12 from main packed header (routine at $185d8)
-                u32 d1 = (ptr[12] << 24) + (ptr[13] << 16) + (ptr[14] << 8) + ptr[15];
-                d1 += 3;
-                d1 *= 0x28;
-                u32 main_script_data_addr = script_vram_max_addr + d1;
-                
-                debug(EDebugVerbose, "- script data table count: %d, located at 0x%x\n- script vram table count: %d, located at 0x%x\n",
-                      alis.vm_specs.script_data_tab_len, (u8 *)alis.script_data_orgs - alis.mem,
-                      alis.vm_specs.script_vram_tab_len, (u8 *)alis.script_vram_orgs - alis.mem);
-                
-                debug(EDebugVerbose, "Unknown header bytes:\n");
-                for(uint8_t idx = 0; idx < 8; idx++) {
-                    alis.vm_specs.unknown[idx] = pak_buf[HEADER_MAGIC_LEN_SZ + HEADER_CHECK_SZ + 8 + idx];
-                    debug(EDebugVerbose, "0x%02x ", alis.vm_specs.unknown[idx]);
-                }
-                debug(EDebugVerbose, "\n");
+                alis_config_vm(pak_buf + HEADER_MAGIC_LEN_SZ + HEADER_CHECK_SZ);
             }
 
             // alloc and depack
             depak_sz = get_depacked_size(pak_buf);
             u8 dic_offset = HEADER_MAGIC_LEN_SZ +
                             HEADER_CHECK_SZ +
-                            (main ? sizeof(alis.vm_specs) : 0);
+                            (main ? HEADER_MAIN_SZ : 0);
             u8 pak_offset = dic_offset + HEADER_DIC_SZ;
             u8 * depak_buf = malloc(depak_sz * sizeof(u8));
             depak(pak_buf + pak_offset,
@@ -565,31 +507,31 @@ sAlisScript * script_load(const char * script_path) {
         
         // script data (don't use memcpy cuz little endian)
         // TODO: endianness dependency
-        script->header.id = (data[0] << 8) + data[1];
-        script->header.w_0x1700 = (data[2] << 8) + data[3];
-        script->header.code_loc_offset = (data[4] << 8) + data[5];
-        script->header.ret_offset = (data[6] << 24) + (data[7] << 16) + (data[8] << 8) + data[9];
-        script->header.dw_unknown3 = (data[10] << 24) + (data[11] << 16) + (data[12] << 8) + data[13];
-        script->header.dw_unknown4 = (data[14] << 24) + (data[15] << 16) + (data[16] << 8) + data[17];
-        script->header.w_unknown5 = (data[18] << 8) + data[19];
-        script->header.vram_alloc_sz = (data[20] << 8) + data[21];
-        script->header.w_unknown7 = (data[22] << 8) + data[23];
+        script->header.id = read_big_endian(data + 0, sizeof(u16));
+        script->header.w_0x1700 = read_big_endian(data + 2, sizeof(u16));
+        script->header.code_loc_offset = read_big_endian(data + 4, sizeof(u16));
+        script->header.ret_offset = read_big_endian(data + 6, sizeof(u32));
+        script->header.dw_unknown3 = read_big_endian(data + 10, sizeof(u32));
+        script->header.dw_unknown4 = read_big_endian(data + 14, sizeof(u32));
+        script->header.w_unknown5 = read_big_endian(data + 18, sizeof(u16));
+        script->header.vram_alloc_sz = read_big_endian(data + 20, sizeof(u16));
+        script->header.w_unknown7 = read_big_endian(data + 22, sizeof(u16));
         
         // TODO: this is for debug / static allocs
         sScriptDebug debug_data = script_debug_data[script->header.id];
 
         // tell where the script vram is located in host memory
-        script->vram_org = alis.mem + debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
+        script->vram_org = debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
         u32 test = sizeof(script->context) + script->header.w_unknown5 + script->header.w_unknown7;
         script->vacc_off = debug_data.vacc_off;
-        script->data_org = alis.mem + debug_data.data_org;
+        script->data_org = debug_data.data_org;
         
         // init context
         memset(&(script->context), 0, sizeof(script->context));
         script->context._0x10_script_id = script->header.id;
         
-        script->context._0x14_script_org_offset = (u32)(script->data_org - alis.mem);
-        script->context._0x8_script_ret_offset = (u32)(script->data_org - alis.mem + script->header.code_loc_offset + 2);
+        script->context._0x14_script_org_offset = script->data_org;
+        script->context._0x8_script_ret_offset = script->data_org + script->header.code_loc_offset + 2;
         script->context._0x2e_script_header_word_2 = script->header.w_0x1700;
         script->context._0x2_unknown = 1;
         script->context._0x1_cstart = 1;
@@ -600,17 +542,17 @@ sAlisScript * script_load(const char * script_path) {
         script->context._0x26_creducing = 0xff;
         
         // copy script data to static host memory
-        memcpy(script->data_org, data, depak_sz);
+        memcpy(alis.mem + script->data_org, data, depak_sz);
         
         // script program counter starts kScriptHeaderLen after data
-        script->pc = script->pc_org = alis.mem + script->context._0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
+        script->pc = script->pc_org = script->context._0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
         
         debug(EDebugVerbose,
               "Script '%s' loaded (ID = 0x%02x)\nVRAM at address 0x%x\nDATA at address 0x%x\nCODE at address 0x%x\nVACC = 0x%04x\n",
               script->name, script->header.id,
-              script->vram_org - alis.mem,
-              script->data_org - alis.mem,
-              script->pc_org - alis.mem,
+              script->vram_org,
+              script->data_org,
+              script->pc_org,
               script->vacc_off);
 
         // cleanup
@@ -633,9 +575,9 @@ void script_unload(sAlisScript * script) {
 }
 
 
-u32 script_pc(sAlisScript * script) {
-    return (u32)(script->pc - alis.mem);
-}
+//u32 script_pc(sAlisScript * script) {
+//    return (u32)(script->pc - alis.mem);
+//}
 
 
 // =============================================================================
@@ -657,13 +599,13 @@ void script_read_debug(s32 value) {
 }
 
 u8 script_read8(void) {
-    u8 ret = *alis.script->pc++;
+    u8 ret = *(alis.mem + alis.script->pc++);
     script_read_debug(ret);
     return ret;
 }
 
 s16 script_read8ext16(void) {
-    u8 b = *alis.script->pc++;
+    u8 b = *(alis.mem + alis.script->pc++);
     s16 ret = b;
     if(BIT_CHK((b), 7)) {
         ret |= 0xff00;
@@ -674,38 +616,38 @@ s16 script_read8ext16(void) {
 }
 
 s32 script_read8ext32(void) {
-    s16 ret = extend_l(extend_w(*alis.script->pc++));
+    s16 ret = extend_l(extend_w(*(alis.mem + alis.script->pc++)));
     script_read_debug(ret);
     return  ret;
 }
 
 u16 script_read16(void) {
-    u16 ret = (*alis.script->pc++ << 8) + *alis.script->pc++;
+    u16 ret = read_big_endian((alis.mem + alis.script->pc++), sizeof(u16)); // (*alis.script->pc++ << 8) + *alis.script->pc++;
     script_read_debug(ret);
     return ret;
 }
 
 s32 script_read16ext32(void) {
-    u32 ret = extend_l((*alis.script->pc++ << 8) + *alis.script->pc++);
+    u32 ret = extend_l(read_big_endian((alis.mem + alis.script->pc++), sizeof(u16)));
     script_read_debug(ret);
     return ret;
 }
 
 u32 script_read24(void) {
-    u32 ret = (*alis.script->pc++ << 16) + (*alis.script->pc++ << 8) + *alis.script->pc++;
+    u32 ret = read_big_endian((alis.mem + alis.script->pc++), sizeof(u16) + sizeof(u8)); // (*alis.script->pc++ << 16) + (*alis.script->pc++ << 8) + *alis.script->pc++;
     script_read_debug(ret);
     return ret;
 }
 
 void script_read_bytes(u32 len, u8 * dest) {
     while(len--) {
-        *dest++ = *alis.script->pc++;
+        *dest++ = *(alis.mem + alis.script->pc++);
     }
 }
 
 void script_read_until_zero(u8 * dest) {
-    while(*alis.script->pc) {
-        *dest++ = *alis.script->pc++;
+    while(*(alis.mem + alis.script->pc++)) {
+        *dest++ = *(alis.mem + alis.script->pc++);
     }
     alis.script->pc++;
 }
@@ -726,15 +668,16 @@ void script_debug(sAlisScript * script) {
     // total header len is located in header, also add sizeof(script_id)
     u8 header_len = script->header.code_loc_offset + sizeof(u16) /* script ID length */;
     
-    for(int i = 0; i < header_len; i++) {
-        printf("%02x ", script->data_org[i]);
-    }
+//    for(int i = 0; i < header_len; i++) {
+//        printf("%02x ", script->data_org[i]);
+//    }
     
-    u8 code = *(script->pc);
+    u8 code = *(alis.mem + alis.script->pc++);//*(script->pc);
     printf("\nDATA ORG: 0x%06x\nCODE ORG: 0x%06x\nPC OFFSET: 0x%04x\nPC BYTE: 0x%02x ('%s')\n",
-           (u32)(script->data_org - alis.mem),
-           (u32)(script->data_org + (u32)header_len - alis.mem),
-           script_pc(script),
+           script->data_org,
+           script->data_org + header_len,
+           alis.script->pc,
+           // script_pc(script),
            code,
            opcodes[code].name);
 }

@@ -55,3 +55,13 @@ char * strupper(char * str) {
     }
     return str;
 }
+
+
+u32 read_big_endian(u8 * data, size_t sz) {
+    u32 ret = 0;
+    u8 shift = sz - 1;
+    for(int i = 0; i < sz; i++) {
+        ret += (data[i]) << (shift-- << 3);
+    }
+    return ret;
+}
