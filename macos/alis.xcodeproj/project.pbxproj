@@ -34,8 +34,6 @@
 		8B9C403B250A3E5200C947F9 /* script.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C403A250A3E5200C947F9 /* script.c */; };
 		8B9C4044250A6AC200C947F9 /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4043250A6AC200C947F9 /* debug.c */; };
 		8B9C4047250A721D00C947F9 /* sys_sdl2.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4046250A721D00C947F9 /* sys_sdl2.c */; };
-		8B9D477826283F3B00DDB49E /* script2.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9D477726283F3B00DDB49E /* script2.c */; };
-		8B9D477926283F3B00DDB49E /* script2.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9D477726283F3B00DDB49E /* script2.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -125,8 +123,6 @@
 		8B9C4043250A6AC200C947F9 /* debug.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = debug.c; sourceTree = "<group>"; };
 		8B9C4045250A721D00C947F9 /* sys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sys.h; sourceTree = "<group>"; };
 		8B9C4046250A721D00C947F9 /* sys_sdl2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys_sdl2.c; sourceTree = "<group>"; };
-		8B9D477626283F3B00DDB49E /* script2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = script2.h; sourceTree = "<group>"; };
-		8B9D477726283F3B00DDB49E /* script2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = script2.c; sourceTree = "<group>"; };
 		8BD307522625D1F200F0417C /* hardware.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = hardware.txt; path = ../tools/hardware.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -290,8 +286,6 @@
 				8B9C4013250921F600C947F9 /* platform.h */,
 				8B9C4012250921F600C947F9 /* platform.c */,
 				8B9C4039250A3E5200C947F9 /* script.h */,
-				8B9D477626283F3B00DDB49E /* script2.h */,
-				8B9D477726283F3B00DDB49E /* script2.c */,
 				8B9C403A250A3E5200C947F9 /* script.c */,
 				0981CBCD250B46970097F862 /* storenames.c */,
 				8B9C402E250A2F9300C947F9 /* utils.h */,
@@ -392,7 +386,6 @@
 				8B20A3DF256913C40045BF66 /* asm.c in Sources */,
 				8B20A3E0256913C40045BF66 /* platform.c in Sources */,
 				8B20A3E1256913C40045BF66 /* opernames.c in Sources */,
-				8B9D477926283F3B00DDB49E /* script2.c in Sources */,
 				8B20A3E2256913C40045BF66 /* script.c in Sources */,
 				8B20A3E3256913C40045BF66 /* opcodes.c in Sources */,
 				8B20A3E4256913C40045BF66 /* escnames.c in Sources */,
@@ -413,7 +406,6 @@
 				8B9C4037250A3C7F00C947F9 /* asm.c in Sources */,
 				8B9C401D250A2A5B00C947F9 /* platform.c in Sources */,
 				0981CBD4250B46970097F862 /* opernames.c in Sources */,
-				8B9D477826283F3B00DDB49E /* script2.c in Sources */,
 				8B9C403B250A3E5200C947F9 /* script.c in Sources */,
 				8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */,
 				0981CBD3250B46970097F862 /* escnames.c in Sources */,

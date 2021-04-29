@@ -67,18 +67,24 @@ typedef struct __attribute__((packed)) {
 // =============================================================================
 // MARK: - VM
 // =============================================================================
+// vm specs, loaded from packed main script header
+typedef struct {
+    // read values from packed main script
+    u16     script_data_tab_len;
+    u16     script_vram_tab_len;
+    u32     unused;
+    u32     max_allocatable_vram;
+    u32     vram_to_data_offset;
+    
+    // computed values
+    u32     script_vram_max_addr;
+} sAlisSpecs;
+
 typedef struct {
     // platform
     sPlatform       platform;
     
-    // vm specs, loaded from packed main script header
-    // TODO: what is the remaingin data ?
-    struct {
-        u16     script_data_tab_len;
-        u16     script_vram_tab_len;
-        u32     script_vram_max_addr;
-        u32     unused;
-    } vm_specs;
+    sAlisSpecs      specs;
     
     
     // Absolute address of vm's virtual ram.
@@ -128,7 +134,8 @@ typedef struct {
     sAlisScript *   scripts[kMaxScripts];
     
     // pointer to current script
-    sAlisScript *   script;
+    sAlisScript *       script;
+    sAlisScript *       main;
         
     // virtual registers
     s16             varD6;
@@ -186,7 +193,6 @@ extern sAlisVM alis;
 // MARK: - API
 // =============================================================================
 void            alis_init(sPlatform platform);
-void            alis_config_vm(u8 * packed_main_header_data);
 u8              alis_main(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);

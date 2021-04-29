@@ -81,10 +81,65 @@ alisRet readexec_opername_swap() {
 }
 
 
+void alis_load_main() {
+    // load main scripts as an usual script...
+    alis.main = script_load(alis.platform.main);
+    
+    // packed main script contains vm specs in the header
+    FILE * fp = fopen(alis.platform.main, "rb");
+    if (fp) {
+        // skip 6 bytes
+        fseek(fp, 6, SEEK_CUR);
+        
+        // read raw specs header
+        alis.specs.script_data_tab_len = fread16(fp, alis.platform);
+        alis.specs.script_vram_tab_len = fread16(fp, alis.platform);
+        alis.specs.unused = fread32(fp, alis.platform);
+        alis.specs.max_allocatable_vram = fread32(fp, alis.platform);
+        alis.specs.vram_to_data_offset = fread32(fp, alis.platform);
+        alis.specs.vram_to_data_offset += 3;
+        alis.specs.vram_to_data_offset *= 0x28;
+                    
+        // set the location of scripts' vrams table
+        alis.script_vram_orgs = (sScriptLoc *)(alis.vram_org + (alis.specs.script_data_tab_len * sizeof(u32)));
+        
+        // compute the end address of the scripts' vrams table
+        u32 script_vram_tab_end = (u32)((u8 *)alis.script_vram_orgs - alis.mem + (alis.specs.script_vram_tab_len * sizeof(sScriptLoc)));
+
+        // populate the script vrams table with the offsets (routine at $18cd8)
+        for(int idx = 0; idx < alis.specs.script_vram_tab_len; idx++) {
+            u16 offset = (1 + idx) * sizeof(sScriptLoc);
+            alis.script_vram_orgs[idx] = (sScriptLoc){0, offset};
+        }
+        
+        alis.specs.script_vram_max_addr = ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
+
+        u32 main_script_data_addr = alis.specs.script_vram_max_addr + alis.specs.vram_to_data_offset;
+
+        debug(EDebugVerbose, "\
+- script data table count: %d (0x%x), located at 0x%x\n\
+- script vram table count: %d (0x%x), located at 0x%x, ends at 0x%x\n\
+- script data located at 0x%x\n\
+- vram allocatable up to 0x%x \n\
+- unused (?) dword from header: 0x%x\n",
+              alis.specs.script_data_tab_len, alis.specs.script_data_tab_len, (u8 *)alis.script_data_orgs - alis.mem,
+              alis.specs.script_vram_tab_len, alis.specs.script_vram_tab_len, (u8 *)alis.script_vram_orgs - alis.mem,
+              script_vram_tab_end,
+              main_script_data_addr,
+              alis.specs.script_vram_max_addr,
+              alis.specs.unused);
+        fclose(fp);
+    }
+}
+
+
 // =============================================================================
 // MARK: - VM API
 // =============================================================================
+
 void alis_init(sPlatform platform) {
+    
+    debug(EDebugVerbose, "ALIS: Init.\n");
     
     // init virtual ram
     alis.mem = malloc(sizeof(u8) * kHostRAMSize);
@@ -125,59 +180,8 @@ void alis_init(sPlatform platform) {
     alis.pixelbuf.data = (u8 *)malloc(alis.pixelbuf.w * alis.pixelbuf.h);
     
     // load main script
-    sAlisScript * main_script = script_load(alis.platform.main);
-    alis_register_script(main_script);
-    alis.script_index = 0;
-}
-
-
-void alis_config_vm(u8 * packed_main_header_data) {
-
-    u8 * ptr = packed_main_header_data;
-
-    
-    // word: script data addresses table length
-    alis.vm_specs.script_data_tab_len = read_big_endian(ptr + 0, sizeof(u16));
-    
-    // word: script (vram addresses + offsets) table length
-    alis.vm_specs.script_vram_tab_len = read_big_endian(ptr + 2, sizeof(u16));
-    
-    // set the location of scripts' vrams table
-    alis.script_vram_orgs = (sScriptLoc *)(alis.vram_org + (alis.vm_specs.script_data_tab_len * sizeof(u32)));
-    
-    // compute the end address of the scripts' vrams table
-    u32 script_vram_tab_end = (u32)((u8 *)alis.script_vram_orgs - alis.mem + (alis.vm_specs.script_vram_tab_len * sizeof(sScriptLoc)));
-    
-    // populate the script vrams table with the offsets (routine at $18cd8)
-    for(int idx = 0; idx < alis.vm_specs.script_vram_tab_len; idx++) {
-        u16 offset = (1 + idx) * sizeof(sScriptLoc);
-        alis.script_vram_orgs[idx] = (sScriptLoc){0, offset};
-    }
-    
-    // get dword at offset $4 from main packed header
-    alis.vm_specs.unused = read_big_endian(ptr + 4, sizeof(u32));
-
-    // get dword at offset $8 from main packed header (routine at $185c6)
-    u32 max_allocatable_vram = read_big_endian(ptr + 8, sizeof(u32));
-    alis.vm_specs.script_vram_max_addr = ((script_vram_tab_end + max_allocatable_vram) | 0b111) + 1;
-    
-    // get dword at offset $12 from main packed header (routine at $185d8)
-    u32 data_offset = read_big_endian(ptr + 12, sizeof(u32));
-    data_offset += 3;
-    data_offset *= 0x28;
-    u32 main_script_data_addr = alis.vm_specs.script_vram_max_addr + data_offset;
-    
-    debug(EDebugVerbose, "- script data table count: %d (0x%x), located at 0x%x\n- script vram table count: %d (0x%x), located at 0x%x, ends at 0x%x\n- script data located at 0x%x\n- vram allocatable up to 0x%x\n- unused dword from header: 0x%x\n",
-          alis.vm_specs.script_data_tab_len, alis.vm_specs.script_data_tab_len, (u8 *)alis.script_data_orgs - alis.mem,
-          alis.vm_specs.script_vram_tab_len, alis.vm_specs.script_vram_tab_len, (u8 *)alis.script_vram_orgs - alis.mem, script_vram_tab_end,
-          main_script_data_addr,
-          alis.vm_specs.script_vram_max_addr,
-          alis.vm_specs.unused);
-
-    // push main script addr
-    alis.script_data_orgs[0] = main_script_data_addr;
-    
-    debug(EDebugVerbose, "\n");
+    alis_load_main();
+    alis.script = alis.main;
 }
 
 
