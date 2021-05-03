@@ -55,3 +55,55 @@ char * strupper(char * str) {
     }
     return str;
 }
+
+
+//u32 read_big_endian(u8 * data, size_t sz) {
+//    u32 ret = 0;
+//    u8 shift = sz - 1;
+//    for(int i = 0; i < sz; i++) {
+//        ret += (data[i]) << (shift-- << 3);
+//    }
+//    return ret;
+//}
+
+
+int is_host_little_endian() {
+    unsigned int x = 1;
+    char * c = (char *)&x;
+    return (int)*c;
+}
+
+
+u32 swap32(u32 num, sPlatform pl) {
+    u32 ret = num;
+    if(pl.is_little_endian != is_host_little_endian()) {
+        ret = ((num >> 24) & 0xff) | // move byte 3 to byte 0
+                ((num << 8) & 0xff0000) | // move byte 1 to byte 2
+                ((num >> 8) & 0xff00) | // move byte 2 to byte 1
+                ((num << 24) & 0xff000000); // byte 0 to byte 3
+    }
+    return ret;
+}
+
+
+u16 swap16(u16 num, sPlatform pl) {
+    u16 ret = num;
+    if(pl.is_little_endian != is_host_little_endian()) {
+        ret = (num >> 8) | (num << 8);
+    }
+    return ret;
+}
+
+
+u32 fread32(FILE * fp, sPlatform pl) {
+    u32 val = 0;
+    fread(&val, sizeof(u32), 1, fp);
+    return swap32(val, pl);
+}
+
+
+u16 fread16(FILE * fp, sPlatform pl) {
+    u16 val = 0;
+    fread(&val, sizeof(u16), 1, fp);
+    return swap16(val, pl);
+}
