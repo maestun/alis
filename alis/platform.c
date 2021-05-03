@@ -7,13 +7,13 @@
 #include "utils.h"
 
 static sPlatform platforms[] = {
-    { EPlatformAtari,       "Atari ST/STe", "ao", 320, 200, 5, "" },
-    { EPlatformFalcon,      "Atari Falcon", "fo", 320, 200, 8, "" },
-    { EPlatformAmiga,       "Amiga",        "co", 320, 200, 5, "" },
-    { EPlatformAmigaAGA,    "Amiga AGA",    "do", 320, 200, 8, "" },
-    { EPlatformMac,         "Macintosh",    "??", 320, 200, 5, "" },
-    { EPlatformPC,          "MS/DOS",       "io", 320, 200, 8, "" },
-    { EPlatformUnknown,     "Unknown",      "??",   0,   0, 0, "" },
+    { EPlatformAtari,       "Atari ST/STe", "ao", 320, 200, 5, 0, "" },
+    { EPlatformFalcon,      "Atari Falcon", "fo", 320, 200, 8, 0, "" },
+    { EPlatformAmiga,       "Amiga",        "co", 320, 200, 5, 0, "" },
+    { EPlatformAmigaAGA,    "Amiga AGA",    "do", 320, 200, 8, 0, "" },
+    { EPlatformMac,         "Macintosh",    "??", 320, 200, 5, 0, "" },
+    { EPlatformPC,          "MS/DOS",       "io", 320, 200, 8, 1, "" },
+    { EPlatformUnknown,     "Unknown",      "??",   0,   0, 0, 0, "" },
 };
 
 

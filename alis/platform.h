@@ -29,6 +29,7 @@ typedef struct {
     u16         width;              // screen info
     u16         height;
     u8          bpp;
+    u8          is_little_endian;
     char        path[kPathMaxLen];  // path to scripts
     char        main[kPathMaxLen];  // path to main script
 } sPlatform;
