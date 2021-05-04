@@ -646,13 +646,13 @@ u32 script_read24(void) {
 
 void script_read_bytes(u32 len, u8 * dest) {
     while(len--) {
-        *dest++ = *(alis.mem + alis.script->pc++);
+        *dest++ = alis.mem[alis.script->pc++];
     }
 }
 
 void script_read_until_zero(u8 * dest) {
-    while(*(alis.mem + alis.script->pc++)) {
-        *dest++ = *(alis.mem + alis.script->pc++);
+    while(alis.mem[alis.script->pc]) {
+        *dest++ = alis.mem[alis.script->pc++];
     }
     alis.script->pc++;
 }
