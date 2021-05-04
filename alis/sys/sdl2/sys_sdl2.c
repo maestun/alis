@@ -113,7 +113,7 @@ time_t sys_get_time(void) {
 }
 
 u16 sys_get_model(void) {
-    debug(EDebugWarning, "\n%s SIMULATED\n", __FUNCTION__);
+    debug(EDebugWarning, "/* %s SIMULATED */", __FUNCTION__);
     return 0x456; // Atari STe / 1MB / Lowrez
 }
 
