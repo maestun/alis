@@ -9,13 +9,13 @@
 #import <OpenGL/gl.h>
 #import <OpenGL/glu.h>
 
-extern "C" {
-    #include "vm.h"
-    #include "disasm.h"
-    #include "vm_tests.h"
-}
-
-static sScript ** _scripts;
+//extern "C" {
+//    #include "vm.h"
+//    #include "disasm.h"
+//    #include "vm_tests.h"
+//}
+//
+//static sScript ** _scripts;
 
 
 //-----------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ static sScript ** _scripts;
 {
     
     // VM
-    vm_step();
+    // vm_step();
     
     
     // Start the Dear ImGui frame
@@ -287,12 +287,12 @@ static sScript ** _scripts;
     
     
     // run vm
-    vm_init();
-    if(_scripts[0] != NULL) {
-        char * disasm = disasm_script(_scripts[0]);
-        printf(disasm);
-        vm_run(_scripts[0]);
-    }
+//    vm_init();
+//    if(_scripts[0] != NULL) {
+//        char * disasm = disasm_script(_scripts[0]);
+//        printf(disasm);
+//        vm_run(_scripts[0]);
+//    }
     
     // vm_deinit();
 }
@@ -304,33 +304,33 @@ static sScript ** _scripts;
 
 int main(int argc, const char* argv[])
 {
-    // parse args
-    if (argc < 2) {
-        printf("%s --test | [image-file1] ...\n", kProgName);
-        exit(2);
-    }
-
-    // tests
-    int didtest = 0;
-    if (strcmp(argv[1], "--test") == 0) {
-        didtest = 1;
-        vm_run_tests();
-    }
-    
-    // load script(s)
-    int script_count = argc - 1 - didtest;
-    _scripts = (sScript **)malloc(script_count * sizeof(sScript *));
-    for(int i = 0; i < script_count; i++) {
-        const char * path = argv[1 + didtest + i];
-        sScript * script = vm_load(path);
-        if(script != NULL) {
-            _scripts[i] = script;
-        }
-        else {
-            printf("FATAL: Cannot load script file %s.\n", path);
-            exit(1);
-        }
-    }
+//    // parse args
+//    if (argc < 2) {
+//        printf("%s --test | [image-file1] ...\n", kProgName);
+//        exit(2);
+//    }
+//
+//    // tests
+//    int didtest = 0;
+//    if (strcmp(argv[1], "--test") == 0) {
+//        didtest = 1;
+//        vm_run_tests();
+//    }
+//    
+//    // load script(s)
+//    int script_count = argc - 1 - didtest;
+//    _scripts = (sScript **)malloc(script_count * sizeof(sScript *));
+//    for(int i = 0; i < script_count; i++) {
+//        const char * path = argv[1 + didtest + i];
+//        sScript * script = vm_load(path);
+//        if(script != NULL) {
+//            _scripts[i] = script;
+//        }
+//        else {
+//            printf("FATAL: Cannot load script file %s.\n", path);
+//            exit(1);
+//        }
+//    }
     
     
 	@autoreleasepool

@@ -3,6 +3,7 @@
 //  alis
 //
 #include "alis.h"
+#include "disasm.h"
 #include "config.h"
 #include "sys/sys.h"
 
@@ -23,7 +24,11 @@ int main(int argc, const char* argv[]) {
             sys_init();
             alis_init(pl);
             
-            alis_main();
+            
+            char path [kPathMaxLen] = {0};
+            sprintf(path, "%s%c%s", pl.path, kPathSeparator, "main.ao");
+            disasm(path);
+            // alis_main();
             
             alis_deinit();
             sys_deinit();

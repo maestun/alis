@@ -11,19 +11,6 @@
 		0981CBD2250B46970097F862 /* addnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCE250B46970097F862 /* addnames.c */; };
 		0981CBD3250B46970097F862 /* escnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCF250B46970097F862 /* escnames.c */; };
 		0981CBD4250B46970097F862 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
-		8B20A3D9256913C40045BF66 /* storenames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCD250B46970097F862 /* storenames.c */; };
-		8B20A3DA256913C40045BF66 /* addnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCE250B46970097F862 /* addnames.c */; };
-		8B20A3DB256913C40045BF66 /* sys_sdl2.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4046250A721D00C947F9 /* sys_sdl2.c */; };
-		8B20A3DC256913C40045BF66 /* utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402F250A2F9300C947F9 /* utils.c */; };
-		8B20A3DD256913C40045BF66 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402B250A2A8F00C947F9 /* main.c */; };
-		8B20A3DE256913C40045BF66 /* alis.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C400F250921E900C947F9 /* alis.c */; };
-		8B20A3DF256913C40045BF66 /* asm.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4035250A3C7F00C947F9 /* asm.c */; };
-		8B20A3E0256913C40045BF66 /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4012250921F600C947F9 /* platform.c */; };
-		8B20A3E1256913C40045BF66 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
-		8B20A3E2256913C40045BF66 /* script.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C403A250A3E5200C947F9 /* script.c */; };
-		8B20A3E3256913C40045BF66 /* opcodes.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4016250A247D00C947F9 /* opcodes.c */; };
-		8B20A3E4256913C40045BF66 /* escnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCF250B46970097F862 /* escnames.c */; };
-		8B20A3E5256913C40045BF66 /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4043250A6AC200C947F9 /* debug.c */; };
 		8B26B69B256D4F7500477B72 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B7D7B27256D40C400DAA932 /* SDL2.framework */; };
 		8B9C401B250A2A5B00C947F9 /* alis.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C400F250921E900C947F9 /* alis.c */; };
 		8B9C401D250A2A5B00C947F9 /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4012250921F600C947F9 /* platform.c */; };
@@ -34,18 +21,28 @@
 		8B9C403B250A3E5200C947F9 /* script.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C403A250A3E5200C947F9 /* script.c */; };
 		8B9C4044250A6AC200C947F9 /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4043250A6AC200C947F9 /* debug.c */; };
 		8B9C4047250A721D00C947F9 /* sys_sdl2.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4046250A721D00C947F9 /* sys_sdl2.c */; };
+		8BDDE32B26415552002BF423 /* storenames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCD250B46970097F862 /* storenames.c */; };
+		8BDDE32C26415552002BF423 /* addnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCE250B46970097F862 /* addnames.c */; };
+		8BDDE32D26415552002BF423 /* sys_sdl2.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4046250A721D00C947F9 /* sys_sdl2.c */; };
+		8BDDE32E26415552002BF423 /* utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402F250A2F9300C947F9 /* utils.c */; };
+		8BDDE32F26415552002BF423 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402B250A2A8F00C947F9 /* main.c */; };
+		8BDDE33026415552002BF423 /* alis.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C400F250921E900C947F9 /* alis.c */; };
+		8BDDE33126415552002BF423 /* asm.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4035250A3C7F00C947F9 /* asm.c */; };
+		8BDDE33226415552002BF423 /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4012250921F600C947F9 /* platform.c */; };
+		8BDDE33326415552002BF423 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
+		8BDDE33426415552002BF423 /* script.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C403A250A3E5200C947F9 /* script.c */; };
+		8BDDE33526415552002BF423 /* opcodes.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4016250A247D00C947F9 /* opcodes.c */; };
+		8BDDE33626415552002BF423 /* escnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCF250B46970097F862 /* escnames.c */; };
+		8BDDE33726415552002BF423 /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4043250A6AC200C947F9 /* debug.c */; };
+		8BDDE33926415552002BF423 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B7D7B27256D40C400DAA932 /* SDL2.framework */; };
+		8BDDE34026415568002BF423 /* imgui_impl_osx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8B28A6702507C4F800E3F0FF /* imgui_impl_osx.mm */; };
+		8BDDE3412641556A002BF423 /* imgui_impl_opengl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8B28A66F2507C4F800E3F0FF /* imgui_impl_opengl2.cpp */; };
+		8BDDE3422641556D002BF423 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8B28A66D2507C4F800E3F0FF /* main.mm */; };
+		8BF0E5A226428E5B0094DA41 /* disasm.c in Sources */ = {isa = PBXBuildFile; fileRef = 8BF0E5A126428E5B0094DA41 /* disasm.c */; };
+		8BF0E5A326428E5B0094DA41 /* disasm.c in Sources */ = {isa = PBXBuildFile; fileRef = 8BF0E5A126428E5B0094DA41 /* disasm.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		8B20A3E7256913C40045BF66 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
 		8B7D7B33256D414B00DAA932 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -65,6 +62,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
+		8BDDE33A26415552002BF423 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		8BDDE33B26415552002BF423 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -74,7 +90,6 @@
 		0981CBCF250B46970097F862 /* escnames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = escnames.c; sourceTree = "<group>"; };
 		0981CBD0250B46970097F862 /* opernames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = opernames.c; sourceTree = "<group>"; };
 		0981CBD5250B470E0097F862 /* alis_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = alis_private.h; sourceTree = "<group>"; };
-		8B20A3EB256913C40045BF66 /* alis-imgui */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "alis-imgui"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B28A6682507C4F800E3F0FF /* imgui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui.h; sourceTree = "<group>"; };
 		8B28A6692507C4F800E3F0FF /* imconfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imconfig.h; sourceTree = "<group>"; };
 		8B28A66A2507C4F800E3F0FF /* imgui_widgets.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_widgets.cpp; sourceTree = "<group>"; };
@@ -94,8 +109,6 @@
 		8B28A6822507C5AA00E3F0FF /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		8B28A6842507C9EC00E3F0FF /* imgui_memory_editor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imgui_memory_editor.h; sourceTree = "<group>"; };
 		8B37A662252471D500B7FBDB /* TODO */ = {isa = PBXFileReference; lastKnownFileType = text; name = TODO; path = ../TODO; sourceTree = "<group>"; };
-		8B7D79A7256CF09300DAA932 /* vram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = vram.h; sourceTree = "<group>"; };
-		8B7D79A8256CF09300DAA932 /* vram.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vram.c; sourceTree = "<group>"; };
 		8B7D7B17256D3FCC00DAA932 /* sdl2.pc */ = {isa = PBXFileReference; lastKnownFileType = text; path = sdl2.pc; sourceTree = "<group>"; };
 		8B7D7B1A256D3FCC00DAA932 /* sdl2-config-version.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "sdl2-config-version.cmake"; sourceTree = "<group>"; };
 		8B7D7B1B256D3FCC00DAA932 /* sdl2-config.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "sdl2-config.cmake"; sourceTree = "<group>"; };
@@ -124,21 +137,26 @@
 		8B9C4045250A721D00C947F9 /* sys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sys.h; sourceTree = "<group>"; };
 		8B9C4046250A721D00C947F9 /* sys_sdl2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys_sdl2.c; sourceTree = "<group>"; };
 		8BD307522625D1F200F0417C /* hardware.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = hardware.txt; path = ../tools/hardware.txt; sourceTree = "<group>"; };
+		8BDDE33F26415552002BF423 /* alis-imgui */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "alis-imgui"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8BF0E5A026428E5B0094DA41 /* disasm.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disasm.h; sourceTree = "<group>"; };
+		8BF0E5A126428E5B0094DA41 /* disasm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = disasm.c; sourceTree = "<group>"; };
+		8BF0E5A4264290F30094DA41 /* disasm_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disasm_private.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		8B20A3E6256913C40045BF66 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		8B9C4025250A2A5B00C947F9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				8B26B69B256D4F7500477B72 /* SDL2.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8BDDE33826415552002BF423 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8BDDE33926415552002BF423 /* SDL2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -162,7 +180,7 @@
 			isa = PBXGroup;
 			children = (
 				8B9C402A250A2A5B00C947F9 /* alis */,
-				8B20A3EB256913C40045BF66 /* alis-imgui */,
+				8BDDE33F26415552002BF423 /* alis-imgui */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -279,6 +297,9 @@
 				8B9C402D250A2AEF00C947F9 /* config.h */,
 				8B9C4042250A6AC200C947F9 /* debug.h */,
 				8B9C4043250A6AC200C947F9 /* debug.c */,
+				8BF0E5A026428E5B0094DA41 /* disasm.h */,
+				8BF0E5A4264290F30094DA41 /* disasm_private.h */,
+				8BF0E5A126428E5B0094DA41 /* disasm.c */,
 				0981CBCF250B46970097F862 /* escnames.c */,
 				8B9C4016250A247D00C947F9 /* opcodes.c */,
 				0981CBD0250B46970097F862 /* opernames.c */,
@@ -290,8 +311,6 @@
 				0981CBCD250B46970097F862 /* storenames.c */,
 				8B9C402E250A2F9300C947F9 /* utils.h */,
 				8B9C402F250A2F9300C947F9 /* utils.c */,
-				8B7D79A7256CF09300DAA932 /* vram.h */,
-				8B7D79A8256CF09300DAA932 /* vram.c */,
 			);
 			name = alis;
 			path = ../alis;
@@ -309,23 +328,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8B20A3D7256913C40045BF66 /* alis-imgui */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 8B20A3E8256913C40045BF66 /* Build configuration list for PBXNativeTarget "alis-imgui" */;
-			buildPhases = (
-				8B20A3D8256913C40045BF66 /* Sources */,
-				8B20A3E6256913C40045BF66 /* Frameworks */,
-				8B20A3E7256913C40045BF66 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "alis-imgui";
-			productName = "lc3vm-orig";
-			productReference = 8B20A3EB256913C40045BF66 /* alis-imgui */;
-			productType = "com.apple.product-type.tool";
-		};
 		8B9C4019250A2A5B00C947F9 /* alis */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8B9C4027250A2A5B00C947F9 /* Build configuration list for PBXNativeTarget "alis" */;
@@ -342,6 +344,24 @@
 			name = alis;
 			productName = "lc3vm-orig";
 			productReference = 8B9C402A250A2A5B00C947F9 /* alis */;
+			productType = "com.apple.product-type.tool";
+		};
+		8BDDE32926415552002BF423 /* alis-imgui */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8BDDE33C26415552002BF423 /* Build configuration list for PBXNativeTarget "alis-imgui" */;
+			buildPhases = (
+				8BDDE32A26415552002BF423 /* Sources */,
+				8BDDE33826415552002BF423 /* Frameworks */,
+				8BDDE33A26415552002BF423 /* CopyFiles */,
+				8BDDE33B26415552002BF423 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "alis-imgui";
+			productName = "lc3vm-orig";
+			productReference = 8BDDE33F26415552002BF423 /* alis-imgui */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -367,38 +387,19 @@
 			projectRoot = "";
 			targets = (
 				8B9C4019250A2A5B00C947F9 /* alis */,
-				8B20A3D7256913C40045BF66 /* alis-imgui */,
+				8BDDE32926415552002BF423 /* alis-imgui */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		8B20A3D8256913C40045BF66 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				8B20A3D9256913C40045BF66 /* storenames.c in Sources */,
-				8B20A3DA256913C40045BF66 /* addnames.c in Sources */,
-				8B20A3DB256913C40045BF66 /* sys_sdl2.c in Sources */,
-				8B20A3DC256913C40045BF66 /* utils.c in Sources */,
-				8B20A3DD256913C40045BF66 /* main.c in Sources */,
-				8B20A3DE256913C40045BF66 /* alis.c in Sources */,
-				8B20A3DF256913C40045BF66 /* asm.c in Sources */,
-				8B20A3E0256913C40045BF66 /* platform.c in Sources */,
-				8B20A3E1256913C40045BF66 /* opernames.c in Sources */,
-				8B20A3E2256913C40045BF66 /* script.c in Sources */,
-				8B20A3E3256913C40045BF66 /* opcodes.c in Sources */,
-				8B20A3E4256913C40045BF66 /* escnames.c in Sources */,
-				8B20A3E5256913C40045BF66 /* debug.c in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		8B9C401A250A2A5B00C947F9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				0981CBD1250B46970097F862 /* storenames.c in Sources */,
 				0981CBD2250B46970097F862 /* addnames.c in Sources */,
+				8BF0E5A226428E5B0094DA41 /* disasm.c in Sources */,
 				8B9C4047250A721D00C947F9 /* sys_sdl2.c in Sources */,
 				8B9C4030250A2F9300C947F9 /* utils.c in Sources */,
 				8B9C402C250A2A8F00C947F9 /* main.c in Sources */,
@@ -413,25 +414,33 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8BDDE32A26415552002BF423 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8BDDE32B26415552002BF423 /* storenames.c in Sources */,
+				8BDDE32C26415552002BF423 /* addnames.c in Sources */,
+				8BDDE3412641556A002BF423 /* imgui_impl_opengl2.cpp in Sources */,
+				8BDDE32D26415552002BF423 /* sys_sdl2.c in Sources */,
+				8BDDE3422641556D002BF423 /* main.mm in Sources */,
+				8BDDE32E26415552002BF423 /* utils.c in Sources */,
+				8BDDE32F26415552002BF423 /* main.c in Sources */,
+				8BDDE33026415552002BF423 /* alis.c in Sources */,
+				8BDDE33126415552002BF423 /* asm.c in Sources */,
+				8BDDE33226415552002BF423 /* platform.c in Sources */,
+				8BDDE34026415568002BF423 /* imgui_impl_osx.mm in Sources */,
+				8BF0E5A326428E5B0094DA41 /* disasm.c in Sources */,
+				8BDDE33326415552002BF423 /* opernames.c in Sources */,
+				8BDDE33426415552002BF423 /* script.c in Sources */,
+				8BDDE33526415552002BF423 /* opcodes.c in Sources */,
+				8BDDE33626415552002BF423 /* escnames.c in Sources */,
+				8BDDE33726415552002BF423 /* debug.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		8B20A3E9256913C40045BF66 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		8B20A3EA256913C40045BF66 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 		8B28A61D25076CC800E3F0FF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -581,18 +590,52 @@
 			};
 			name = Release;
 		};
+		8BDDE33D26415552002BF423 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					GL_SILENCE_DEPRECATION,
+					"DEBUG=1",
+				);
+				HEADER_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"/Library/Frameworks/**",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SYSTEM_FRAMEWORK_SEARCH_PATHS = "/Library/Frameworks/**";
+				SYSTEM_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		8BDDE33E26415552002BF423 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = GL_SILENCE_DEPRECATION;
+				HEADER_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"/Library/Frameworks/**",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SYSTEM_FRAMEWORK_SEARCH_PATHS = "/Library/Frameworks/**";
+				SYSTEM_HEADER_SEARCH_PATHS = "";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		8B20A3E8256913C40045BF66 /* Build configuration list for PBXNativeTarget "alis-imgui" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				8B20A3E9256913C40045BF66 /* Debug */,
-				8B20A3EA256913C40045BF66 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		8B28A61325076CC800E3F0FF /* Build configuration list for PBXProject "alis" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -607,6 +650,15 @@
 			buildConfigurations = (
 				8B9C4028250A2A5B00C947F9 /* Debug */,
 				8B9C4029250A2A5B00C947F9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8BDDE33C26415552002BF423 /* Build configuration list for PBXNativeTarget "alis-imgui" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8BDDE33D26415552002BF423 /* Debug */,
+				8BDDE33E26415552002BF423 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

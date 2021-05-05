@@ -135,7 +135,6 @@ typedef struct {
     
     // pointer to current script
     sAlisScript *       script;
-    sAlisScript *       main;
         
     // virtual registers
     s16             varD6;

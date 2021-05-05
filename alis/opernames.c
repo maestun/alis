@@ -87,21 +87,21 @@ void olocti() {
 
 // reads a byte offset from script,
 // then reads an extended byte from vram[offset] into r7
-void odirb(/* u8 offset */) {
+void odirb() {
     u8 offset = script_read8();
     alis.varD7 = vram_read8ext16(offset);
 }
 
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
-void odirw(/* u8 offset */) {
+void odirw() {
     u8 offset = script_read8();
     alis.varD7 = vram_read16(offset);;
 }
 
 // reads a byte offset from script,
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
-void odirp(/* u8 offset */) {
+void odirp() {
     u8 offset = script_read8();
     vram_readp(offset, alis.bssChunk3);
 }

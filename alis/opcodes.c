@@ -21,7 +21,6 @@ static void cstore_continue() {
     u8 * tmp = alis.bssChunk1;
     alis.bssChunk1 = alis.bssChunk3;
     alis.bssChunk3 = tmp;
-    
     readexec_storename();
 }
 
@@ -337,6 +336,7 @@ void FUN_00013dda() {
 
 // reads 35 bytes
 static void cdefsc() {
+        
     debug(EDebugWarning, " /* STUBBED */");
     /*
      ; code address: $139ca
@@ -1355,34 +1355,34 @@ static void czoom() {
 // ============================================================================
 #pragma mark - Unimplemented opcodes
 // ============================================================================
-static void cnul()      {
+static void cnul() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cesc1()     {
+static void cesc1() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cesc2()     {
+static void cesc2() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cesc3()     {
+static void cesc3() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cclock()    {
+static void cclock() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cbreakpt()  {
+static void cbreakpt() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cmul()      {
+static void cmul() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cdiv()      {
+static void cdiv() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cjsrabs()   {
+static void cjsrabs() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cjmpabs()   {
+static void cjmpabs() {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
 static void cjsrind16() {
@@ -1406,7 +1406,9 @@ static void cret() {
     // return from subroutine (cjsr)
     // retrieve return address **OFFSET** from virtual stack
     u32 pc_offset = vram_pop32();
-    alis.script->pc = alis.script->pc_org + pc_offset;
+    if(!alis.disasm) {
+        alis.script->pc = alis.script->pc_org + pc_offset;
+    }
 }
 
 static void cjsr(u32 offset) {
@@ -1465,7 +1467,6 @@ static void cjmp24() {
 // ============================================================================
 static void cbz(u32 offset) {
     if(alis.varD7 == 0) {
-//        alis.pc += offset;
         script_jump(offset);
     }
 }

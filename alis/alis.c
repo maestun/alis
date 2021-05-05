@@ -81,9 +81,9 @@ alisRet readexec_opername_swap() {
 }
 
 
-void alis_load_main() {
+sAlisScript * alis_load_main() {
     // load main scripts as an usual script...
-    alis.main = script_load(alis.platform.main);
+    sAlisScript * main = script_load(alis.platform.main);
     
     // packed main script contains vm specs in the header
     FILE * fp = fopen(alis.platform.main, "rb");
@@ -130,6 +130,7 @@ void alis_load_main() {
               alis.specs.unused);
         fclose(fp);
     }
+    return main;
 }
 
 
@@ -180,8 +181,8 @@ void alis_init(sPlatform platform) {
     alis.pixelbuf.data = (u8 *)malloc(alis.pixelbuf.w * alis.pixelbuf.h);
     
     // load main script
-    alis_load_main();
-    alis.script = alis.main;
+    alis.script = alis_load_main();
+    alis_register_script(alis.script);
 }
 
 
@@ -264,7 +265,6 @@ u8 alis_main() {
     // alis was stopped by 'cexit' opcode
     return ret;
 }
-
 
 
 void alis_error(u8 errnum, ...) {
