@@ -254,11 +254,11 @@ u8 alis_main() {
             // the address to jump to is:
             alis.script->pc = alis.script->data_org + offset + 6; /* skip ID, word 1, word 2: 6 bytes */
             alis_loop();
-            alis.script_index++;
+            // alis.script_index++;
         }
         else {
             // return to previous script ?
-            alis.script_index--;
+            // alis.script_index--;
         }
     }
     
@@ -297,96 +297,96 @@ void alis_debug() {
 // =============================================================================
 // MARK: - MEMORY ACCESS
 // =============================================================================
-u8 * vram_ptr(u16 offset) {
-    return (u8 *)(alis.mem + alis.script->vram_org + offset);
+u8 * vram_ptr(sAlisScript * script, u16 offset) {
+    return (u8 *)(alis.mem + script->vram_org + offset);
 }
 
-u8 vram_read8(s32 offset) {
-    return *(u8 *)(alis.mem + alis.script->vram_org + offset);
+u8 vram_read8(sAlisScript * script, s32 offset) {
+    return *(u8 *)(alis.mem + script->vram_org + offset);
 }
 
-s16 vram_read8ext16(u16 offset) {
-    s16 ret = *(u8 *)(alis.mem + alis.script->vram_org + offset);
+s16 vram_read8ext16(sAlisScript * script, u16 offset) {
+    s16 ret = *(u8 *)(alis.mem + script->vram_org + offset);
     if(BIT_CHK(ret, 7)) {
         ret |= 0xff00;
     }
     return ret;
 }
 
-s32 vram_read8ext32(u16 offset) {
-    s32 ret = *(u8 *)(alis.mem + alis.script->vram_org + offset);
+s32 vram_read8ext32(sAlisScript * script, u16 offset) {
+    s32 ret = *(u8 *)(alis.mem + script->vram_org + offset);
     if(BIT_CHK(ret, 7)) {
         ret |= 0xffffff00;
     }
     return ret;
 }
 
-u16 vram_read16(s32 offset) {
-    return *(u16 *)(alis.mem + alis.script->vram_org + offset);
+u16 vram_read16(sAlisScript * script, s32 offset) {
+    return *(u16 *)(alis.mem + script->vram_org + offset);
 }
 
-s32 vram_read16ext32(u16 offset) {
-    s32 ret = *(u16 *)(alis.mem + alis.script->vram_org + offset);
+s32 vram_read16ext32(sAlisScript * script, u16 offset) {
+    s32 ret = *(u16 *)(alis.mem + script->vram_org + offset);
     if(BIT_CHK(ret, 15)) {
         ret |= 0xffffff00;
     }
     return ret;
 }
 
-void vram_readp(u16 offset, u8 * dst_ptr) {
-    u8 * src_ptr = alis.mem + alis.script->vram_org + offset;
+void vram_readp(sAlisScript * script, u16 offset, u8 * dst_ptr) {
+    u8 * src_ptr = alis.mem + script->vram_org + offset;
     do {
         *dst_ptr++ = *src_ptr++;
     } while (*src_ptr);
 }
 
-void vram_write8(s32 offset, u8 value) {
-    *(u8 *)(alis.mem + alis.script->vram_org + offset) = value;
+void vram_write8(sAlisScript * script, s32 offset, u8 value) {
+    *(u8 *)(alis.mem + script->vram_org + offset) = value;
 }
 
-void vram_write16(s32 offset, u16 value) {
-    *(u16 *)(alis.mem + alis.script->vram_org + offset) = value;
+void vram_write16(sAlisScript * script, s32 offset, u16 value) {
+    *(u16 *)(alis.mem + script->vram_org + offset) = value;
 }
 
-void vram_writep(u16 offset, u8 * src_ptr) {
-    u8 * dst_ptr = alis.mem + alis.script->vram_org + offset;
+void vram_writep(sAlisScript * script, u16 offset, u8 * src_ptr) {
+    u8 * dst_ptr = alis.mem + script->vram_org + offset;
     do {
         *dst_ptr++ = *src_ptr++;
     } while (*src_ptr);
 }
 
-void vram_setbit(u16 offset, u8 bit) {
-    BIT_SET(*(u8 *)(alis.mem + alis.script->vram_org + offset), bit);
+void vram_setbit(sAlisScript * script, u16 offset, u8 bit) {
+    BIT_SET(*(u8 *)(alis.mem + script->vram_org + offset), bit);
 }
 
-void vram_clrbit(u16 offset, u8 bit) {
-    BIT_CLR(*(u8 *)(alis.mem + alis.script->vram_org + offset), bit);
+void vram_clrbit(sAlisScript * script, u16 offset, u8 bit) {
+    BIT_CLR(*(u8 *)(alis.mem + script->vram_org + offset), bit);
 }
 
-void vram_add8(u16 offset, u8 value) {
-    *(u8 *)(alis.mem + alis.script->vram_org + offset) += value;
+void vram_add8(sAlisScript * script, u16 offset, u8 value) {
+    *(u8 *)(alis.mem + script->vram_org + offset) += value;
 }
 
-void vram_add16(u16 offset, u16 value) {
-    *(u16 *)(alis.mem + alis.script->vram_org + offset) += value;
+void vram_add16(sAlisScript * script, u16 offset, u16 value) {
+    *(u16 *)(alis.mem + script->vram_org + offset) += value;
 }
 
 
 // =============================================================================
 // MARK: - Virtual Stack access
 // =============================================================================
-void vram_push32(u32 value) {
-    alis.script->vacc_off -= sizeof(u32);
-    *(u32 *)(alis.mem + alis.script->vram_org + alis.script->vacc_off) = value;
+void vram_push32(sAlisScript * script, u32 value) {
+    script->vacc_off -= sizeof(u32);
+    *(u32 *)(alis.mem + script->vram_org + script->vacc_off) = value;
 }
 
-u32 vram_peek32() {
-    return *(u32 *)(alis.mem + alis.script->vram_org + alis.script->vacc_off);
+u32 vram_peek32(sAlisScript * script) {
+    return *(u32 *)(alis.mem + script->vram_org + script->vacc_off);
 }
 
-u32 vram_pop32() {
-    u32 ret = vram_peek32();
-    alis.script->vacc_off += sizeof(u32);
+u32 vram_pop32(sAlisScript * script) {
+    u32 ret = vram_peek32(script);
+    script->vacc_off += sizeof(u32);
     return ret;
 }
 

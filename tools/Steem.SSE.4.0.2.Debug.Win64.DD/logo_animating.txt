@@ -333,7 +333,7 @@
 	0x33641: oimmb	; r7 <- *pc++
 0x33643: cputnat
 	0x33644: oeval
-		0x33645: odirw
+		0x33645: odirw	; r7 <- ext(vram[offset])
 		0x33647: osub
 		0x33648: oimmb
 		0x3364a: ofin

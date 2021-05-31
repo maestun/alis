@@ -73,14 +73,14 @@ static void cdim() {
     u8 counter = script_read8();
     u8 byte2 = script_read8();
     
-    vram_write8(--offset, counter);
-    vram_write8(--offset, byte2);
+    vram_write8(alis.script, --offset, counter);
+    vram_write8(alis.script, --offset, byte2);
     
     // loop w/ counter, read words, store backwards
     while(counter--) {
         u16 w = script_read16();
         offset -= 2;
-        vram_write16(offset, w);
+        vram_write16(alis.script, offset, w);
     }
 }
 
@@ -118,6 +118,20 @@ static void cloop24() {
 }
 
 static void cswitch1() {
+    readexec_opername();
+    
+    u8 d1 = script_read8();
+    
+    // if PC is odd, make it even
+    if(alis.script->pc & 0x1) {
+        script_jump(1);
+    }
+    u16 cmp = script_read16();
+    while (cmp != alis.varD7) {
+        script_jump(2);
+        cmp = script_read8();
+    }
+    
     debug(EDebugWarning, " /* MISSING */");
 }
 
@@ -243,6 +257,7 @@ undefined         D0b:1          <RETURN>
 }
 
 static void cload() {
+
     // get script ID
     u16 id = script_read16();
     if(id == 0) {
@@ -349,7 +364,7 @@ static void cdefsc() {
     /*
          movea.l        (ADDR_VSTACK).l,A0 ; correspond à a6 !!! / A0 vaut $224f0, contient $22690 soit vstack
      */
-    u8 * ram = vram_ptr(0);
+    u8 * ram = vram_ptr(alis.script, 0);
     /*
          bset.b         #$6,(A0,D0)
      */
@@ -501,20 +516,20 @@ static void cerasen() {
 
 static void cset() {
     readexec_opername();
-    vram_write16(0, alis.varD7);
+    vram_write16(alis.script, 0, alis.varD7);
     readexec_opername();
-    vram_write16(2, alis.varD7);
+    vram_write16(alis.script, 2, alis.varD7);
     readexec_opername();
-    vram_write16(4, alis.varD7);
+    vram_write16(alis.script, 4, alis.varD7);
 }
 
 static void cmov() {
     readexec_opername();
-    vram_add16(0, alis.varD7);
+    vram_add16(alis.script, 0, alis.varD7);
     readexec_opername();
-    vram_add16(2, alis.varD7);
+    vram_add16(alis.script, 2, alis.varD7);
     readexec_opername();
-    vram_add16(4, alis.varD7);
+    vram_add16(alis.script, 4, alis.varD7);
 }
 
 static void copensc() {
@@ -537,8 +552,8 @@ static void copensc() {
 //00013d68 61 00 00 18     bsr.w      FUN_00013d82                                     undefined FUN_00013d82()
 //00013d6c 4e 75           rts
     u16 id = script_read16();
-    vram_clrbit(id, ALIS_BIT_6);
-    vram_setbit(id, ALIS_BIT_7);
+    vram_clrbit(alis.script, id, ALIS_BIT_6);
+    vram_setbit(alis.script, id, ALIS_BIT_7);
     
     debug(EDebugWarning, " /* STUBBED */");
 }
@@ -690,7 +705,6 @@ static void cinitab() {
 static void cfopen() {
     u16 id = 0;
     if(*(alis.mem + alis.script->pc) == 0xff) {
-//        ++(alis.script->pc);
         script_jump(1);
         readexec_opername_swap();
         readexec_opername();
@@ -784,7 +798,7 @@ static void cxyscroll() {
 
 static void clinking() {
     readexec_opername();
-    vram_write16(0xffd6, alis.varD7);
+    vram_write16(alis.script, 0xffd6, alis.varD7);
 }
 
 static void cmouson() {
@@ -872,7 +886,7 @@ static void cdefworld() {
     u16 offset = script_read16();
     u8 counter = 5;
     while(counter--) {
-        vram_write8(offset, script_read8());
+        vram_write8(alis.script, offset, script_read8());
     }
     debug(EDebugWarning, " /* MISSING */");
 }
@@ -882,8 +896,8 @@ static void cworld() {
 //00017404 1d 5b ff de     move.b     (A3)+,(0xFFDE,A6)
 //00017408 1d 5b ff df     move.b     (A3)+,(0xFFDF,A6)
 //0001740c 4e 75           rts
-    vram_write8(0xffde, script_read8());
-    vram_write8(0xffdf, script_read8());
+    vram_write8(alis.script, 0xffde, script_read8());
+    vram_write8(alis.script, 0xffdf, script_read8());
 }
 
 static void cfindmat() {
@@ -1405,9 +1419,11 @@ static void cjmpind24() {
 static void cret() {
     // return from subroutine (cjsr)
     // retrieve return address **OFFSET** from virtual stack
-    u32 pc_offset = vram_pop32();
+    u32 pc_offset = vram_pop32(alis.script);
     if(!alis.disasm) {
-        alis.script->pc = alis.script->pc_org + pc_offset;
+        if(!alis.disasm) {
+            alis.script->pc = alis.script->pc_org + pc_offset;
+        }
     }
 }
 
@@ -1420,7 +1436,7 @@ static void cjsr(u32 offset) {
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
     u32 pc_offset = (u32)(alis.script->pc - alis.script->pc_org);
-    vram_push32(pc_offset);
+    vram_push32(alis.script, pc_offset);
     script_jump(offset);
 }
 
@@ -1628,15 +1644,15 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x1d, cbne24,       "branch if non-equal with 24-bit offset"),
     DECL_OPCODE(0x1e, cstore,       "store expression"),
     DECL_OPCODE(0x1f, ceval,        "start expression evaluation"),
-    DECL_OPCODE(0x20, cadd, "TODO: add desc"),
-    DECL_OPCODE(0x21, csub, "TODO: add desc"),
+    DECL_OPCODE(0x20, cadd,         "TODO: add desc"),
+    DECL_OPCODE(0x21, csub,         "TODO: add desc"),
     DECL_OPCODE(0x22, cmul,         "[N/I]"),
     DECL_OPCODE(0x23, cdiv,         "[N/I]"),
-    DECL_OPCODE(0x24, cvprint, "TODO: add desc"),
-    DECL_OPCODE(0x25, csprinti, "TODO: add desc"),
-    DECL_OPCODE(0x26, csprinta, "TODO: add desc"),
-    DECL_OPCODE(0x27, clocate, "TODO: add desc"),
-    DECL_OPCODE(0x28, ctab, "TODO: add desc"),
+    DECL_OPCODE(0x24, cvprint,      "TODO: add desc"),
+    DECL_OPCODE(0x25, csprinti,     "TODO: add desc"),
+    DECL_OPCODE(0x26, csprinta,     "TODO: add desc"),
+    DECL_OPCODE(0x27, clocate,      "TODO: add desc"),
+    DECL_OPCODE(0x28, ctab,         "TODO: add desc"),
     DECL_OPCODE(0x29, cdim,         "TODO: add desc"),
     DECL_OPCODE(0x2a, crandom,      "generate a random number"),
     DECL_OPCODE(0x2b, cloop8, "TODO: add desc"),

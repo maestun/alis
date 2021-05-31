@@ -501,7 +501,7 @@ sAlisScript * script_load(const char * script_path) {
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
         debug(EDebugVerbose,
-              "Loading script file: %s\n", script_path);
+              "\nLoading script file: %s\n", script_path);
         
         // get packed file size
         fseek(fp, 0L, SEEK_END);

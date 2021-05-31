@@ -127,7 +127,7 @@ typedef struct {
     // u32             script_data_offsets[kMaxScripts];
     // u8              script_id_stack[kMaxScripts]; // TODO: use a real stack ?
     // u8              script_count;
-    u8              script_index;
+    // u8              script_index;
     
     // SCRIPTS
     // global table containing all depacked scripts

@@ -25,10 +25,10 @@ int main(int argc, const char* argv[]) {
             alis_init(pl);
             
             
-            char path [kPathMaxLen] = {0};
-            sprintf(path, "%s%c%s", pl.path, kPathSeparator, "main.ao");
-            disasm(path);
-            // alis_main();
+//            char path [kPathMaxLen] = {0};
+//            sprintf(path, "%s%c%s", pl.path, kPathSeparator, "main.ao");
+//            disasm(path);
+            alis_main();
             
             alis_deinit();
             sys_deinit();

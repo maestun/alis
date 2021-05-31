@@ -20,19 +20,19 @@ static void cnul() {
 // read offset word from script, then copy byte from r7 into ram[offset]
 static void slocb() {
     u16 offset = script_read16();
-    vram_write8(offset, (u8)alis.varD7);
+    vram_write8(alis.script, offset, (u8)alis.varD7);
 }
 
 // read offset word from script, then copy word from r7 into ram[offset]
 static void slocw() {
     u16 offset = script_read16();
-    vram_write16(offset, alis.varD7);
+    vram_write16(alis.script, offset, alis.varD7);
 }
 
 // read offset word from script, then copy string from bssChunk3 into ram[offset]
 static void slocp() {
     u16 offset = script_read16();
-    u8 * ptr = vram_ptr(offset);
+    u8 * ptr = vram_ptr(alis.script, offset);
     u16 i = 0;
     while(alis.bssChunk3[i]) {
         *ptr++ = alis.bssChunk3[i++];
@@ -44,7 +44,7 @@ static void sloctp() {
     u16 offset = loctp_common(script_read16());
     u8 * ptr = alis.bssChunk3;
     while (*ptr) {
-        vram_write8(offset++, *ptr++);
+        vram_write8(alis.script, offset++, *ptr++);
     }
 }
 
@@ -52,14 +52,14 @@ static void sloctp() {
 static void sloctc() {
     u16 offset = loctc_common(script_read16());
     alis.varD7 = *(alis.acc++);
-    vram_write8(offset, alis.varD7);
+    vram_write8(alis.script, offset, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
 static void slocti() {
     u16 offset = locti_common(script_read16());
     alis.varD7 = *(alis.acc++);
-    vram_write16(offset, alis.varD7);
+    vram_write16(alis.script, offset, alis.varD7);
 }
 
 static void sdirb() {
@@ -75,12 +75,12 @@ static void sdirb() {
 //00017f84 1d 87 00 00     move.b     D7b,(0x0,A6,D0w*0x1)
 //00017f88 4e 75           rts
     u8 offset = script_read8();
-    vram_write8(offset, (u8)alis.varD7);
+    vram_write8(alis.script, offset, (u8)alis.varD7);
 }
 
 static void sdirw() {
     u8 offset = script_read8();
-    vram_write16(offset, (u16)alis.varD7);
+    vram_write16(alis.script, offset, (u16)alis.varD7);
 }
 
 static void sdirp() {

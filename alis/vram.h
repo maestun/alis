@@ -61,29 +61,29 @@ typedef struct {
 } sVRAM;
 
 
-u8 *    vram_ptr(u16 offset);
+u8 *    vram_ptr(sAlisScript * script, u16 offset);
 
-u8      vram_read8(s32 offset);
-s16     vram_read8ext16(u16 offset);
-s32     vram_read8ext32(u16 offset);
-u16     vram_read16(s32 offset);
-s32     vram_read16ext32(u16 offset);
-u32     vram_read32(u16 offset);
-void    vram_readp(u16 offset, u8 * dst_ptr);
+u8      vram_read8(sAlisScript * script, s32 offset);
+s16     vram_read8ext16(sAlisScript * script, u16 offset);
+s32     vram_read8ext32(sAlisScript * script, u16 offset);
+u16     vram_read16(sAlisScript * script, s32 offset);
+s32     vram_read16ext32(sAlisScript * script, u16 offset);
+u32     vram_read32(sAlisScript * script, u16 offset);
+void    vram_readp(sAlisScript * script, u16 offset, u8 * dst_ptr);
 
-void    vram_write8(s32 offset, u8 value);
-void    vram_write16(s32 offset, u16 value);
-void    vram_writep(u16 offset, u8 * src_ptr);
+void    vram_write8(sAlisScript * script, s32 offset, u8 value);
+void    vram_write16(sAlisScript * script, s32 offset, u16 value);
+void    vram_writep(sAlisScript * script, u16 offset, u8 * src_ptr);
 
-void    vram_setbit(u16 offset, u8 bit);
-void    vram_clrbit(u16 offset, u8 bit);
+void    vram_setbit(sAlisScript * script, u16 offset, u8 bit);
+void    vram_clrbit(sAlisScript * script, u16 offset, u8 bit);
 
-void    vram_add8(u16 offset, u8 value);
-void    vram_add16(u16 offset, u16 value);
+void    vram_add8(sAlisScript * script, u16 offset, u8 value);
+void    vram_add16(sAlisScript * script, u16 offset, u16 value);
 
-void    vram_push32(u32 value);
-u32     vram_peek32(void);
-u32     vram_pop32(void);
+void    vram_push32(sAlisScript * script, u32 value);
+u32     vram_peek32(sAlisScript * script);
+u32     vram_pop32(sAlisScript * script);
 
 void    vram_save_script_state(sAlisScript * script);
 

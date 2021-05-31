@@ -140,7 +140,6 @@
 		8BDDE33F26415552002BF423 /* alis-imgui */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "alis-imgui"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8BF0E5A026428E5B0094DA41 /* disasm.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disasm.h; sourceTree = "<group>"; };
 		8BF0E5A126428E5B0094DA41 /* disasm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = disasm.c; sourceTree = "<group>"; };
-		8BF0E5A4264290F30094DA41 /* disasm_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disasm_private.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -298,7 +297,6 @@
 				8B9C4042250A6AC200C947F9 /* debug.h */,
 				8B9C4043250A6AC200C947F9 /* debug.c */,
 				8BF0E5A026428E5B0094DA41 /* disasm.h */,
-				8BF0E5A4264290F30094DA41 /* disasm_private.h */,
 				8BF0E5A126428E5B0094DA41 /* disasm.c */,
 				0981CBCF250B46970097F862 /* escnames.c */,
 				8B9C4016250A247D00C947F9 /* opcodes.c */,

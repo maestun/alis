@@ -30,7 +30,7 @@ typedef struct {
 mouse_t sys_get_mouse(void);
 void    sys_set_mouse(u16 x, u16 y);
 void    sys_enable_mouse(u8 enable);
-
+u8      sys_get_shift_state(void);
 
 // =============================================================================
 #pragma mark - GFX

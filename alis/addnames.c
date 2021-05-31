@@ -16,22 +16,21 @@ static void cnul() {
 }
 static void alocb() {
     u16 offset = script_read16();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add8(alis.script, offset, (u8)alis.varD7);
+    alis.sr.zero = (vram_read8(alis.script, offset) == 0);
 }
 static void alocw() {
     u16 offset = script_read16();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add16(alis.script, offset, alis.varD7);
+    alis.sr.zero = (vram_read8(alis.script, offset) == 0);
 }
 static void alocp() {
-//    ADDNAME_ALOCP_0x5
-//000181ac 10 1b           move.b     (A3)+,D0b
+//    ADDNAME_ALOCP_0x5^//000181ac 10 1b           move.b     (A3)+,D0b
 //000181ae e1 40           asl.w      #0x8,D0w
 //000181b0 10 1b           move.b     (A3)+,D0b
     u16 offset = script_read16();
 //000181b2 43 f6 00 00     lea        (0x0,A6,D0w*0x1),A1
-    u8 * a1 = vram_ptr(offset);
+    u8 * a1 = vram_ptr(alis.script, offset);
 //000181b6 20 79 00        movea.l    (ADDR_BSS_256_CHUNK_3).l,A0
 //01 95 ea
     u8 * a0 = alis.bssChunk3;
@@ -62,13 +61,13 @@ static void alocti() {
 }
 static void adirb() {
     u8 offset = script_read8();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add8(alis.script, offset, (u8)alis.varD7);
+    alis.sr.zero = (vram_read8(alis.script, offset) == 0);
 }
 static void adirw() {
     u8 offset = script_read8();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add16(alis.script, offset, alis.varD7);
+    alis.sr.zero = (vram_read8(alis.script, offset) == 0);
 }
 static void adirp() {
 

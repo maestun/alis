@@ -108,18 +108,33 @@ void sys_set_time(u16 h, u16 m, u16 s) {
     
 }
 
-time_t sys_get_time(void) {
+time_t sys_get_time() {
     return 0;
 }
 
-u16 sys_get_model(void) {
-    debug(EDebugWarning, "/* %s SIMULATED */", __FUNCTION__);
+u16 sys_get_model() {
+    debug(EDebugWarning, " /* %s SIMULATED */", __FUNCTION__);
     return 0x456; // Atari STe / 1MB / Lowrez
+}
+
+u8 sys_get_shift_state() {
+    /*
+     return bitfield with bits:
+     0: right shift pressed
+     1: left shift pressed
+     2: left ctrl pressed
+     3: left alt pressed
+     4: caps lock active
+     */
+    debug(EDebugWarning, " /* %s SIMULATED */", __FUNCTION__);
+    u8 rshift = 0, lshift = 0, lctrl = 0, lalt = 0, caps = 0;
+    return (caps << 4) | (lalt << 3) | (lctrl << 2) | (lshift << 1) | rshift;
 }
 
 
 u16 sys_random(void) {
     return arc4random() & 0xffff;
 }
+
 
 

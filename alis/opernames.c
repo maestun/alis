@@ -22,11 +22,11 @@ u16 locti_common(u16 offset) {
 
 u16 loctc_common(u16 offset) {
     
-    s16 d1w = vram_read8ext16(offset - 1);
+    s16 d1w = vram_read8ext16(alis.script, offset - 1);
     offset += alis.varD7;
     while(--d1w > 0) {
         u16 d2 = *(alis.acc++);
-        u16 mul = vram_read16(offset - 2);
+        u16 mul = vram_read16(alis.script, offset - 2);
         d2 *= mul;
         offset += d2;
     }
@@ -57,18 +57,18 @@ void oimmp() {
 void olocb() {
     // read word offset, copy extended byte from ram[offset] into r7
     u16 offset = script_read16();
-    alis.varD7 = vram_read8ext16(offset);
+    alis.varD7 = vram_read8ext16(alis.script, offset);
 }
 
 void olocw() {
     // read word offset, copy word from ram[offset] into r7
     u16 offset = script_read16();
-    alis.varD7 = vram_read16(offset);
+    alis.varD7 = vram_read16(alis.script, offset);
 }
 
 void olocp() {
     u16 offset = script_read16();
-    vram_writep(offset, alis.bssChunk3);
+    vram_writep(alis.script, offset, alis.bssChunk3);
 }
 
 void oloctp() {
@@ -78,7 +78,7 @@ void oloctp() {
 void oloctc() {
     u16 offset = script_read16();
     u16 ret = loctc_common(offset);
-    alis.varD7 = vram_read8(ret);
+    alis.varD7 = vram_read8(alis.script, ret);
 }
 
 void olocti() {
@@ -89,21 +89,21 @@ void olocti() {
 // then reads an extended byte from vram[offset] into r7
 void odirb() {
     u8 offset = script_read8();
-    alis.varD7 = vram_read8ext16(offset);
+    alis.varD7 = vram_read8ext16(alis.script, offset);
 }
 
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
 void odirw() {
     u8 offset = script_read8();
-    alis.varD7 = vram_read16(offset);;
+    alis.varD7 = vram_read16(alis.script, offset);
 }
 
 // reads a byte offset from script,
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
 void odirp() {
     u8 offset = script_read8();
-    vram_readp(offset, alis.bssChunk3);
+    vram_readp(alis.script, offset, alis.bssChunk3);
 }
 
 void odirtp() {
@@ -119,15 +119,18 @@ void odirti() {
 }
 
 void omainb() {
-    debug(EDebugWarning, " /* STUBBED */");
+    u16 offset = script_read16();
+    alis.varD7 = vram_read8ext16(alis.scripts[kMainScriptID], offset);
 }
 
 void omainw() {
-    debug(EDebugWarning, " /* STUBBED */");
+    u16 offset = script_read16();
+    alis.varD7 = vram_read8(alis.scripts[kMainScriptID], offset);
 }
 
 void omainp() {
-    debug(EDebugWarning, " /* STUBBED */");
+    u16 offset = script_read16();
+    vram_readp(alis.scripts[kMainScriptID], offset, alis.bssChunk3);
 }
 
 void omaintp() {
@@ -366,7 +369,7 @@ void oscan() {
 }
 
 void oshiftkey() {
-    debug(EDebugWarning, " /* STUBBED */");
+    alis.varD7 = sys_get_shift_state();
 }
 
 void ofree() {
@@ -504,22 +507,22 @@ void cnul() {
 // =============================================================================
 sAlisOpcode opernames[] = {
     DECL_OPCODE(0x00, oimmb,
-                "read immediate byte from script, extend to word, copy into r7"),
+                "read immediate byte from current_script code, extend to word, copy into r7"),
     {},
     DECL_OPCODE(0x01, oimmw,
-                "read immediate word from script, copy into r7"),
+                "read immediate word from current_script code, copy into r7"),
     {},
     DECL_OPCODE(0x02, oimmp,
-                "read immediate bytes from script until zero, copy into str1"),
+                "read immediate bytes from current_script code until zero, copy into str1"),
     {},
     DECL_OPCODE(0x03, olocb,
-                "read offset word from script, extend read byte at vram[offset] to word, copy into r7"),
+                "read offset word from script, extend read byte at current_script->vram[offset] to word, copy into r7"),
     {},
     DECL_OPCODE(0x04, olocw,
-                "read offset word from script, read word at vram[offset], copy into r7"),
+                "read offset word from script, read word at current_script->vram[offset], copy into r7"),
     {},
     DECL_OPCODE(0x05, olocp,
-                "read offset word from script, read bytes at vram[offset] until zero, copy into str1"),
+                "read offset word from script, read bytes at current_script->vram[offset] until zero, copy into bssChunk3"),
     {},
     DECL_OPCODE(0x06, oloctp, "TODO add desc"),
     {},
@@ -539,11 +542,14 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x0E, odirti, "TODO add desc"),
     {},
-    DECL_OPCODE(0x0F, omainb, "TODO add desc"),
+    DECL_OPCODE(0x0F, omainb,
+                "read offset word from current_script code, get extended byte at main_script->vram[offset], copy into r7"),
     {},
-    DECL_OPCODE(0x10, omainw, "TODO add desc"),
+    DECL_OPCODE(0x10, omainw,
+                "read offset word from current_script code, get word at main_script->vram[offset], copy into r7"),
     {},
-    DECL_OPCODE(0x11, omainp, "TODO add desc"),
+    DECL_OPCODE(0x11, omainp,
+                "read offset word from current_script code, get bytes at main_script->vram[offset] until zero, copy into bssChunk3"),
     {},
     DECL_OPCODE(0x12, omaintp, "TODO add desc"),
     {},
