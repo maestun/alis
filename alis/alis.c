@@ -81,7 +81,7 @@ alisRet readexec_opername_swap() {
 }
 
 
-sAlisScript * alis_load_main() {
+sAlisScript * alis_load_main(void) {
     // load main scripts as an usual script...
     sAlisScript * main = script_load(alis.platform.main);
     
@@ -186,7 +186,7 @@ void alis_init(sPlatform platform) {
 }
 
 
-void alis_deinit() {
+void alis_deinit(void) {
     // free scripts
     // TODO: use real script table / cunload
     for(int i = 0; i < kMaxScripts; i++) {
@@ -202,7 +202,7 @@ void alis_deinit() {
 }
 
 
-void alis_loop() {
+void alis_loop(void) {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
         alis.running = sys_poll_event();
@@ -220,7 +220,7 @@ void alis_register_script(sAlisScript * script) {
 }
 
 
-u8 alis_main() {
+u8 alis_main(void) {
     u8 ret = 0;
     
     // run !

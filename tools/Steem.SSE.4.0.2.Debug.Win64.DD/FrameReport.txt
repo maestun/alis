@@ -1,4 +1,4 @@
-Steem frame report - 05/26/21 -12:52:42 
+Steem frame report - 06/01/21 -16:30:24 
 STE WS1 C1 C2 C0
-Disk A: Ishar 2 FO Depacker - Bitmaster
+Disk A: Ishar - with Ishar2 interpreter (Disk 1 of 2)[cr Elite]
 --

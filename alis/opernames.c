@@ -39,145 +39,145 @@ u16 loctc_common(u16 offset) {
 #pragma mark - TODO: opernames
 // =============================================================================
 
-void oimmb() {
+void oimmb(void) {
     // reads a byte, extends into r7
     alis.varD7 = script_read8ext16();
 }
 
-void oimmw() {
+void oimmw(void) {
     // reads a word into r7
     alis.varD7 = script_read16();
 }
 
-void oimmp() {
+void oimmp(void) {
     // reads null-terminated data into bssChunk3
     script_read_until_zero(alis.bssChunk2);
 }
 
-void olocb() {
+void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
     u16 offset = script_read16();
     alis.varD7 = vram_read8ext16(alis.script, offset);
 }
 
-void olocw() {
+void olocw(void) {
     // read word offset, copy word from ram[offset] into r7
     u16 offset = script_read16();
     alis.varD7 = vram_read16(alis.script, offset);
 }
 
-void olocp() {
+void olocp(void) {
     u16 offset = script_read16();
     vram_writep(alis.script, offset, alis.bssChunk3);
 }
 
-void oloctp() {
+void oloctp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oloctc() {
+void oloctc(void) {
     u16 offset = script_read16();
     u16 ret = loctc_common(offset);
     alis.varD7 = vram_read8(alis.script, ret);
 }
 
-void olocti() {
+void olocti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
 // reads a byte offset from script,
 // then reads an extended byte from vram[offset] into r7
-void odirb() {
+void odirb(void) {
     u8 offset = script_read8();
     alis.varD7 = vram_read8ext16(alis.script, offset);
 }
 
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
-void odirw() {
+void odirw(void) {
     u8 offset = script_read8();
     alis.varD7 = vram_read16(alis.script, offset);
 }
 
 // reads a byte offset from script,
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
-void odirp() {
+void odirp(void) {
     u8 offset = script_read8();
     vram_readp(alis.script, offset, alis.bssChunk3);
 }
 
-void odirtp() {
+void odirtp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void odirtc() {
+void odirtc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void odirti() {
+void odirti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omainb() {
+void omainb(void) {
     u16 offset = script_read16();
     alis.varD7 = vram_read8ext16(alis.scripts[kMainScriptID], offset);
 }
 
-void omainw() {
+void omainw(void) {
     u16 offset = script_read16();
     alis.varD7 = vram_read8(alis.scripts[kMainScriptID], offset);
 }
 
-void omainp() {
+void omainp(void) {
     u16 offset = script_read16();
     vram_readp(alis.scripts[kMainScriptID], offset, alis.bssChunk3);
 }
 
-void omaintp() {
+void omaintp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omaintc() {
+void omaintc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omainti() {
+void omainti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimb() {
+void ohimb(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimw() {
+void ohimw(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimp() {
+void ohimp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimtp() {
+void ohimtp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimtc() {
+void ohimtc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimti() {
+void ohimti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
 // pop from accumulator into r6
-void opile() {
+void opile(void) {
     // save r6 into r7
     alis.varD7 = alis.varD6;
     alis.varD6 = *(alis.acc++);
 }
 
 // start eval loop, will stop after ofin() is called
-void oeval() {
+void oeval(void) {
     alis.oeval_loop = 1;
     while(alis.oeval_loop) {
         readexec_opername();
@@ -185,38 +185,38 @@ void oeval() {
 }
 
 // stop eval loop
-void ofin() {
+void ofin(void) {
     alis.oeval_loop = 0;
 }
 
 // push value from r7 register to accumulator
-void opushacc() {
+void opushacc(void) {
     *(--alis.acc) = alis.varD7;
 }
 
 // r7 = variable AND r7
-void oand() {
+void oand(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 &= alis.varD6;
 }
 
 // r7 = variable OR r7
-void oor() {
+void oor(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 |= alis.varD6;
 }
 
 // r7 = variable XOR r7
-void oxor() {
+void oxor(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 ^= alis.varD6;
 }
 
 // r7 = variable EQV r7
-void oeqv() {
+void oeqv(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 ^= alis.varD6;
@@ -224,49 +224,49 @@ void oeqv() {
 }
 
 // r6 == r7
-void oegal() {
+void oegal(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 == alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 != r7
-void odiff() {
+void odiff(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 != alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 <= r7
-void oinfeg() {
+void oinfeg(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 <= alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 >= r7
-void osupeg() {
+void osupeg(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 >= alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 < r7
-void oinf() {
+void oinf(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 < alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 > r7
-void osup() {
+void osup(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 > alis.varD7) ? 0xff : 0x0;
 }
 
 // r7 += variable
-void oadd() {
+void oadd(void) {
 //00017932 61 00 fc 38     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017936 de 46           add.w      D6w,D7w
 //00017938 4e 75           rts
@@ -275,7 +275,7 @@ void oadd() {
 }
 
 // r7 -= variable
-void osub() {
+void osub(void) {
 //0001793a 61 00 fc 30     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //0001793e 9c 47           sub.w      D7w,D6w
 //00017940 3e 06           move.w     D6w,D7w
@@ -286,7 +286,7 @@ void osub() {
 }
 
 // r7 %= variable
-void omod() {
+void omod(void) {
 //00017944 61 00 fc 26     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017948 48 c6           ext.l      D6
 //0001794a 8d c7           divs.w     D7w,D6
@@ -299,7 +299,7 @@ void omod() {
 }
 
 // r7 /= variable
-void odiv() {
+void odiv(void) {
 //00017952 61 00 fc 18     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017956 48 c6           ext.l      D6
 //00017958 8d c7           divs.w     D7w,D6
@@ -311,7 +311,7 @@ void odiv() {
 }
 
 // r7 *= variable
-void omul() {
+void omul(void) {
 //0001795e 61 00 fc 0c     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017962 cf c6           muls.w     D6w,D7
 //00017964 4e 75           rts
@@ -320,22 +320,22 @@ void omul() {
 }
 
 
-void oneg() {
+void oneg(void) {
     alis.varD7 = -alis.varD7;
 }
 
 
-void oabs() {
+void oabs(void) {
     if(alis.varD7 < 0) {
         alis.varD7 = -alis.varD7;
     }
 }
 
-void ornd() {
+void ornd(void) {
     alis.varD7 = sys_random();
 }
 
-void osgn() {
+void osgn(void) {
     if(alis.varD7 > 0) {
         alis.varD7 = 1;
     }
@@ -344,112 +344,112 @@ void osgn() {
     }
 }
 
-void onot() {
+void onot(void) {
     alis.varD7 = ~alis.varD7;
 }
 
-void oinkey() {
+void oinkey(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void okeyon() {
+void okeyon(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ojoy() {
+void ojoy(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oprnd() {
+void oprnd(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oscan() {
+void oscan(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oshiftkey() {
+void oshiftkey(void) {
     alis.varD7 = sys_get_shift_state();
 }
 
-void ofree() {
+void ofree(void) {
     debug(EDebugWarning, "\n%s SIMULATED\n", __FUNCTION__);
     alis.varD7 = 0x321;
 }
 
-void omodel() {
+void omodel(void) {
     alis.varD7 = sys_get_model();
 }
 
-void ogetkey() {
+void ogetkey(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oleft() {
+void oleft(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oright() {
+void oright(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omid() {
+void omid(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void olen() {
+void olen(void) {
     alis.varD7 = strlen((const char *)alis.bssChunk3);
 }
 
-void oasc() {
+void oasc(void) {
     alis.varD7 = 0;
     alis.varD7 = alis.bssChunk3[0];
 }
 
-void ostr() {
+void ostr(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osadd() {
+void osadd(void) {
     // TODO: strcat ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osegal() {
+void osegal(void) {
     // TODO: strcmp ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osdiff() {
+void osdiff(void) {
     // TODO: !strcmp ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osinfeg() {
+void osinfeg(void) {
     // TODO: string equ or < ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ossupeg() {
+void ossupeg(void) {
     // TODO: string equ or > ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osinf() {
+void osinf(void) {
     // TODO: string < ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ossup() {
+void ossup(void) {
     // TODO: string > ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ospushacc() {
+void ospushacc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ospile() {
+void ospile(void) {
     u8 * tmp = alis.bssChunk3;
     alis.bssChunk3 = alis.bssChunk2;
     alis.bssChunk2 = tmp;
@@ -457,44 +457,44 @@ void ospile() {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oval() {
+void oval(void) {
     // TODO: compute int value of bssChunk3 string -> d7 ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oexistf() {
+void oexistf(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
     strcat(path, (char *)alis.bssChunk3);
     alis.varD7 = sys_fexists(path) ? 0xffff : 0x0;
 }
 
-void ochr() {
+void ochr(void) {
     alis.bssChunk3[0] = (u8)alis.varD7;
 }
 
-void ochange() {
+void ochange(void) {
     // TODO: change le drive courant ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ocountry() {
+void ocountry(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omip() {
+void omip(void) {
     alis.varD7 = 0x64;
 }
 
-void ojoykey() {
+void ojoykey(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oconfig() {
+void oconfig(void) {
     alis.varD7 = 0;
 }
 
-void cnul() {
+void cnul(void) {
 }
 
 // =============================================================================

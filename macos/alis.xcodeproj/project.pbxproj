@@ -368,7 +368,7 @@
 		8B28A61025076CC800E3F0FF /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1210;
+				LastUpgradeCheck = 1250;
 				ORGANIZATIONNAME = Zlot;
 			};
 			buildConfigurationList = 8B28A61325076CC800E3F0FF /* Build configuration list for PBXProject "alis" */;

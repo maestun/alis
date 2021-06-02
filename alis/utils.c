@@ -67,7 +67,7 @@ char * strupper(char * str) {
 //}
 
 
-int is_host_little_endian() {
+int is_host_little_endian(void) {
     unsigned int x = 1;
     char * c = (char *)&x;
     return (int)*c;

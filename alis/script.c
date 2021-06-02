@@ -232,7 +232,7 @@ int is_main(u16 check) {
 }
 
 
-void depak_11() {
+void depak_11(void) {
 //    printf("depak_11 ($163a8)\n");
     ADDREG_B(d0, d7);               // ADD.B     D0,D7
     CLRREG_W(d5);                      // CLR.W     D5
@@ -261,7 +261,7 @@ void depak_11() {
 }
 
 
-void depak_2() {
+void depak_2(void) {
 //    printf("depak_2 ($1639e)\n");
     SUBREG_B(d0, d7);               // SUB.B     D0,D7
     if((int8_t)BYTE(d7) < 0) {      // BMI.S     _DEPACK_11
