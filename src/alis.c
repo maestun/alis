@@ -12,6 +12,7 @@
 #include "utils.h"
 
 sAlisVM alis;
+sHost host;
 
 
 sAlisError errors[] = {
@@ -175,9 +176,9 @@ void alis_init(sPlatform platform) {
     //alis.script_count = 0;
     
     // init host system stuff
-    alis.pixelbuf.w = alis.platform.width;
-    alis.pixelbuf.h = alis.platform.height;
-    alis.pixelbuf.data = (u8 *)malloc(alis.pixelbuf.w * alis.pixelbuf.h);
+    host.pixelbuf.w = alis.platform.width;
+    host.pixelbuf.h = alis.platform.height;
+    host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
     
     // load main script
     alis_load_main();
@@ -196,7 +197,7 @@ void alis_deinit() {
 //    free(alis.bssChunk3);
     
     //vram_deinit(alis.vram);
-    free(alis.pixelbuf.data);
+    free(host.pixelbuf.data);
     free(alis.mem);
 }
 
@@ -206,7 +207,7 @@ void alis_loop() {
     while (alis.running && alis.script->running) {
         alis.running = sys_poll_event();
         readexec_opcode();
-        sys_render(alis.pixelbuf);
+        sys_render(host.pixelbuf);
     }
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
@@ -297,6 +298,13 @@ void alis_debug() {
 // =============================================================================
 // MARK: - MEMORY ACCESS
 // =============================================================================
+
+/**
+ * @brief Returns a byte pointer on (vram+offset)
+ * 
+ * @param offset 
+ * @return u8* 
+ */
 u8 * vram_ptr(u16 offset) {
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }

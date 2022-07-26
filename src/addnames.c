@@ -14,42 +14,46 @@
 // ============================================================================
 static void cnul() {
 }
+
+/**
+ * @brief reads word (offset) from script,
+ *          adds byte from d7 to byte at (vram+offset)
+ * 
+ */
 static void alocb() {
     u16 offset = script_read16();
     vram_add8(offset, (u8)alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
 }
+
+/**
+ * @brief reads word (offset) from script,
+ *          adds word from d7 to word at (vram+offset)
+ * 
+ */
 static void alocw() {
     u16 offset = script_read16();
     vram_add16(offset, alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
 }
+
+/**
+ * @brief read word (offset) from script,
+ *          concatenate null-terminated string at ARRAY_A
+ *          to null-terminated string located at (vram+offset)
+ */
 static void alocp() {
-//    ADDNAME_ALOCP_0x5
-//000181ac 10 1b           move.b     (A3)+,D0b
-//000181ae e1 40           asl.w      #0x8,D0w
-//000181b0 10 1b           move.b     (A3)+,D0b
     u16 offset = script_read16();
-//000181b2 43 f6 00 00     lea        (0x0,A6,D0w*0x1),A1
     u8 * a1 = vram_ptr(offset);
-//000181b6 20 79 00        movea.l    (ADDR_BSS_256_CHUNK_3).l,A0
-//01 95 ea
     u8 * a0 = alis.bssChunk3;
-//    LAB_000181bc                                    XREF[1]:     000181be(j)
-//000181bc 4a 19           tst.b      (A1)+
-//000181be 66 00 ff fc     bne.w      LAB_000181bc
-    while (*a1 == 0) {
-        a1++;
-    }
-//000181c2 53 89           subq.l     #0x1,A1
-    a1--;
-//    LAB_000181c4                                    XREF[1]:     000181c6(j)
-//000181c4 12 d8           move.b     (A0)+,(A1)+
-//000181c6 66 00 ff fc     bne.w      LAB_000181c4
+    
+    // set (vram+offset) pointer to first zero byte
+    while (*++a1);
+
+    // concatenate string to vram
     while (*a0) {
         *a1++ = *a0++;
     }
-//000181ca 4e 75           rts
 }
 static void aloctp() {
     debug(EDebugInfo, "aloctp STUBBED\n");

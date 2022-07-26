@@ -119,7 +119,7 @@ u16 sys_get_model(void) {
 
 
 u16 sys_random(void) {
-    return arc4random() & 0xffff;
+    return rand() & 0xffff;
 }
 
 

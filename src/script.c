@@ -625,6 +625,11 @@ s32 script_read8ext32(void) {
     return  ret;
 }
 
+/**
+ * @brief Reads a word from current script
+ * 
+ * @return u16 
+ */
 u16 script_read16(void) {
     u16 ret = (alis.mem[alis.script->pc++] << 8) + alis.mem[alis.script->pc++];
     script_read_debug(ret, sizeof(u16));

@@ -181,12 +181,17 @@ typedef struct {
     u16         _DAT_000195fc;
     u16         _DAT_000195fe;
         
+} sAlisVM;
+
+typedef struct {
+
     // system stuff
     // mouse_t     mouse;
     pixelbuf_t  pixelbuf;
-} sAlisVM;
+} sHost;
 
 extern sAlisVM alis;
+extern sHost host;
 
 
 // =============================================================================
