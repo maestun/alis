@@ -26,16 +26,15 @@ static sPlatform get_platform(const char * file_path) {
     if((file = fopen(file_path, "r")) != NULL) {
         fclose(file);
         ext = strlower(strrchr(file_path, '.') + 1);
-    }
     
-    // check platform by script file extension
-    for (int i = 0; i <= EPlatformUnknown; i++) {
-        platform = platforms[i];
-        if(!strcmp(ext, platform.ext)) {
-            break;
+        // check platform by script file extension
+        for (int i = 0; i <= EPlatformUnknown; i++) {
+            platform = platforms[i];
+            if(!strcmp(ext, platform.ext)) {
+                break;
+            }
         }
     }
-    
     return platform;
 }
 

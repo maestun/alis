@@ -13,11 +13,11 @@ void usage() {
 
 
 int main(int argc, const char* argv[]) {
+
     if (argc < 2) {
         usage();
     }
     else {
-        // guess platform
         sPlatform pl = guess_platform(argv[1]);
         if(is_supported(pl)) {
             sys_init();

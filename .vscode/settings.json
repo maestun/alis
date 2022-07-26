@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "sys.h": "c",
+        "debug.h": "c",
+        "config.h": "c",
+        "dirent.h": "c"
+    }
+}

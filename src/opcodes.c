@@ -261,7 +261,7 @@ static void cload() {
         strcpy(path, alis.platform.path);
         script_read_until_zero((u8 *)(path + strlen(alis.platform.path)));
         
-        sAlisScript * script = script_load((char *)path);        
+        sAlisScript * script = script_load(strlower((char *)path));
         alis_register_script(script);
     }
 }
