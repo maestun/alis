@@ -10,7 +10,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": ["$HOME/dev/perso/atari/hdd/ishar1_uncracked_daze/data/"],
+            "args": ["$HOME/dev/perso/atari/alis/data/ishar/atari/"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
