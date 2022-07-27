@@ -83,3 +83,14 @@ ISHAR2_CRELITE = AlisData("Ishar 2 / Cr Elite",
                           storename_bp_addr_2=0x01818c,
                           addname_bp_addr=0x013438,
                           addname_bp_addr_2=0x01844c) # in fun_readexec_addname_swap, also at $01844a
+
+ISHAR2_UNCRACKED = AlisData("Ishar 1 / Uncracked / Daze",
+                          "START.PRG",
+                          "",
+                          opcode_bp_addr=0x10b98,
+                          opername_bp_addr=0x10d5e,
+                          storename_bp_addr=0x10e08, # in opcode_cstore, also at $01818a
+                          storename_bp_addr_2=,
+                          addname_bp_addr=0x10e44,
+                          addname_bp_addr_2=) # in fun_readexec_addname_swap, also at $01844a
+

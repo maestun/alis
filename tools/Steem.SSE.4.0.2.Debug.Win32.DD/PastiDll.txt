@@ -1,0 +1,163 @@
+Pasti.Dll	beta release		pasti.fxatari.com
+
+Copyright (c) 2004 by Jorge Cwik
+
+Pasti is a software package consisting of imaging and preservation tools 
+for Atari ST software.
+
+Pasti.Dll is the emulation helper tool. It extends Atari ST emulators, 
+adding support for extended disk images. These disk images support exotic, 
+custom, and copy-protected formats. You can now use emulators to run ST 
+software in its original uncracked form.
+
+Pasti.Dll is almost completely transparent to the user. All the work is 
+performed behind the scenes interacting between Pasti and the emulator. You 
+must use an emulator with Pasti support. Pasti Dll is useless and will not 
+be activated if the emulator itself is not Pasti aware. The most popular ST 
+emulators already have, or will have soon, support for Pasti.
+
+The Dll should normally installed in the same root directory that the 
+emulator is installed. Depending on the emulator, Pasti will be enabled 
+automatically or it must be enabled on some of the emulator configuration 
+menus or dialogs. You won't be able to run Pasti images if Pasti is not 
+enabled. Besides Pasti images, the Dll supports standard images in MSA and 
+ST format.
+
+
+Pasti.Dll configuration.
+
+For most cases Pasti can be run with the default configuration. For the 
+advanced user, detailed configuration of Pasti is available. The emulator 
+will bring access to the Pasti configuration dialog on some of its 
+configuration menus.
+
+The Pasti configuration dialog has three panes. There are panes for 
+configuring disk emulation speed, options and warnings.
+
+The most interesting configuration aspect is emulation speed. There is a 
+trade off between speed and accuracy. At maximum accuracy Pasti emulates 
+disk access exactly as in a real machine. At maximum speed disk access is 
+almost instantaneously. The more accurate is obviously the more compatible, 
+but also the slower.
+
+For most cases you will only use the two extreme options, either max 
+accuracy or max speed. But many options in between are available. You can 
+configure individually each aspect of disk emulation.
+
+
+Pasti options
+
+"Fake Write Protect"
+
+When this option is enabled and the image is loaded as read only, Pasti 
+"lies" to the software making it to believe that the disk is not write 
+protected. Some programs refuse to run if the disk is write protected, even 
+though they will never write to the disk. This option is very useful for 
+these cases. Note that this option doesn't change the actual write protect 
+status; any actual attempt to write to the disk will fail.
+
+"Disable Randomize"
+
+A floppy drive is an imprecise mechanical device, timings are not very 
+accurate or constant. By default Pasti introduces some small randomization 
+to mimic this behavior. Check this option to disable it. The small 
+variations of disk timing are used by some software as a random number 
+generator (or more precisely, to seed the generator). Checking this option 
+will make Pasti fully deterministic and might interfere with this.
+
+
+Warnings
+
+Pasti will issue a warning under some circumstances. You can enable or 
+disable all of them in the warnings pane.
+
+
+
+Steem version 3.2 specifics
+
+Steem 3.2 is the first version with Pasti support. You can't use Pasti with 
+previous Steem versions.
+
+The most important Pasti options are available at the Disk Manager Options 
+menu. Once you enable Pasti on this menu by selecting "Use Pasti", Pasti 
+will be activated. Clicking on "Pasti Configuratin" will bring the Pasti 
+configuration dialog.
+
+The debug build of Steem has additional Pasti options. The "Pasti Status" 
+dialog is available from the "Browsers" submenu, and the "Pasti 
+Breakpoints" dialog at the Breakpoints one.
+
+All pasti configuration options, except Pasti Breakpoints are saved across 
+Steem sessions.
+
+
+Debugging and monitoring tools.
+
+These tools are available with the emulator debugger. They are intended for 
+the advanced user. Some minimal knowledge of ST and FDC programming is 
+required. Some emulators have a separate debug build. In those cases these 
+tools will not be available in the normal build.
+
+Pasti Status
+
+This dialog shows the current state of the drives and FDC and DMA 
+registers.
+
+
+Pasti Breakpoints
+
+Pasti implements breakpoint at the FDC level. You can specify conditions 
+for a breakpoint to be triggered. A breakpoint is triggered when all the 
+conditions match at the time that the FDC Command register is written. 
+Conditions are available for all the FDC registers and other hardware 
+registers.
+
+Some conditions are selected using a value/mask pair, and a range of values 
+is used for others.
+ 
+For value/mask settings, the condition matches when the "current register 
+state" AND "mask" equal the "value". For range settings, the condition 
+matches when the "current register" is higher or same than the "minimum" 
+and lower or same than the "maximum".
+
+If you want to ignore a specific register, so that the breakpoint will be 
+triggered no matters the state of this register, use a mask of 0 or the 
+maximum range (0 - ff).
+
+
+
+Saint specifics
+
+Saint 1.85 is the first version with Pasti support. You can't use Pasti 
+with previous Saint versions.
+
+Currently Saint doesn't provide user access to the Pasti dialogs. All Pasti 
+options are handled internally by Saint.
+
+
+
+Release notes
+
+This is a beta release. Currently there are two major limitations.
+
+Save and load state (sometimes known as memory snapshot) is partially 
+implemented. Specifically, save state can't be performed while a FDC 
+operation is in progress. States are version specific, you can't load a 
+state saved with a different version of Pasti.Dll
+
+Writes to Pasti images are lost and discarded on eject. You can write to 
+the in memory image if the image is not loaded as read only. But the actual 
+disk image file will not be modified. This affect Pasti images only. 
+Writing to ST and MSA image files is fully implemented.
+
+
+LEGAL
+
+Pasti.Dll is copyright (c) 2004 by Jorge Cwik.
+
+This software is provided as is. No warranty of any kind is given or 
+implied.
+
+
+Pasti.Dll 	beta release		pasti.fxatari.com
+

@@ -17,26 +17,28 @@
 static void cnul() {
 }
 
-// read offset word from script, then copy byte from r7 into ram[offset]
+/**
+ * @brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
+ * 
+ */
 static void slocb() {
-    u16 offset = script_read16();
-    vram_write8(offset, (u8)alis.varD7);
+    vram_write8(script_read16(), (u8)alis.varD7);
 }
 
-// read offset word from script, then copy word from r7 into ram[offset]
+/**
+ * @brief reads a word (offset) from script, then stores d7 word at (vram + offset)
+ * 
+ */
 static void slocw() {
-    u16 offset = script_read16();
-    vram_write16(offset, alis.varD7);
+    vram_write16(script_read16(), alis.varD7);
 }
 
-// read offset word from script, then copy string from bssChunk3 into ram[offset]
+/**
+ * @brief reads a word (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
+ * 
+ */
 static void slocp() {
-    u16 offset = script_read16();
-    u8 * ptr = vram_ptr(offset);
-    u16 i = 0;
-    while(alis.bssChunk3[i]) {
-        *ptr++ = alis.bssChunk3[i++];
-    }
+    vram_writep(script_read16(), alis.bssChunk3);
 }
 
 // Store at LOCation with offseT: Pointer
@@ -62,29 +64,29 @@ static void slocti() {
     vram_write16(offset, alis.varD7);
 }
 
+
+/**
+ * @brief reads a byte (offset) from script, then stores d7 byte at (vram + offset)
+ * 
+ */
 static void sdirb() {
-//    **************************************************************
-//    * - Reads a byte offset from script                          *
-//    * - Stores D7.b at (A6 + offset)                             *
-//    **************************************************************
-//    undefined STORENAME_SDIRB_0x9()
-//undefined         D0b:1          <RETURN>
-//    STORENAME_SDIRB_0x9
-//00017f80 42 40           clr.w      D0w
-//00017f82 10 1b           move.b     (A3)+,D0b
-//00017f84 1d 87 00 00     move.b     D7b,(0x0,A6,D0w*0x1)
-//00017f88 4e 75           rts
-    u8 offset = script_read8();
-    vram_write8(offset, (u8)alis.varD7);
+    vram_write8(script_read8(), (u8)alis.varD7);
 }
 
+/**
+ * @brief reads a byte (offset) from script, then stores d7 word at (vram + offset)
+ * 
+ */
 static void sdirw() {
-    u8 offset = script_read8();
-    vram_write16(offset, (u16)alis.varD7);
+    vram_write16(script_read8(), (u16)alis.varD7);
 }
 
+/**
+ * @brief reads a byte (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
+ * 
+ */
 static void sdirp() {
-    debug(EDebugInfo, "sdirp STUBBED\n");
+    vram_writep(script_read8(), alis.bssChunk3);
 }
 
 static void sdirtp() {
@@ -179,17 +181,17 @@ static void seval() {
 //  jumps at the address (JTAB_OPERAMES + offset).
 // ============================================================================
 sAlisOpcode storenames[] = {
-    DECL_OPCODE(0x00, cnul, "TODO add desc"),
+    DECL_OPCODE(0x00, cnul, "-"),
     {},
-    DECL_OPCODE(0x02, cnul, "TODO add desc"),
+    DECL_OPCODE(0x02, cnul, "-"),
     {},
-    DECL_OPCODE(0x04, cnul, "TODO add desc"),
+    DECL_OPCODE(0x04, cnul, "-"),
     {},
     DECL_OPCODE(0x06, slocb, "store byte from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x08, slocw, "TODO add desc"),
+    DECL_OPCODE(0x08, slocw, "store word from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x0a, slocp, "TODO add desc"),
+    DECL_OPCODE(0x0a, slocp, "store null-terminated string from r7 at virtual ram location"),
     {},
     DECL_OPCODE(0x0c, sloctp, "copy bss3 at virtual ram location with offset"),
     {},
@@ -197,11 +199,11 @@ sAlisOpcode storenames[] = {
     {},
     DECL_OPCODE(0x10, slocti, "pop word from accumulator, store at virtual ram location with offset"),
     {},
-    DECL_OPCODE(0x12, sdirb, "TODO add desc"),
+    DECL_OPCODE(0x12, sdirb, "store byte from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x14, sdirw, "TODO add desc"),
+    DECL_OPCODE(0x14, sdirw, "store word from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x16, sdirp, "TODO add desc"),
+    DECL_OPCODE(0x16, sdirp, "store null-terminated string from r7 at virtual ram location"),
     {},
     DECL_OPCODE(0x18, sdirtp, "TODO add desc"),
     {},
