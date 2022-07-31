@@ -3,6 +3,8 @@
         "sys.h": "c",
         "debug.h": "c",
         "config.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "alis_private.h": "c",
+        "alis.h": "c"
     }
 }

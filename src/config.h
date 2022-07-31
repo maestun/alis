@@ -29,7 +29,7 @@
 #define kProgVersion        "0.0.1"
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
-#define kDescMaxLen         (256)
+#define kDescMaxLen         (1024)
 
 #ifdef _WIN32
 #  define kPathSeparator    '\\'

@@ -55,6 +55,8 @@ static void alocp() {
         *a1++ = *a0++;
     }
 }
+
+
 static void aloctp() {
     debug(EDebugInfo, "aloctp STUBBED\n");
 }
@@ -166,11 +168,14 @@ sAlisOpcode addnames[] = {
     DECL_OPCODE(0x04, cnul,
                 "[N/I]"),
     {},
-    DECL_OPCODE(0x06, alocb, "TODO add desc"),
+    DECL_OPCODE(0x06, alocb, 
+                "reads word (offset) from script, adds byte from d7 to byte at (vram+offset)"),
     {},
-    DECL_OPCODE(0x08, alocw, "TODO add desc"),
+    DECL_OPCODE(0x08, alocw, 
+                "reads word (offset) from script, adds word from d7 to word at (vram+offset)"),
     {},
-    DECL_OPCODE(0x0a, alocp, "TODO add desc"),
+    DECL_OPCODE(0x0a, alocp, 
+                "read word (offset) from script, concatenate null-terminated string at ARRAY_A to null-terminated string located at (vram+offset)"),
     {},
     DECL_OPCODE(0x0c, aloctp, "TODO add desc"),
     {},
