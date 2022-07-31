@@ -22,14 +22,14 @@ reloc_addr = 0xaa9a
 # alis_jtab_addnames_len = 
 
 # ISHAR 1 / Pasti Image / DAZE
-alis_jtab_opcodes_addr = 0x10b98
-alis_jtab_opcodes_len = 454
-alis_jtab_opernames_addr = 0x10d5e
-alis_jtab_opernames_len = 170
-alis_jtab_storenames_addr = 0x10e08
-alis_jtab_storenames_len = 60
-alis_jtab_addnames_addr = 0x10e44
-alis_jtab_addnames_len = 60
+# alis_jtab_opcodes_addr = 0x10b98
+# alis_jtab_opcodes_len = 454
+# alis_jtab_opernames_addr = 0x10d5e
+# alis_jtab_opernames_len = 170
+# alis_jtab_storenames_addr = 0x10e08
+# alis_jtab_storenames_len = 60
+# alis_jtab_addnames_addr = 0x10e44
+# alis_jtab_addnames_len = 60
 
 # ISHAR 2 / CR ELITE / ATARI ST
 # alis_jtab_opcodes_addr = 0x12cb6
@@ -55,6 +55,32 @@ alis_jtab_addnames_len = 60
 # alis_jtab_storenames_len = 60
 
 # alis_jtab_addnames_addr = 0x14b60
+# alis_jtab_addnames_len = 60
+
+# ISHAR 3 / ATARI
+alis_jtab_opcodes_addr = 0x13730
+alis_jtab_opcodes_len = 512
+
+alis_jtab_opernames_addr = 0x1393c
+alis_jtab_opernames_len = 170
+
+alis_jtab_storenames_addr = 0x139e6
+alis_jtab_storenames_len = 60
+
+alis_jtab_addnames_addr = 0x13a22
+alis_jtab_addnames_len = 60
+
+# ISHAR 3 / FALCON
+# alis_jtab_opcodes_addr = 0x16462
+# alis_jtab_opcodes_len = 512
+
+# alis_jtab_opernames_addr = 0x1666e
+# alis_jtab_opernames_len = 170
+
+# alis_jtab_storenames_addr = 0x16718
+# alis_jtab_storenames_len = 60
+
+# alis_jtab_addnames_addr = 0x16754
 # alis_jtab_addnames_len = 60
 #############################################
 
@@ -84,7 +110,7 @@ def createALISFuntions(alis_jtab_addr, alis_jtab_len, alis_jtab_names, alis_pref
         print("Offset value: " + hex(offset))
         function_addr = start.getNewAddress(alis_jtab_addr + offset)
         print(alis_prefix + " addr: " + function_addr.toString())
-        function_name = alis_prefix + "_" + "0x" + format(code, '02x') + "_" + alis_jtab_names[code].upper()
+        function_name = alis_prefix + "_" + alis_jtab_names[code].upper() + "_0x" + format(code, '02x') 
         print("Creating function: " + function_name + " at addr $" + function_addr.toString())
         print("----------------------------------")
         createFunction(function_addr, function_name)
@@ -95,7 +121,7 @@ def createALISFuntions(alis_jtab_addr, alis_jtab_len, alis_jtab_names, alis_pref
     print("----------------------------------")
 
 
-#createALISFuntions(alis_jtab_opcodes_addr, alis_jtab_opcodes_len, alis_jtab_opcodes_names, "OPCODE")
-#createALISFuntions(alis_jtab_opernames_addr, alis_jtab_opernames_len, alis_jtab_opernames_names, "OPERNAME")
-createALISFuntions(alis_jtab_storenames_addr, alis_jtab_storenames_len, alis_jtab_storenames_names, "STORENAME")
-createALISFuntions(alis_jtab_addnames_addr, alis_jtab_addnames_len, alis_jtab_addnames_names, "ADDNAME")
+createALISFuntions(alis_jtab_opcodes_addr, alis_jtab_opcodes_len, alis_jtab_opcodes_names, "OPCODE")
+createALISFuntions(alis_jtab_opernames_addr, alis_jtab_opernames_len, alis_jtab_opernames_names, "OPERAND")
+createALISFuntions(alis_jtab_storenames_addr, alis_jtab_storenames_len, alis_jtab_storenames_names, "STORE")
+createALISFuntions(alis_jtab_addnames_addr, alis_jtab_addnames_len, alis_jtab_addnames_names, "ADD")
