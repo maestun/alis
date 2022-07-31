@@ -32,17 +32,17 @@ reloc_addr = 0xaa9a
 # alis_jtab_addnames_len = 60
 
 # ISHAR 2 / CR ELITE / ATARI ST
-# alis_jtab_opcodes_addr = 0x12cb6
-# alis_jtab_opcodes_len = 462
+alis_jtab_opcodes_addr = 0x12cb6
+alis_jtab_opcodes_len = 462
 
-# alis_jtab_opernames_addr = 0x12e84
-# alis_jtab_opernames_len = 170
+alis_jtab_opernames_addr = 0x12e84
+alis_jtab_opernames_len = 170
 
-# alis_jtab_storenames_addr = 0x12f2e
-# alis_jtab_storenames_len = 60
+alis_jtab_storenames_addr = 0x12f2e
+alis_jtab_storenames_len = 60
 
-# alis_jtab_addnames_addr = 0x12f6a
-# alis_jtab_addnames_len = 60
+alis_jtab_addnames_addr = 0x12f6a
+alis_jtab_addnames_len = 60
 
 # ISHAR 2 / FALCON
 # alis_jtab_opcodes_addr = 0x148ac
@@ -58,17 +58,17 @@ reloc_addr = 0xaa9a
 # alis_jtab_addnames_len = 60
 
 # ISHAR 3 / ATARI
-alis_jtab_opcodes_addr = 0x13730
-alis_jtab_opcodes_len = 512
+# alis_jtab_opcodes_addr = 0x13730
+# alis_jtab_opcodes_len = 512
 
-alis_jtab_opernames_addr = 0x1393c
-alis_jtab_opernames_len = 170
+# alis_jtab_opernames_addr = 0x1393c
+# alis_jtab_opernames_len = 170
 
-alis_jtab_storenames_addr = 0x139e6
-alis_jtab_storenames_len = 60
+# alis_jtab_storenames_addr = 0x139e6
+# alis_jtab_storenames_len = 60
 
-alis_jtab_addnames_addr = 0x13a22
-alis_jtab_addnames_len = 60
+# alis_jtab_addnames_addr = 0x13a22
+# alis_jtab_addnames_len = 60
 
 # ISHAR 3 / FALCON
 # alis_jtab_opcodes_addr = 0x16462
