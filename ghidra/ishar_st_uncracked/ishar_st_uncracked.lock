@@ -1,9 +1,0 @@
-#Ghidra Lock File
-#Tue Jul 26 13:52:59 CEST 2022
-OS\ Name=Linux
-OS\ Version=5.15.0-41-generic
-Username=olivier
-Hostname=olivier-ThinkPad-T480
-<META>\ Supports\ File\ Channel\ Locking=Channel Lock
-OS\ Architecture=amd64
-Timestamp=7/26/22, 1\:52 PM

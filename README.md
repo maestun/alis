@@ -77,12 +77,13 @@ When loaded, the main executable initializes the target, loads and decompresses 
 - 0x7: failed to write to file
 - 0x8: failed to create file
 - 0x9: failed to delete file
-- 0xa:
+- 0xa: create element error
 - 0xb:
 - 0xc:
 - 0xd: failed to read from file
 - 0xe: failed to close file
 - 0xf:
+- 0x10: error clipform / mat
 
 
 ### Project structure
