@@ -3,8 +3,8 @@
 //  lc3vm
 //
 
-#ifndef alis_vm_h
-#define alis_vm_h
+#ifndef __ALIS_H__
+#define __ALIS_H__
 
 #include "config.h"
 #include "debug.h"
@@ -19,7 +19,6 @@
 // #define kVirtualRAMSize         (0xffff * sizeof(u8))
 #define kMaxScripts             (256)
 #define kBSSChunkLen            (256)
-
 
 
 // =============================================================================
@@ -62,35 +61,76 @@ typedef struct {
 typedef struct __attribute__((packed)) {
     u32         vram_offset;
     u16         offset;
-} sScriptLoc ;
+} sScriptLoc;
+
 
 // =============================================================================
 // MARK: - VM
 // =============================================================================
-// vm specs, loaded from packed main script header
+
+// vm specs: 16 bytes read from packed main script header
 typedef struct {
-    // read values from packed main script
-    u16     script_data_tab_len;
-    u16     script_vram_tab_len;
-    u32     unused;
-    u32     max_allocatable_vram;
-    u32     vram_to_data_offset;
-    
-    // computed values
-    u32     script_vram_max_addr;
+    u16 max_prog;
+    u16 max_ent;
+    u32 max_host_ram;
+    u32 debsprit_offset;
+    u32 finsprit_offset;
 } sAlisSpecs;
+
+
+// all these are offsets !
+typedef struct {
+
+    u32 basemem;       // $22400, set once
+    u32 basevar;       // $0
+    
+    u32 atprog;        // $22400, set once, same as basemem
+    u32 dernprog;      // $22400
+    
+    u32 atent;         // $224f0, set once: atent = basemem + (vm.specs.maxprog * sizeof(ptr_t))
+    u32 debent;        // $2261c, set once: debent = atent + (vm.specs.maxent * 6)
+    u32 finent;        // $2261c
+
+    u32 debsprit;       // $29f40, set once: debsprit = ((atent + vm.specs.debsprit_offset) & 0x0f) + 1
+    u32 finsprit;       // $2edd8, set once: finsprit = debsprit + ((vm.specs.finsprit_offset + 3) * 40)
+    u32 basesprit;      // $31f40, set at init_sprites()
+    u16 tvsprit;        // 0x8000, set at init_sprites()
+    u16 backsprit;      // 0x8028, set at init_sprites()
+    u16 texsprit;       // 0x8050, set at init_sprites()
+
+    u32 debprog;       // $2edd8, set once: debprog = finsprit
+    u32 finprog;       // $2edd8
+
+    u32 finmem;         // $f6e98, end of host memory
+
+} sAlisMemory;
+
+
+
+typedef struct {
+    u8  b_mousflag;
+    u16 libsprit;
+} sAlisVars;
+
+
 
 typedef struct {
     // platform
     sPlatform       platform;
     
+    // vm specs (TODO: used to compute vram offsets, can be discarded)
     sAlisSpecs      specs;
     
+    // vm memory map
+    sAlisMemory     vram;
+    
+    // variables
+    sAlisVars       vars;
     
     // Absolute address of vm's virtual ram.
     // On atari the operating system gives us $22400.
     #define ALIS_VM_RAM_ORG (0x22400)
-    u8 *            vram_org;
+    u8 *            vram_org; // basemem
     
     // On atari, it's a stack of absolute script data adresses,
     //   each address being 4 bytes long.
@@ -106,7 +146,7 @@ typedef struct {
     // Located at VRAM_ORG + (max_script_addrs * sizeof(u32))
     // On atari it's ($22400 + ($3c * 4)) ==> $224f0
     // $224f0
-    sScriptLoc *    script_vram_orgs;
+    sScriptLoc *    script_vram_orgs; // atent
     
     // true if disasm only
     u8              disasm;
@@ -145,16 +185,13 @@ typedef struct {
     u16             varD5;
     
     // virtual array registers
-    u8 *           bssChunk1;
-    u8 *           bssChunk2;
-    u8 *           bssChunk3;
+    u8 *           sd7;
+    u8 *           sd6;
+    u8 *           oldsd7;
     
     // helper: executed instructions count
     u32            icount;
-        
-    // unknown vars
-    u32 DAT_000194fe;
-    
+            
     // virtual status register
     struct {
         u8 zero: 1;
@@ -179,18 +216,17 @@ typedef struct {
     
     u16         _DAT_000195fa;
     u16         _DAT_000195fc;
-    u16         _DAT_000195fe;
-        
+    u16         _DAT_000195fe;        
 } sAlisVM;
 
 typedef struct {
 
     // system stuff
-    // mouse_t     mouse;
+    mouse_t     mouse;
     pixelbuf_t  pixelbuf;
 } sHost;
 
-extern sAlisVM alis;
+extern sAlisVM vm;
 extern sHost host;
 
 
@@ -207,4 +243,4 @@ void            alis_debug(void);
 void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
 
-#endif /* alis_vm_h */
+#endif /* __ALIS_H__ */

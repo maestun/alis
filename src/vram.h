@@ -12,8 +12,9 @@
 #include "config.h"
 #include "script.h"
 
-#define kHostRAMSize            (0x100000 * sizeof(u8))
-#define kVirtualRAMSize         (0xffff * sizeof(u8))
+// #define kHostRAMSize            (0x100000 * sizeof(u8))
+// #define kHostVRAMSize           (0x8000 * sizeof(u8))
+#define kVirtualRAMSize         (0x10000 * sizeof(u8))
 
 // =============================================================================
 // MARK: - VRAM OFFSETS
@@ -73,6 +74,7 @@ void    vram_readp(u16 offset, u8 * dst_ptr);
 
 void    vram_write8(s32 offset, u8 value);
 void    vram_write16(s32 offset, u16 value);
+void    vram_write32(s32 offset, u32 value);
 void    vram_writep(u16 offset, u8 * src_ptr);
 
 void    vram_setbit(u16 offset, u8 bit);

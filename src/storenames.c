@@ -22,7 +22,7 @@ static void cnul() {
  * 
  */
 static void slocb() {
-    vram_write8(script_read16(), (u8)alis.varD7);
+    vram_write8(script_read16(), (u8)vm.varD7);
 }
 
 /**
@@ -30,7 +30,7 @@ static void slocb() {
  * 
  */
 static void slocw() {
-    vram_write16(script_read16(), alis.varD7);
+    vram_write16(script_read16(), vm.varD7);
 }
 
 /**
@@ -38,13 +38,13 @@ static void slocw() {
  * 
  */
 static void slocp() {
-    vram_writep(script_read16(), alis.bssChunk3);
+    vram_writep(script_read16(), vm.oldsd7);
 }
 
 // Store at LOCation with offseT: Pointer
 static void sloctp() {
-    u16 offset = loctp_common(script_read16());
-    u8 * ptr = alis.bssChunk3;
+    u16 offset = string_array_common(script_read16());
+    u8 * ptr = vm.oldsd7;
     while (*ptr) {
         vram_write8(offset++, *ptr++);
     }
@@ -52,16 +52,16 @@ static void sloctp() {
 
 // Store at LOCation with offseT: Char
 static void sloctc() {
-    u16 offset = loctc_common(script_read16());
-    alis.varD7 = *(alis.acc++);
-    vram_write8(offset, alis.varD7);
+    u16 offset = char_array_common(script_read16());
+    vm.varD7 = *(vm.acc++);
+    vram_write8(offset, vm.varD7);
 }
 
 // Store at LOCation with offseT: Int
 static void slocti() {
-    u16 offset = locti_common(script_read16());
-    alis.varD7 = *(alis.acc++);
-    vram_write16(offset, alis.varD7);
+    u16 offset = int_array_common(script_read16());
+    vm.varD7 = *(vm.acc++);
+    vram_write16(offset, vm.varD7);
 }
 
 
@@ -70,7 +70,7 @@ static void slocti() {
  * 
  */
 static void sdirb() {
-    vram_write8(script_read8(), (u8)alis.varD7);
+    vram_write8(script_read8(), (u8)vm.varD7);
 }
 
 /**
@@ -78,7 +78,7 @@ static void sdirb() {
  * 
  */
 static void sdirw() {
-    vram_write16(script_read8(), (u16)alis.varD7);
+    vram_write16(script_read8(), (u16)vm.varD7);
 }
 
 /**
@@ -86,7 +86,7 @@ static void sdirw() {
  * 
  */
 static void sdirp() {
-    vram_writep(script_read8(), alis.bssChunk3);
+    vram_writep(script_read8(), vm.oldsd7);
 }
 
 static void sdirtp() {
@@ -150,7 +150,7 @@ static void shimti() {
 }
 
 static void spile() {
-    *(--alis.acc) = alis.varD7;
+    *(--vm.acc) = vm.varD7;
 }
 
 static void seval() {
@@ -166,7 +166,7 @@ static void seval() {
 
     
     // save r7 to virtual accumulator
-    *(--alis.acc) = alis.varD7;
+    *(--vm.acc) = vm.varD7;
     oeval();
     readexec_storename();
 }

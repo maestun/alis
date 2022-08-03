@@ -418,21 +418,21 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->sz = data_sz;
     
     // script data
-    script->header.id = swap16(*(u16 *)(data + 0), alis.platform);
-    script->header.w_0x1700 = swap16(*(u16 *)(data + 2), alis.platform);
-    script->header.code_loc_offset = swap16(*(u16 *)(data + 4), alis.platform);
-    script->header.ret_offset = swap32(*(u32 *)(data + 6), alis.platform);
-    script->header.dw_unknown3 = swap32(*(u32 *)(data + 10), alis.platform);
-    script->header.dw_unknown4 = swap32(*(u32 *)(data + 14), alis.platform);
-    script->header.w_unknown5 = swap16(*(u16 *)(data + 18), alis.platform);
-    script->header.vram_alloc_sz = swap16(*(u16 *)(data + 20), alis.platform);
-    script->header.w_unknown7 = swap16(*(u16 *)(data + 22), alis.platform);
+    script->header.id = swap16(*(u16 *)(data + 0), vm.platform);
+    script->header.w_0x1700 = swap16(*(u16 *)(data + 2), vm.platform);
+    script->header.code_loc_offset = swap16(*(u16 *)(data + 4), vm.platform);
+    script->header.ret_offset = swap32(*(u32 *)(data + 6), vm.platform);
+    script->header.dw_unknown3 = swap32(*(u32 *)(data + 10), vm.platform);
+    script->header.dw_unknown4 = swap32(*(u32 *)(data + 14), vm.platform);
+    script->header.w_unknown5 = swap16(*(u16 *)(data + 18), vm.platform);
+    script->header.vram_alloc_sz = swap16(*(u16 *)(data + 20), vm.platform);
+    script->header.w_unknown7 = swap16(*(u16 *)(data + 22), vm.platform);
     
     // TODO: this is for debug / static allocs
     sScriptDebug debug_data = script_debug_data[script->header.id];
 
     // tell where the script vram is located in host memory
-    script->vram_org = debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
+    // script->vram_org = debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
     u32 test = sizeof(script->context) + script->header.w_unknown5 + script->header.w_unknown7;
     script->vacc_off = debug_data.vacc_off;
     script->data_org = debug_data.data_org;
@@ -453,7 +453,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->context._0x26_creducing = 0xff;
     
     // copy script data to static host memory
-    memcpy(alis.mem + script->data_org, data, data_sz);
+    memcpy(vm.mem + script->data_org, data, data_sz);
     
     // script program counter starts kScriptHeaderLen after data
     script->pc = script->pc_org = script->context._0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
@@ -461,7 +461,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     debug(EDebugVerbose,
           "Initialized script '%s' (ID = 0x%02x)\nVRAM at address 0x%x\nDATA at address 0x%x\nCODE at address 0x%x\nVACC = 0x%04x\n",
           script->name, script->header.id,
-          script->vram_org,
+          0, // script->vram_org,
           script->data_org,
           script->pc_org,
           script->vacc_off);
@@ -509,8 +509,8 @@ sAlisScript * script_load(const char * script_path) {
         rewind(fp);
 
         // read header
-        u32 magic = fread32(fp, alis.platform);
-        u16 check = fread16(fp, alis.platform);
+        u32 magic = fread32(fp, vm.platform);
+        u16 check = fread16(fp, vm.platform);
         
         u32 depak_sz = input_sz;
         
@@ -603,13 +603,13 @@ void script_read_debug(s32 value, size_t sz) {
 }
 
 u8 script_read8(void) {
-    u8 ret = (alis.mem[alis.script->pc++]);
+    u8 ret = (vm.mem[vm.script->pc++]);
     script_read_debug(ret, sizeof(u8));
     return ret;
 }
 
 s16 script_read8ext16(void) {
-    u8 b = alis.mem[alis.script->pc++];
+    u8 b = vm.mem[vm.script->pc++];
     s16 ret = b;
     if(BIT_CHK((b), 7)) {
         ret |= 0xff00;
@@ -620,7 +620,7 @@ s16 script_read8ext16(void) {
 }
 
 s32 script_read8ext32(void) {
-    s32 ret = extend_l(extend_w(alis.mem[alis.script->pc++]));
+    s32 ret = extend_l(extend_w(vm.mem[vm.script->pc++]));
     script_read_debug(ret, sizeof(u32));
     return  ret;
 }
@@ -631,40 +631,40 @@ s32 script_read8ext32(void) {
  * @return u16 
  */
 u16 script_read16(void) {
-    u16 ret = (alis.mem[alis.script->pc++] << 8) + alis.mem[alis.script->pc++];
+    u16 ret = (vm.mem[vm.script->pc++] << 8) + vm.mem[vm.script->pc++];
     script_read_debug(ret, sizeof(u16));
     return ret;
 }
 
 s32 script_read16ext32(void) {
-    u16 val = (alis.mem[alis.script->pc++] << 8) + alis.mem[alis.script->pc++];
+    u16 val = (vm.mem[vm.script->pc++] << 8) + vm.mem[vm.script->pc++];
     u32 ret = extend_l(val);
     script_read_debug(ret, sizeof(s32));
     return ret;
 }
 
 u32 script_read24(void) {
-    u32 ret = (alis.mem[alis.script->pc++] << 16) + (alis.mem[alis.script->pc++] << 8) + alis.mem[alis.script->pc++];
+    u32 ret = (vm.mem[vm.script->pc++] << 16) + (vm.mem[vm.script->pc++] << 8) + vm.mem[vm.script->pc++];
     script_read_debug(ret, sizeof(u32));
     return ret;
 }
 
 void script_read_bytes(u32 len, u8 * dest) {
     while(len--) {
-        *dest++ = alis.mem[alis.script->pc++];
+        *dest++ = vm.mem[vm.script->pc++];
     }
 }
 
 void script_read_until_zero(u8 * dest) {
-    while(alis.mem[alis.script->pc]) {
-        *dest++ = alis.mem[alis.script->pc++];
+    while(vm.mem[vm.script->pc]) {
+        *dest++ = vm.mem[vm.script->pc++];
     }
-    alis.script->pc++;
+    vm.script->pc++;
 }
 
 void script_jump(s32 offset) {
-    if(!alis.disasm) {
-        alis.script->pc += offset;
+    if(!vm.disasm) {
+        vm.script->pc += offset;
     }
 }
 
@@ -682,11 +682,11 @@ void script_debug(sAlisScript * script) {
 //        printf("%02x ", script->data_org[i]);
 //    }
     
-    u8 code = *(alis.mem + alis.script->pc++);//*(script->pc);
+    u8 code = *(vm.mem + vm.script->pc++);//*(script->pc);
     printf("\nDATA ORG: 0x%06x\nCODE ORG: 0x%06x\nPC OFFSET: 0x%04x\nPC BYTE: 0x%02x ('%s')\n",
            script->data_org,
            script->data_org + header_len,
-           alis.script->pc,
+           vm.script->pc,
            // script_pc(script),
            code,
            opcodes[code].name);

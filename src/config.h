@@ -30,6 +30,9 @@
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)
+#define kMainScriptName     "main"
+#define kMainScriptID       (0)
+
 
 #ifdef _WIN32
 #  define kPathSeparator    '\\'

@@ -7,6 +7,7 @@
 #define alis_private_h
 
 #include "alis.h"
+#include "alis_vars.h"
 #include "debug.h"
 #include "sys/sys.h"
 
@@ -35,9 +36,9 @@ extern sAlisOpcode  addnames[];
 extern sAlisError   errors[];
 
 // common opcode helpers
-extern u16  loctc_common(u16 offset);
-extern u16  locti_common(u16 offset);
-extern u16  loctp_common(u16 offset);
+extern u16  char_array_common(u16 offset);
+extern u16  int_array_common(u16 offset);
+extern u16  string_array_common(u16 offset);
 extern void oeval(void);
 extern void ofin(void);
 

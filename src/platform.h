@@ -8,6 +8,7 @@
 
 #include "config.h"
 
+
 typedef enum {
     EPlatformAtari = 0,
     EPlatformFalcon,
@@ -18,14 +19,13 @@ typedef enum {
     EPlatformUnknown
 } EPlatform;
 
-#define kMainScriptName ("main")
-
-
 
 typedef struct {
     EPlatform   kind;
     char        desc[kDescMaxLen];  // platform description
     char        ext[8];             // script file extension
+    u32         ram_sz;             // size of ram, in bytes
+    u32         vram_sz;            // size of vram, in bytes
     u16         width;              // screen info
     u16         height;
     u8          bpp;

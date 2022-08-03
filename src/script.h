@@ -8,9 +8,13 @@
 
 #include "config.h"
 
-#define kMainScriptID           (0)
 #define kDepackFolder           "depack"
 #define kDepackExtension        "bin"
+
+
+typedef struct {
+    u8  data[6];
+} sPackedScriptHeader;
 
 
 // CONTEXT: each script has some context data, stored before vram origin
@@ -155,7 +159,7 @@ typedef struct {
     u32             data_org;
     
     // each script has its own virtual context and memory
-    u32             vram_org;
+    //u32             vram_org;
     u16             vacc_off;
     
     sScriptContext  context;

@@ -18,9 +18,9 @@
 // ============================================================================
 static void cstore_continue() {
     // swap chunk 1 / 3
-    u8 * tmp = alis.bssChunk1;
-    alis.bssChunk1 = alis.bssChunk3;
-    alis.bssChunk3 = tmp;
+    u8 * tmp = vm.sd7;
+    vm.sd7 = vm.oldsd7;
+    vm.oldsd7 = tmp;
     
     readexec_storename();
 }
@@ -41,7 +41,7 @@ static void cadd() {
 
 static void csub() {
     readexec_opername_saveD7();
-    alis.varD7 *= -1;
+    vm.varD7 *= -1;
     readexec_addname_swap();
 }
 
@@ -87,9 +87,9 @@ static void cdim() {
 
 static void crandom() {
     readexec_opername();
-    alis._random_number = alis.varD7;
-    if(alis._random_number == 0) {
-        alis._random_number = sys_random();
+    vm._random_number = vm.varD7;
+    if(vm._random_number == 0) {
+        vm._random_number = sys_random();
         // test key/joy input, if zero, random is set to $64 ???
     }
 }
@@ -99,9 +99,9 @@ static void crandom() {
 // decrement value in RAM[offset2]
 // if obtained value is zero, then jump with jmp_offset
 static void cloop(u32 offset) {
-    alis.varD7 = -1;
+    vm.varD7 = -1;
     readexec_addname_swap();
-    if(alis.sr.zero) {
+    if(vm.sr.zero) {
         script_jump(offset);
     }
 }
@@ -172,11 +172,11 @@ static void cscset() {
 }
 
 static void cclipping() {
-    alis._cclipping = 0;
+    vm._cclipping = 0;
 }
 
 static void cswitching() {
-    alis._cclipping = 1;
+    vm._cclipping = 1;
     debug(EDebugWarning, " /* SIMULATED */");
 }
 
@@ -198,9 +198,9 @@ static void csleep() {
 
 static void clive() {
     debug(EDebugWarning, " /* STUBBED */");
-    alis._DAT_000195fa = 0;
-    alis._DAT_000195fc = 0;
-    alis._DAT_000195fe = 0;
+    vm._DAT_000195fa = 0;
+    vm._DAT_000195fc = 0;
+    vm._DAT_000195fe = 0;
     
     u16 d2 = script_read16();
     
@@ -213,7 +213,7 @@ static void ckill() {
 
 static void cstop() {
     // in real program, adds 4 to real stack pointer
-    alis.script->running = 0;
+    vm.script->running = 0;
     printf("\n-- CSTOP --");
 }
 
@@ -239,7 +239,7 @@ undefined         D0b:1          <RETURN>
      -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
 
      */
-    alis.running = 0;
+    vm.running = 0;
     debug(EDebugWarning, " /* STUBBED */");
 }
 
@@ -258,8 +258,8 @@ static void cload() {
     else {
         // not main script, depack and load into vm
         char path[kPathMaxLen] = {0};
-        strcpy(path, alis.platform.path);
-        script_read_until_zero((u8 *)(path + strlen(alis.platform.path)));
+        strcpy(path, vm.platform.path);
+        script_read_until_zero((u8 *)(path + strlen(vm.platform.path)));
         
         sAlisScript * script = script_load(strlower((char *)path));
         alis_register_script(script);
@@ -419,8 +419,8 @@ static void cdefsc() {
 
 static void cscreen() {
     u16 pos = script_read16();
-    if (pos != alis.script->context._0x16_screen_position) {
-        alis.script->context._0x16_screen_position = pos;
+    if (pos != vm.script->context._0x16_screen_position) {
+        vm.script->context._0x16_screen_position = pos;
     }
 }
 
@@ -501,20 +501,20 @@ static void cerasen() {
 
 static void cset() {
     readexec_opername();
-    vram_write16(0, alis.varD7);
+    vram_write16(0, vm.varD7);
     readexec_opername();
-    vram_write16(2, alis.varD7);
+    vram_write16(2, vm.varD7);
     readexec_opername();
-    vram_write16(4, alis.varD7);
+    vram_write16(4, vm.varD7);
 }
 
 static void cmov() {
     readexec_opername();
-    vram_add16(0, alis.varD7);
+    vram_add16(0, vm.varD7);
     readexec_opername();
-    vram_add16(2, alis.varD7);
+    vram_add16(2, vm.varD7);
     readexec_opername();
-    vram_add16(4, alis.varD7);
+    vram_add16(4, vm.varD7);
 }
 
 static void copensc() {
@@ -553,11 +553,11 @@ static void cerasall() {
 
 static void cforme() {
     readexec_opername();
-    alis.script->context._0x1a_cforme = alis.varD7;
+    vm.script->context._0x1a_cforme = vm.varD7;
 }
 
 static void cdelforme() {
-    alis.script->context._0x1a_cforme = -1;
+    vm.script->context._0x1a_cforme = -1;
 }
 
 static void ctstmov() {
@@ -625,28 +625,28 @@ static void cscanclr() {
 //    vram_write16(VRAM_OFFSET_OSCAN_OSCANCLR_1, w);
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 7);
 
-    alis.script->context._0x1e_scan_clr = alis.script->context._0x1c_scan_clr;
-    alis.script->context._0x24_scan_inter.scan_clr_bit_7 = 0;
+    vm.script->context._0x1e_scan_clr = vm.script->context._0x1c_scan_clr;
+    vm.script->context._0x24_scan_inter.scan_clr_bit_7 = 0;
 }
 
 static void cscanon() {
-    alis.script->context._0x24_scan_inter.scan_off_bit_0 = 0;
+    vm.script->context._0x24_scan_inter.scan_off_bit_0 = 0;
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 0);
 }
 
 static void cscanoff() {
-    alis.script->context._0x24_scan_inter.scan_off_bit_0 = 1;
+    vm.script->context._0x24_scan_inter.scan_off_bit_0 = 1;
 //    vram_setbit(VRAM_OFFSET_CSCAN_CINTER, 0);
     cscanclr();
 }
 
 static void cinteron() {
-    alis.script->context._0x24_scan_inter.inter_off_bit_1 = 0;
+    vm.script->context._0x24_scan_inter.inter_off_bit_1 = 0;
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 1);
 }
 
 static void cinteroff() {
-    alis.script->context._0x24_scan_inter.inter_off_bit_1 = 1;
+    vm.script->context._0x24_scan_inter.inter_off_bit_1 = 1;
 //    vram_setbit(VRAM_OFFSET_CSCAN_CINTER, 1);
 }
 
@@ -664,7 +664,7 @@ static void cdefcolor() {
 
 static void ctiming() {
     readexec_opername();
-    alis._ctiming = (u8)(alis.varD7 & 0xff);
+    vm._ctiming = (u8)(vm.varD7 & 0xff);
 }
 
 static void czap() {
@@ -689,26 +689,26 @@ static void cinitab() {
 
 static void cfopen() {
     u16 id = 0;
-    if(*(alis.mem + alis.script->pc) == 0xff) {
-//        ++(alis.script->pc);
+    if(*(vm.mem + vm.script->pc) == 0xff) {
+//        ++(vm.script->pc);
         script_jump(1);
         readexec_opername_swap();
         readexec_opername();
     }
     else {
         char path[kPathMaxLen] = {0};
-        strcpy(path, alis.platform.path);
-        script_read_until_zero((u8 *)(path + strlen(alis.platform.path)));
+        strcpy(path, vm.platform.path);
+        script_read_until_zero((u8 *)(path + strlen(vm.platform.path)));
         id = script_read16();
-        alis.fp = sys_fopen((char *)path);
-        if(alis.fp == NULL) {
+        vm.fp = sys_fopen((char *)path);
+        if(vm.fp == NULL) {
             alis_error(ALIS_ERR_FOPEN, path);
         }
     }
 }
 
 static void cfclose() {
-    if(sys_fclose(alis.fp) < 0) {
+    if(sys_fclose(vm.fp) < 0) {
         alis_error(ALIS_ERR_FCLOSE);
     }
 }
@@ -784,7 +784,7 @@ static void cxyscroll() {
 
 static void clinking() {
     readexec_opername();
-    vram_write16(0xffd6, alis.varD7);
+    vram_write16(0xffd6, vm.varD7);
 }
 
 static void cmouson() {
@@ -799,13 +799,13 @@ static void cmousoff() {
 static void cmouse() {
     mouse_t mouse = sys_get_mouse();
     
-    alis.varD7 = mouse.x;
+    vm.varD7 = mouse.x;
     readexec_storename();
     
-    alis.varD7 = mouse.y;
+    vm.varD7 = mouse.y;
     readexec_storename();
     
-    alis.varD7 = mouse.lb;
+    vm.varD7 = mouse.lb;
     readexec_storename();
 }
 
@@ -815,9 +815,9 @@ static void cdefmouse() {
 
 static void csetmouse() {
     readexec_opername();
-    u16 x = alis.varD7;
+    u16 x = vm.varD7;
     readexec_opername();
-    u16 y = alis.varD6;
+    u16 y = vm.varD6;
     sys_set_mouse(x, y);
 }
 
@@ -912,15 +912,15 @@ static void csetvolum() {
 }
 
 static void cxinv() {
-    BIT_CHG(alis.script->context._0x3_xinv, 0);
+    BIT_CHG(vm.script->context._0x3_xinv, 0);
 }
 
 static void cxinvon() {
-    alis.script->context._0x3_xinv = 1;
+    vm.script->context._0x3_xinv = 1;
 }
 
 static void cxinvoff() {
-    alis.script->context._0x3_xinv = 0;
+    vm.script->context._0x3_xinv = 0;
 }
 
 static void clistent() {
@@ -993,26 +993,26 @@ static void cmmusic() {
 
 static void cmforme() {
     readexec_opername();
-    alis.script->context._0x1a_cforme = alis.varD7;
+    vm.script->context._0x1a_cforme = vm.varD7;
 }
 
 static void csettime() {
     readexec_opername();
-    u16 h = alis.varD7;
+    u16 h = vm.varD7;
     readexec_opername();
-    u16 m = alis.varD7;
+    u16 m = vm.varD7;
     readexec_opername();
-    u16 s = alis.varD7;
+    u16 s = vm.varD7;
     sys_set_time(h, m, s);
 }
 
 static void cgettime() {
     time_t t = sys_get_time();
-    alis.varD7 = t << 16 & 0xff;
+    vm.varD7 = t << 16 & 0xff;
     cstore_continue();
-    alis.varD7 = t << 8 & 0xff;
+    vm.varD7 = t << 8 & 0xff;
     cstore_continue();
-    alis.varD7 = t << 0 & 0xff;
+    vm.varD7 = t << 0 & 0xff;
     cstore_continue();
 }
 
@@ -1067,10 +1067,10 @@ static void ctopalet() {
     debug(EDebugWarning, " /* STUBBED */");
     readexec_opername();
     
-    u16 save = alis.varD7;
+    u16 save = vm.varD7;
     readexec_opername_saveD7();
-    alis.varD6 = alis.varD7;
-    alis.varD7 = save;
+    vm.varD6 = vm.varD7;
+    vm.varD7 = save;
 }
 
 static void cnumput() {
@@ -1189,7 +1189,7 @@ static void cselpalet() {
 //96 8d
 //0001629e 4e 75           rts
     readexec_opername();
-    alis.varD7 &= 0x3; // 4 palettes: 0...3
+    vm.varD7 &= 0x3; // 4 palettes: 0...3
 }
 
 static void clinepalet() {
@@ -1407,7 +1407,7 @@ static void cret() {
     // return from subroutine (cjsr)
     // retrieve return address **OFFSET** from virtual stack
     u32 pc_offset = vram_pop32();
-    alis.script->pc = alis.script->pc_org + pc_offset;
+    vm.script->pc = vm.script->pc_org + pc_offset;
 }
 
 static void cjsr(u32 offset) {
@@ -1418,7 +1418,7 @@ static void cjsr(u32 offset) {
     // TODO: peut-on stocker une adresse de retour *virtuelle* ?
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
-    u32 pc_offset = (u32)(alis.script->pc - alis.script->pc_org);
+    u32 pc_offset = (u32)(vm.script->pc - vm.script->pc_org);
     vram_push32(pc_offset);
     script_jump(offset);
 }
@@ -1444,7 +1444,7 @@ static void cjsr24() {
 #pragma mark - Flow control - Jump
 // ============================================================================
 static void cjmp(u32 offset) {
-//    alis.pc += offset;
+//    vm.pc += offset;
     script_jump(offset);
 }
 
@@ -1465,8 +1465,8 @@ static void cjmp24() {
 #pragma mark - Flow control - Branch if zero
 // ============================================================================
 static void cbz(u32 offset) {
-    if(alis.varD7 == 0) {
-//        alis.pc += offset;
+    if(vm.varD7 == 0) {
+//        vm.pc += offset;
         script_jump(offset);
     }
 }
@@ -1487,8 +1487,8 @@ static void cbz24() {
 #pragma mark - Flow control - Branch if non-zero
 // ============================================================================
 static void cbnz(s32 offset) {
-    if(alis.varD7 != 0) {
-//        alis.pc += offset;
+    if(vm.varD7 != 0) {
+//        vm.pc += offset;
         script_jump(offset);
     }
 }
@@ -1509,8 +1509,8 @@ static void cbnz24() {
 #pragma mark - Flow control - Branch if equal
 // ============================================================================
 static void cbeq(u32 offset) {
-    if(alis.varD7 == alis.varD6) {
-//        alis.pc += offset;
+    if(vm.varD7 == vm.varD6) {
+//        vm.pc += offset;
         script_jump(offset);
     }
 }
@@ -1529,8 +1529,8 @@ static void cbeq24() {
 #pragma mark - Flow control - Branch if not equal
 // ============================================================================
 static void cbne(u32 offset) {
-    if(alis.varD7 != alis.varD6) {
-//        alis.pc += offset;
+    if(vm.varD7 != vm.varD6) {
+//        vm.pc += offset;
         script_jump(offset);
     }
 }

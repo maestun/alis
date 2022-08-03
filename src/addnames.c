@@ -22,8 +22,8 @@ static void cnul() {
  */
 static void alocb() {
     u16 offset = script_read16();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add8(offset, (u8)vm.varD7);
+    vm.sr.zero = (vram_read8(offset) == 0);
 }
 
 /**
@@ -33,8 +33,8 @@ static void alocb() {
  */
 static void alocw() {
     u16 offset = script_read16();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add16(offset, vm.varD7);
+    vm.sr.zero = (vram_read8(offset) == 0);
 }
 
 /**
@@ -45,7 +45,7 @@ static void alocw() {
 static void alocp() {
     u16 offset = script_read16();
     u8 * a1 = vram_ptr(offset);
-    u8 * a0 = alis.bssChunk3;
+    u8 * a0 = vm.oldsd7;
     
     // set (vram+offset) pointer to first zero byte
     while (*++a1);
@@ -68,13 +68,13 @@ static void alocti() {
 }
 static void adirb() {
     u8 offset = script_read8();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add8(offset, (u8)vm.varD7);
+    vm.sr.zero = (vram_read8(offset) == 0);
 }
 static void adirw() {
     u8 offset = script_read8();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    vram_add16(offset, vm.varD7);
+    vm.sr.zero = (vram_read8(offset) == 0);
 }
 static void adirp() {
 

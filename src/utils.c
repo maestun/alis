@@ -57,18 +57,8 @@ char * strupper(char * str) {
 }
 
 
-//u32 read_big_endian(u8 * data, size_t sz) {
-//    u32 ret = 0;
-//    u8 shift = sz - 1;
-//    for(int i = 0; i < sz; i++) {
-//        ret += (data[i]) << (shift-- << 3);
-//    }
-//    return ret;
-//}
-
-
 int is_host_little_endian() {
-    unsigned int x = 1;
+    static unsigned int x = 1;
     char * c = (char *)&x;
     return (int)*c;
 }
