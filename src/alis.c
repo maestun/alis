@@ -101,6 +101,7 @@ void init_entities(void) {
 
 // $1867c
 void init_sprites(void) {
+    debug(EDebugVerbose, "init_sprites\n");
 
     u16 d0 = 0x8000;
     vm.vram.basesprit = vm.vram.debsprit + d0;
@@ -141,6 +142,8 @@ void alis_init(sPlatform platform) {
     
     debug(EDebugVerbose, "ALIS: Init.\n");
     
+    vm.platform = platform;    
+    
     // init virtual ram
     vm.mem = malloc(sizeof(u8) * platform.ram_sz);
     memset(vm.mem, 0, sizeof(u8) * platform.ram_sz);
@@ -179,8 +182,7 @@ void alis_init(sPlatform platform) {
         u32 script_max_ram = vm.vram.finprog + vm.specs.max_host_ram;
         vm.vram.finmem = phys_max_ram > script_max_ram ? script_max_ram : phys_max_ram;
 
-        printf(" \
-hostmem:    0x%x\n \
+        printf("\
 basemem:    0x%x\n \
 basevar:    0x%x\n \
 atprog:     0x%x\n \
@@ -193,7 +195,6 @@ finsprit:   0x%x\n \
 debprog:    0x%x\n \
 finprog:    0x%x\n \
 finmem:     0x%x\n",
-            vm.mem,
             vm.vram.basemem,
             vm.vram.basevar, 
             vm.vram.atprog, 
@@ -225,8 +226,6 @@ finmem:     0x%x\n",
             fclose(vm.fp);
             vm.fp = NULL;
         }
-        
-        vm.platform = platform;
         
         // set the vram origin at some abitrary location (same as atari, to ease debug)
         vm.vram_org = vm.mem + ALIS_VM_RAM_ORG;
@@ -320,6 +319,17 @@ void alis_register_script(sAlisScript * script) {
 
 
 u8 alis_main() {
+    
+    
+    // reprog
+    u16 d5 = 0;
+    
+
+
+}
+
+
+u8 __alis_main() {
     u8 ret = 0;
     
     // run !
@@ -449,14 +459,17 @@ void vram_readp(u16 offset, u8 * dst_ptr) {
 
 void vram_write8(s32 offset, u8 value) {
     *(u8 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
+    debug(EDebugVerbose, "wrote char 0x%02x at vram offset 0x%06x\n", value, offset);
 }
 
 void vram_write16(s32 offset, u16 value) {
     *(u16 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
+    debug(EDebugVerbose, "wrote word 0x%04x at vram offset 0x%06x\n", value, offset);
 }
 
 void vram_write32(s32 offset, u32 value) {
     *(u32 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
+    debug(EDebugVerbose, "wrote dword 0x%08x at vram offset 0x%06x\n", value, offset);
 }
 
 void vram_writep(u16 offset, u8 * src_ptr) {

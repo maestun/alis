@@ -30,14 +30,14 @@
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)
-#define kMainScriptName     "main"
+#define kMainScriptName     "MAIN"
 #define kMainScriptID       (0)
 
 
 #ifdef _WIN32
-#  define kPathSeparator    '\\'
+#  define kPathSeparator    "\\"
 #else
-#  define kPathSeparator    '/'
+#  define kPathSeparator    "/"
 #endif
 
 typedef uint8_t             u8;

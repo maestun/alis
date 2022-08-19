@@ -532,13 +532,13 @@ sAlisScript * script_load(const char * script_path) {
             fread(dic, sizeof(u8), HEADER_DIC_SZ, fp);
             
             // read file into buffer
-            u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
+            u8 pak_buf[pak_sz];// (u8 *)malloc(pak_sz * sizeof(u8));
             fread(pak_buf, sizeof(u8), pak_sz, fp);
             
             // alloc and depack
             debug(EDebugVerbose, "Depacking...\n");
             depak_sz = get_depacked_size(magic);
-            u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
+            u8 depak_buf [depak_sz];//depak_sz * sizeof(u8));
             depak(pak_buf,
                   depak_buf,
                   pak_sz,
@@ -550,11 +550,11 @@ sAlisScript * script_load(const char * script_path) {
                        depak_sz, 100 - (100 * pak_sz) / depak_sz);
         
             // init script
-            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+            script = script_init(strrchr(script_path, kPathSeparator[0]) + 1, depak_buf, depak_sz);
             
             // cleanup
-            free(depak_buf);
-            free(pak_buf);
+            // free(depak_buf);
+            // free(pak_buf);
         }
         else {
             // not packed !!

@@ -7,7 +7,6 @@
 #define alis_private_h
 
 #include "alis.h"
-#include "alis_vars.h"
 #include "debug.h"
 #include "sys/sys.h"
 
