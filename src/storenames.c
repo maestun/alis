@@ -14,14 +14,14 @@
 #pragma mark - Store Routines
 // ============================================================================
 
-static void cnul() {
+static void cnul(void) {
 }
 
 /**
  * @brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
  * 
  */
-static void slocb() {
+static void slocb(void) {
     vram_write8(script_read16(), (u8)vm.varD7);
 }
 
@@ -29,7 +29,7 @@ static void slocb() {
  * @brief reads a word (offset) from script, then stores d7 word at (vram + offset)
  * 
  */
-static void slocw() {
+static void slocw(void) {
     vram_write16(script_read16(), vm.varD7);
 }
 
@@ -37,12 +37,12 @@ static void slocw() {
  * @brief reads a word (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
  * 
  */
-static void slocp() {
+static void slocp(void) {
     vram_writep(script_read16(), vm.oldsd7);
 }
 
 // Store at LOCation with offseT: Pointer
-static void sloctp() {
+static void sloctp(void) {
     u16 offset = string_array_common(script_read16());
     u8 * ptr = vm.oldsd7;
     while (*ptr) {
@@ -51,14 +51,14 @@ static void sloctp() {
 }
 
 // Store at LOCation with offseT: Char
-static void sloctc() {
+static void sloctc(void) {
     u16 offset = char_array_common(script_read16());
     vm.varD7 = *(vm.acc++);
     vram_write8(offset, vm.varD7);
 }
 
 // Store at LOCation with offseT: Int
-static void slocti() {
+static void slocti(void) {
     u16 offset = int_array_common(script_read16());
     vm.varD7 = *(vm.acc++);
     vram_write16(offset, vm.varD7);
@@ -69,7 +69,7 @@ static void slocti() {
  * @brief reads a byte (offset) from script, then stores d7 byte at (vram + offset)
  * 
  */
-static void sdirb() {
+static void sdirb(void) {
     vram_write8(script_read8(), (u8)vm.varD7);
 }
 
@@ -77,7 +77,7 @@ static void sdirb() {
  * @brief reads a byte (offset) from script, then stores d7 word at (vram + offset)
  * 
  */
-static void sdirw() {
+static void sdirw(void) {
     vram_write16(script_read8(), (u16)vm.varD7);
 }
 
@@ -85,75 +85,75 @@ static void sdirw() {
  * @brief reads a byte (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
  * 
  */
-static void sdirp() {
+static void sdirp(void) {
     vram_writep(script_read8(), vm.oldsd7);
 }
 
-static void sdirtp() {
+static void sdirtp(void) {
     debug(EDebugInfo, "sdirtp STUBBED\n");
 }
 
-static void sdirtc() {
+static void sdirtc(void) {
     debug(EDebugInfo, "sdirtc STUBBED\n");
 }
 
-static void sdirti() {
+static void sdirti(void) {
     debug(EDebugInfo, "sdirti STUBBED\n");
 }
 
-static void smainb() {
+static void smainb(void) {
     debug(EDebugInfo, "smainb STUBBED\n");
 }
 
-static void smainw() {
+static void smainw(void) {
     debug(EDebugInfo, "smainw STUBBED\n");
 }
 
-static void smainp() {
+static void smainp(void) {
     debug(EDebugInfo, "smainp STUBBED\n");
 }
 
-static void smaintp() {
+static void smaintp(void) {
     debug(EDebugInfo, "smaintp STUBBED\n");
 }
 
-static void smaintc() {
+static void smaintc(void) {
     debug(EDebugInfo, "smaintc STUBBED\n");
 }
 
-static void smainti() {
+static void smainti(void) {
     debug(EDebugInfo, "smainti STUBBED\n");
 }
 
-static void shimb() {
+static void shimb(void) {
     debug(EDebugInfo, "shimb STUBBED\n");
 }
 
-static void shimw() {
+static void shimw(void) {
     debug(EDebugInfo, "shimw STUBBED\n");
 }
 
-static void shimp() {
+static void shimp(void) {
     debug(EDebugInfo, "shimp STUBBED\n");
 }
 
-static void shimtp() {
+static void shimtp(void) {
     debug(EDebugInfo, "shimtp STUBBED\n");
 }
 
-static void shimtc() {
+static void shimtc(void) {
     debug(EDebugInfo, "shimtc STUBBED\n");
 }
 
-static void shimti() {
+static void shimti(void) {
     debug(EDebugInfo, "shimti STUBBED\n");
 }
 
-static void spile() {
+static void spile(void) {
     *(--vm.acc) = vm.varD7;
 }
 
-static void seval() {
+static void seval(void) {
 //    00015d2c 39 07           move.w     D7w,-(A4)
 //    00015d2e 61 00 fd 86     bsr.w      FUN_READEXEC_OPNAME                              undefined FUN_READEXEC_OPNAME()
 //                         -- Flow Override: CALL_RETURN (CALL_TERMINATOR)

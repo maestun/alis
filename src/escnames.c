@@ -12,24 +12,24 @@
 // ============================================================================
 #pragma mark - Escnames routines
 // ============================================================================
-static void cnul() {
+static void cnul(void) {
 }
-void consound() {
+void consound(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
-void coffsound() {
+void coffsound(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
-void conmusic() {
+void conmusic(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
-void coffmusic() {
+void coffmusic(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
-void cdelfilm() {
+void cdelfilm(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
-void copenfilm() {
+void copenfilm(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 

@@ -12,7 +12,7 @@ SDL_Renderer *  _renderer;
 SDL_Window *    _window;
 SDL_Event       _event;
 
-void sys_init() {
+void sys_init(void) {
     SDL_Init(SDL_INIT_VIDEO);
     _window = SDL_CreateWindow(kProgName,
                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -22,7 +22,7 @@ void sys_init() {
 }
 
 
-u8 sys_poll_event() {
+u8 sys_poll_event(void) {
     u8 running = 1;
     SDL_PollEvent(&_event);
     
@@ -53,7 +53,7 @@ void sys_render(pixelbuf_t buffer) {
 
 
 
-void sys_deinit() {
+void sys_deinit(void) {
  //   SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(_renderer);
     SDL_DestroyWindow(_window);
@@ -64,7 +64,7 @@ void sys_deinit() {
 // =============================================================================
 #pragma mark - I/O
 // =============================================================================
-mouse_t sys_get_mouse() {
+mouse_t sys_get_mouse(void) {
     return _mouse;
 }
 

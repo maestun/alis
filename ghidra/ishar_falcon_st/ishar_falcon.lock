@@ -1,9 +1,9 @@
 #Ghidra Lock File
-#Fri Aug 19 12:08:44 CEST 2022
-OS\ Name=Linux
-OS\ Version=5.15.0-46-generic
+#Thu Sep 15 07:43:45 CEST 2022
+OS\ Name=Mac OS X
+OS\ Version=11.5
 Username=olivier
-Hostname=olivier-ThinkPad-T480
+Hostname=Pisco.local
 <META>\ Supports\ File\ Channel\ Locking=Channel Lock
-OS\ Architecture=amd64
-Timestamp=8/19/22, 12\:08 PM
+OS\ Architecture=x86_64
+Timestamp=9/15/22, 7\:43 AM

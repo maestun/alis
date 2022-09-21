@@ -3,7 +3,6 @@ from enum import Enum, IntEnum
 import configparser
 import os
 
-
 # =============================================================================
 class EAlisOpcodeKind(str, Enum):
     OPCODE = "opcode"
@@ -39,18 +38,26 @@ class AlisVM:
         EAlisOpcodeKind.ADDNAME: []
     }
 
+    # dictionary of array of tuples
+    opcodes = {
+        EAlisOpcodeKind.OPCODE: [],     # each element is a tuple (op_name, op_addr)
+        EAlisOpcodeKind.OPERNAME: [],
+        EAlisOpcodeKind.STORENAME: [],
+        EAlisOpcodeKind.ADDNAME: []
+    }
+
     def __init__(self,
                  name,
                  exe_path,
                  exe_md5,
-                 base_addr,
+                 exe_addr,
                  opcode_tab_addr,
                  opername_tab_addr,
                  storename_tab_addr,
                  addname_tab_addr,
                  ):
         self.name = name
-        self.base_addr = base_addr
+        self.exe_addr = exe_addr
         self.exe_path = exe_path # todo check md5
         self.exe_md5 = exe_md5
         self.opcode_tab_addrs = {
@@ -62,9 +69,12 @@ class AlisVM:
         self.exe_fp = open(exe_path, "r+b")
 
         for kind, addrs in self.opcode_addrs.items():
+            code = 0
             for name in self.opcode_names[kind]:
                 addr = self.compute_op_addr(kind, name)
                 addrs.append(addr)
+                self.opcodes[kind].append( ( name, hex(addr) ) )
+                code += 1
 
 
     def get_op_addr(self, kind, name) -> int:
@@ -73,17 +83,53 @@ class AlisVM:
         return self.opcode_addrs[kind][op_idx]
 
 
+    def get_op_name(self, kind, addr) -> int:
+        op_tab = self.opcode_addrs[kind]
+        op_idx = op_tab.index(addr)
+        return self.opcode_names[kind][op_idx]
+
+
     def compute_op_addr(self, kind, name) -> int:
         op_tab = self.opcode_names[kind]
         op_idx = op_tab.index(name)
         op_tab_addr = self.opcode_tab_addrs[kind] 
         offset = op_tab_addr + (op_idx * 2) 
-        self.exe_fp.seek(offset - self.base_addr + self.exe_header_sz)
+        self.exe_fp.seek(offset - self.exe_addr + self.exe_header_sz)
 
         # read word at (jump_table + offset)
         word = self.exe_fp.read(2)
         op_addr = op_tab_addr + int.from_bytes(word, "big")
         return op_addr
+
+
+# =============================================================================
+class SteemLogBreakpoint():
+    BP_STR = "!!!! PASSED BREAKPOINT at address "
+    
+    def __init__(self, lines):
+        # parse breakpoint log from a pack of 4 lines similar to:
+        #
+        # !!!! PASSED BREAKPOINT at address $017572, sr=2308
+        # d0=00006a  d1=000064  d2=030000  d3=000042  d4=ffffa8  d5=000000  d6=000000  d7=000000  
+        # a0=02d278  a1=004dc9  a2=012cb6  a3=03210d  a4=0198de  a5=012e84  a6=022690  a7=0f7fec  
+        # time=822372320 scanline=-33 cycle=232
+
+        data = lines[0].replace(self.BP_STR + "$", "").split(", sr=")
+        self.addr = int(data[0], base=16)
+        self.sr = int(data[1], base=16)
+        self.dreg = []
+        regs = lines[1].strip().split("  ")
+        for reg in regs:
+            self.dreg.append(int(reg.split("=")[1], base=16))
+        self.areg = []
+        regs = lines[2].strip().split("  ")
+        for reg in regs:
+            self.areg.append(int(reg.split("=")[1], base=16))
+        data = lines[3].split(" ")
+        self.time = int(data[0].replace("time=", ""))
+        self.scanline = int(data[1].replace("scanline=", ""))
+        self.cycle = int(data[2].replace("cycle=", ""))
+# =============================================================================
 
 
 # =============================================================================
@@ -108,6 +154,7 @@ class SteemHelper:
         self.vm = alis_vm
         self.steem_folder = steem_folder
         self.ini_file = os.path.join(steem_folder, "steem.ini")
+        self.log_file = os.path.join(steem_folder, "steem.log")
         self.config = configparser.ConfigParser()
         self.config.optionxform = str
         self.config.read(self.ini_file)
@@ -190,6 +237,21 @@ class SteemHelper:
         if os.path.exists(log):
             os.remove(log)
 
+
+    def parse_bps(self):
+        with open(self.log_file, "r") as f: 
+            all_lines = f.read().splitlines()
+        bps = []
+        for i in range(0, len(all_lines)):
+            if all_lines[i].startswith(SteemLogBreakpoint.BP_STR):
+                # stack 4 lines
+                lines = []
+                lines.append(all_lines[i])
+                lines.append(all_lines[i + 1])
+                lines.append(all_lines[i + 2])
+                lines.append(all_lines[i + 3])
+                bps.append(SteemLogBreakpoint(lines))
+        return bps
 
 
     # def handle_op(steem_lines,
@@ -323,21 +385,40 @@ class SteemHelper:
 # =============================================================================
 
 
-vm = AlisVM(name="Ishar / Atari / uncracked / Daze", 
-            exe_path="./data/ishar/atari/auto/start.prg",
-            exe_md5="fa11cc8d6166d59edf143e4135ba058c",
-            base_addr=0xaa9a,
-            opcode_tab_addr=0x10b98,
-            opername_tab_addr=0x10d5e,
-            storename_tab_addr=0x10e08,
-            addname_tab_addr=0x10e44)
+# vm = AlisVM(name="Ishar / Atari / uncracked / Daze", 
+#             exe_path="./data/ishar/atari/auto/start.prg",
+#             exe_md5="fa11cc8d6166d59edf143e4135ba058c",
+#             exe_addr=0xaa9a,
+#             opcode_tab_addr=0x10b98,
+#             opername_tab_addr=0x10d5e,
+#             storename_tab_addr=0x10e08,
+#             addname_tab_addr=0x10e44)
 
-sh = SteemHelper(vm, "./tools/Steem.SSE.4.0.2.Debug.Win32.DD")
+vm = AlisVM(name="Ishar II / Atari / cracked by Elite", 
+            exe_path="./data/ishar2/atari/auto/ISHAR2OK.PRG",
+            exe_md5="87471ae02afacf5da303a99ce81ec1cd",
+            exe_addr=0xaa9a,
+            vram_addr=0x22400,
+            opcode_tab_addr=0x12cb6,
+            opername_tab_addr=0x12e84,
+            storename_tab_addr=0x12f2e,
+            addname_tab_addr=0x12f6a)
+
+sh = SteemHelper(vm, "./tools/Steem.SSE.4.0.2.Debug.Win64.DD")
 
 sh.del_log()
 sh.del_all_bps()
 sh.commit()
 
-sh.add_all_bps(EAlisOpcodeKind.STORENAME)
+sh.add_all_bps(EAlisOpcodeKind.OPCODE)
+# sh.add_all_bps(EAlisOpcodeKind.OPERNAME)
+# sh.add_all_bps(EAlisOpcodeKind.STORENAME)
+# sh.add_all_bps(EAlisOpcodeKind.ADDNAME)
 sh.commit()
 
+_ = input("Breakpoints created. Run Steem to some point and press enter...\n")
+
+bps = sh.parse_bps()
+for bp in bps:
+    if bp.addr in vm.opcode_addrs[EAlisOpcodeKind.OPCODE]:
+        print(hex(bp.addr) + ": " + vm.get_op_name(EAlisOpcodeKind.OPCODE, bp.addr))

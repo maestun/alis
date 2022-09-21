@@ -14,142 +14,142 @@
 #pragma mark - TODO: opernames
 // =============================================================================
 
-void oimmb() {
+void oimmb(void) {
     // reads a byte, extends into r7
     vm.varD7 = script_read8ext16();
 }
 
-void oimmw() {
+void oimmw(void) {
     // reads a word into r7
     vm.varD7 = script_read16();
 }
 
-void oimmp() {
+void oimmp(void) {
     // reads null-terminated data into oldsd7
     script_read_until_zero(vm.sd6);
 }
 
-void olocb() {
+void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
     u16 offset = script_read16();
     vm.varD7 = vram_read8ext16(offset);
 }
 
-void olocw() {
+void olocw(void) {
     // read word offset, copy word from ram[offset] into r7
     u16 offset = script_read16();
     vm.varD7 = vram_read16(offset);
 }
 
-void olocp() {
+void olocp(void) {
     u16 offset = script_read16();
     vram_writep(offset, vm.oldsd7);
 }
 
-void oloctp() {
+void oloctp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oloctc() {
+void oloctc(void) {
     u16 offset = script_read16();
     u16 ret = char_array_common(offset);
     vm.varD7 = vram_read8(ret);
 }
 
-void olocti() {
+void olocti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
 // reads a byte offset from script,
 // then reads an extended byte from vram[offset] into r7
-void odirb(/* u8 offset */) {
+void odirb(void/* u8 offset */) {
     u8 offset = script_read8();
     vm.varD7 = vram_read8ext16(offset);
 }
 
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
-void odirw(/* u8 offset */) {
+void odirw(void/* u8 offset */) {
     u8 offset = script_read8();
     vm.varD7 = vram_read16(offset);;
 }
 
 // reads a byte offset from script,
 // then reads a null-terminated data stream from vram[offset] into oldsd7
-void odirp(/* u8 offset */) {
+void odirp(void/* u8 offset */) {
     u8 offset = script_read8();
     vram_readp(offset, vm.oldsd7);
 }
 
-void odirtp() {
+void odirtp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void odirtc() {
+void odirtc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void odirti() {
+void odirti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omainb() {
+void omainb(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omainw() {
+void omainw(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omainp() {
+void omainp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omaintp() {
+void omaintp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omaintc() {
+void omaintc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omainti() {
+void omainti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimb() {
+void ohimb(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimw() {
+void ohimw(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimp() {
+void ohimp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimtp() {
+void ohimtp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimtc() {
+void ohimtc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ohimti() {
+void ohimti(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
 // pop from accumulator into r6
-void opile() {
+void opile(void) {
     // save r6 into r7
     vm.varD7 = vm.varD6;
     vm.varD6 = *(vm.acc++);
 }
 
 // start eval loop, will stop after ofin() is called
-void oeval() {
+void oeval(void) {
     vm.oeval_loop = 1;
     while(vm.oeval_loop) {
         readexec_opername();
@@ -157,38 +157,38 @@ void oeval() {
 }
 
 // stop eval loop
-void ofin() {
+void ofin(void) {
     vm.oeval_loop = 0;
 }
 
 // push value from r7 register to accumulator
-void opushacc() {
+void opushacc(void) {
     *(--vm.acc) = vm.varD7;
 }
 
 // r7 = variable AND r7
-void oand() {
+void oand(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 &= vm.varD6;
 }
 
 // r7 = variable OR r7
-void oor() {
+void oor(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 |= vm.varD6;
 }
 
 // r7 = variable XOR r7
-void oxor() {
+void oxor(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 ^= vm.varD6;
 }
 
 // r7 = variable EQV r7
-void oeqv() {
+void oeqv(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 ^= vm.varD6;
@@ -196,49 +196,49 @@ void oeqv() {
 }
 
 // r6 == r7
-void oegal() {
+void oegal(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 = (vm.varD6 == vm.varD7) ? 0xff : 0x0;
 }
 
 // r6 != r7
-void odiff() {
+void odiff(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 = (vm.varD6 != vm.varD7) ? 0xff : 0x0;
 }
 
 // r6 <= r7
-void oinfeg() {
+void oinfeg(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 = (vm.varD6 <= vm.varD7) ? 0xff : 0x0;
 }
 
 // r6 >= r7
-void osupeg() {
+void osupeg(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 = (vm.varD6 >= vm.varD7) ? 0xff : 0x0;
 }
 
 // r6 < r7
-void oinf() {
+void oinf(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 = (vm.varD6 < vm.varD7) ? 0xff : 0x0;
 }
 
 // r6 > r7
-void osup() {
+void osup(void) {
     vm.varD6 = vm.varD7;
     readexec_opername();
     vm.varD7 = (vm.varD6 > vm.varD7) ? 0xff : 0x0;
 }
 
 // r7 += variable
-void oadd() {
+void oadd(void) {
 //00017932 61 00 fc 38     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017936 de 46           add.w      D6w,D7w
 //00017938 4e 75           rts
@@ -247,7 +247,7 @@ void oadd() {
 }
 
 // r7 -= variable
-void osub() {
+void osub(void) {
 //0001793a 61 00 fc 30     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //0001793e 9c 47           sub.w      D7w,D6w
 //00017940 3e 06           move.w     D6w,D7w
@@ -258,7 +258,7 @@ void osub() {
 }
 
 // r7 %= variable
-void omod() {
+void omod(void) {
 //00017944 61 00 fc 26     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017948 48 c6           ext.l      D6
 //0001794a 8d c7           divs.w     D7w,D6
@@ -271,7 +271,7 @@ void omod() {
 }
 
 // r7 /= variable
-void odiv() {
+void odiv(void) {
 //00017952 61 00 fc 18     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017956 48 c6           ext.l      D6
 //00017958 8d c7           divs.w     D7w,D6
@@ -283,7 +283,7 @@ void odiv() {
 }
 
 // r7 *= variable
-void omul() {
+void omul(void) {
 //0001795e 61 00 fc 0c     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017962 cf c6           muls.w     D6w,D7
 //00017964 4e 75           rts
@@ -292,22 +292,22 @@ void omul() {
 }
 
 
-void oneg() {
+void oneg(void) {
     vm.varD7 = -vm.varD7;
 }
 
 
-void oabs() {
+void oabs(void) {
     if(vm.varD7 < 0) {
         vm.varD7 = -vm.varD7;
     }
 }
 
-void ornd() {
+void ornd(void) {
     vm.varD7 = sys_random();
 }
 
-void osgn() {
+void osgn(void) {
     if(vm.varD7 > 0) {
         vm.varD7 = 1;
     }
@@ -316,112 +316,112 @@ void osgn() {
     }
 }
 
-void onot() {
+void onot(void) {
     vm.varD7 = ~vm.varD7;
 }
 
-void oinkey() {
+void oinkey(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void okeyon() {
+void okeyon(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ojoy() {
+void ojoy(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oprnd() {
+void oprnd(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oscan() {
+void oscan(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oshiftkey() {
+void oshiftkey(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ofree() {
+void ofree(void) {
     debug(EDebugWarning, "\n%s SIMULATED\n", __FUNCTION__);
     vm.varD7 = 0x321;
 }
 
-void omodel() {
+void omodel(void) {
     vm.varD7 = sys_get_model();
 }
 
-void ogetkey() {
+void ogetkey(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oleft() {
+void oleft(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oright() {
+void oright(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omid() {
+void omid(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void olen() {
+void olen(void) {
     vm.varD7 = strlen((const char *)vm.oldsd7);
 }
 
-void oasc() {
+void oasc(void) {
     vm.varD7 = 0;
     vm.varD7 = vm.oldsd7[0];
 }
 
-void ostr() {
+void ostr(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osadd() {
+void osadd(void) {
     // TODO: strcat ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osegal() {
+void osegal(void) {
     // TODO: strcmp ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osdiff() {
+void osdiff(void) {
     // TODO: !strcmp ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osinfeg() {
+void osinfeg(void) {
     // TODO: string equ or < ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ossupeg() {
+void ossupeg(void) {
     // TODO: string equ or > ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void osinf() {
+void osinf(void) {
     // TODO: string < ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ossup() {
+void ossup(void) {
     // TODO: string > ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ospushacc() {
+void ospushacc(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ospile() {
+void ospile(void) {
     u8 * tmp = vm.oldsd7;
     vm.oldsd7 = vm.sd6;
     vm.sd6 = tmp;
@@ -429,44 +429,44 @@ void ospile() {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oval() {
+void oval(void) {
     // TODO: compute int value of oldsd7 string -> d7 ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oexistf() {
+void oexistf(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, vm.platform.path);
     strcat(path, (char *)vm.oldsd7);
     vm.varD7 = sys_fexists(path) ? 0xffff : 0x0;
 }
 
-void ochr() {
+void ochr(void) {
     vm.oldsd7[0] = (u8)vm.varD7;
 }
 
-void ochange() {
+void ochange(void) {
     // TODO: change le drive courant ??
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void ocountry() {
+void ocountry(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void omip() {
+void omip(void) {
     vm.varD7 = 0x64;
 }
 
-void ojoykey() {
+void ojoykey(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oconfig() {
+void oconfig(void) {
     vm.varD7 = 0;
 }
 
-void cnul() {
+void cnul(void) {
 }
 
 // =============================================================================

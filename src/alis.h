@@ -107,10 +107,10 @@ typedef struct {
 
 
 
-typedef struct {
-    u8  b_mousflag;
-    u16 libsprit;
-} sAlisVars;
+//typedef struct {
+//    u8  b_mousflag;
+//    u16 libsprit;
+//} sAlisVars;
 
 
 
@@ -125,7 +125,7 @@ typedef struct {
     sAlisMemory     vram;
     
     // variables
-    sAlisVars       vars;
+    // sAlisVars       vars;
     
     // Absolute address of vm's virtual ram.
     // On atari the operating system gives us $22400.
@@ -216,7 +216,37 @@ typedef struct {
     
     u16         _DAT_000195fa;
     u16         _DAT_000195fc;
-    u16         _DAT_000195fe;        
+    u16         _DAT_000195fe;
+    
+    
+    // global variables declared in DATA section
+    struct {
+        // font stuff
+        struct {
+            u16 w_foasc;
+            u16 w_fonum;
+            u16 w_folarg;
+            u16 w_fohaut;
+            u16 w_fomax;
+        } font;
+        
+        // paper (console) stuff
+        struct {
+            u8 b_papercolor;
+            u8 b_inkcolor;
+            u8 b_pmode;
+        } paper;
+        
+        // unknown stuff
+        u16 w_poldx;
+        u16 w_poldy;
+        
+        u8  b_mousflag;
+        u16 libsprit;
+
+    } vars;
+    
+    
 } sAlisVM;
 
 typedef struct {

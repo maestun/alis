@@ -16,7 +16,7 @@
 // ============================================================================
 #pragma mark - Opcodes
 // ============================================================================
-static void cstore_continue() {
+static void cstore_continue(void) {
     // swap chunk 1 / 3
     u8 * tmp = vm.sd7;
     vm.sd7 = vm.oldsd7;
@@ -25,49 +25,49 @@ static void cstore_continue() {
     readexec_storename();
 }
 
-static void cstore() {
+static void cstore(void) {
     readexec_opername_saveD7();
     cstore_continue();
 }
 
-static void ceval() {
+static void ceval(void) {
     readexec_opername_saveD7();
 }
 
-static void cadd() {
+static void cadd(void) {
     readexec_opername_saveD7();
     readexec_addname_swap();
 }
 
-static void csub() {
+static void csub(void) {
     readexec_opername_saveD7();
     vm.varD7 *= -1;
     readexec_addname_swap();
 }
 
-static void cvprint() {
+static void cvprint(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csprinti() {
+static void csprinti(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csprinta() {
+static void csprinta(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void clocate() {
+static void clocate(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ctab() {
+static void ctab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
 // copy values to vram
 // cdim(u16 offset, u8 counter, u8 value, optional u16[] values)
-static void cdim() {
+static void cdim(void) {
 
     // read word param
     u16 offset = script_read16();
@@ -85,7 +85,7 @@ static void cdim() {
     }
 }
 
-static void crandom() {
+static void crandom(void) {
     readexec_opername();
     vm._random_number = vm.varD7;
     if(vm._random_number == 0) {
@@ -106,27 +106,27 @@ static void cloop(u32 offset) {
     }
 }
 
-static void cloop8() {
+static void cloop8(void) {
     cloop(script_read8ext16());
 }
 
-static void cloop16() {
+static void cloop16(void) {
     cloop(script_read16());
 }
 
-static void cloop24() {
+static void cloop24(void) {
     cloop(script_read24());
 }
 
-static void cswitch1() {
+static void cswitch1(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cswitch2() {
+static void cswitch2(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cleave() {
+static void cleave(void) {
     debug(EDebugWarning, " /* MISSING */");
 //    **************************************************************
 //    *                          FUNCTION                          *
@@ -155,48 +155,48 @@ static void cleave() {
 
 }
 
-static void cprotect() {
+static void cprotect(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void casleep() {
+static void casleep(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscmov() {
+static void cscmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscset() {
+static void cscset(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cclipping() {
+static void cclipping(void) {
     vm._cclipping = 0;
 }
 
-static void cswitching() {
+static void cswitching(void) {
     vm._cclipping = 1;
     debug(EDebugWarning, " /* SIMULATED */");
 }
 
-static void cwlive() {
+static void cwlive(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cunload() {
+static void cunload(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cwakeup() {
+static void cwakeup(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csleep() {
+static void csleep(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void clive() {
+static void clive(void) {
     debug(EDebugWarning, " /* STUBBED */");
     vm._DAT_000195fa = 0;
     vm._DAT_000195fc = 0;
@@ -207,22 +207,22 @@ static void clive() {
     cstore_continue();
 }
 
-static void ckill() {
+static void ckill(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cstop() {
+static void cstop(void) {
     // in real program, adds 4 to real stack pointer
     vm.script->running = 0;
     printf("\n-- CSTOP --");
 }
 
-static void cstopret() {
+static void cstopret(void) {
     // never seen in ishar execution (boot2game)
     debug(EDebugWarning, " /* MISSING */");                                     
 }
 
-static void cexit() {
+static void cexit(void) {
     /*
      **************************************************************
      *                          FUNCTION                          *
@@ -243,7 +243,7 @@ undefined         D0b:1          <RETURN>
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-static void cload() {
+static void cload(void) {
     // get script ID
     u16 id = script_read16();
     if(id == 0) {
@@ -269,7 +269,7 @@ static void cload() {
 
 
 // =============================================================================
-void FUN_00013d82() {
+void FUN_00013d82(void) {
 //    clr.w      ($4,A0,D0)
 //    move.w     (W_000195a0).l,D1
 //
@@ -284,7 +284,7 @@ void FUN_00013d82() {
 //    rts
 }
 // =============================================================================
-void FUN_00013dda() {
+void FUN_00013dda(void) {
 //    move.b         ($21,A0),D0
 //    ext.w          D0
 //    move.b         ($25,A0),D1
@@ -336,7 +336,7 @@ void FUN_00013dda() {
 
 
 // reads 35 bytes
-static void cdefsc() {
+static void cdefsc(void) {
     debug(EDebugWarning, " /* STUBBED */");
     /*
      ; code address: $139ca
@@ -417,18 +417,18 @@ static void cdefsc() {
      */
 }
 
-static void cscreen() {
+static void cscreen(void) {
     u16 pos = script_read16();
     if (pos != vm.script->context._0x16_screen_position) {
         vm.script->context._0x16_screen_position = pos;
     }
 }
 
-static void cput() {
+static void cput(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cputnat() {
+static void cputnat(void) {
     
     // CALLED AT EACH FRAME WHEN SCREEN UPDATE NEEDED ?
     
@@ -469,11 +469,11 @@ static void cputnat() {
     readexec_opername_saveD7();
 }
 
-static void cerase() {
+static void cerase(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cerasen() {
+static void cerasen(void) {
     debug(EDebugWarning, " /* MISSING */");
     readexec_opername_saveD7();
 //    **************************************************************
@@ -499,7 +499,7 @@ static void cerasen() {
 
 }
 
-static void cset() {
+static void cset(void) {
     readexec_opername();
     vram_write16(0, vm.varD7);
     readexec_opername();
@@ -508,7 +508,7 @@ static void cset() {
     vram_write16(4, vm.varD7);
 }
 
-static void cmov() {
+static void cmov(void) {
     readexec_opername();
     vram_add16(0, vm.varD7);
     readexec_opername();
@@ -517,7 +517,7 @@ static void cmov() {
     vram_add16(4, vm.varD7);
 }
 
-static void copensc() {
+static void copensc(void) {
 //    **************************************************************
 //    *                          FUNCTION                          *
 //    **************************************************************
@@ -543,84 +543,84 @@ static void copensc() {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-static void cclosesc() {
+static void cclosesc(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cerasall() {
+static void cerasall(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cforme() {
+static void cforme(void) {
     readexec_opername();
     vm.script->context._0x1a_cforme = vm.varD7;
 }
 
-static void cdelforme() {
+static void cdelforme(void) {
     vm.script->context._0x1a_cforme = -1;
 }
 
-static void ctstmov() {
+static void ctstmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ctstset() {
+static void ctstset(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cftstmov() {
+static void cftstmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cftstset() {
+static void cftstset(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csuccent() {
+static void csuccent(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cpredent() {
+static void cpredent(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cnearent() {
+static void cnearent(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cneartyp() {
+static void cneartyp(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cnearmat() {
+static void cnearmat(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cviewent() {
+static void cviewent(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cviewtyp() {
+static void cviewtyp(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cviewmat() {
+static void cviewmat(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void corient() {
+static void corient(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void crstent() {
+static void crstent(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csend() {
+static void csend(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscanclr() {
+static void cscanclr(void) {
 //    u16 w = vram_read16(VRAM_OFFSET_OSCAN_OSCANCLR_2);
 //    vram_write16(VRAM_OFFSET_OSCAN_OSCANCLR_1, w);
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 7);
@@ -629,65 +629,65 @@ static void cscanclr() {
     vm.script->context._0x24_scan_inter.scan_clr_bit_7 = 0;
 }
 
-static void cscanon() {
+static void cscanon(void) {
     vm.script->context._0x24_scan_inter.scan_off_bit_0 = 0;
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 0);
 }
 
-static void cscanoff() {
+static void cscanoff(void) {
     vm.script->context._0x24_scan_inter.scan_off_bit_0 = 1;
 //    vram_setbit(VRAM_OFFSET_CSCAN_CINTER, 0);
     cscanclr();
 }
 
-static void cinteron() {
+static void cinteron(void) {
     vm.script->context._0x24_scan_inter.inter_off_bit_1 = 0;
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 1);
 }
 
-static void cinteroff() {
+static void cinteroff(void) {
     vm.script->context._0x24_scan_inter.inter_off_bit_1 = 1;
 //    vram_setbit(VRAM_OFFSET_CSCAN_CINTER, 1);
 }
 
-static void callentity() {
+static void callentity(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cpalette() {
+static void cpalette(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cdefcolor() {
+static void cdefcolor(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ctiming() {
+static void ctiming(void) {
     readexec_opername();
     vm._ctiming = (u8)(vm.varD7 & 0xff);
 }
 
-static void czap() {
+static void czap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cexplode() {
+static void cexplode(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cding() {
+static void cding(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cnoise() {
+static void cnoise(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cinitab() {
+static void cinitab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfopen() {
+static void cfopen(void) {
     u16 id = 0;
     if(*(vm.mem + vm.script->pc) == 0xff) {
 //        ++(vm.script->pc);
@@ -707,96 +707,112 @@ static void cfopen() {
     }
 }
 
-static void cfclose() {
+static void cfclose(void) {
     if(sys_fclose(vm.fp) < 0) {
         alis_error(ALIS_ERR_FCLOSE);
     }
 }
 
-static void cfcreat() {
+static void cfcreat(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfdel() {
+static void cfdel(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfreadv() {
+static void cfreadv(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfwritev() {
+static void cfwritev(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfwritei() {
+static void cfwritei(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfreadb() {
+static void cfreadb(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfwriteb() {
+static void cfwriteb(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cplot() {
+static void cplot(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cdraw() {
+static void cdraw(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cbox() {
+static void cbox(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cboxf() {
+static void cboxf(void) {
+    debug(EDebugWarning, " /* MISSING */");
+    
+//    readexec_opername();
+//    u16 temp = vm.varD7;
+//    readexec_opername_saveD7();
+//    vm.varD7 = temp;
+
+    // TODO:
+    // sys_draw_frect();
+}
+
+static void cink(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cink() {
+static void cpset(void) {
+    readexec_opername();
+    vm.vars.w_poldx = vm.varD7;
+    
+    readexec_opername();
+    vm.vars.w_poldy = vm.varD7;
+}
+
+static void cpmove(void) {
+    readexec_opername();
+    vm.vars.w_poldx += vm.varD7;
+    
+    readexec_opername();
+    vm.vars.w_poldy += vm.varD7;
+}
+
+static void cpmode(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cpset() {
+static void cpicture(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cpmove() {
-    debug(EDebugWarning, " /* MISSING */");
-}
-
-static void cpmode() {
-    debug(EDebugWarning, " /* MISSING */");
-}
-
-static void cpicture() {
-    debug(EDebugWarning, " /* MISSING */");
-}
-
-static void cxyscroll() {
+static void cxyscroll(void) {
     readexec_opername();
     readexec_opername();
 }
 
-static void clinking() {
+static void clinking(void) {
     readexec_opername();
     vram_write16(0xffd6, vm.varD7);
 }
 
-static void cmouson() {
+static void cmouson(void) {
     sys_enable_mouse(1);
 }
 
-static void cmousoff() {
+static void cmousoff(void) {
     sys_enable_mouse(0);
 }
 
 // 0x86 - 14d62
-static void cmouse() {
+static void cmouse(void) {
     mouse_t mouse = sys_get_mouse();
     
     vm.varD7 = mouse.x;
@@ -809,11 +825,11 @@ static void cmouse() {
     readexec_storename();
 }
 
-static void cdefmouse() {
+static void cdefmouse(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csetmouse() {
+static void csetmouse(void) {
     readexec_opername();
     u16 x = vm.varD7;
     readexec_opername();
@@ -821,31 +837,31 @@ static void csetmouse() {
     sys_set_mouse(x, y);
 }
 
-static void cdefvect() {
+static void cdefvect(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csetvect() {
+static void csetvect(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void capproach() {
+static void capproach(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cescape() {
+static void cescape(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cvtstmov() {
+static void cvtstmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cvftstmov() {
+static void cvftstmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cvmov() {
+static void cvmov(void) {
 //    OPCODE_CVMOV_0x90
 //00014686 10 2e 00 09     move.b     (0x9,A6),D0b
 //0001468a 48 80           ext.w      D0w
@@ -860,7 +876,7 @@ static void cvmov() {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cdefworld() {
+static void cdefworld(void) {
 //    OPCODE_CDEFWORLD_0x91
 //000173f0 10 1b           move.b     (A3)+,D0b
 //000173f2 e1 40           asl.w      #0x8,D0w
@@ -878,7 +894,7 @@ static void cdefworld() {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cworld() {
+static void cworld(void) {
 //    OPCODE_CWORLD_0x92
 //00017404 1d 5b ff de     move.b     (A3)+,(0xFFDE,A6)
 //00017408 1d 5b ff df     move.b     (A3)+,(0xFFDF,A6)
@@ -887,116 +903,116 @@ static void cworld() {
     vram_write8(0xffdf, script_read8());
 }
 
-static void cfindmat() {
+static void cfindmat(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfindtyp() {
+static void cfindtyp(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmusic() {
+static void cmusic(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cdelmusic() {
+static void cdelmusic(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ccadence() {
+static void ccadence(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csetvolum() {
+static void csetvolum(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cxinv() {
+static void cxinv(void) {
     BIT_CHG(vm.script->context._0x3_xinv, 0);
 }
 
-static void cxinvon() {
+static void cxinvon(void) {
     vm.script->context._0x3_xinv = 1;
 }
 
-static void cxinvoff() {
+static void cxinvoff(void) {
     vm.script->context._0x3_xinv = 0;
 }
 
-static void clistent() {
+static void clistent(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csound() {
+static void csound(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmsound() {
+static void cmsound(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void credon() {
+static void credon(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void credoff() {
+static void credoff(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cdelsound() {
+static void cdelsound(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cwmov() {
+static void cwmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cwtstmov() {
+static void cwtstmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cwftstmov() {
+static void cwftstmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ctstform() {
+static void ctstform(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cxput() {
+static void cxput(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cxputat() {
+static void cxputat(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmput() {
+static void cmput(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmputat() {
+static void cmputat(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmxput() {
+static void cmxput(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmxputat() {
+static void cmxputat(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmmusic() {
+static void cmmusic(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmforme() {
+static void cmforme(void) {
     readexec_opername();
     vm.script->context._0x1a_cforme = vm.varD7;
 }
 
-static void csettime() {
+static void csettime(void) {
     readexec_opername();
     u16 h = vm.varD7;
     readexec_opername();
@@ -1006,7 +1022,7 @@ static void csettime() {
     sys_set_time(h, m, s);
 }
 
-static void cgettime() {
+static void cgettime(void) {
     time_t t = sys_get_time();
     vm.varD7 = t << 16 & 0xff;
     cstore_continue();
@@ -1016,54 +1032,70 @@ static void cgettime() {
     cstore_continue();
 }
 
-static void cvinput() {
+static void cvinput(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csinput() {
+static void csinput(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void crunfilm() {
+static void crunfilm(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cvpicprint() {
+static void cvpicprint(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cspicprint() {
+static void cspicprint(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cvputprint() {
+static void cvputprint(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csputprint() {
+static void csputprint(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfont() {
-    debug(EDebugWarning, " /* MISSING */");
+// load font specifications
+static void cfont(void) {
+    readexec_opername();
+    vm.vars.font.w_foasc = vm.varD7;
+    readexec_opername();
+    vm.vars.font.w_fonum = vm.varD7;
+    readexec_opername();
+    vm.vars.font.w_folarg = vm.varD7;
+    readexec_opername();
+    vm.vars.font.w_fohaut = vm.varD7;
+    readexec_opername();
+    vm.vars.font.w_fomax = vm.varD7;
 }
 
-static void cpaper() {
-    debug(EDebugWarning, " /* MISSING */");
+static void cpaper(void) {
+    debug(EDebugWarning, " /* STUBBED */");
+    
+    readexec_opername();
+    vm.vars.paper.b_papercolor = vm.varD7;
+
+    // TODO: change console background color
+    // sys_set_console_bgcolor(vm.vars.paper.b_papercolor);
 }
 
 // fade-out to black
-static void ctoblack() {
+static void ctoblack(void) {
     debug(EDebugWarning, " /* STUBBED */");
     readexec_opername_saveD7();
 }
 
-static void cmovcolor() {
+static void cmovcolor(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
 // fade-in to palette
-static void ctopalet() {
+static void ctopalet(void) {
     debug(EDebugWarning, " /* STUBBED */");
     readexec_opername();
     
@@ -1073,106 +1105,106 @@ static void ctopalet() {
     vm.varD7 = save;
 }
 
-static void cnumput() {
+static void cnumput(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscheart() {
+static void cscheart(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscpos() {
+static void cscpos(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscsize() {
+static void cscsize(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cschoriz() {
+static void cschoriz(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscvertic() {
+static void cscvertic(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscreduce() {
+static void cscreduce(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscscale() {
+static void cscscale(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void creducing() {
+static void creducing(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscmap() {
+static void cscmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscdump() {
+static void cscdump(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfindcla() {
+static void cfindcla(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cnearcla() {
+static void cnearcla(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cviewcla() {
+static void cviewcla(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cinstru() {
+static void cinstru(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cminstru() {
+static void cminstru(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cordspr() {
+static void cordspr(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void calign() {
+static void calign(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cbackstar() {
+static void cbackstar(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cstarring() {
+static void cstarring(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cengine() {
+static void cengine(void) {
     readexec_opername();
     readexec_opername();
     readexec_opername();
     readexec_opername();
 }
 
-static void cautobase() {
+static void cautobase(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cquality() {
+static void cquality(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void chsprite() {
+static void chsprite(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cselpalet() {
+static void cselpalet(void) {
     debug(EDebugWarning, " /* MISSING */");
 //    **************************************************************
 //    *                          FUNCTION                          *
@@ -1192,163 +1224,163 @@ static void cselpalet() {
     vm.varD7 &= 0x3; // 4 palettes: 0...3
 }
 
-static void clinepalet() {
+static void clinepalet(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cautomode() {
+static void cautomode(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cautofile() {
+static void cautofile(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ccancel() {
+static void ccancel(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ccancall() {
+static void ccancall(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ccancen() {
+static void ccancen(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cblast() {
+static void cblast(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscback() {
+static void cscback(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscrolpage() {
+static void cscrolpage(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cmatent() {
+static void cmatent(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cshrink() {
+static void cshrink(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cdefmap() {
+static void cdefmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csetmap() {
+static void csetmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cputmap() {
+static void cputmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csavepal() {
+static void csavepal(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void csczoom() {
+static void csczoom(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void ctexmap() {
+static void ctexmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void calloctab() {
+static void calloctab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfreetab() {
+static void cfreetab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscantab() {
+static void cscantab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cneartab() {
+static void cneartab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscsun() {
+static void cscsun(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cdarkpal() {
+static void cdarkpal(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscdark() {
+static void cscdark(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void caset() {
+static void caset(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void camov() {
+static void camov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscaset() {
+static void cscaset(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscamov() {
+static void cscamov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscfollow() {
+static void cscfollow(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscview() {
+static void cscview(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cfilm() {
+static void cfilm(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cwalkmap() {
+static void cwalkmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void catstmap() {
+static void catstmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cavtstmov() {
+static void cavtstmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cavmov() {
+static void cavmov(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void caim() {
+static void caim(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cpointpix() {
+static void cpointpix(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cchartmap() {
+static void cchartmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void cscsky() {
+static void cscsky(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-static void czoom() {
+static void czoom(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
@@ -1386,16 +1418,16 @@ static void cjsrabs()   {
 static void cjmpabs()   {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cjsrind16() {
+static void cjsrind16(void) {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cjsrind24() {
+static void cjsrind24(void) {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cjmpind16() {
+static void cjmpind16(void) {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
-static void cjmpind24() {
+static void cjmpind24(void) {
     debug(EDebugVerbose, "%s: N/I", __FUNCTION__);
 }
 
@@ -1403,7 +1435,7 @@ static void cjmpind24() {
 // ============================================================================
 #pragma mark - Flow control - Subroutines
 // ============================================================================
-static void cret() {
+static void cret(void) {
     // return from subroutine (cjsr)
     // retrieve return address **OFFSET** from virtual stack
     u32 pc_offset = vram_pop32();
@@ -1423,18 +1455,18 @@ static void cjsr(u32 offset) {
     script_jump(offset);
 }
 
-static void cjsr8() {
+static void cjsr8(void) {
     // read byte, extend sign
     u16 offset = script_read8ext16();
     cjsr(offset);
 }
 
-static void cjsr16() {
+static void cjsr16(void) {
     u16 offset = script_read16();
     cjsr(offset);
 }
 
-static void cjsr24() {
+static void cjsr24(void) {
     u32 offset = script_read24();
     cjsr(offset);
 }
@@ -1448,15 +1480,15 @@ static void cjmp(u32 offset) {
     script_jump(offset);
 }
 
-static void cjmp8() {
+static void cjmp8(void) {
     cjmp(script_read8ext16());
 }
 
-static void cjmp16() {
+static void cjmp16(void) {
     cjmp(script_read16());
 }
 
-static void cjmp24() {
+static void cjmp24(void) {
     cjmp(script_read24());
 }
 
@@ -1471,14 +1503,14 @@ static void cbz(u32 offset) {
     }
 }
 
-static void cbz8() {
+static void cbz8(void) {
     cbz(script_read8ext16());
 }
 
-static void cbz16() {
+static void cbz16(void) {
     cbz(script_read16());
 }
-static void cbz24() {
+static void cbz24(void) {
     cbz(script_read24());
 }
 
@@ -1492,15 +1524,15 @@ static void cbnz(s32 offset) {
         script_jump(offset);
     }
 }
-static void cbnz8() {
+static void cbnz8(void) {
     cbnz(script_read8ext16());
 }
 
-static void cbnz16() {
+static void cbnz16(void) {
     cbnz(script_read16());
 }
 
-static void cbnz24() {
+static void cbnz24(void) {
     cbnz(script_read24());
 }
 
@@ -1514,13 +1546,13 @@ static void cbeq(u32 offset) {
         script_jump(offset);
     }
 }
-static void cbeq8() {
+static void cbeq8(void) {
     cbeq(script_read8ext16());
 }
-static void cbeq16() {
+static void cbeq16(void) {
     cbeq(script_read16());
 }
-static void cbeq24() {
+static void cbeq24(void) {
     cbeq(script_read24());
 }
 
@@ -1534,13 +1566,13 @@ static void cbne(u32 offset) {
         script_jump(offset);
     }
 }
-static void cbne8() {
+static void cbne8(void) {
     cbne(script_read8ext16());
 }
-static void cbne16() {
+static void cbne16(void) {
     cbne(script_read16());
 }
-static void cbne24() {
+static void cbne24(void) {
     cbne(script_read24());
 }
 
@@ -1578,16 +1610,16 @@ static void cstart(u32 offset) {
 
     debug(EDebugWarning, "%s STUBBED", __FUNCTION__);
 }
-static void cstart8() {
+static void cstart8(void) {
     // read byte, extend sign to word, then to long
     cstart(script_read8ext32());
 }
 
-static void cstart16() {
+static void cstart16(void) {
     cstart(script_read16ext32());
 }
 
-static void cstart24() {
+static void cstart24(void) {
     cstart(script_read24());
 }
 

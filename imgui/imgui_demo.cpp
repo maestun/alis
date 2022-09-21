@@ -5186,8 +5186,8 @@ struct MyDocument
         Color = color;
     }
     void DoOpen()       { Open = true; }
-    void DoQueueClose() { WantClose = true; }
-    void DoForceClose() { Open = false; Dirty = false; }
+    void DoQueueClose(void) { WantClose = true; }
+    void DoForceClose(void) { Open = false; Dirty = false; }
     void DoSave()       { Dirty = false; }
 
     // Display placeholder contents for the Document
@@ -5442,7 +5442,7 @@ void ShowExampleAppDocuments(bool* p_open)
 
 void ImGui::ShowAboutWindow(bool*) {}
 void ImGui::ShowDemoWindow(bool*) {}
-void ImGui::ShowUserGuide() {}
+void ImGui::ShowUserGuide(void) {}
 void ImGui::ShowStyleEditor(ImGuiStyle*) {}
 
 #endif

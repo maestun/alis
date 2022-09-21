@@ -46,43 +46,43 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
     }
 }
 
-alisRet readexec_opcode() {
+alisRet readexec_opcode(void) {
     debug(EDebugVerbose, "\n%s: 0x%06x:", vm.script->name, vm.script->pc);
     return readexec(opcodes, "opcode", 0);
 }
 
-alisRet readexec_opername() {
+alisRet readexec_opername(void) {
     return readexec(opernames, "opername", 1);
 }
 
-alisRet readexec_storename() {
+alisRet readexec_storename(void) {
     return readexec(storenames, "storename", 2);
 }
 
-alisRet readexec_addname() {
+alisRet readexec_addname(void) {
     return readexec(addnames, "addname", 2);
 }
 
-alisRet readexec_addname_swap() {
+alisRet readexec_addname_swap(void) {
     u8 * tmp = vm.sd7;
     vm.sd7 = vm.oldsd7;
     vm.oldsd7 = tmp;
     return readexec_addname();
 }
 
-alisRet readexec_opername_saveD7() {
+alisRet readexec_opername_saveD7(void) {
     vm.varD6 = vm.varD7;
     return readexec_opername();
 }
 
-alisRet readexec_opername_swap() {
+alisRet readexec_opername_swap(void) {
     u8 * tmp = vm.sd7;
     vm.sd7 = vm.oldsd7;
     vm.oldsd7 = tmp;
     return readexec_opername();
 }
 
-void alis_load_main() {
+void alis_load_main(void) {
     // load main scripts as an usual script...
     vm.main = script_load(vm.platform.main);
     
@@ -183,17 +183,17 @@ void alis_init(sPlatform platform) {
         vm.vram.finmem = phys_max_ram > script_max_ram ? script_max_ram : phys_max_ram;
 
         printf("\
-basemem:    0x%x\n \
-basevar:    0x%x\n \
-atprog:     0x%x\n \
-dernprog:   0x%x\n \
-atent:      0x%x\n \
-debent:     0x%x\n \
-finent:     0x%x\n \
-debsprit:   0x%x\n \
-finsprit:   0x%x\n \
-debprog:    0x%x\n \
-finprog:    0x%x\n \
+basemem:    0x%x\n\
+basevar:    0x%x\n\
+atprog:     0x%x\n\
+dernprog:   0x%x\n\
+atent:      0x%x\n\
+debent:     0x%x\n\
+finent:     0x%x\n\
+debsprit:   0x%x\n\
+finsprit:   0x%x\n\
+debprog:    0x%x\n\
+finprog:    0x%x\n\
 finmem:     0x%x\n",
             vm.vram.basemem,
             vm.vram.basevar, 
@@ -227,7 +227,7 @@ finmem:     0x%x\n",
             vm.fp = NULL;
         }
         
-        // set the vram origin at some abitrary location (same as atari, to ease debug)
+        // set the vram origin at some arbitrary location (same as atari, to ease debug)
         vm.vram_org = vm.mem + ALIS_VM_RAM_ORG;
         
         // the script data address table is located at vram start
@@ -284,7 +284,7 @@ finmem:     0x%x\n",
 }
 
 
-void alis_deinit() {
+void alis_deinit(void) {
     // free scripts
     // TODO: use real script table / cunload
     for(int i = 0; i < kMaxScripts; i++) {
@@ -300,7 +300,7 @@ void alis_deinit() {
 }
 
 
-void alis_loop() {
+void alis_loop(void) {
     vm.script->running = 1;
     while (vm.running && vm.script->running) {
         vm.running = sys_poll_event();
@@ -318,18 +318,59 @@ void alis_register_script(sAlisScript * script) {
 }
 
 
-u8 alis_main() {
-    
-    
-    // reprog
-    u16 d5 = 0;
-    
+//u8 alis_main(void) {
+//    undefined4 uVar1;
+//    undefined2 uVar2;
+//    char *pcVar3;
+//    short sVar4;
+//    int iVar5;
+//
+//
+//    sVar4 = 0;
+//    iVar5 = addr_atent;
+//    do {
+//      iVar5 = *(int *)(iVar5 + sVar4);
+//      fallent = 0;
+//      fseq = '\0';
+//      if (((*(char *)(iVar5 + -0x24) < '\0') && ((*(byte *)(iVar5 + -0x24) & 2) == 0)) &&
+//         (*(int *)(*(int *)(iVar5 + -0x14) + 10) != 0)) {
+//        save_rsp = *(undefined2 *)(iVar5 + -10);
+//        savecoord();
+//        FUN_READEXEC_OPCODE();
+//        updtcoo0();
+//      }
+//      if (*(char *)(iVar5 + -4) != '\0') {
+//        if (*(char *)(iVar5 + -4) < '\0') {
+//          *(undefined *)(iVar5 + -4) = 1;
+//        }
+//        pcVar3 = (char *)(iVar5 + -1);
+//        *pcVar3 = *pcVar3 + -1;
+//        if (*pcVar3 == '\0') {
+//          savecoord();
+//          uVar1 = *(undefined4 *)(iVar5 + -8);
+//          uVar2 = *(undefined2 *)(iVar5 + -10);
+//          fseq = fseq + '\x01';
+//          FUN_READEXEC_OPCODE();
+//          *(undefined2 *)(iVar5 + -10) = uVar2;
+//          *(undefined4 *)(iVar5 + -8) = uVar1;
+//          if (*(int *)(*(int *)(iVar5 + -0x14) + 6) != 0) {
+//            fseq = '\0';
+//            save_rsp = *(undefined2 *)(iVar5 + -10);
+//            FUN_READEXEC_OPCODE();
+//          }
+//          updtcoo0();
+//          *(undefined *)(iVar5 + -1) = *(undefined *)(iVar5 + -2);
+//        }
+//      }
+//      sVar4 = *(short *)(addr_atent + 4 + (int)sVar4);
+//      iVar5 = addr_atent;
+//      if (sVar4 == 0) {
+//        image();
+//      }
+//    } while( true );
+//}
 
-
-}
-
-
-u8 __alis_main() {
+u8 alis_main(void) {
     u8 ret = 0;
     
     // run !
@@ -384,7 +425,7 @@ void alis_error(u8 errnum, ...) {
 }
 
 
-void alis_debug() {
+void alis_debug(void) {
     printf("\n-- ALIS --\nCurrent script: '%s' (0x%02x)\n", vm.script->name, vm.script->header.id);
     printf("R6  0x%04x\n", vm.varD6);
     printf("R7  0x%04x\n", vm.varD7);
@@ -459,17 +500,17 @@ void vram_readp(u16 offset, u8 * dst_ptr) {
 
 void vram_write8(s32 offset, u8 value) {
     *(u8 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
-    debug(EDebugVerbose, "wrote char 0x%02x at vram offset 0x%06x\n", value, offset);
+    debug(EDebugVerbose, "\nwrote char 0x%02x at vram offset 0x%06x", value, offset);
 }
 
 void vram_write16(s32 offset, u16 value) {
     *(u16 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
-    debug(EDebugVerbose, "wrote word 0x%04x at vram offset 0x%06x\n", value, offset);
+    debug(EDebugVerbose, "\nwrote word 0x%04x at vram offset 0x%06x", value, offset);
 }
 
 void vram_write32(s32 offset, u32 value) {
     *(u32 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
-    debug(EDebugVerbose, "wrote dword 0x%08x at vram offset 0x%06x\n", value, offset);
+    debug(EDebugVerbose, "\nwrote dword 0x%08x at vram offset 0x%06x", value, offset);
 }
 
 void vram_writep(u16 offset, u8 * src_ptr) {
@@ -504,11 +545,11 @@ void vram_push32(u32 value) {
     *(u32 *)(vm.mem + /*vm.script->vram_org +*/ vm.script->vacc_off) = value;
 }
 
-u32 vram_peek32() {
+u32 vram_peek32(void) {
     return *(u32 *)(vm.mem + /*vm.script->vram_org +*/ vm.script->vacc_off);
 }
 
-u32 vram_pop32() {
+u32 vram_pop32(void) {
     u32 ret = vram_peek32();
     vm.script->vacc_off += sizeof(u32);
     return ret;
@@ -522,7 +563,7 @@ void vram_save_script_state(sAlisScript * script) {
 // =============================================================================
 // MARK: - Virtual RAM debug
 // =============================================================================
-void vram_debug() {
+void vram_debug(void) {
     u8 width = 16;
     
     printf("Stack Offset=0x%04x (word=0x%04x) (dword=0x%08x)\n",

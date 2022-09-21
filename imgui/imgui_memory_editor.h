@@ -152,7 +152,7 @@ struct MemoryEditor
         float   PosAsciiEnd;
         float   WindowWidth;
 
-        Sizes() { memset(this, 0, sizeof(*this)); }
+        Sizes(void) { memset(this, 0, sizeof(*this)); }
     };
 
     void CalcSizes(Sizes& s, size_t mem_size, size_t base_display_addr)

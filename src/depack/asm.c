@@ -193,7 +193,7 @@ void MULSREG_W(uint8_t sreg[4], uint8_t dreg[4]) {
 }
 
 
-void dreg() {
+void dreg(void) {
     printf("D0\t %02x %02x %02x %02x\n", d0[3], d0[2], d0[1], d0[0]);
     printf("D2\t %02x %02x %02x %02x\n", d2[3], d2[2], d2[1], d2[0]);
     printf("D3\t %02x %02x %02x %02x\n", d3[3], d3[2], d3[1], d3[0]);
