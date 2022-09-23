@@ -3,6 +3,8 @@
 # 87471ae02afacf5da303a99ce81ec1cd
 # 2022-09-21 17:25:10
 
+from alis_defs import AlisScript, EAlisOpcodeKind
+
 # =============================================================================
 # OPCODE
 # =============================================================================
@@ -128,7 +130,10 @@ def cbne24(vm):
 
 # 0x133e2: cstore (0x1e)
 def cstore(vm):
-	print("cstore is MISSING...")
+	print("cstore is TO TEST...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	cstore_continue(vm)
 
 # 0x1340e: ceval (0x1f)
 def ceval(vm):
@@ -174,9 +179,9 @@ def ctab(vm):
 def cdim(vm):
 	print("cdim is TO TEST...")
 	# read word param
-	offset = vm.script.read(2)
-	counter = vm.script.read(1)
-	byte2 = vm.script.read(1)
+	offset = vm.script.cread(2)
+	counter = vm.script.cread(1)
+	byte2 = vm.script.cread(1)
 
 	offset -= 1
 	vm.ram.write(offset, counter, 1)
@@ -185,7 +190,7 @@ def cdim(vm):
 
 	# loop w/ counter, read words, store backwards
 	while counter > 0:
-		w = vm.script.read(2)
+		w = vm.script.cread(2)
 		offset -= 2
 		vm.ram.write(offset, w, 2)
 		counter -= 1
@@ -1050,11 +1055,13 @@ def czoom(vm):
 
 
 # =============================================================================
-# OPERNAME
+# OPERAND
 # =============================================================================
 # 0x17594: oimmb (0x0)
 def oimmb(vm):
-	print("oimmb is MISSING...")
+	print("oimmb is TO TEST...")
+	# reads a byte, extends into r7
+	vm.vars.D7 = vm.script.cread(1, True)
 
 # 0x1759a: oimmw (0x1)
 def oimmw(vm):
@@ -1166,11 +1173,15 @@ def opile(vm):
 
 # 0x17f06: oeval (0x1c)
 def oeval(vm):
-	print("oeval is MISSING...")
+	# print("oeval is TO TEST...")
+	vm.oeval_loop = True
+	while vm.oeval_loop:
+	    vm.readexec(EAlisOpcodeKind.OPERAND)
 
 # 0x17f0c: ofin (0x1d)
 def ofin(vm):
-	print("ofin is MISSING...")
+	# print("ofin is TO TEST...")
+	vm.oeval_loop = False
 
 # 0x12e84: cnul (0x1e)
 def cnul(vm):
@@ -1425,8 +1436,13 @@ def sloctp(vm):
 	print("sloctp is MISSING...")
 
 # 0x17f40: sloctc (0x7)
+# Store at LOCation with offseT: Char
 def sloctc(vm):
-	print("sloctc is MISSING...")
+	print("sloctc is TO TEST...")
+	offset = vm.script.cread(2)
+	offset = tab_char(vm, offset)
+	vm.vars.d7 = vm.acc.pop()
+	vm.ram.write(offset, vm.vars.d7, 1)
 
 # 0x17f52: slocti (0x8)
 def slocti(vm):
@@ -1510,11 +1526,15 @@ def spile(vm):
 
 # 0x1817c: seval (0x1c)
 def seval(vm):
-	print("seval is MISSING...")
+	print("seval is TO TEST...")
+	# save d7 to virtual accumulator
+	vm.acc.append(vm.vars.d7)
+	oeval(vm)
+	vm.readexec(EAlisOpcodeKind.STORENAME)
 
 # 0x17f0c: ofin (0x1d)
-def ofin(vm):
-	print("ofin is MISSING...")
+# def ofin(vm):
+# 	print("ofin is MISSING...")
 
 
 # =============================================================================
@@ -1637,7 +1657,52 @@ def aeval(vm):
 	print("aeval is MISSING...")
 
 # 0x17f0c: ofin (0x1d)
-def ofin(vm):
-	print("ofin is MISSING...")
+# def ofin(vm):
+# 	print("ofin is MISSING...")
 
 
+# =============================================================================
+# COMMON STUFF & UTILS
+# =============================================================================
+def cstore_continue(vm):
+	# swap chunk 1 / 3
+	tmp = vm.vars.sd7
+	vm.vars.sd7 = vm.vars.oldsd7
+	vm.vars.oldsd7 = tmp    
+	vm.readexec(EAlisOpcodeKind.STORENAME)
+
+# 0x17818: tabchar
+def tab_char(vm, offset):
+#                      *******************************************************
+#                      *                      FUNCTION                       *
+#                      *******************************************************
+#                      short __stdcall tabchar(void)
+#        short           D0w:2        <RETURN>
+#        undefined2      D0w:2        offset
+#                      tabchar                                   XREF[12]:  000175e8(c), 00017650(c), 
+#                                                                            000176d6(c), 000177ae(c), 
+#                                                                            00017f46(c), 00017fae(c), 
+#                                                                            00018034(c), 0001810c(c), 
+#                                                                            000181d2(c), 0001824a(c), 
+#                                                                            000182e0(c), 000183c8(c)  
+#   00017818 12 36 00      move.b    (-0x1,A6,D0w*0x1),D1b
+#            ff
+#   0001781c 48 81         ext.w     D1w
+	d1w = vm.ram.read(offset - 1, 1, True)
+
+#   0001781e 41 f6 00      lea       (__DAT_0000fffe,A6,offset*0x1),A0
+#            fe
+	a0 = vm.ram.org + offset - 2 # DAT_0000fffe
+
+#   00017822 d0 47         add.w     D7w,offset
+#   00017824 51 c9 00      dbf       D1w,__loop
+#            04
+#   00017828 4e 75         rts
+#                      __loop                                    XREF[2]:   00017824(j), 00017830(j)  
+#   0001782a 34 1c         move.w    (A4)+,D2w
+#   0001782c c5 e0         muls.w    -(A0),D2
+#   0001782e d0 42         add.w     D2w,offset
+#   00017830 51 c9 ff      dbf       D1w,__loop
+#            f8
+#   00017834 4e 75         rts
+	pass

@@ -6,7 +6,7 @@ import os
 # =============================================================================
 class EAlisOpcodeKind(str, Enum):
     OPCODE = "opcode"
-    OPERNAME = "opername"
+    OPERAND = "opername"
     STORENAME = "storename"
     ADDNAME = "addname"
 
@@ -26,14 +26,14 @@ class AlisVM:
 
     opcode_names = {
         EAlisOpcodeKind.OPCODE: ["cnul", "cesc1", "cesc2", "cesc3", "cbreakpt", "cjsr8", "cjsr16", "cjsr24", "cjmp8", "cjmp16", "cjmp24", "cjsrabs", "cjmpabs", "cjsrind16", "cjsrind24", "cjmpind16", "cjmpind24", "cret", "cbz8", "cbz16", "cbz24", "cbnz8", "cbnz16", "cbnz24", "cbeq8", "cbeq16", "cbeq24", "cbne8", "cbne16", "cbne24", "cstore", "ceval", "cadd", "csub", "cmul", "cdiv", "cvprint", "csprinti", "csprinta", "clocate", "ctab", "cdim", "crandom", "cloop8", "cloop16", "cloop24", "cswitch1", "cswitch2", "cstart8", "cstart16", "cstart24", "cleave", "cprotect", "casleep", "cclock", "cnul", "cscmov", "cscset", "cclipping", "cswitching", "cwlive", "cunload", "cwakeup", "csleep", "clive", "ckill", "cstop", "cstopret", "cexit", "cload", "cdefsc", "cscreen", "cput", "cputnat", "cerase", "cerasen", "cset", "cmov", "copensc", "cclosesc", "cerasall", "cforme", "cdelforme", "ctstmov", "ctstset", "cftstmov", "cftstset", "csuccent", "cpredent", "cnearent", "cneartyp", "cnearmat", "cviewent", "cviewtyp", "cviewmat", "corient", "crstent", "csend", "cscanon", "cscanoff", "cinteron", "cinteroff", "cscanclr", "callentity", "cpalette", "cdefcolor", "ctiming", "czap", "cexplode", "cding", "cnoise", "cinitab", "cfopen", "cfclose", "cfcreat", "cfdel", "cfreadv", "cfwritev", "cfwritei", "cfreadb", "cfwriteb", "cplot", "cdraw", "cbox", "cboxf", "cink", "cpset", "cpmove", "cpmode", "cpicture", "cxyscroll", "clinking", "cmouson", "cmousoff", "cmouse", "cdefmouse", "csetmouse", "cdefvect", "csetvect", "cnul", "capproach", "cescape", "cvtstmov", "cvftstmov", "cvmov", "cdefworld", "cworld", "cfindmat", "cfindtyp", "cmusic", "cdelmusic", "ccadence", "csetvolum", "cxinv", "cxinvon", "cxinvoff", "clistent", "csound", "cmsound", "credon", "credoff", "cdelsound", "cwmov", "cwtstmov", "cwftstmov", "ctstform", "cxput", "cxputat", "cmput", "cmputat", "cmxput", "cmxputat", "cmmusic", "cmforme", "csettime", "cgettime", "cvinput", "csinput", "cnul", "cnul", "cnul", "crunfilm", "cvpicprint", "cspicprint", "cvputprint", "csputprint", "cfont", "cpaper", "ctoblack", "cmovcolor", "ctopalet", "cnumput", "cscheart", "cscpos", "cscsize", "cschoriz", "cscvertic", "cscreduce", "cscscale", "creducing", "cscmap", "cscdump", "cfindcla", "cnearcla", "cviewcla", "cinstru", "cminstru", "cordspr", "calign", "cbackstar", "cstarring", "cengine", "cautobase", "cquality", "chsprite", "cselpalet", "clinepalet", "cautomode", "cautofile", "ccancel", "ccancall", "ccancen", "cblast", "cscback", "cscrolpage", "cmatent", "cshrink", "cdefmap", "csetmap", "cputmap", "csavepal", "csczoom", "ctexmap", "calloctab", "cfreetab", "cscantab", "cneartab", "cscsun", "cdarkpal", "cscdark", "caset", "camov", "cscaset", "cscamov", "cscfollow", "cscview", "cfilm", "cwalkmap", "catstmap", "cavtstmov", "cavmov", "caim", "cpointpix", "cchartmap", "cscsky", "czoom"],
-        EAlisOpcodeKind.OPERNAME: ["oimmb", "oimmw", "oimmp", "olocb", "olocw", "olocp", "oloctp", "oloctc", "olocti", "odirb", "odirw", "odirp", "odirtp", "odirtc", "odirti", "omainb", "omainw", "omainp", "omaintp", "omaintc", "omainti", "ohimb", "ohimw", "ohimp", "ohimtp", "ohimtc", "ohimti", "opile", "oeval", "ofin", "cnul", "cnul", "opushacc", "oand", "oor", "oxor", "oeqv", "oegal", "odiff", "oinfeg", "osupeg", "oinf", "osup", "oadd", "osub", "omod", "odiv", "omul", "oneg", "oabs", "ornd", "osgn", "onot", "oinkey", "okeyon", "ojoy", "oprnd", "oscan", "oshiftkey", "ofree", "omodel", "ogetkey", "oleft", "oright", "omid", "olen", "oasc", "ostr", "osadd", "osegal", "osdiff", "osinfeg", "ossupeg", "osinf", "ossup", "ospushacc", "ospile", "oval", "oexistf", "ochr", "ochange", "ocountry", "omip", "ojoykey", "oconfig"],
+        EAlisOpcodeKind.OPERAND: ["oimmb", "oimmw", "oimmp", "olocb", "olocw", "olocp", "oloctp", "oloctc", "olocti", "odirb", "odirw", "odirp", "odirtp", "odirtc", "odirti", "omainb", "omainw", "omainp", "omaintp", "omaintc", "omainti", "ohimb", "ohimw", "ohimp", "ohimtp", "ohimtc", "ohimti", "opile", "oeval", "ofin", "cnul", "cnul", "opushacc", "oand", "oor", "oxor", "oeqv", "oegal", "odiff", "oinfeg", "osupeg", "oinf", "osup", "oadd", "osub", "omod", "odiv", "omul", "oneg", "oabs", "ornd", "osgn", "onot", "oinkey", "okeyon", "ojoy", "oprnd", "oscan", "oshiftkey", "ofree", "omodel", "ogetkey", "oleft", "oright", "omid", "olen", "oasc", "ostr", "osadd", "osegal", "osdiff", "osinfeg", "ossupeg", "osinf", "ossup", "ospushacc", "ospile", "oval", "oexistf", "ochr", "ochange", "ocountry", "omip", "ojoykey", "oconfig"],
         EAlisOpcodeKind.STORENAME: ["cnul", "cnul", "cnul", "slocb", "slocw", "slocp", "sloctp", "sloctc", "slocti", "sdirb", "sdirw", "sdirp", "sdirtp", "sdirtc", "sdirti", "smainb", "smainw", "smainp", "smaintp", "smaintc", "smainti", "shimb", "shimw", "shimp", "shimtp", "shimtc", "shimti", "spile", "seval", "ofin"],
         EAlisOpcodeKind.ADDNAME: ["cnul", "cnul", "cnul", "alocb", "alocw", "alocp", "aloctp", "aloctc", "alocti", "adirb", "adirw", "adirp", "adirtp", "adirtc", "adirti", "amainb", "amainw", "amainp", "amaintp", "amaintc", "amainti", "ahimb", "ahimw", "ahimp", "ahimtp", "ahimtc", "ahimti", "spile", "aeval", "ofin"]
     }
 
     opcode_addrs = {
         EAlisOpcodeKind.OPCODE: [],
-        EAlisOpcodeKind.OPERNAME: [],
+        EAlisOpcodeKind.OPERAND: [],
         EAlisOpcodeKind.STORENAME: [],
         EAlisOpcodeKind.ADDNAME: []
     }
@@ -41,7 +41,7 @@ class AlisVM:
     # dictionary of array of tuples
     opcodes = {
         EAlisOpcodeKind.OPCODE: [],     # each element is a tuple (op_name, op_addr)
-        EAlisOpcodeKind.OPERNAME: [],
+        EAlisOpcodeKind.OPERAND: [],
         EAlisOpcodeKind.STORENAME: [],
         EAlisOpcodeKind.ADDNAME: []
     }
@@ -62,7 +62,7 @@ class AlisVM:
         self.exe_md5 = exe_md5
         self.opcode_tab_addrs = {
             EAlisOpcodeKind.OPCODE: opcode_tab_addr,
-            EAlisOpcodeKind.OPERNAME: opername_tab_addr,
+            EAlisOpcodeKind.OPERAND: opername_tab_addr,
             EAlisOpcodeKind.STORENAME: storename_tab_addr,
             EAlisOpcodeKind.ADDNAME: addname_tab_addr,
         }
@@ -320,7 +320,7 @@ class SteemHelper:
     #         #########################################
 
     #         #########################################
-    #         # FUN_READ_OPERNAME
+    #         # FUN_READ_OPERAND
     #         if "$0" + str(opername_bp_addr) in steem_line:
     #             line = handle_op(steem_lines, steem_line_idx, "\t", 2, opcode_idx,
     #                             alis_data.opername_table, opername_occurrences)
@@ -374,7 +374,7 @@ class SteemHelper:
 
     #     # print opcode usage statistics
     #     print_stats("OPCODE", opcode_occurrences)
-    #     print_stats("OPERNAME", opername_occurrences)
+    #     print_stats("OPERAND", opername_occurrences)
     #     print_stats("STORENAME", storename_occurrences)
     #     print_stats("ADDNAME", addname_occurrences)
 
@@ -411,7 +411,7 @@ sh.del_all_bps()
 sh.commit()
 
 sh.add_all_bps(EAlisOpcodeKind.OPCODE)
-# sh.add_all_bps(EAlisOpcodeKind.OPERNAME)
+# sh.add_all_bps(EAlisOpcodeKind.OPERAND)
 # sh.add_all_bps(EAlisOpcodeKind.STORENAME)
 # sh.add_all_bps(EAlisOpcodeKind.ADDNAME)
 sh.commit()

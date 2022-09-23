@@ -25,7 +25,7 @@ typedef struct {
     char        desc[kDescMaxLen];  // platform description
     char        ext[8];             // script file extension
     u32         ram_sz;             // size of ram, in bytes
-    u32         vram_sz;            // size of vram, in bytes
+    u32         video_ram_sz;       // size of video ram, in bytes
     u16         width;              // screen info
     u16         height;
     u8          bpp;

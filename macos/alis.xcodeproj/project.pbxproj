@@ -187,9 +187,9 @@
 		8B28A60F25076CC800E3F0FF = {
 			isa = PBXGroup;
 			children = (
+				8B28A6672507C4F800E3F0FF /* imgui */,
 				09F871BD2899BCE500A97715 /* src */,
 				8BD307522625D1F200F0417C /* hardware.txt */,
-				8B28A6672507C4F800E3F0FF /* imgui */,
 				8B28A61925076CC800E3F0FF /* Products */,
 				8B28A67F2507C5A500E3F0FF /* Frameworks */,
 			);

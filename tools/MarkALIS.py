@@ -90,6 +90,6 @@ def createALISFuntions(alis_jtab_addr, alis_jtab_len, alis_jtab_names, alis_pref
 
 
 createALISFuntions(alis_jtab_opcodes_addr, alis_jtab_opcodes_len, alis_jtab_opcodes_names, "OPCODE")
-createALISFuntions(alis_jtab_opernames_addr, alis_jtab_opernames_len, alis_jtab_opernames_names, "OPERNAME")
+createALISFuntions(alis_jtab_opernames_addr, alis_jtab_opernames_len, alis_jtab_opernames_names, "OPERAND")
 createALISFuntions(alis_jtab_storenames_addr, alis_jtab_storenames_len, alis_jtab_storenames_names, "STORENAME")
 createALISFuntions(alis_jtab_addnames_addr, alis_jtab_addnames_len, alis_jtab_addnames_names, "ADDNAME")

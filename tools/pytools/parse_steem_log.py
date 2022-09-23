@@ -85,7 +85,7 @@ def parse_log(alis_data, steem_log, output_file):
         #########################################
 
         #########################################
-        # FUN_READ_OPERNAME
+        # FUN_READ_OPERAND
         if "$0" + str(opername_bp_addr) in steem_line:
             line = handle_op(steem_lines, steem_line_idx, "\t", 2, opcode_idx,
                              alis_data.opername_table, opername_occurrences)
@@ -139,7 +139,7 @@ def parse_log(alis_data, steem_log, output_file):
 
     # print opcode usage statistics
     print_stats("OPCODE", opcode_occurrences)
-    print_stats("OPERNAME", opername_occurrences)
+    print_stats("OPERAND", opername_occurrences)
     print_stats("STORENAME", storename_occurrences)
     print_stats("ADDNAME", addname_occurrences)
 

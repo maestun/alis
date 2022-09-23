@@ -81,7 +81,7 @@ typedef struct {
 // all these are offsets !
 typedef struct {
 
-    u32 basemem;       // $22400, set once
+    u32 basemem;       // $22400, set once by host system's 'malloc'
     u32 basevar;       // $0
     
     u32 atprog;        // $22400, set once, same as basemem

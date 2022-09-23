@@ -162,7 +162,7 @@ void alis_init(sPlatform platform) {
         vm.specs.finsprit_offset = fread32(fp, platform);
 
         // vm.vram.org = 0x22400;
-        vm.vram.basemem = 0x22400;
+        vm.vram.basemem = ALIS_VM_RAM_ORG; // address computed by host system's 'malloc'
         vm.vram.basevar = 0;
 
         vm.vram.atprog = vm.vram.basemem;
@@ -178,7 +178,7 @@ void alis_init(sPlatform platform) {
         vm.vram.debprog = vm.vram.finsprit;
         vm.vram.finprog = vm.vram.debprog;
 
-        u32 phys_max_ram = platform.ram_sz - platform.vram_sz - 0x400;
+        u32 phys_max_ram = platform.ram_sz - platform.video_ram_sz - 0x400;
         u32 script_max_ram = vm.vram.finprog + vm.specs.max_host_ram;
         vm.vram.finmem = phys_max_ram > script_max_ram ? script_max_ram : phys_max_ram;
 
@@ -634,17 +634,6 @@ u16 char_array_common(u16 offset) {
       00017830 51 c9 ff      dbf       D1w,__loop
                f8
       00017834 4e 75         rts
-      00017836 e2 48         lsr.w     #0x1,D0w
-      00017838 32 00         move.w    D0w,D1w
-      0001783a 20 3c 00      move.l    #0x17,D0
-               00 00 17
-      00017840 4e f9 00      jmp       perror.l
-               01 94 94
-      00017846 32 00         move.w    D0w,D1w
-      00017848 20 3c 00      move.l    #0x18,D0
-               00 00 18
-      0001784e 4e f9 00      jmp       perror.l
-               01 94 94
 */
     
     // move.b    (-0x1,A6,D0w*0x1),D1b

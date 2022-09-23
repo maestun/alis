@@ -20,7 +20,7 @@ section "AlisVM" {
 }
 section "DepackedDictionary" {	
 	# used to depack this script
-	hex 8 "depackDictionary"
+	hex 8 "dic"
 }
 section "PackedData" {
 	bytes eof "packedData"

@@ -14,7 +14,6 @@ CEXIT
 CDEFMOUSE
 
 
-
 ATARI ST: USE OF HOST REGISTERS FOR ALIS VM
 ===========================================
 

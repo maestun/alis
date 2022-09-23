@@ -7,7 +7,7 @@ from alis_vm import AlisVM
 BP_STR = "!!!! PASSED BREAKPOINT at address "
 LOG_FILE_PATH = "./tools/Steem.SSE.4.0.2.Debug.Win64.DD/steem.log"
 OPCODE_READ_ADDR = 0x01310c
-OPERNAME_READ_ADDR = 0x017572
+OPERAND_READ_ADDR = 0x017572
 STORENAME_READ_ADDR_1 = 0x013406 # in storeacc0
 STORENAME_READ_ADDR_2 = 0x01818a # in STORE_SEVAL
 ADDNAME_READ_ADDR_1 = 0x013438 # in addacc0
@@ -79,7 +79,7 @@ for bp in breakpoints:
         addr = bp.areg[3] - 1
         disasm_line = hex(addr) + ": " + name + " (" + hex(code) + ")"
     
-    elif bp.addr == OPERNAME_READ_ADDR:
+    elif bp.addr == OPERAND_READ_ADDR:
         code = bp.dreg[0] & 0xff
         name = AlisVM.operand_names[code]
         addr = bp.areg[3] - 1
@@ -135,7 +135,7 @@ for bp in breakpoints:
 #         disasm_line = hex(addr) + ": " + opcode_name + " (" + hex(opcode_byte) + ")"
 
 #     # READ OPERAND
-#     elif log_line.startswith(BP_STR + OPERNAME_READ_ADDR):
+#     elif log_line.startswith(BP_STR + OPERAND_READ_ADDR):
 #         d0_hex_byte = get_register_value("data", 0)[4:]
 #         operand_byte = int(d0_hex_byte, base=16)
 #         operand_name = AlisVM.operand_names[operand_byte]

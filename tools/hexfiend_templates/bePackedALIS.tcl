@@ -3,7 +3,9 @@ section "Header" {
 	uint8 "isPacked"
 	uint24 "depackedLength"
 	uint16 "scriptID"
-	hex 8 "depackDictionary"
+}
+section "DepackDictionary" {
+	hex 8 "dic"
 }
 section "PackedData" {
 	bytes eof "packedData"
