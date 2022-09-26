@@ -1439,7 +1439,7 @@ static void cret(void) {
     // return from subroutine (cjsr)
     // retrieve return address **OFFSET** from virtual stack
     u32 pc_offset = vram_pop32();
-    vm.script->pc = vm.script->pc_org + pc_offset;
+    vm.script->pc = vm.script->code_org + pc_offset;
 }
 
 static void cjsr(u32 offset) {
@@ -1450,7 +1450,7 @@ static void cjsr(u32 offset) {
     // TODO: peut-on stocker une adresse de retour *virtuelle* ?
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
-    u32 pc_offset = (u32)(vm.script->pc - vm.script->pc_org);
+    u32 pc_offset = (u32)(vm.script->pc - vm.script->code_org);
     vram_push32(pc_offset);
     script_jump(offset);
 }

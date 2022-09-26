@@ -2,8 +2,10 @@ big_endian
 section "Header" {
 	# 0...1 : word
 	uint16 "scriptID"
-	# 2...3 : word
-	uint16 "read at 18e96, in vram-0x2e"
+	# 2 : byte
+	uint8 "read at 18e96, in vram-0x2e"
+	# 3 : byte
+	uint8 "??"
 	# 4...5 : word
 	uint16 "code start offset - 2"
 	# 6...9 : dword

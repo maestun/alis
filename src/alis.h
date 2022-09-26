@@ -25,13 +25,16 @@
 // MARK: - ERROR CODES
 // =============================================================================
 #define ALIS_ERR_FOPEN          (0x01)
+#define ALIS_ERR_ENT_OVERFLOW   (0x05)
 #define ALIS_ERR_FWRITE         (0x07)
 #define ALIS_ERR_FCREATE        (0x08)
 #define ALIS_ERR_FDELETE        (0x09)
 #define ALIS_ERR_CDEFSC         (0x0a)
+#define ALIS_ERR_PROG_OVERFLOW  (0x0b)
 #define ALIS_ERR_VRAM_OVERFLOW  (0x0c)
 #define ALIS_ERR_FREAD          (0x0d)
 #define ALIS_ERR_FCLOSE         (0x0e)
+#define ALIS_ERR_MAXPROG        (0x13)
 #define ALIS_ERR_FSEEK          (0x00)
 
 
@@ -78,32 +81,49 @@ typedef struct {
 } sAlisSpecs;
 
 
+typedef struct {
+    u32 addr;
+    u16 word;
+} sEnt;
+
+
 // all these are offsets !
+// for ishar 1 data w/ ishar2 interpreter:
 typedef struct {
 
     u32 basemem;       // $22400, set once by host system's 'malloc'
     u32 basevar;       // $0
     
+    // address of a dword table that holds the adresses of loaded script data
+    // (max size is read in packed main script's header, at offset 0x6)
     u32 atprog;        // $22400, set once, same as basemem
-    u32 dernprog;      // $22400
     
-    u32 atent;         // $224f0, set once: atent = basemem + (vm.specs.maxprog * sizeof(ptr_t))
-    u32 debent;        // $2261c, set once: debent = atent + (vm.specs.maxent * 6)
-    u32 finent;        // $2261c
+    // address of the next available atprog slot
+    u32 dernprog;      // $22400, will increment by 4 each time a script is loaded
+    
+    u32 atent;          // $224f0, set once: atent = basemem + (vm.specs.maxprog * sizeof(ptr_t))
+                        // atent ent contains 6*MAXENT (word read in MAIN.AO header at byte 0x8)
+    u32 debent;         // $2261c, set once: debent = atent + (vm.specs.maxent * 6)
 
-    u32 debsprit;       // $29f40, set once: debsprit = ((atent + vm.specs.debsprit_offset) & 0x0f) + 1
-    u32 finsprit;       // $2edd8, set once: finsprit = debsprit + ((vm.specs.finsprit_offset + 3) * 40)
+    u32 basemain;       // $22690, set once: basemain = debent + vmspecs[0x12] + vmspecs[0x16] + sizeof(struct sVMStat)
+
+    u32 finent;        // $26902
+
+    u32 debsprit;       // $283e0, set once: debsprit = ((atent + vm.specs.debsprit_offset) & 0x0f) + 1
+    u32 finsprit;       // $2d278, set once: finsprit = debsprit + ((vm.specs.finsprit_offset + 3) * 40)
     u32 basesprit;      // $31f40, set at init_sprites()
     u16 tvsprit;        // 0x8000, set at init_sprites()
     u16 backsprit;      // 0x8028, set at init_sprites()
     u16 texsprit;       // 0x8050, set at init_sprites()
 
-    u32 debprog;       // $2edd8, set once: debprog = finsprit
-    u32 finprog;       // $2edd8
+    u32 debprog;       // $2d278, set once: debprog = finsprit
+    u32 finprog;       // $
 
-    u32 finmem;         // $f6e98, end of host memory
+    u32 finmem;         // end of host memory
 
 } sAlisMemory;
+
+
 
 
 
@@ -123,6 +143,9 @@ typedef struct {
     
     // vm memory map
     sAlisMemory     vram;
+    
+    // vm status (data stored before basemain / $22690)
+    sVMStatus       vstat;
     
     // variables
     // sAlisVars       vars;
@@ -155,6 +178,7 @@ typedef struct {
     u8              running;
     
     // virtual 16-bit accumulator (A4)
+    u16             vacc_offset;
     s16 *           acc;
     s16 *           acc_org;
     
@@ -175,7 +199,7 @@ typedef struct {
     
     // pointer to current script
     sAlisScript *       script;
-    sAlisScript *       main;
+    // sAlisScript *       main;
         
     // virtual registers
     s16             varD6;
@@ -183,6 +207,9 @@ typedef struct {
     
     // branching register
     u16             varD5;
+    
+    // virtual accumulator offset
+    u16             varD4;
     
     // virtual array registers
     u8 *           sd7;
@@ -221,6 +248,12 @@ typedef struct {
     
     // global variables declared in DATA section
     struct {
+        
+        // ent
+        struct {
+            u8 fallent;
+        } ent;
+        
         // font stuff
         struct {
             u16 w_foasc;
@@ -240,6 +273,11 @@ typedef struct {
         // unknown stuff
         u16 w_poldx;
         u16 w_poldy;
+        
+        u8 fseq;
+        
+        u16 save_rsp;
+        
         
         u8  b_mousflag;
         u16 libsprit;
@@ -265,6 +303,7 @@ extern sHost host;
 // =============================================================================
 void            alis_init(sPlatform platform);
 u8              alis_main(void);
+void            alis_engine(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
 void            alis_register_script(sAlisScript * script);

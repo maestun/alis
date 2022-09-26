@@ -53,7 +53,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "../data/ishar2/atari/"
+            argument = "../data/ishar/atari/"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

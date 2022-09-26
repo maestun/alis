@@ -34,8 +34,8 @@ typedef struct {
     // vram - 0x2f: chsprite
     u8 _0x2f_chsprite;
     
-    // vram - 0x2e: script header word 2
-    u8 _0x2e_script_header_word_2;
+    // vram - 0x2e: script header byte 2
+    u8 _0x2e_script_header_byte_2;
     
     // vram - 0x2d: calign
     u8 _0x2d_calign;
@@ -134,10 +134,11 @@ typedef struct {
 // HEADER: read from depacked script 24 BYTES
 typedef struct {
     u16     id;
-    u16     w_0x1700;       // seems to be always 0x1700 on atari, copied at (vram - $2e)
-    u16     code_loc_offset;// where does code start from (script header + id) ? on atari, always $16
-    u32     ret_offset;     // some scripts have a "sub-script" into them: this is the offset to their code location
-    u32     dw_unknown3;
+    u8      b_0x17;                   // seems to be always 0x17 on atari, copied at (vram - $2e)
+    u8      b_0x00;                   // seems to be always 0x00 on atari
+    u16     code_start_offset_minus_2;  // where does code start from (script header + id) ? on atari, always $16
+    u32     offset_to_subscript_routine;     // some scripts have a "sub-script" into them: this is the offset to their code location
+    u32     offset_to_interrupt_routine;
     u32     dw_unknown4;
     u16     w_unknown5;     // almost always 0x20 (is 0xa for "message*" and 0x4 for "objet")
     u16     vram_alloc_sz;  // number of bytes to alloc fo this script
@@ -158,14 +159,17 @@ typedef struct {
     // offset to script data
     u32             data_org;
     
-    // each script has its own virtual context and memory
+    // offset to script code
+    u32             code_org;
+    
+    // TODO: each script has its own virtual context and memory ??
     //u32             vram_org;
     u16             vacc_off;
     
     sScriptContext  context;
     
     u8              running;
-    u32             pc_org; // offset in memory
+    
     u32             pc;     // offset in memory
 } sAlisScript;
 
