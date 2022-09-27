@@ -262,7 +262,8 @@ static void cload(void) {
         script_read_until_zero((u8 *)(path + strlen(vm.platform.path)));
         
         sAlisScript * script = script_load((char *)path);
-        alis_register_script(script);
+//        alis_register_script(script);
+        // TODO: loadprog
     }
 }
 

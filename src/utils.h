@@ -23,4 +23,13 @@ u16         fread16(FILE * fp, sPlatform pl);
 u32         fread32(FILE * fp, sPlatform pl);
 u16         swap16(u16 num, sPlatform pl);
 u32         swap32(u32 num, sPlatform pl);
+
+
+
+
+
+
+
+
+
 #endif /* utils_h */

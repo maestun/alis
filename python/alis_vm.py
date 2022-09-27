@@ -1,9 +1,10 @@
 
 import os
 
-from alis_defs import AlisMemory, AlisOpcode, AlisScript, AlisVars, EAlisOpcodeKind
 import alis_fptrs
-from host import HostPlatform
+
+from alis_defs import AlisMemory, AlisScript, AlisVars, AlisOpcode, EAlisOpcodeKind
+from host import HostPlatform, EHostPlatform
 from debug_ui import DebugUI
 from sys_io import SysIO
 
@@ -54,6 +55,9 @@ class AlisVM():
             exe_path (str): path to the game's executable (unpacked)
             exe_md5 (str): executable's MD5 sum
             exe_addr (int): Address at which the executable was loaded in emulator
+            platform (HostPlatform): Host Platform
+            data_path (str): Path to depacked scripts folder
+            vram_addr (int): Base RAM address given to us by host system
             opcode_tab_addr (int): Address of OPCODE jump table in emulator
             opername_tab_addr (int): Address of OPERAND jump table in emulator
             storename_tab_addr (int): Address of STORE jump table in emulator
@@ -87,7 +91,7 @@ class AlisVM():
         self.ram = AlisMemory(vram_addr, 256 * 1024, self.platform.is_le, "ALIS-vram")
         self.acc = []
         self.vars = AlisVars()
-        self.sys = SysIO()
+        self.sys = SysIO(platform)
         self.ui = DebugUI()
         self.op_count = 0
         self.oeval_loop = False
@@ -130,12 +134,12 @@ class AlisVM():
 
     # =========================================================================
     def run(self):
-        self.script = self.scripts[0]
+        self.script: AlisScript = self.scripts[0]
         self.script.is_running = True
         self.__running = True
         self.ui.run(self)
 
-        # print(f"-- {self.script.name} --")
+        print(f"-- {self.script.name} --")
         # while True:
         #     self.sys.poll_event()
         #     self.readexec_opcode()
@@ -166,3 +170,30 @@ class AlisVM():
         op_addr = op_tab_addr + int.from_bytes(word, "big")
         return op_addr
 
+
+# =========================================================================
+kProgName = "alis"
+kGitHash = os.popen("git rev-parse --short HEAD").read()
+kGitTag = os.popen("git tag --points-at HEAD").read()
+kGitBranch = os.popen("git rev-parse --abbrev-ref HEAD").read()
+
+# pl = EHostPlatform.guess("../hdd/ishar1_uncracked_daze/data")
+
+ALIS_NAME = "Ishar II / Atari / cracked by Elite"
+ALIS_DATA_PATH = "./data/ishar/atari/decrunched"
+ALIS_EXE_PATH = "./data/ishar2/atari/auto/ISHAR2OK.PRG"
+ALIS_EXE_MD5 = "87471ae02afacf5da303a99ce81ec1cd"
+
+vm = AlisVM(name=ALIS_NAME, 
+            exe_path=ALIS_EXE_PATH,
+            exe_md5=ALIS_EXE_MD5,
+            exe_addr=0xaa9a,
+            data_path=ALIS_DATA_PATH,
+            platform=EHostPlatform.Atari,
+            vram_addr=0x22400,
+            opcode_tab_addr=0x12cb6,
+            opername_tab_addr=0x12e84,
+            storename_tab_addr=0x12f2e,
+            addname_tab_addr=0x12f6a)
+
+vm.run()

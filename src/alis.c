@@ -84,13 +84,36 @@ alisRet readexec_opername_swap(void) {
 }
 
 
-
-
-void set_prog(int aScriptID) {
-    
-    // TODO: maj le tab d'entités atent ?
+void set_prog(sAlisScript* aScript) {
     
     
+    // script size should be even
+    if(aScript->sz & 1) {
+        aScript->sz++;
+    }
+    
+    // compute end of script data offset
+    vm.vram.finprog += aScript->sz;
+    
+    if(vm.vram.finprog > vm.vram.finmem) {
+        alis_error(ALIS_ERR_PROG_OVERFLOW, "Erreur débordement programme");
+    }
+    
+    // check for a free program slot
+    do {
+        vm.vram.dernprog += sizeof(u32);
+    } while(vram_read32(vm.vram.atprog));
+    
+    vram_write32(vm.vram.dernprog, aScript->header.id);
+    if(++vm.vars.nb_prog > vm.specs.max_prog) {
+        alis_error(ALIS_ERR_MAXPROG, "Trop de programmes");
+    }
+    
+    // io_pixel()
+    // io_digit()
+//    if (nmode == 1 || nmode == 2 || nmode == 3 || nmode == 5) {
+//        io_to_mono();
+//    }
 }
 
 
@@ -158,8 +181,7 @@ void update_coord(void) {
 
 void alis_load_main(void) {
     vm.script = script_load(vm.platform.main);
-    
-    set_prog(kMainScriptID);
+    set_prog(vm.script);
     live_main();
 }
 
@@ -238,50 +260,18 @@ void alis_init(sPlatform platform) {
 
         // for debugging and comparing w/ emulator we set this to $22400
         vm.vram.basemem = ALIS_VM_RAM_ORG; // address computed by host system's 'malloc'
-        vm.vram.basevar = 0; // looks unused ?
+        // vm.vram.basevar = 0; // looks unused ?
 
         vm.vram.atprog = vm.vram.basemem; // set once, addr of script adresses
         vm.vram.dernprog = vm.vram.basemem; // addr of next available script slot in atprog
 
         vm.vram.atent = vm.vram.basemem + (vm.specs.max_prog * sizeof(uint32_t));
         vm.vram.debent = vm.vram.atent + (vm.specs.max_ent * 6);
+        vm.vram.finent = vm.vram.debent;
         
-        vm.vram.debsprit = ((vm.vram.finent + vm.specs.debsprit_offset) | 0xf) + 1;
-        vm.vram.finsprit = vm.vram.debsprit + ((vm.specs.finsprit_offset + 3) * 40);
-
-        vm.vram.debprog = vm.vram.finsprit;
-        vm.vram.finprog = vm.vram.debprog;
-
         u32 phys_max_ram = platform.ram_sz - platform.video_ram_sz - 0x400;
         u32 script_max_ram = vm.vram.finprog + vm.specs.max_host_ram;
         vm.vram.finmem = phys_max_ram > script_max_ram ? script_max_ram : phys_max_ram;
-
-        printf("\
-basemem:    0x%x\n\
-basevar:    0x%x\n\
-atprog:     0x%x\n\
-dernprog:   0x%x\n\
-atent:      0x%x\n\
-debent:     0x%x\n\
-finent:     0x%x\n\
-debsprit:   0x%x\n\
-finsprit:   0x%x\n\
-debprog:    0x%x\n\
-finprog:    0x%x\n\
-finmem:     0x%x\n",
-            vm.vram.basemem,
-            vm.vram.basevar, 
-            vm.vram.atprog, 
-            vm.vram.dernprog, 
-            vm.vram.atent, 
-            vm.vram.debent, 
-            vm.vram.finent, 
-            vm.vram.debsprit, 
-            vm.vram.finsprit, 
-            vm.vram.debprog, 
-            vm.vram.finprog, 
-            vm.vram.finmem);
-
 
         // init virtual registers
         vm.varD6 = vm.varD7 = 0;
@@ -314,44 +304,49 @@ finmem:     0x%x\n",
         host.pixelbuf.w = vm.platform.width;
         host.pixelbuf.h = vm.platform.height;
         host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
+
+        init_entities();
+        
+        vm.vram.debsprit = ((vm.vram.finent + vm.specs.debsprit_offset) | 0xf) + 1;
+
+        init_sprites();
+
+        vm.vram.finsprit = vm.vram.debsprit + ((vm.specs.finsprit_offset + 3) * 40);
+
+        vm.vram.debprog = vm.vram.finsprit;
+        vm.vram.finprog = vm.vram.debprog;
         
         // load main script
         alis_load_main();
-        
-        init_entities();
 
-        init_sprites();
-        
-        // vm.script = vm.main;
+        printf("\n\
+basemem:    0x%x\n\
+atprog:     0x%x\n\
+dernprog:   0x%x\n\
+atent:      0x%x\n\
+debent:     0x%x\n\
+basemain:   0x%x\n\
+finent:     0x%x\n\
+debsprit:   0x%x\n\
+finsprit:   0x%x\n\
+basesprit:  0x%x\n\
+debprog:    0x%x\n\
+finprog:    0x%x\n\
+finmem:     0x%x\n",
+            vm.vram.basemem,
+            vm.vram.atprog,
+            vm.vram.dernprog,
+            vm.vram.atent,
+            vm.vram.debent,
+            vm.vram.basemain,
+            vm.vram.finent,
+            vm.vram.debsprit,
+            vm.vram.finsprit,
+            vm.vram.basesprit,
+            vm.vram.debprog,
+            vm.vram.finprog,
+            vm.vram.finmem);
 
-        // // set the location of scripts' vrams table
-        // vm.script_vram_orgs = (sScriptLoc *)(vm.vram_org + (vm.specs.script_data_tab_len * sizeof(u8 *)));
-        
-        // // compute the end address of the scripts' vrams table
-        // u32 script_vram_tab_end = (u32)((u8 *)vm.script_vram_orgs - vm.mem + (vm.specs.script_vram_tab_len * sizeof(sScriptLoc)));
-
-        // // populate the script vrams table with the offsets (routine at $18cd8)
-        // for(int idx = 0; idx < vm.specs.script_vram_tab_len; idx++) {
-        //     u16 offset = (1 + idx) * sizeof(sScriptLoc);
-        //     vm.script_vram_orgs[idx] = (sScriptLoc){0, offset};
-        // }
-        
-        // vm.specs.script_vram_max_addr = ((script_vram_tab_end + vm.specs.max_allocatable_vram) | 0b111) + 1;
-
-        // u32 main_script_data_addr = vm.specs.script_vram_max_addr + vm.specs.vram_to_data_offset;
-
-//         debug(EDebugVerbose, "\
-// - script data table count: %d (0x%x), located at 0x%x\n\
-// - script vram table count: %d (0x%x), located at 0x%x, ends at 0x%x\n\
-// - script data located at 0x%x\n\
-// - vram allocatable up to 0x%x \n\
-// - unused (?) dword from header: 0x%x\n",
-//               vm.specs.script_data_tab_len, vm.specs.script_data_tab_len, (u8 *)vm.script_data_orgs - vm.mem,
-//               vm.specs.script_vram_tab_len, vm.specs.script_vram_tab_len, (u8 *)vm.script_vram_orgs - vm.mem,
-//               script_vram_tab_end,
-//               main_script_data_addr,
-//               vm.specs.script_vram_max_addr,
-//               vm.specs.unused);
         fclose(fp);
     }
     else {
@@ -377,6 +372,7 @@ void alis_deinit(void) {
 
 
 void alis_loop(void) {
+    vm.running = 1;
     vm.script->running = 1;
     while (vm.running && vm.script->running) {
         vm.running = sys_poll_event();
@@ -387,11 +383,11 @@ void alis_loop(void) {
 }
 
 
-void alis_register_script(sAlisScript * script) {
-    u8 id = script->header.id;
-    vm.scripts[id] = script;
-    // vm.script_id_stack[vm.script_count++] = id;
-}
+//void alis_register_script(sAlisScript * script) {
+//    u8 id = script->header.id;
+//    vm.scripts[id] = script;
+//    // vm.script_id_stack[vm.script_count++] = id;
+//}
 
 
 void alis_engine(void) {
@@ -432,11 +428,11 @@ __moteur2:
     }
     
 // __before_moteur4:
-    vm.script->pc = vm.script->data_org + 10 + vm.script->header.offset_to_interrupt_routine;
+    vm.script->pc = vm.mem + vm.script->data_org + 10 + vm.script->header.offset_to_interrupt_routine;
     vm.varD4 = vm.vstat.vacc_offset_kOffsetMinus10;
     vm.vars.save_rsp = vm.varD4;
     save_coord();
-    readexec_opcode();
+    alis_loop();
     update_coord();
     
     
@@ -463,7 +459,7 @@ __moteur6:
     vm.vars.fseq++;
     
     // start opcode execution loop
-    readexec_opcode();
+    alis_loop();
     
     // cstop brought us here
     vm.vstat.vacc_offset_kOffsetMinus10 = vm.varD4;
@@ -481,13 +477,12 @@ __moteur6:
     vm.vars.save_rsp = vm.varD4;
     
     // start opcode subroutine execution loop
-    readexec_opcode();
+    alis_loop();
     
 __moteur5:
     update_coord();
     vm.vstat.cstart_kOffsetMinus1 = vm.vstat.unknown6_kOffsetMinus2;
     goto __moteur1;
-
 }
 
 

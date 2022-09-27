@@ -3,7 +3,25 @@
 # 87471ae02afacf5da303a99ce81ec1cd
 # 2022-09-21 17:25:10
 
-from alis_defs import AlisScript, EAlisOpcodeKind
+from enum import Enum
+
+# =============================================================================
+class EAlisOpcodeKind(str, Enum):
+    OPCODE = "opcode"
+    OPERAND = "operand"
+    STORENAME = "storename"
+    ADDNAME = "addname"
+
+
+# =============================================================================
+class AlisOpcode():
+    def __init__(self, code, fptr, desc, addr):
+        self.code = code
+        self.fptr = fptr
+        self.name = fptr.__name__
+        self.desc = desc
+        self.addr = addr
+
 
 # =============================================================================
 # OPCODE
@@ -26,19 +44,25 @@ def cesc3(vm):
 
 # 0x12fa6: cbreakpt (0x4)
 def cbreakpt(vm):
-	print("cbreakpt is MISSING...")
+	print("cbreakpt is N/I...")
 
 # 0x13126: cjsr8 (0x5)
 def cjsr8(vm):
-	print("cjsr8 is MISSING...")
+	print("cjsr8 is TO TEST...")
+	offset = vm.script.cread(1)
+	cjsr(offset)
 
 # 0x13134: cjsr16 (0x6)
 def cjsr16(vm):
-	print("cjsr16 is MISSING...")
+	print("cjsr16 is TO TEST...")
+	offset = vm.script.cread(2)
+	cjsr(offset)
 
 # 0x13144: cjsr24 (0x7)
 def cjsr24(vm):
-	print("cjsr24 is MISSING...")
+	print("cjsr24 is TO TEST...")
+	offset = vm.script.cread(3)
+	cjsr(vm, offset)
 
 # 0x1315a: cjmp8 (0x8)
 def cjmp8(vm):
@@ -50,7 +74,7 @@ def cjmp16(vm):
 
 # 0x1316c: cjmp24 (0xa)
 def cjmp24(vm):
-	print("cjmp24 is MISSING...")
+	cjmp(vm, vm.script.cread(3))
 
 # 0x1323e: cjsrabs (0xb)
 def cjsrabs(vm):
@@ -78,7 +102,11 @@ def cjmpind24(vm):
 
 # 0x1324a: cret (0x11)
 def cret(vm):
-	print("cret is MISSING...")
+	print("cret is TO TEST...")
+	# return from subroutine (cjsr)
+    # retrieve return address **OFFSET** from virtual stack
+	pc = vm.acc.pop()
+	vm.script.jump(pc, False)
 
 # 0x132e2: cbz8 (0x12)
 def cbz8(vm):
@@ -90,7 +118,7 @@ def cbz16(vm):
 
 # 0x13308: cbz24 (0x14)
 def cbz24(vm):
-	print("cbz24 is MISSING...")
+	cbz(vm, vm.script.cread(3))
 
 # 0x13322: cbnz8 (0x15)
 def cbnz8(vm):
@@ -137,7 +165,8 @@ def cstore(vm):
 
 # 0x1340e: ceval (0x1f)
 def ceval(vm):
-	print("ceval is MISSING...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
 
 # 0x13414: cadd (0x20)
 def cadd(vm):
@@ -295,6 +324,8 @@ def ckill(vm):
 # 0x13972: cstop (0x42)
 def cstop(vm):
 	print("cstop is MISSING...")
+	# in real program, adds 4 to real stack pointer
+	vm.script.stop = True
 
 # 0x13976: cstopret (0x43)
 def cstopret(vm):
@@ -1061,11 +1092,12 @@ def czoom(vm):
 def oimmb(vm):
 	print("oimmb is TO TEST...")
 	# reads a byte, extends into r7
-	vm.vars.D7 = vm.script.cread(1, True)
+	vm.vars.d7 = vm.script.cread(1, True)
 
 # 0x1759a: oimmw (0x1)
 def oimmw(vm):
-	print("oimmw is MISSING...")
+	print("oimmw is TO TEST...")
+	vm.vars.d7 = vm.script.cread(2)
 
 # 0x175a2: oimmp (0x2)
 def oimmp(vm):
@@ -1073,7 +1105,9 @@ def oimmp(vm):
 
 # 0x175b0: olocb (0x3)
 def olocb(vm):
-	print("olocb is MISSING...")
+	print("olocb is TO TEST...")
+	offset = vm.script.cread(2)
+	vm.vars.d7 = vm.ram.read(offset, 1, True)
 
 # 0x175be: olocw (0x4)
 def olocw(vm):
@@ -1180,7 +1214,6 @@ def oeval(vm):
 
 # 0x17f0c: ofin (0x1d)
 def ofin(vm):
-	# print("ofin is TO TEST...")
 	vm.oeval_loop = False
 
 # 0x12e84: cnul (0x1e)
@@ -1213,7 +1246,9 @@ def oeqv(vm):
 
 # 0x178ba: oegal (0x25)
 def oegal(vm):
-	print("oegal is MISSING...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	vm.vars.d7 = 0xff if (vm.vars.d6 == vm.vars.d7) else 0x0
 
 # 0x178ce: odiff (0x26)
 def odiff(vm):
@@ -1229,11 +1264,16 @@ def osupeg(vm):
 
 # 0x1790a: oinf (0x29)
 def oinf(vm):
-	print("oinf is MISSING...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	vm.vars.d7 = 0xff if (vm.vars.d6 < vm.vars.d7) else 0x0
 
 # 0x1791e: osup (0x2a)
 def osup(vm):
-	print("osup is MISSING...")
+	print("osup is TO TEST...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	vm.vars.d7 = 0xff if (vm.vars.d6 > vm.vars.d7) else 0x0
 
 # 0x17932: oadd (0x2b)
 def oadd(vm):
@@ -1245,7 +1285,11 @@ def osub(vm):
 
 # 0x17944: omod (0x2d)
 def omod(vm):
-	print("omod is MISSING...")
+	print("omod is TO TEST...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	vm.vars.d6 %= vm.vars.d7
+	vm.vars.d7 = vm.vars.d6
 
 # 0x17952: odiv (0x2e)
 def odiv(vm):
@@ -1301,11 +1345,27 @@ def oshiftkey(vm):
 
 # 0x17a4c: ofree (0x3b)
 def ofree(vm):
-	print("ofree is MISSING...")
+	print("ofree is STUBBED...")
+	if vm.vars.d7 == 0:
+		# TODO: return free program memory (finmem - finprog) in kB
+		pass
+	elif vm.vars.d7 == 1:
+		# TODO: return free memory (debsprit - finent) in kB
+		pass
+	elif vm.vars.d7 == 2:
+		# TODO: return remaining free script slots (maxprog - nbprog)
+		pass
+	elif vm.vars.d7 == 3:
+		# TODO: return remaining free ent slots (maxent - nbent)
+		pass
+	# TODO: etc...
+	# SIMULATED
+	vm.vars.d7 = 0x321
 
 # 0x17b16: omodel (0x3c)
 def omodel(vm):
-	print("omodel is MISSING...")
+	print("omodel is STUBBED...")
+	vm.sys.get_model()
 
 # 0x179fc: ogetkey (0x3d)
 def ogetkey(vm):
@@ -1420,12 +1480,17 @@ def cnul(vm):
 	print("cnul is MISSING...")
 
 # 0x17f10: slocb (0x3)
+# brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
 def slocb(vm):
-	print("slocb is MISSING...")
+	# print("slocb is TO TEST...")
+	offset = vm.script.cread(2)
+	vm.ram.write(offset, vm.vars.d7, 1)
 
 # 0x17f1c: slocw (0x4)
 def slocw(vm):
-	print("slocw is MISSING...")
+	print("slocw is TO TEST...")
+	offset = vm.script.cread(2)
+	vm.ram.write(offset, vm.vars.d7, 2)
 
 # 0x17f28: slocp (0x5)
 def slocp(vm):
@@ -1442,7 +1507,7 @@ def sloctc(vm):
 	offset = vm.script.cread(2)
 	offset = tab_char(vm, offset)
 	vm.vars.d7 = vm.acc.pop()
-	vm.ram.write(offset, vm.vars.d7, 1)
+	# vm.ram.write(offset, vm.vars.d7, 1)
 
 # 0x17f52: slocti (0x8)
 def slocti(vm):
@@ -1664,6 +1729,19 @@ def aeval(vm):
 # =============================================================================
 # COMMON STUFF & UTILS
 # =============================================================================
+
+def cbz(vm, offset):
+	if vm.vars.d7 == 0:
+		vm.script.jump(offset)
+
+def cjmp(vm, offset):
+	vm.script.jump(offset)
+
+def cjsr(vm, offset):
+    # // save return **OFFSET**, not ADDRESS
+	vm.acc.append(vm.script.pc)
+	vm.script.jump(offset)
+
 def cstore_continue(vm):
 	# swap chunk 1 / 3
 	tmp = vm.vars.sd7

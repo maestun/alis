@@ -1,8 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from mimetypes import init
-from operator import is_
-
 import os
 
 # =============================================================================
@@ -45,7 +42,7 @@ class AlisMemory():
         print(f"read {size} bytes from {self.__name} at offset {hex(offset)}: {hex(val)}")
         return val
 
-    def write(self, offset: int, value: int, size: int = False):
+    def write(self, offset: int, value: int, size: int = 1):
         bytes = int.to_bytes(value, size, self.endian)
         src_idx = 0
         for dst_idx in range(offset, offset + size):
@@ -96,6 +93,7 @@ class AlisScript():
             # set program counter to 1st script byte
             self.pc = 0
             self.is_running = False
+            self.stop = False
 
     def cread(self, size: int = 1, extend: bool = False):
         val = self.code.read(self.pc, size, extend)
@@ -118,6 +116,15 @@ class AlisScript():
     #     print(f"read {size} {kind}{plural} from script at offset {hex(self.pc)}: {hex(val)}")
     #     self.pc += size
     #     return val
+
+    def jump(self, offset, is_offset = True):
+        """Relocates or moves this script's Program Counter
+
+        Args:
+            offset (int): jump value
+            is_offset (bool, optional): if true, value is added to PC, else PC is relocated. Defaults to True.
+        """
+        self.pc = offset + (self.pc if is_offset else 0)
 
 
 # =============================================================================

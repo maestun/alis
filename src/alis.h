@@ -92,7 +92,7 @@ typedef struct {
 typedef struct {
 
     u32 basemem;       // $22400, set once by host system's 'malloc'
-    u32 basevar;       // $0
+//    u32 basevar;       // $0
     
     // address of a dword table that holds the adresses of loaded script data
     // (max size is read in packed main script's header, at offset 0x6)
@@ -195,7 +195,7 @@ typedef struct {
     
     // SCRIPTS
     // global table containing all depacked scripts
-    sAlisScript *   scripts[kMaxScripts];
+    // sAlisScript *   scripts[kMaxScripts];
     
     // pointer to current script
     sAlisScript *       script;
@@ -278,6 +278,8 @@ typedef struct {
         
         u16 save_rsp;
         
+        u16 nb_prog;
+        
         
         u8  b_mousflag;
         u16 libsprit;
@@ -306,7 +308,7 @@ u8              alis_main(void);
 void            alis_engine(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
-void            alis_register_script(sAlisScript * script);
+//void            alis_register_script(sAlisScript * script);
 void            alis_error(u8 errnum, ...);
 void            alis_debug(void);
 void            alis_debug_ram(void);

@@ -23,7 +23,7 @@ int main(int argc, const char* argv[]) {
             sys_init();
             alis_init(pl);
             
-            alis_engine();
+            alis_main();
             
             alis_deinit();
             sys_deinit();
