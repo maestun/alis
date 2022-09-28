@@ -3,7 +3,7 @@
 # - creer une mathode de parse plus generique, qui prend en compte les opcode/opername/storename/addrname
 # - trouver où est chargé le script courant pour avoir l'addr de base
 
-import alis
+from host import EHostPlatform
 
 
 def handle_op(steem_lines,
@@ -148,6 +148,16 @@ def parse_log(alis_data, steem_log, output_file):
     opcode_log.close()
 
 # MAIN
+
+
+ALIS_NAME = "Ishar II / Atari / cracked by Elite"
+ALIS_DATA_PATH = "./data/ishar/atari/decrunched"
+ALIS_EXE_PATH = "./data/ishar2/atari/auto/ISHAR2OK.PRG"
+ALIS_EXE_MD5 = "87471ae02afacf5da303a99ce81ec1cd"
+
+
+alis_data = 
+
 parse_log(alis.ISHAR2_CRELITE, "../Steem.SSE.4.0.2.Debug.Win64.DD/steem.log",
           "./../Steem.SSE.4.0.2.Debug.Win64.DD/logo_animating.txt")
 # parse_log(alis.ISHAR2_CRELITE, "./steem-boot to logo.log", "./steem-boot to logo.txt")

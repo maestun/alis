@@ -1,11 +1,11 @@
-from array import array
-from ctypes import addressof
-from alis_vm import AlisVM
+from alis_vm import AlisVM, vm
+from alis_defs import EAlisOpcodeKind
 
 
 
 BP_STR = "!!!! PASSED BREAKPOINT at address "
 LOG_FILE_PATH = "./tools/Steem.SSE.4.0.2.Debug.Win64.DD/steem.log"
+OUT_FILE_PATH = "./tools/Steem.SSE.4.0.2.Debug.Win64.DD/startup_to_logo_opcodes.csv"
 OPCODE_READ_ADDR = 0x01310c
 OPERAND_READ_ADDR = 0x017572
 STORENAME_READ_ADDR_1 = 0x013406 # in storeacc0
@@ -42,7 +42,6 @@ class SteemLogBreakpoint():
         self.cycle = int(data[2].replace("cycle=", ""))
 # -----------------------------------------------------------------------------
 
-
 with open(LOG_FILE_PATH, "r") as f: 
     log_lines = f.read().splitlines() 
 
@@ -67,7 +66,8 @@ for i in range(0, len(log_lines)):
         breakpoints.append(SteemLogBreakpoint(breakpoint_traces[breakpoint_idx]))
         breakpoint_idx += 1
 
-
+opcode_idx = 0
+disasm_lines.append("script_addr;opcode_idx;opcode_name;opcode_code;opcode_addr\n")
 for bp in breakpoints:
     if bp.addr == SYS_FOPEN_ADDR:
         addr = bp.areg[0]
@@ -75,9 +75,10 @@ for bp in breakpoints:
 
     if bp.addr == OPCODE_READ_ADDR:
         code = bp.dreg[0] & 0xff
-        name = AlisVM.opcode_names[code]
+        opcode = vm.opcodes[EAlisOpcodeKind.OPCODE][code]
         addr = bp.areg[3] - 1
-        disasm_line = hex(addr) + ": " + name + " (" + hex(code) + ")"
+        disasm_line = f"{hex(addr)};{opcode_idx};{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}\n"
+        opcode_idx += 1
     
     elif bp.addr == OPERAND_READ_ADDR:
         code = bp.dreg[0] & 0xff
@@ -154,5 +155,7 @@ for bp in breakpoints:
 for disasm_line in disasm_lines:
     print(disasm_line)
 
-
+with open(OUT_FILE_PATH, "w") as f:
+    f.writelines(disasm_lines)
+    f.close()
 

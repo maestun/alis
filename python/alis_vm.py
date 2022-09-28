@@ -3,7 +3,7 @@ import os
 
 import alis_fptrs
 
-from alis_defs import AlisMemory, AlisScript, AlisVars, AlisOpcode, EAlisOpcodeKind
+from alis_defs import *
 from host import HostPlatform, EHostPlatform
 from debug_ui import DebugUI
 from sys_io import SysIO
@@ -41,7 +41,6 @@ class AlisVM():
                  exe_addr: int,
                  platform: HostPlatform,
                  data_path: str,
-                 vram_addr: int,
                  opcode_tab_addr: int,
                  opername_tab_addr: int,
                  storename_tab_addr: int,
@@ -76,6 +75,7 @@ class AlisVM():
         }
         self.exe_fp = open(exe_path, "r+b")
 
+        # load opcodes
         for kind, addrs in self.__opcode_addrs.items():
             code = 0
             for name in self.__opcode_names[kind]:
@@ -86,17 +86,9 @@ class AlisVM():
                 else:
                     self.opcodes[kind].append( AlisOpcode(code, getattr(alis_fptrs, name), name, addr) if name != "" else "")
                 code += 1
-        
-        self.platform: HostPlatform = platform.value
-        self.ram = AlisMemory(vram_addr, 256 * 1024, self.platform.is_le, "ALIS-vram")
-        self.acc = []
-        self.vars = AlisVars()
-        self.sys = SysIO(platform)
-        self.ui = DebugUI()
-        self.op_count = 0
-        self.oeval_loop = False
 
         # load scripts
+        self.platform = platform.value
         self.scripts = {}
         script_files = [f for f in os.listdir(data_path) if (os.path.isfile(os.path.join(data_path, f)) and f.endswith(".alis"))]
         for script_file in script_files:
@@ -104,6 +96,15 @@ class AlisVM():
             script = AlisScript(os.path.join(data_path, script_file), self.platform.is_le)
             self.scripts[script.header.id] = script
             print("Loading script: " + script_file + " (" + hex(script.header.id) + ")")
+        
+        self.ram = AlisMemory(self.platform.baseram, 1024 * 1024, self.platform.is_le, "alis-vram")
+        self.acc = []
+        self.ctx = AlisContext()
+        self.vars = AlisVars()
+        self.sys = SysIO(platform, data_path)
+        self.ui = DebugUI()
+        self.op_count = 0
+        self.oeval_loop = False
     # =========================================================================
 
 
@@ -112,7 +113,12 @@ class AlisVM():
         # fetch code
         byte = self.script.cread(1, False)
         opcode = self.opcodes[kind][byte]
-        print(f"{hex(self.script.pc - 1)}: {opcode.name}")
+        # print(f"{hex(self.script.pc - 1)}: {opcode.name}")
+        if kind == EAlisOpcodeKind.OPCODE:
+            # TODO: I put an offset to ease debug, remove
+            print(f"{hex(self.script.pc + 0x2d290 - 1)};{self.op_count};{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}")
+            self.op_count += 1
+            # print(f", {opcode.name}")
         opcode.fptr(self)
     # =========================================================================
 
@@ -126,8 +132,6 @@ class AlisVM():
     # =========================================================================
     def tick(self):
         self.sys.poll_event()
-        self.op_count += 1
-        print(f"op_count: {self.op_count} - ", end="")
         self.readexec_opcode()
         self.sys.render_frame()
     # =========================================================================
@@ -170,30 +174,25 @@ class AlisVM():
         op_addr = op_tab_addr + int.from_bytes(word, "big")
         return op_addr
 
-
 # =========================================================================
 kProgName = "alis"
 kGitHash = os.popen("git rev-parse --short HEAD").read()
 kGitTag = os.popen("git tag --points-at HEAD").read()
 kGitBranch = os.popen("git rev-parse --abbrev-ref HEAD").read()
 
-# pl = EHostPlatform.guess("../hdd/ishar1_uncracked_daze/data")
-
 ALIS_NAME = "Ishar II / Atari / cracked by Elite"
 ALIS_DATA_PATH = "./data/ishar/atari/decrunched"
 ALIS_EXE_PATH = "./data/ishar2/atari/auto/ISHAR2OK.PRG"
 ALIS_EXE_MD5 = "87471ae02afacf5da303a99ce81ec1cd"
 
+global vm
 vm = AlisVM(name=ALIS_NAME, 
             exe_path=ALIS_EXE_PATH,
             exe_md5=ALIS_EXE_MD5,
             exe_addr=0xaa9a,
             data_path=ALIS_DATA_PATH,
             platform=EHostPlatform.Atari,
-            vram_addr=0x22400,
             opcode_tab_addr=0x12cb6,
             opername_tab_addr=0x12e84,
             storename_tab_addr=0x12f2e,
             addname_tab_addr=0x12f6a)
-
-vm.run()

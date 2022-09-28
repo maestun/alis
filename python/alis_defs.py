@@ -1,3 +1,4 @@
+from array import array
 from dataclasses import dataclass
 from enum import Enum
 import os
@@ -39,8 +40,19 @@ class AlisMemory():
                 mask = 0xff00 if size == 1 else 0xffffff00
                 val |= mask
 
-        print(f"read {size} bytes from {self.__name} at offset {hex(offset)}: {hex(val)}")
+        # print(f"read {size} bytes from {self.__name} at offset {hex(offset)}: {hex(val)}")
         return val
+    
+    def readp(self, offset: int):
+        ret = []
+        idx = 0
+        c = self.__data[offset]
+        while c != 0:
+            ret.append(c)
+            idx += 1
+            c = self.__data[offset + idx]
+        ret.append(c)
+        return ret
 
     def write(self, offset: int, value: int, size: int = 1):
         bytes = int.to_bytes(value, size, self.endian)
@@ -49,7 +61,13 @@ class AlisMemory():
             self.__data[dst_idx] = bytes[src_idx]
             src_idx += 1
         plural = ("s" if size > 1 else "")
-        print(f"wrote {size} byte{plural} ({hex(value)}) into {self.__name} at offset {hex(offset)}")
+        # print(f"wrote {size} byte{plural} ({hex(value)}) into {self.__name} at offset {hex(offset)}")
+
+    def writep(self, offset, value):
+        src_idx = 0
+        for dst_idx in range(offset, offset + len(value)):
+            self.__data[dst_idx] = value[src_idx]
+            src_idx += 1
 
 
 # =============================================================================
@@ -88,7 +106,7 @@ class AlisScript():
             self.size = os.stat(path).st_size - AlisScriptHeader.HEADER_SZ
             self.code = AlisMemory(0, self.size, is_le, self.name + "-code", f.read())
             f.close()
-            # alloc virtual ram
+            # TODO: alloc virtual ram needed ?
             self.vram = AlisMemory(0, self.header.vram_alloc_sz, is_le, self.name + "-vram")
             # set program counter to 1st script byte
             self.pc = 0
@@ -96,26 +114,20 @@ class AlisScript():
             self.stop = False
 
     def cread(self, size: int = 1, extend: bool = False):
-        val = self.code.read(self.pc, size, extend)
-        self.pc += size
-        return val
+        if size > 0:
+            val = self.code.read(self.pc, size, extend)
+            self.pc += size
+            return val
+        else:
+            val = self.code.readp(self.pc)
+            self.pc += len(val)
+            return val
 
     def vread(self, offset: int, size: int = 1, extend: bool = False):
         return self.vram.read(offset, size, extend)
 
     def vwrite(self, offset: int, value: int, size: int = 1):
         self.vram.write(offset, value, size)
-    #     val = int.from_bytes(self.data[self.pc: self.pc + size], self.endian)
-    #     if extend:
-    #         bit = 7 if size == 1 else 15
-    #         if ((val >> bit) & 1):
-    #             mask = 0xff00 if size == 1 else 0xffffff00
-    #             val |= mask
-
-    #     plural = ("s" if size > 1 else "")
-    #     print(f"read {size} {kind}{plural} from script at offset {hex(self.pc)}: {hex(val)}")
-    #     self.pc += size
-    #     return val
 
     def jump(self, offset, is_offset = True):
         """Relocates or moves this script's Program Counter
@@ -136,4 +148,27 @@ class AlisVars():
     sd7 = [0] * 256
     oldsd7 = [0] * 256
 
+    # TODO: compute from packed main script header
+    addr_basemain = 0x22690
+
+    b_automode = 0
+    b_timing = 0
+    b_tvmode = 0
+
+    w_cx = 0
+    w_cy = 0
+    w_cz = 0
+    w_crnd = 0
+    w_fswitch = 0
+
+
+# =============================================================================
+@dataclass
+class AlisContext():
+   _0x1c_scan_clr = 0
+   _0x1e_scan_clr = 0
+   _0x22_cscreen = 0
+   _0x24_scan_off_bit_0 = False
+   _0x24_scan_clr_bit_7 = False
+   _0x24_inter_off_bit_1 = False
    
