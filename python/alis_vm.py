@@ -5,11 +5,12 @@ import alis_fptrs
 
 from alis_defs import *
 from host import HostPlatform, EHostPlatform
-from debug_ui import DebugUI
 from sys_io import SysIO
 
 def dummy():
     pass
+
+kMainScriptID = 0
 
 # =============================================================================
 class AlisVM():
@@ -97,12 +98,26 @@ class AlisVM():
             self.scripts[script.header.id] = script
             print("Loading script: " + script_file + " (" + hex(script.header.id) + ")")
         
-        self.ram = AlisMemory(self.platform.baseram, 1024 * 1024, self.platform.is_le, "alis-vram")
+        # vm specs
+        packed_main = os.path.join(data_path, "main." + platform.value.extension)
+        with open(packed_main, "rb") as f:        
+            self.specs = AlisSpecs(f, self.platform.is_le)        
+        
+        # stack of loaded script ids
+        self.ids = [kMainScriptID]
+        self.script = self.scripts[kMainScriptID]
+        # virtual memory map, used for debug
+        self.map = AlisMemoryMap(platform.value.baseram, self.specs, self.script)
+        # virtual memory
+        self.ram = AlisMemory(platform.value.ram, self.platform.is_le, "alis-vram")
+        # virtual accumulator (stack)
         self.acc = []
+        # VM context, located at A6 / $22690
         self.ctx = AlisContext()
+        # engine variables
         self.vars = AlisVars()
+        # system abstraction layer
         self.sys = SysIO(platform, data_path)
-        self.ui = DebugUI()
         self.op_count = 0
         self.oeval_loop = False
     # =========================================================================
@@ -111,14 +126,15 @@ class AlisVM():
     # =========================================================================
     def readexec(self, kind: EAlisOpcodeKind):
         # fetch code
-        byte = self.script.cread(1, False)
+        byte = self.script.read(1, False)
         opcode = self.opcodes[kind][byte]
         # print(f"{hex(self.script.pc - 1)}: {opcode.name}")
         if kind == EAlisOpcodeKind.OPCODE:
             # TODO: I put an offset to ease debug, remove
-            print(f"{hex(self.script.pc + 0x2d290 - 1)};{self.op_count};{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}")
+            print(f"{hex(self.script.pc - 1)};{self.op_count};{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}")
             self.op_count += 1
-            # print(f", {opcode.name}")
+        else:
+            print(f"- {opcode.name}")
         opcode.fptr(self)
     # =========================================================================
 
@@ -138,17 +154,50 @@ class AlisVM():
 
     # =========================================================================
     def run(self):
-        self.script: AlisScript = self.scripts[0]
-        self.script.is_running = True
         self.__running = True
-        self.ui.run(self)
+        # TODO: restore back self.ui.run(self)
 
-        print(f"-- {self.script.name} --")
-        # while True:
-        #     self.sys.poll_event()
-        #     self.readexec_opcode()
-        #     self.sys.render_frame()
+        while self.__running:
+            # get last script
+            self.script: AlisScript = self.scripts[self.ids.pop()]
+            self.script.is_running = True
+
+            print(f"-- Running: {self.script.name} --")
+            self.save_coords()
+            self.vars.b_fseq += 1
+            while self.script.is_running:
+                self.tick()
+            
+            # we got here cuz of cstop
+            if self.script.header.subroutine_offset != 0:
+                # TODO: go back
+                # execute subroutine
+                self.vars.b_fseq = 0
+                self.acc.append(self.script.pc)
+                # in original code the offset starts from script_data + 0x6, but
+                # we start from script_code, so remove (HEADER_SZ - 0x6) bytes
+                sub_offset = self.script.header.subroutine_offset - (AlisScriptHeader.HEADER_SZ - 0x6)
+                self.script.jump(sub_offset, False)
+                self.script.is_running = True
+                while self.script.is_running:
+                    self.tick()
+
+            # moteur5
+            self.update_coords()
+            self.ctx._0x1_cstart = self.ctx._0x2_unknown
+
+
     # =========================================================================
+
+    def save_coords(self):
+        # TODO: offset + A6 / $22690
+        self.ram.write(0, self.vars.w_oldcx)
+        self.ram.write(4, self.vars.w_oldcy)
+
+
+    def update_coords(self):
+        # TODO: me lazy
+        pass
 
     def get_op_addr(self, kind, name) -> int:
         op_tab = self.__opcode_names[kind]

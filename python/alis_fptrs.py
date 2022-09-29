@@ -55,19 +55,19 @@ def cbreakpt(vm):
 # 0x13126: cjsr8 (0x5)
 def cjsr8(vm):
 	# print("cjsr8 is TO TEST...")
-	offset = vm.script.cread(1)
+	offset = vm.script.read(1)
 	cjsr(offset)
 
 # 0x13134: cjsr16 (0x6)
 def cjsr16(vm):
 	# print("cjsr16 is TO TEST...")
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	cjsr(offset)
 
 # 0x13144: cjsr24 (0x7)
 def cjsr24(vm):
 	# print("cjsr24 is TO TEST...")
-	offset = vm.script.cread(3)
+	offset = vm.script.read(3)
 	cjsr(vm, offset)
 
 # 0x1315a: cjmp8 (0x8)
@@ -80,7 +80,7 @@ def cjmp16(vm):
 
 # 0x1316c: cjmp24 (0xa)
 def cjmp24(vm):
-	cjmp(vm, vm.script.cread(3))
+	cjmp(vm, vm.script.read(3))
 
 # 0x1323e: cjsrabs (0xb)
 def cjsrabs(vm):
@@ -124,11 +124,11 @@ def cbz16(vm):
 
 # 0x13308: cbz24 (0x14)
 def cbz24(vm):
-	cbz(vm, vm.script.cread(3))
+	cbz(vm, vm.script.read(3))
 
 # 0x13322: cbnz8 (0x15)
 def cbnz8(vm):
-	print("cbnz8 is MISSING...")
+	cbnz(vm, vm.script.read(1))
 
 # 0x13334: cbnz16 (0x16)
 def cbnz16(vm):
@@ -176,7 +176,9 @@ def ceval(vm):
 
 # 0x13414: cadd (0x20)
 def cadd(vm):
-	print("cadd is MISSING...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	add_acc(vm)
 
 # 0x13440: csub (0x21)
 def csub(vm):
@@ -214,9 +216,9 @@ def ctab(vm):
 def cdim(vm):
 	# print("cdim is TO TEST...")
 	# read word param
-	offset = vm.script.cread(2)
-	counter = vm.script.cread(1)
-	byte2 = vm.script.cread(1)
+	offset = vm.script.read(2)
+	counter = vm.script.read(1)
+	byte2 = vm.script.read(1)
 
 	offset -= 1
 	vm.ram.write(offset, counter, 1)
@@ -225,7 +227,7 @@ def cdim(vm):
 
 	# loop w/ counter, read words, store backwards
 	while counter > 0:
-		w = vm.script.cread(2)
+		w = vm.script.read(2)
 		offset -= 2
 		vm.ram.write(offset, w, 2)
 		counter -= 1
@@ -332,7 +334,7 @@ def clive(vm):
 	vm.vars.w_cy = 0
 	vm.vars.w_cz = 0
 
-	d2 = vm.script.cread(2)
+	d2 = vm.script.read(2)
 	# TODO: debprotf
 	# TODO: liveprog
 	tmp = vm.vars.sd7
@@ -347,9 +349,8 @@ def ckill(vm):
 
 # 0x13972: cstop (0x42)
 def cstop(vm):
-	print("cstop is MISSING...")
 	# in real program, adds 4 to real stack pointer
-	vm.script.stop = True
+	vm.script.is_running = False
 
 # 0x13976: cstopret (0x43)
 def cstopret(vm):
@@ -362,7 +363,7 @@ def cexit(vm):
 # 0x13998: cload (0x45)
 def cload(vm):
 	print("cload is TO TEST...")
-	id = vm.script.cread(2)
+	id = vm.script.read(2)
 	if id == 0:
 		tmp = vm.vars.sd7
 		vm.vars.sd7 = vm.vars.oldsd7
@@ -371,8 +372,9 @@ def cload(vm):
 		# TODO: handle new main
 	else:
 		# skip file name
-		name = bytearray(vm.script.cread(0))[:-1].decode()
+		name = bytearray(vm.script.read(0))[:-1].decode()
 		print("CLOAD: " + name)
+		vm.ids.append(id)
 
 # 0x139ca: cdefsc (0x46)
 def cdefsc(vm):
@@ -381,7 +383,7 @@ def cdefsc(vm):
 
 # 0x13b12: cscreen (0x47)
 def cscreen(vm):
-	d0 = vm.script.cread(2)
+	d0 = vm.script.read(2)
 	if d0 != vm.ctx._0x22_cscreen:
 		vm.ctx._0x22_cscreen = d0
 
@@ -411,8 +413,8 @@ def cmov(vm):
 
 # 0x13d4c: copensc (0x4e)
 def copensc(vm):
-	d0 = vm.script.cread(2)
-	a0 = vm.vars.addr_basemain
+	d0 = vm.script.read(2)
+	a0 = vm.map.basemain
 	b = vm.ram.read(a0 + d0, 1)
 	b = clear_bit(b, 6)
 	b = set_bit(b, 7)
@@ -868,7 +870,12 @@ def cpaper(vm):
 
 # 0x1674a: ctoblack (0xbc)
 def ctoblack(vm):
-	print("ctoblack is MISSING...")
+	print("ctoblack is STUBBED...")
+	save = vm.vars.d7
+	vm.vars.d6 = vm.vars.d7 # TODO: one of these two is useless
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	vm.vars.d6 = vm.vars.d7 # TODO: one of these two is useless
+	vm.vars.d7 = save	
 
 # 0x1644e: cmovcolor (0xbd)
 def cmovcolor(vm):
@@ -1146,34 +1153,34 @@ def czoom(vm):
 def oimmb(vm):
 	# print("oimmb is TO TEST...")
 	# reads a byte, extends into r7
-	vm.vars.d7 = vm.script.cread(1, True)
+	vm.vars.d7 = vm.script.read(1, True)
 
 # 0x1759a: oimmw (0x1)
 def oimmw(vm):
 	# print("oimmw is TO TEST...")
-	vm.vars.d7 = vm.script.cread(2)
+	vm.vars.d7 = vm.script.read(2)
 
 # 0x175a2: oimmp (0x2)
 def oimmp(vm):
-	vm.vars.sd7 = vm.script.cread(0)
+	vm.vars.sd7 = vm.script.read(0)
 
 # 0x175b0: olocb (0x3)
 def olocb(vm):
 	# print("olocb is TO TEST...")
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	# TODO: it's offset + basemain
 	vm.vars.d7 = vm.ram.read(offset, 1, True)
 
 # 0x175be: olocw (0x4)
 def olocw(vm):
 	print("olocw is TO TEST...")
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	# TODO: it's offset + basemain
 	vm.vars.d7 = vm.ram.read(offset, 2)
 
 # 0x175ca: olocp (0x5)
 def olocp(vm):
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	# TODO: it's basemain + offset
 	vm.vars.sd7 = vm.ram.readp(offset)
 
@@ -1183,7 +1190,10 @@ def oloctp(vm):
 
 # 0x175e2: oloctc (0x7)
 def oloctc(vm):
-	print("oloctc is MISSING...")
+	print("oloctc is TO TEST...")
+	offset = vm.script.read(2)
+	ret = tab_char(vm, offset)
+	vm.vars.d7 = vm.ram.read(ret)
 
 # 0x175f4: olocti (0x8)
 def olocti(vm):
@@ -1191,11 +1201,13 @@ def olocti(vm):
 
 # 0x17620: odirb (0x9)
 def odirb(vm):
-	print("odirb is MISSING...")
+	# TODO: reloative to a6
+	vm.vars.d7 = vm.ram.read(vm.script.read(1), 1)
 
 # 0x1762c: odirw (0xa)
 def odirw(vm):
-	print("odirw is MISSING...")
+	# TODO: reloative to a6
+	vm.vars.d7 = vm.ram.read(vm.script.read(1), 2)
 
 # 0x17636: odirp (0xb)
 def odirp(vm):
@@ -1298,7 +1310,9 @@ def oand(vm):
 
 # 0x178a0: oor (0x22)
 def oor(vm):
-	print("oor is MISSING...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	vm.vars.d7 |= vm.vars.d6
 
 # 0x178a8: oxor (0x23)
 def oxor(vm):
@@ -1322,7 +1336,9 @@ def odiff(vm):
 
 # 0x178e2: oinfeg (0x27)
 def oinfeg(vm):
-	print("oinfeg is MISSING...")
+	vm.vars.d6 = vm.vars.d7
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+	vm.vars.d7 = 0xffff if (vm.vars.d6 <= vm.vars.d7) else 0x0
 
 # 0x178f6: osupeg (0x28)
 def osupeg(vm):
@@ -1338,7 +1354,6 @@ def oinf(vm):
 
 # 0x1791e: osup (0x2a)
 def osup(vm):
-	# print("osup is TO TEST...")
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
 	vm.vars.d7 = 0xffff if (vm.vars.d6 > vm.vars.d7) else 0x0
@@ -1389,7 +1404,12 @@ def onot(vm):
 
 # 0x179b4: oinkey (0x35)
 def oinkey(vm):
-	print("oinkey is MISSING...")
+	print("oinkey is TO TEST...")
+	if vm.vars.b_automode == 0:
+		vm.vars.d7 = vm.sys.inkey()
+	else:
+		# TODO: stuff to do w/ d0 but what ??
+		pass
 
 # 0x179de: okeyon (0x36)
 def okeyon(vm):
@@ -1413,7 +1433,7 @@ def oshiftkey(vm):
 	if vm.vars.b_automode == 0:
 		vm.vars.d7 = vm.sys.shiftkey()
 	else:
-		# TODO: shuff to do w/ d1 (value==6) but what ??
+		# TODO: stuff to do w/ d1 (value==6) but what ??
 		pass
 
 # 0x17a4c: ofree (0x3b)
@@ -1556,18 +1576,18 @@ def cnul(vm):
 # brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
 def slocb(vm):
 	# print("slocb is TO TEST...")
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	vm.ram.write(offset, vm.vars.d7, 1)
 
 # 0x17f1c: slocw (0x4)
 def slocw(vm):
 	# print("slocw is TO TEST...")
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	vm.ram.write(offset, vm.vars.d7, 2)
 
 # 0x17f28: slocp (0x5)
 def slocp(vm):
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	# TODO: it's basemain+offset !!
 	vm.ram.writep(offset, vm.vars.oldsd7)
 
@@ -1579,7 +1599,7 @@ def sloctp(vm):
 # Store at LOCation with offseT: Char
 def sloctc(vm):
 	# print("sloctc is TO TEST...")
-	offset = vm.script.cread(2)
+	offset = vm.script.read(2)
 	offset = tab_char(vm, offset)
 	vm.vars.d7 = vm.acc.pop()
 	# vm.ram.write(offset, vm.vars.d7, 1)
@@ -1594,7 +1614,11 @@ def sdirb(vm):
 
 # 0x17f8a: sdirw (0xa)
 def sdirw(vm):
-	print("sdirw is MISSING...")
+	print("sdirw is TO TEST...")
+	vm.ram.write(vm.script.read(1), vm.vars.d7, 2)
+#	    vram_write16(script_read8(), (u16)vm.varD7);
+
+
 
 # 0x17f94: sdirp (0xb)
 def sdirp(vm):
@@ -1722,7 +1746,10 @@ def adirb(vm):
 
 # 0x1821e: adirw (0xa)
 def adirw(vm):
-	print("adirw is MISSING...")
+	offset = vm.script.read(1)
+	# TODO: must read at basemain
+	v = vm.ram.read(offset, 2)
+	vm.ram.write(offset, v + vm.vars.d7, 2)
 
 # 0x18228: adirp (0xb)
 def adirp(vm):
@@ -1809,6 +1836,10 @@ def cbz(vm, offset):
 	if vm.vars.d7 == 0:
 		vm.script.jump(offset)
 
+def cbnz(vm, offset):
+	if vm.vars.d7 != 0:
+		vm.script.jump(offset)
+
 def cjmp(vm, offset):
 	vm.script.jump(offset)
 
@@ -1845,7 +1876,7 @@ def tab_char(vm, offset):
 
 #   0001781e 41 f6 00      lea       (__DAT_0000fffe,A6,offset*0x1),A0
 #            fe
-	a0 = vm.ram.org + offset - 2 # DAT_0000fffe
+	a0 = offset - 2 # DAT_0000fffe
 
 #   00017822 d0 47         add.w     D7w,offset
 #   00017824 51 c9 00      dbf       D1w,__loop
@@ -1865,3 +1896,10 @@ def scbreak(vm):
 
 def scadd(vm):
 	print("scadd is STUBBED..")
+
+# 0x13418
+def add_acc(vm):
+	tmp = vm.vars.sd7
+	vm.vars.sd7 = vm.vars.oldsd7
+	vm.vars.oldsd7 = tmp
+	vm.readexec(EAlisOpcodeKind.ADDNAME)

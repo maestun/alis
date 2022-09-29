@@ -51,3 +51,7 @@ class SysIO():
     def shiftkey(self):
         # TODO: return 0xff if shift key is pressed at this moment ?
         return 0
+    
+    def inkey(self):
+        # TODO: return last key pressed
+        return 0

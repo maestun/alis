@@ -5,9 +5,10 @@ kMainScript = "main"
 
 # =============================================================================
 class HostPlatform():
-    def __init__(self, name, baseram, extension, width, height, bpp, is_little_endian):
+    def __init__(self, name, ram, baseram, extension, width, height, bpp, is_little_endian):
         self.name = name
         self.extension = extension
+        self.ram = ram
         self.baseram = baseram
         self.width = width
         self.height = height
@@ -21,13 +22,13 @@ class HostPlatform():
 
 # =============================================================================
 class EHostPlatform(Enum):
-    Atari =     HostPlatform("Atari ST/STe", 0x22400, "ao", 320, 200, 5, False)
-    Falcon =    HostPlatform("Atari Falcon", 0,       "fo", 320, 200, 8, False)
-    Amiga =     HostPlatform("Amiga",        0,       "co", 320, 200, 5, False)
-    AmigaAGA =  HostPlatform("Amiga AGA",    0,       "do", 320, 200, 8, False)
-    Mac =       HostPlatform("Macintosh",    0,       "mo", 320, 200, 5, False)
-    PC =        HostPlatform("MS/DOS",       0,       "io", 320, 200, 8, True)
-    Unknown =   HostPlatform("Unknown",      0,       "??",   0,   0, 0, True)
+    Atari =     HostPlatform("Atari ST/STe", 0x100000, 0x22400, "ao", 320, 200, 5, False)
+    Falcon =    HostPlatform("Atari Falcon", 0x400000, 0,       "fo", 320, 200, 8, False)
+    Amiga =     HostPlatform("Amiga",        0x100000, 0,       "co", 320, 200, 5, False)
+    AmigaAGA =  HostPlatform("Amiga AGA",    0x200000, 0,       "do", 320, 200, 8, False)
+    Mac =       HostPlatform("Macintosh",    0x400000, 0,       "mo", 320, 200, 5, False)
+    PC =        HostPlatform("MS/DOS",       0x100000, 0,       "io", 320, 200, 8, True)
+    Unknown =   HostPlatform("Unknown",      0,        0,       "??",   0,   0, 0, True)
 
     def guess(path) -> HostPlatform:
         if os.path.isdir(os.path.join(os.getcwd(), path)):

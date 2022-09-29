@@ -67,7 +67,7 @@ for i in range(0, len(log_lines)):
         breakpoint_idx += 1
 
 opcode_idx = 0
-disasm_lines.append("script_addr;opcode_idx;opcode_name;opcode_code;opcode_addr\n")
+disasm_lines.append("opcode_idx;script_addr;opcode_kind;opcode_name;opcode_code;opcode_addr\n")
 for bp in breakpoints:
     if bp.addr == SYS_FOPEN_ADDR:
         addr = bp.areg[0]
@@ -77,14 +77,16 @@ for bp in breakpoints:
         code = bp.dreg[0] & 0xff
         opcode = vm.opcodes[EAlisOpcodeKind.OPCODE][code]
         addr = bp.areg[3] - 1
-        disasm_line = f"{hex(addr)};{opcode_idx};{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}\n"
+        disasm_line = f"{opcode_idx};{hex(addr)};OPCODE;{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}\n"
         opcode_idx += 1
     
     elif bp.addr == OPERAND_READ_ADDR:
         code = bp.dreg[0] & 0xff
-        name = AlisVM.operand_names[code]
+        operand = vm.opcodes[EAlisOpcodeKind.OPERAND][code]
+#        name = AlisVM.operand_names[code]
         addr = bp.areg[3] - 1
-        disasm_line +=  " " + name + " (" + hex(code) + ")"
+        disasm_line = f"-;{hex(addr)};OPERAND;{operand.name};{hex(operand.code)};{hex(operand.addr)}\n"
+#        disasm_line +=  " " + name + " (" + hex(code) + ")"
 
     elif bp.addr == STORENAME_READ_ADDR_1 or bp.addr == STORENAME_READ_ADDR_2:
         code = bp.dreg[0] & 0xff
