@@ -11,6 +11,10 @@
 		0981CBD2250B46970097F862 /* addnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCE250B46970097F862 /* addnames.c */; };
 		0981CBD3250B46970097F862 /* escnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCF250B46970097F862 /* escnames.c */; };
 		0981CBD4250B46970097F862 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
+		6808EE00296763E50045BA8A /* extractor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6808EDFA296763860045BA8A /* extractor.cpp */; };
+		6808EE01296763E50045BA8A /* extractor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6808EDFA296763860045BA8A /* extractor.cpp */; };
+		6808EE05297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
+		6808EE06297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
 		8B20A3D9256913C40045BF66 /* storenames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCD250B46970097F862 /* storenames.c */; };
 		8B20A3DA256913C40045BF66 /* addnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCE250B46970097F862 /* addnames.c */; };
 		8B20A3DB256913C40045BF66 /* sys_sdl2.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4046250A721D00C947F9 /* sys_sdl2.c */; };
@@ -68,12 +72,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0932D81B253996D000E215B3 /* README */ = {isa = PBXFileReference; lastKnownFileType = text; name = README; path = ../README; sourceTree = "<group>"; };
+		0932D81B253996D000E215B3 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		0981CBCD250B46970097F862 /* storenames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = storenames.c; sourceTree = "<group>"; };
 		0981CBCE250B46970097F862 /* addnames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = addnames.c; sourceTree = "<group>"; };
 		0981CBCF250B46970097F862 /* escnames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = escnames.c; sourceTree = "<group>"; };
 		0981CBD0250B46970097F862 /* opernames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = opernames.c; sourceTree = "<group>"; };
 		0981CBD5250B470E0097F862 /* alis_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = alis_private.h; sourceTree = "<group>"; };
+		6808EDFA296763860045BA8A /* extractor.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = extractor.cpp; sourceTree = "<group>"; };
+		6808EDFB296763860045BA8A /* extractor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = extractor.h; sourceTree = "<group>"; };
+		6808EE03297069760045BA8A /* experimental.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = experimental.h; sourceTree = "<group>"; };
+		6808EE04297069760045BA8A /* experimental.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = experimental.c; sourceTree = "<group>"; };
 		8B20A3EB256913C40045BF66 /* alis-imgui */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "alis-imgui"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B28A6682507C4F800E3F0FF /* imgui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui.h; sourceTree = "<group>"; };
 		8B28A6692507C4F800E3F0FF /* imconfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imconfig.h; sourceTree = "<group>"; };
@@ -93,7 +101,7 @@
 		8B28A6802507C5A600E3F0FF /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		8B28A6822507C5AA00E3F0FF /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		8B28A6842507C9EC00E3F0FF /* imgui_memory_editor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imgui_memory_editor.h; sourceTree = "<group>"; };
-		8B37A662252471D500B7FBDB /* TODO */ = {isa = PBXFileReference; lastKnownFileType = text; name = TODO; path = ../TODO; sourceTree = "<group>"; };
+		8B37A662252471D500B7FBDB /* TODO.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = TODO.md; path = ../TODO.md; sourceTree = "<group>"; };
 		8B7D79A7256CF09300DAA932 /* vram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = vram.h; sourceTree = "<group>"; };
 		8B7D79A8256CF09300DAA932 /* vram.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vram.c; sourceTree = "<group>"; };
 		8B7D7B17256D3FCC00DAA932 /* sdl2.pc */ = {isa = PBXFileReference; lastKnownFileType = text; path = sdl2.pc; sourceTree = "<group>"; };
@@ -145,12 +153,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		6808EE02297069420045BA8A /* mess */ = {
+			isa = PBXGroup;
+			children = (
+				6808EDFB296763860045BA8A /* extractor.h */,
+				6808EDFA296763860045BA8A /* extractor.cpp */,
+				6808EE03297069760045BA8A /* experimental.h */,
+				6808EE04297069760045BA8A /* experimental.c */,
+			);
+			path = mess;
+			sourceTree = "<group>";
+		};
 		8B28A60F25076CC800E3F0FF = {
 			isa = PBXGroup;
 			children = (
 				8BD307522625D1F200F0417C /* hardware.txt */,
-				0932D81B253996D000E215B3 /* README */,
-				8B37A662252471D500B7FBDB /* TODO */,
+				0932D81B253996D000E215B3 /* README.md */,
+				8B37A662252471D500B7FBDB /* TODO.md */,
 				8B9C400D250921E900C947F9 /* alis */,
 				8B28A6672507C4F800E3F0FF /* imgui */,
 				8B28A61925076CC800E3F0FF /* Products */,
@@ -270,6 +289,7 @@
 		8B9C400D250921E900C947F9 /* alis */ = {
 			isa = PBXGroup;
 			children = (
+				6808EE02297069420045BA8A /* mess */,
 				8B9C4034250A39FD00C947F9 /* depack */,
 				8B7D7B13256D3ECA00DAA932 /* sys */,
 				0981CBCE250B46970097F862 /* addnames.c */,
@@ -294,7 +314,7 @@
 				8B7D79A8256CF09300DAA932 /* vram.c */,
 			);
 			name = alis;
-			path = ../alis;
+			path = ../src;
 			sourceTree = "<group>";
 		};
 		8B9C4034250A39FD00C947F9 /* depack */ = {
@@ -383,9 +403,11 @@
 				8B20A3DC256913C40045BF66 /* utils.c in Sources */,
 				8B20A3DD256913C40045BF66 /* main.c in Sources */,
 				8B20A3DE256913C40045BF66 /* alis.c in Sources */,
+				6808EE06297069760045BA8A /* experimental.c in Sources */,
 				8B20A3DF256913C40045BF66 /* asm.c in Sources */,
 				8B20A3E0256913C40045BF66 /* platform.c in Sources */,
 				8B20A3E1256913C40045BF66 /* opernames.c in Sources */,
+				6808EE01296763E50045BA8A /* extractor.cpp in Sources */,
 				8B20A3E2256913C40045BF66 /* script.c in Sources */,
 				8B20A3E3256913C40045BF66 /* opcodes.c in Sources */,
 				8B20A3E4256913C40045BF66 /* escnames.c in Sources */,
@@ -403,9 +425,11 @@
 				8B9C4030250A2F9300C947F9 /* utils.c in Sources */,
 				8B9C402C250A2A8F00C947F9 /* main.c in Sources */,
 				8B9C401B250A2A5B00C947F9 /* alis.c in Sources */,
+				6808EE05297069760045BA8A /* experimental.c in Sources */,
 				8B9C4037250A3C7F00C947F9 /* asm.c in Sources */,
 				8B9C401D250A2A5B00C947F9 /* platform.c in Sources */,
 				0981CBD4250B46970097F862 /* opernames.c in Sources */,
+				6808EE00296763E50045BA8A /* extractor.cpp in Sources */,
 				8B9C403B250A3E5200C947F9 /* script.c in Sources */,
 				8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */,
 				0981CBD3250B46970097F862 /* escnames.c in Sources */,
@@ -420,6 +444,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = /opt/homebrew/include;
+				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				OTHER_LDFLAGS = " -lSDL2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -428,6 +455,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = /opt/homebrew/include;
+				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				OTHER_LDFLAGS = " -lSDL2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

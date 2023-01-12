@@ -179,10 +179,15 @@ void alis_init(sPlatform platform) {
     host.pixelbuf.w = alis.platform.width;
     host.pixelbuf.h = alis.platform.height;
     host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
-    
+    memset(host.pixelbuf.data, 0x0, host.pixelbuf.w * host.pixelbuf.h);
+    host.pixelbuf.palette = (u8 *)malloc(256 * 3);
+    memset(host.pixelbuf.palette, 0xff, 256 * 3);
+
     // load main script
     alis_load_main();
     alis.script = alis.main;
+    
+    memset(alis.render_rsrcs, 0, sizeof(u32) * 256 * 6);
 }
 
 

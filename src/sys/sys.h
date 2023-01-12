@@ -39,6 +39,7 @@ typedef struct {
     u16     w, h;
     u8      scale;
     u8 *    data;
+    u8 *    palette;
 } pixelbuf_t;
 void    sys_render(pixelbuf_t buffer);
 

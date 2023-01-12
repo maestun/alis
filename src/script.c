@@ -10,6 +10,7 @@
 #include "script.h"
 #include "utils.h"
 #include "alis_private.h"
+#include "extractor.h"
 
 
 
@@ -551,6 +552,8 @@ sAlisScript * script_load(const char * script_path) {
         
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+            extract_resources(depak_buf, depak_sz, &(script->resources), &(script->rsrc_count));
+
             
             // cleanup
             free(depak_buf);

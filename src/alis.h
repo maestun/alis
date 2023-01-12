@@ -180,7 +180,10 @@ typedef struct {
     u16         _DAT_000195fa;
     u16         _DAT_000195fc;
     u16         _DAT_000195fe;
-        
+    
+    // NOTE: ugly hack
+    u32         render_rsrcs[256][6];
+
 } sAlisVM;
 
 typedef struct {

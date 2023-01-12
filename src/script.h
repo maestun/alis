@@ -8,6 +8,8 @@
 
 #include "config.h"
 
+#include "extractor.h"
+
 #define kMainScriptID           (0)
 #define kDepackFolder           "depack"
 #define kDepackExtension        "bin"
@@ -163,6 +165,9 @@ typedef struct {
     u8              running;
     u32             pc_org; // offset in memory
     u32             pc;     // offset in memory
+    
+    alis_rsrc       **resources;
+    int             rsrc_count;
 } sAlisScript;
 
 

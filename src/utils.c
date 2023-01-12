@@ -8,6 +8,7 @@
 
 #include "utils.h"
 
+
 s16 sign_extend(s16 x, int bit_count) {
     if ((x >> (bit_count - 1)) & 1) {
         x |= (0xFFFF << bit_count);
@@ -75,23 +76,23 @@ int is_host_little_endian() {
 
 
 u32 swap32(u32 num, sPlatform pl) {
-    u32 ret = num;
-    if(pl.is_little_endian != is_host_little_endian()) {
-        ret = ((num >> 24) & 0xff) | // move byte 3 to byte 0
+
+    if (pl.is_little_endian != is_host_little_endian()) {
+        num = ((num >> 24) & 0xff) | // move byte 3 to byte 0
                 ((num << 8) & 0xff0000) | // move byte 1 to byte 2
                 ((num >> 8) & 0xff00) | // move byte 2 to byte 1
                 ((num << 24) & 0xff000000); // byte 0 to byte 3
     }
-    return ret;
+    return num;
 }
 
 
 u16 swap16(u16 num, sPlatform pl) {
-    u16 ret = num;
+
     if(pl.is_little_endian != is_host_little_endian()) {
-        ret = (num >> 8) | (num << 8);
+        num = (num >> 8) | (num << 8);
     }
-    return ret;
+    return num;
 }
 
 
@@ -107,3 +108,16 @@ u16 fread16(FILE * fp, sPlatform pl) {
     fread(&val, sizeof(u16), 1, fp);
     return swap16(val, pl);
 }
+
+
+u16 read16(const u8 *ptr, sPlatform pl) {
+    
+    return swap16(*(u16 *)ptr, pl);
+}
+
+
+u32 read32(const u8 *ptr, sPlatform pl) {
+    
+    return swap32(*(u32 *)ptr, pl);
+}
+

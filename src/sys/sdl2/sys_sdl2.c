@@ -11,6 +11,11 @@ mouse_t _mouse;
 SDL_Renderer *  _renderer;
 SDL_Window *    _window;
 SDL_Event       _event;
+Uint32 *        _pixels;
+SDL_Texture *   _texture;
+
+int width = 320;
+int height = 200;
 
 void sys_init() {
     SDL_Init(SDL_INIT_VIDEO);
@@ -19,6 +24,13 @@ void sys_init() {
                                640, 480, 0);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
+    SDL_RenderSetScale(_renderer, 2, 2);
+    
+    _pixels = malloc(width * height * sizeof(*_pixels));
+    memset(_pixels, 0, width * height * sizeof(*_pixels));
+    
+    _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
 }
 
 
@@ -42,10 +54,18 @@ u8 sys_poll_event() {
 
 
 void sys_render(pixelbuf_t buffer) {
+    
+    for (int px = 0; px < buffer.w * buffer.h; px++)
+    {
+        int index = buffer.data[px];
+        _pixels[px] = (u32)((0xff << 24) + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
+    }
+    
+    SDL_UpdateTexture(_texture, NULL, _pixels, width * sizeof(*_pixels));
+
     // render
-    // SDL_Rect dstrect = { x, y, 64, 64 };
     SDL_RenderClear(_renderer);
-    // SDL_RenderCopy(renderer, texture, NULL, &dstrect);
+    SDL_RenderCopy(_renderer, _texture, NULL, NULL);
     SDL_RenderPresent(_renderer);
     
     // TODO: yield for 60 fps ?
