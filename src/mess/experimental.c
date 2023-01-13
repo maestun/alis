@@ -153,122 +153,122 @@ u32 ftopal = 0;
 u32 *tpalet;
 u32 *mpalet;
 
-u16 topalet(void)
-{
-    u32 uVar1;
-    u32 *puVar2;
-    u32 *puVar3;
-    u16 in_D0;
-    s8 bVar4;
-    u32 uVar5;
-    s8 cVar8;
-    u32 uVar6;
-    u32 uVar7;
-    s16 sVar9;
-    u32 *puVar10;
-    u32 *puVar11;
-
-    sVar9 = 0xff;
-    ftopal = 0;
-    puVar2 = (u32 *)tpalet;
-    puVar3 = (u32 *)mpalet;
-    
-topale1:
-  
-    do
-    {
-        puVar11 = puVar3;
-        puVar10 = puVar2;
-        puVar2 = puVar10 + 1;
-        puVar3 = puVar11 + 1;
-        if (*puVar11 == *puVar10)
-        {
-            sVar9 = sVar9 - 1;
-            if (sVar9 != -1)
-            {
-                goto topale1;
-            }
-        }
-      
-        if (*puVar11 == *puVar10)
-        {
-            return in_D0;
-        }
-    
-        uVar7 = *puVar11;
-        uVar1 = *puVar10;
-        bVar4 = (s8)uVar1;
-        cVar8 = (char)uVar7;
-        if (cVar8 < (char)bVar4)
-        {
-            uVar6 = uVar7 & 0xffffff00 | (u32)(s8)(cVar8 + pald);
-            if (bVar4 < (s8)(cVar8 + pald))
-            {
-                uVar6 = uVar7 & 0xffffff00 | uVar1 & 0xff;
-            }
-        }
-        else
-        {
-            uVar6 = uVar7 & 0xffffff00 | (uint)(s8)(cVar8 - pald);
-            if ((char)(cVar8 - pald) <= (char)bVar4)
-            {
-                uVar6 = uVar7 & 0xffffff00 | uVar1 & 0xff;
-            }
-        }
-      
-        uVar5 = (uint3)((uVar6 << 0x10) >> 8) | (uint3)(s8)(uVar6 >> 0x18);
-        bVar4 = (s8)(uVar1 >> 0x10);
-        cVar8 = (char)(uVar6 >> 0x10);
-        if (cVar8 < (char)bVar4)
-        {
-            uVar7 = CONCAT31(uVar5,cVar8 + pald);
-            if (bVar4 < (s8)(cVar8 + pald))
-            {
-                uVar7 = CONCAT31(uVar5,bVar4);
-            }
-        }
-        else
-        {
-            uVar7 = CONCAT31(uVar5,cVar8 - pald);
-            if ((char)(cVar8 - pald) <= (char)bVar4)
-            {
-                uVar7 = CONCAT31(uVar5,bVar4);
-            }
-        }
-      
-        bVar4 = (s8)(uVar1 >> 0x18);
-        uVar1 = (uint)(u16)((s16)uVar7 << 8);
-        cVar8 = (char)(uVar7 >> 8);
-        if (cVar8 < (char)bVar4)
-        {
-            uVar1 = uVar7 & 0xffff0000 | uVar1;
-            uVar7 = uVar1 | (s8)(cVar8 + pald);
-            if (bVar4 < (s8)(cVar8 + pald))
-            {
-                uVar7 = uVar1 | bVar4;
-            }
-        }
-        else
-        {
-            uVar1 = uVar7 & 0xffff0000 | uVar1;
-            uVar7 = uVar1 | (s8)(cVar8 - pald);
-            if ((char)(cVar8 - pald) <= (char)bVar4)
-            {
-                uVar7 = uVar1 | bVar4;
-            }
-        }
-      
-        *puVar11 = (uint)(u16)((u16)uVar7 << 8 | (u16)uVar7 >> 8) << 0x10 | uVar7 >> 0x10;
-        ftopal = 1;
-        sVar9 = sVar9 - 1;
-        if (sVar9 == -1)
-        {
-            ftopal = 1;
-            return in_D0;
-        }
-    }
-    while (1);
-}
+//u16 topalet(void)
+//{
+//    u32 uVar1;
+//    u32 *puVar2;
+//    u32 *puVar3;
+//    u16 in_D0;
+//    s8 bVar4;
+//    u32 uVar5;
+//    s8 cVar8;
+//    u32 uVar6;
+//    u32 uVar7;
+//    s16 sVar9;
+//    u32 *puVar10;
+//    u32 *puVar11;
+//
+//    sVar9 = 0xff;
+//    ftopal = 0;
+//    puVar2 = (u32 *)tpalet;
+//    puVar3 = (u32 *)mpalet;
+//    
+//topale1:
+//  
+//    do
+//    {
+//        puVar11 = puVar3;
+//        puVar10 = puVar2;
+//        puVar2 = puVar10 + 1;
+//        puVar3 = puVar11 + 1;
+//        if (*puVar11 == *puVar10)
+//        {
+//            sVar9 = sVar9 - 1;
+//            if (sVar9 != -1)
+//            {
+//                goto topale1;
+//            }
+//        }
+//      
+//        if (*puVar11 == *puVar10)
+//        {
+//            return in_D0;
+//        }
+//    
+//        uVar7 = *puVar11;
+//        uVar1 = *puVar10;
+//        bVar4 = (s8)uVar1;
+//        cVar8 = (char)uVar7;
+//        if (cVar8 < (char)bVar4)
+//        {
+//            uVar6 = uVar7 & 0xffffff00 | (u32)(s8)(cVar8 + pald);
+//            if (bVar4 < (s8)(cVar8 + pald))
+//            {
+//                uVar6 = uVar7 & 0xffffff00 | uVar1 & 0xff;
+//            }
+//        }
+//        else
+//        {
+//            uVar6 = uVar7 & 0xffffff00 | (uint)(s8)(cVar8 - pald);
+//            if ((char)(cVar8 - pald) <= (char)bVar4)
+//            {
+//                uVar6 = uVar7 & 0xffffff00 | uVar1 & 0xff;
+//            }
+//        }
+//      
+//        uVar5 = (uint3)((uVar6 << 0x10) >> 8) | (uint3)(s8)(uVar6 >> 0x18);
+//        bVar4 = (s8)(uVar1 >> 0x10);
+//        cVar8 = (char)(uVar6 >> 0x10);
+//        if (cVar8 < (char)bVar4)
+//        {
+//            uVar7 = CONCAT31(uVar5,cVar8 + pald);
+//            if (bVar4 < (s8)(cVar8 + pald))
+//            {
+//                uVar7 = CONCAT31(uVar5,bVar4);
+//            }
+//        }
+//        else
+//        {
+//            uVar7 = CONCAT31(uVar5,cVar8 - pald);
+//            if ((char)(cVar8 - pald) <= (char)bVar4)
+//            {
+//                uVar7 = CONCAT31(uVar5,bVar4);
+//            }
+//        }
+//      
+//        bVar4 = (s8)(uVar1 >> 0x18);
+//        uVar1 = (uint)(u16)((s16)uVar7 << 8);
+//        cVar8 = (char)(uVar7 >> 8);
+//        if (cVar8 < (char)bVar4)
+//        {
+//            uVar1 = uVar7 & 0xffff0000 | uVar1;
+//            uVar7 = uVar1 | (s8)(cVar8 + pald);
+//            if (bVar4 < (s8)(cVar8 + pald))
+//            {
+//                uVar7 = uVar1 | bVar4;
+//            }
+//        }
+//        else
+//        {
+//            uVar1 = uVar7 & 0xffff0000 | uVar1;
+//            uVar7 = uVar1 | (s8)(cVar8 - pald);
+//            if ((char)(cVar8 - pald) <= (char)bVar4)
+//            {
+//                uVar7 = uVar1 | bVar4;
+//            }
+//        }
+//      
+//        *puVar11 = (uint)(u16)((u16)uVar7 << 8 | (u16)uVar7 >> 8) << 0x10 | uVar7 >> 0x10;
+//        ftopal = 1;
+//        sVar9 = sVar9 - 1;
+//        if (sVar9 == -1)
+//        {
+//            ftopal = 1;
+//            return in_D0;
+//        }
+//    }
+//    while (1);
+//}
 
 //void ctopale1(void)
 //{
