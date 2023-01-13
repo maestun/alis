@@ -25,7 +25,7 @@ void oimmw(void) {
 }
 
 void oimmp(void) {
-    // reads null-terminated data into oldsd7
+    // reads null-terminated data into sd7
     script_read_until_zero(vm.sd7);
 }
 

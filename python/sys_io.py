@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 import pygame
 from random import randint
@@ -8,11 +9,20 @@ PHYS_SCREEN_W = 320
 PHYS_SCREEN_H = 200
 PHYS_SCALE = 4
 
+# =============================================================================
+@dataclass
+class SysMouse():
+    x = 0
+    y = 0
+    bt = 0
 
+
+# =============================================================================
 class SysIO():
     def __init__(self, platform, workdir):
         self.platform = platform
         self.workdir = workdir
+        self.mouse = SysMouse()
         
         pygame.init()
         pygame.display.set_caption("alis")
@@ -55,3 +65,10 @@ class SysIO():
     def inkey(self):
         # TODO: return last key pressed
         return 0
+
+    def io_mouse(self) -> SysMouse:
+        self.mouse.x = pygame.mouse.get_pos()[0]
+        self.mouse.y = pygame.mouse.get_pos()[1]
+        bt = pygame.mouse.get_pressed(3)
+        self.mouse.bt = (bt[1] << 1) | bt[0]
+        return self.mouse

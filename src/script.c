@@ -449,12 +449,13 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->context._0x1_cstart = 1;
     script->context._0x4_cstart_csleep = 0xff;
     script->context._0x1a_cforme = 0xff;
-    script->context._0x24_scan_inter.inter_off_bit_1 = 1;
-    script->context._0x24_scan_inter.scan_off_bit_0 = 1;
+    BIT_SET(script->context._0x24_scan_inter, 1);//.inter_off_bit_1 = 1;
+    BIT_SET(script->context._0x24_scan_inter, 0);//.scan_off_bit_0 = 1;
     script->context._0x26_creducing = 0xff;
     
     // copy script data to static host memory
-    memcpy((vm.mem + script->data_org), data, data_sz);
+    // memcpy((vm.mem + script->data_org), data, data_sz);
+    memcpy(vram_ptr(script->data_org), data, data_sz);
     
     // script program counter starts kScriptHeaderLen after data
     script->pc = script->code_org = script->context._0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
@@ -603,13 +604,13 @@ void script_read_debug(s32 value, size_t sz) {
 }
 
 u8 script_read8(void) {
-    u8 ret = (vm.mem[vm.script->pc++]);
+    u8 ret = *vram_ptr(vm.script->pc++);//(vm.mem[vm.script->pc++]);
     script_read_debug(ret, sizeof(u8));
     return ret;
 }
 
 s16 script_read8ext16(void) {
-    u8 b = vm.mem[vm.script->pc++];
+    u8 b = *vram_ptr(vm.script->pc++);
     s16 ret = b;
     if(BIT_CHK((b), 7)) {
         ret |= 0xff00;
@@ -620,7 +621,7 @@ s16 script_read8ext16(void) {
 }
 
 s32 script_read8ext32(void) {
-    s32 ret = extend_l(extend_w(vm.mem[vm.script->pc++]));
+    s32 ret = extend_l(extend_w(*vram_ptr(vm.script->pc++)));
     script_read_debug(ret, sizeof(u32));
     return  ret;
 }
@@ -631,7 +632,7 @@ s32 script_read8ext32(void) {
  * @return u16 
  */
 u16 script_read16(void) {
-    u16 ret = (vm.mem[vm.script->pc++] << 8) + vm.mem[vm.script->pc++];
+    u16 ret =  //(vm.mem[vm.script->pc++] << 8) + vram_read8(vm.script->pc++);
     script_read_debug(ret, sizeof(u16));
     return ret;
 }

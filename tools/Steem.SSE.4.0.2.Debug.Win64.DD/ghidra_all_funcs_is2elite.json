@@ -1,0 +1,2534 @@
+[
+  {
+    "name": "FUN_InstallCrack",
+    "entry": "0000aae6"
+  },
+  {
+    "name": "FUN_TrapZero",
+    "entry": "0000ab0e"
+  },
+  {
+    "name": "SYS_Breakpoint",
+    "entry": "0000abfa"
+  },
+  {
+    "name": "SYS_Init",
+    "entry": "0000b074"
+  },
+  {
+    "name": "SYS_Terminate",
+    "entry": "0000b1be"
+  },
+  {
+    "name": "INT_ExceptionVector0x18",
+    "entry": "0000b228"
+  },
+  {
+    "name": "INT_ExceptionVector0x45",
+    "entry": "0000b22a"
+  },
+  {
+    "name": "SYS_FindSTE",
+    "entry": "0000b23a"
+  },
+  {
+    "name": "SYS_InitLocale",
+    "entry": "0000b25c"
+  },
+  {
+    "name": "iniline",
+    "entry": "0000b2d0"
+  },
+  {
+    "name": "itbl0",
+    "entry": "0000b382"
+  },
+  {
+    "name": "SYS_InitTimers",
+    "entry": "0000b390"
+  },
+  {
+    "name": "SYS_RestoreTimers",
+    "entry": "0000b426"
+  },
+  {
+    "name": "INT_TimerB",
+    "entry": "0000b53e"
+  },
+  {
+    "name": "io_linepal",
+    "entry": "0000b5dc"
+  },
+  {
+    "name": "FUN_0000b65e",
+    "entry": "0000b65e"
+  },
+  {
+    "name": "FUN_0000b676",
+    "entry": "0000b676"
+  },
+  {
+    "name": "SYS_InitScreen",
+    "entry": "0000b68e"
+  },
+  {
+    "name": "SYS_RestoreScreen",
+    "entry": "0000b72e"
+  },
+  {
+    "name": "SYS_WaitDisk",
+    "entry": "0000b762"
+  },
+  {
+    "name": "setphysic",
+    "entry": "0000b770"
+  },
+  {
+    "name": "SYS_InitKeyboard",
+    "entry": "0000b7a2"
+  },
+  {
+    "name": "SYS_RestoreKeyboard",
+    "entry": "0000b7c4"
+  },
+  {
+    "name": "SYS_GetMouse",
+    "entry": "0000b7ee"
+  },
+  {
+    "name": "SYS_SetMousePosition",
+    "entry": "0000b804"
+  },
+  {
+    "name": "SYS_Joystick",
+    "entry": "0000b812"
+  },
+  {
+    "name": "SYS_JoystickKey",
+    "entry": "0000b82c"
+  },
+  {
+    "name": "io_shiftkey",
+    "entry": "0000b884"
+  },
+  {
+    "name": "SYS_GetKey",
+    "entry": "0000b88e"
+  },
+  {
+    "name": "SYS_Random",
+    "entry": "0000b8b4"
+  },
+  {
+    "name": "SYS_Main",
+    "entry": "0000b8be"
+  },
+  {
+    "name": "SYS_GetModel",
+    "entry": "0000ba0e"
+  },
+  {
+    "name": "io_mip",
+    "entry": "0000bad2"
+  },
+  {
+    "name": "io_config",
+    "entry": "0000bad8"
+  },
+  {
+    "name": "SYS_SetTime",
+    "entry": "0000badc"
+  },
+  {
+    "name": "SYS_GetTime",
+    "entry": "0000bafe"
+  },
+  {
+    "name": "io_canal",
+    "entry": "0000bb18"
+  },
+  {
+    "name": "FUN_0000bbe0",
+    "entry": "0000bbe0"
+  },
+  {
+    "name": "FUN_0000bc2a",
+    "entry": "0000bc2a"
+  },
+  {
+    "name": "FUN_0000bc38",
+    "entry": "0000bc38"
+  },
+  {
+    "name": "SYS_Malloc",
+    "entry": "0000bd04"
+  },
+  {
+    "name": "SYS_Free",
+    "entry": "0000bd40"
+  },
+  {
+    "name": "SYS_WriteChar",
+    "entry": "0000bd60"
+  },
+  {
+    "name": "SYS_SetCursor",
+    "entry": "0000bd7a"
+  },
+  {
+    "name": "SYS_PutPixel",
+    "entry": "0000bdac"
+  },
+  {
+    "name": "SYS_DrawLine",
+    "entry": "0000be26"
+  },
+  {
+    "name": "SYS_DrawFilledBox",
+    "entry": "0000bece"
+  },
+  {
+    "name": "SYS_Ink",
+    "entry": "0000bf6e"
+  },
+  {
+    "name": "SYS_Paper",
+    "entry": "0000bffe"
+  },
+  {
+    "name": "io_mode",
+    "entry": "0000c01e"
+  },
+  {
+    "name": "SYS_CopyPalette",
+    "entry": "0000c038"
+  },
+  {
+    "name": "pcpalet",
+    "entry": "0000c078"
+  },
+  {
+    "name": "SYS_FileOpen",
+    "entry": "0000c0da"
+  },
+  {
+    "name": "SYS_FileSeek",
+    "entry": "0000c126"
+  },
+  {
+    "name": "SYS_FileExists",
+    "entry": "0000c148"
+  },
+  {
+    "name": "SYS_FileClose",
+    "entry": "0000c190"
+  },
+  {
+    "name": "SYS_FileCreate",
+    "entry": "0000c1a4"
+  },
+  {
+    "name": "SYS_FileDelete",
+    "entry": "0000c1c4"
+  },
+  {
+    "name": "SYS_FileRead",
+    "entry": "0000c1e2"
+  },
+  {
+    "name": "SYS_FileWrite",
+    "entry": "0000c1f6"
+  },
+  {
+    "name": "SYS_FreeDiskSpace",
+    "entry": "0000c214"
+  },
+  {
+    "name": "SYS_SetPath",
+    "entry": "0000c264"
+  },
+  {
+    "name": "SYS_SetDrive",
+    "entry": "0000c278"
+  },
+  {
+    "name": "SYS_SetPath",
+    "entry": "0000c2aa"
+  },
+  {
+    "name": "SYS_ShowDiskUnprotectMessage",
+    "entry": "0000c2e4"
+  },
+  {
+    "name": "SYS_SetupKeyboard",
+    "entry": "0000c35e"
+  },
+  {
+    "name": "SYS_SetupKeyboardSupexec",
+    "entry": "0000c376"
+  },
+  {
+    "name": "SYS_RestoreKeyboardInterrupt",
+    "entry": "0000c3e4"
+  },
+  {
+    "name": "SYS_RestoreInitialKeyboardInterrupt",
+    "entry": "0000c3f4"
+  },
+  {
+    "name": "INT_Keyboard",
+    "entry": "0000c408"
+  },
+  {
+    "name": "SYS_HandleKeyboardInterrupt",
+    "entry": "0000c422"
+  },
+  {
+    "name": "SYS_HandleKeyboardACIADataByte",
+    "entry": "0000c454"
+  },
+  {
+    "name": "horloge",
+    "entry": "0000c4ae"
+  },
+  {
+    "name": "bcd_to_bin",
+    "entry": "0000c54e"
+  },
+  {
+    "name": "touche_clavier",
+    "entry": "0000c562"
+  },
+  {
+    "name": "modif_table",
+    "entry": "0000c574"
+  },
+  {
+    "name": "modif_last_touche",
+    "entry": "0000c5a4"
+  },
+  {
+    "name": "modif_shift",
+    "entry": "0000c6c6"
+  },
+  {
+    "name": "mise_a_jour_get_shift",
+    "entry": "0000c75c"
+  },
+  {
+    "name": "modif_tampon",
+    "entry": "0000c798"
+  },
+  {
+    "name": "joystick",
+    "entry": "0000c86e"
+  },
+  {
+    "name": "souris",
+    "entry": "0000c8ba"
+  },
+  {
+    "name": "debut_pack",
+    "entry": "0000c92c"
+  },
+  {
+    "name": "SYS_Install2Joyticks",
+    "entry": "0000cc78"
+  },
+  {
+    "name": "SYS_Install1Joystick",
+    "entry": "0000cc9e"
+  },
+  {
+    "name": "io_digit",
+    "entry": "0000ccc6"
+  },
+  {
+    "name": "FUN_0000cdf0",
+    "entry": "0000cdf0"
+  },
+  {
+    "name": "io_pixel",
+    "entry": "0000cece"
+  },
+  {
+    "name": "io_tomono",
+    "entry": "0000cf8c"
+  },
+  {
+    "name": "mousefen",
+    "entry": "0000d16e"
+  },
+  {
+    "name": "mouse_put",
+    "entry": "0000d1ae"
+  },
+  {
+    "name": "mousedraw",
+    "entry": "0000d1ca"
+  },
+  {
+    "name": "mouse_erase",
+    "entry": "0000d4f6"
+  },
+  {
+    "name": "destofen",
+    "entry": "0000d5ec"
+  },
+  {
+    "name": "transfen",
+    "entry": "0000e100"
+  },
+  {
+    "name": "tvtofen",
+    "entry": "0000e320"
+  },
+  {
+    "name": "fentotv",
+    "entry": "0000e33a"
+  },
+  {
+    "name": "trsfen",
+    "entry": "0000e37e"
+  },
+  {
+    "name": "initmono",
+    "entry": "0000e598"
+  },
+  {
+    "name": "FUN_0000e5c8",
+    "entry": "0000e5c8"
+  },
+  {
+    "name": "clrfen",
+    "entry": "0000e760"
+  },
+  {
+    "name": "clrtv",
+    "entry": "0000e7ce"
+  },
+  {
+    "name": "FUN_0000e810",
+    "entry": "0000e810"
+  },
+  {
+    "name": "scrolpage",
+    "entry": "0000ecf2"
+  },
+  {
+    "name": "pagcalc",
+    "entry": "0000ee62"
+  },
+  {
+    "name": "hbar_calc",
+    "entry": "0000ef48"
+  },
+  {
+    "name": "vbar_calc",
+    "entry": "0000f012"
+  },
+  {
+    "name": "pagscroll",
+    "entry": "0000f0b0"
+  },
+  {
+    "name": "hbarpag",
+    "entry": "0000f15e"
+  },
+  {
+    "name": "vpagbar",
+    "entry": "0000f19c"
+  },
+  {
+    "name": "phytolog",
+    "entry": "0000f1da"
+  },
+  {
+    "name": "SYS_InitSound",
+    "entry": "0000f204"
+  },
+  {
+    "name": "SYS_RestoreSound",
+    "entry": "0000f25c"
+  },
+  {
+    "name": "INT_TimerC_200Hz",
+    "entry": "0000f26e"
+  },
+  {
+    "name": "gosound",
+    "entry": "0000f2b4"
+  },
+  {
+    "name": "offsound",
+    "entry": "0000f33a"
+  },
+  {
+    "name": "gomusic",
+    "entry": "0000f34c"
+  },
+  {
+    "name": "offmusic",
+    "entry": "0000f432"
+  },
+  {
+    "name": "volmusic",
+    "entry": "0000f43a"
+  },
+  {
+    "name": "tempmusic",
+    "entry": "0000f452"
+  },
+  {
+    "name": "FUN_0000f478",
+    "entry": "0000f478"
+  },
+  {
+    "name": "SYS_UpdateSTEMicrowireData",
+    "entry": "0000f578"
+  },
+  {
+    "name": "FUN_0000f58a",
+    "entry": "0000f58a"
+  },
+  {
+    "name": "SYS_RestoreSound2",
+    "entry": "0000f5ae"
+  },
+  {
+    "name": "FUN_0000f600",
+    "entry": "0000f600"
+  },
+  {
+    "name": "FUN_0000f67e",
+    "entry": "0000f67e"
+  },
+  {
+    "name": "FUN_0000f6e6",
+    "entry": "0000f6e6"
+  },
+  {
+    "name": "FUN_0000f8f6",
+    "entry": "0000f8f6"
+  },
+  {
+    "name": "FUN_0000f96c",
+    "entry": "0000f96c"
+  },
+  {
+    "name": "FUN_0000f9fe",
+    "entry": "0000f9fe"
+  },
+  {
+    "name": "FUN_0000fa44",
+    "entry": "0000fa44"
+  },
+  {
+    "name": "FUN_0000fad4",
+    "entry": "0000fad4"
+  },
+  {
+    "name": "FUN_0000fae8",
+    "entry": "0000fae8"
+  },
+  {
+    "name": "FUN_0000faea",
+    "entry": "0000faea"
+  },
+  {
+    "name": "FUN_0000fe8c",
+    "entry": "0000fe8c"
+  },
+  {
+    "name": "FUN_0000ff0e",
+    "entry": "0000ff0e"
+  },
+  {
+    "name": "FUN_00010064",
+    "entry": "00010064"
+  },
+  {
+    "name": "SYS_MonochromeDetect",
+    "entry": "000100d4"
+  },
+  {
+    "name": "FUN_0001015a",
+    "entry": "0001015a"
+  },
+  {
+    "name": "FUN_00010344",
+    "entry": "00010344"
+  },
+  {
+    "name": "FUN_0001038e",
+    "entry": "0001038e"
+  },
+  {
+    "name": "FUN_000103d2",
+    "entry": "000103d2"
+  },
+  {
+    "name": "FUN_00010464",
+    "entry": "00010464"
+  },
+  {
+    "name": "FUN_000104e0",
+    "entry": "000104e0"
+  },
+  {
+    "name": "FUN_0001059c",
+    "entry": "0001059c"
+  },
+  {
+    "name": "FUN_000105c2",
+    "entry": "000105c2"
+  },
+  {
+    "name": "FUN_000106be",
+    "entry": "000106be"
+  },
+  {
+    "name": "FUN_000107ca",
+    "entry": "000107ca"
+  },
+  {
+    "name": "FUN_0001093c",
+    "entry": "0001093c"
+  },
+  {
+    "name": "FUN_00010a62",
+    "entry": "00010a62"
+  },
+  {
+    "name": "FUN_00011b2a",
+    "entry": "00011b2a"
+  },
+  {
+    "name": "FUN_00011caa",
+    "entry": "00011caa"
+  },
+  {
+    "name": "FUN_00011d4a",
+    "entry": "00011d4a"
+  },
+  {
+    "name": "FUN_00011d72",
+    "entry": "00011d72"
+  },
+  {
+    "name": "FUN_00011d9a",
+    "entry": "00011d9a"
+  },
+  {
+    "name": "sys_protection_entry_???",
+    "entry": "00012912"
+  },
+  {
+    "name": "sys_fdc_protection_???",
+    "entry": "00012972"
+  },
+  {
+    "name": "sys_fdc_protection_???",
+    "entry": "000129aa"
+  },
+  {
+    "name": "sys_fdc_protection_dma_???",
+    "entry": "00012b32"
+  },
+  {
+    "name": "sys_protection_shit_???",
+    "entry": "00012ba4"
+  },
+  {
+    "name": "sys_fdc_protection_wait_interrupt_???",
+    "entry": "00012bb4"
+  },
+  {
+    "name": "sys_fdc_protection_loop34_???",
+    "entry": "00012bd4"
+  },
+  {
+    "name": "JTAB_STORENAMES",
+    "entry": "00012f2e"
+  },
+  {
+    "name": "JTAB_ADDNAMES",
+    "entry": "00012f6a"
+  },
+  {
+    "name": "OPCODE_CBREAKPT_0x04",
+    "entry": "00012fa6"
+  },
+  {
+    "name": "FUN_Terminate",
+    "entry": "00012fac"
+  },
+  {
+    "name": "FUN_Startup",
+    "entry": "00012fb2"
+  },
+  {
+    "name": "FUN_ReadExecOpcode",
+    "entry": "00013104"
+  },
+  {
+    "name": "OPCODE_CNUL_0x00",
+    "entry": "0001311c"
+  },
+  {
+    "name": "OPCODE_CESC1_0x01",
+    "entry": "0001311e"
+  },
+  {
+    "name": "OPCODE_CESC2_0x02",
+    "entry": "00013120"
+  },
+  {
+    "name": "OPCODE_CESC3_0x03",
+    "entry": "00013122"
+  },
+  {
+    "name": "OPCODE_CJSR8_0x05",
+    "entry": "00013126"
+  },
+  {
+    "name": "OPCODE_CJSR16_0x06",
+    "entry": "00013134"
+  },
+  {
+    "name": "OPCODE_CJSR24_0x07",
+    "entry": "00013144"
+  },
+  {
+    "name": "OPCODE_CJMP8_0x08",
+    "entry": "0001315a"
+  },
+  {
+    "name": "OPCODE_CJMP16_0x09",
+    "entry": "00013162"
+  },
+  {
+    "name": "OPCODE_CJMP24_0x0a",
+    "entry": "0001316c"
+  },
+  {
+    "name": "OPCODE_CSTART8_0x30",
+    "entry": "0001317c"
+  },
+  {
+    "name": "OPCODE_CSTART16_0x31",
+    "entry": "00013186"
+  },
+  {
+    "name": "OPCODE_CSTART24_0x32",
+    "entry": "000131f6"
+  },
+  {
+    "name": "OPCODE_CLEAVE_0x33",
+    "entry": "00013206"
+  },
+  {
+    "name": "OPCODE_CLOOP8_0x2b",
+    "entry": "00013272"
+  },
+  {
+    "name": "OPCODE_CLOOP16_0x2c",
+    "entry": "00013294"
+  },
+  {
+    "name": "OPCODE_CLOOP24_0x2d",
+    "entry": "000132b8"
+  },
+  {
+    "name": "OPCODE_CBZ8_0x12",
+    "entry": "000132e2"
+  },
+  {
+    "name": "OPCODE_CBZ16_0x13",
+    "entry": "000132f4"
+  },
+  {
+    "name": "OPCODE_CBZ24_0x14",
+    "entry": "00013308"
+  },
+  {
+    "name": "OPCODE_CBNZ8_0x15",
+    "entry": "00013322"
+  },
+  {
+    "name": "OPCODE_CBNZ16_0x16",
+    "entry": "00013334"
+  },
+  {
+    "name": "OPCODE_CBNZ24_0x17",
+    "entry": "00013348"
+  },
+  {
+    "name": "OPCODE_CBEQ8_0x18",
+    "entry": "00013362"
+  },
+  {
+    "name": "OPCODE_CBEQ16_0x19",
+    "entry": "00013374"
+  },
+  {
+    "name": "OPCODE_CBEQ24_0x1a",
+    "entry": "00013388"
+  },
+  {
+    "name": "OPCODE_CBNE8_0x1b",
+    "entry": "000133a2"
+  },
+  {
+    "name": "OPCODE_CBNE16_0x1c",
+    "entry": "000133b4"
+  },
+  {
+    "name": "OPCODE_CBNE24_0x1d",
+    "entry": "000133c8"
+  },
+  {
+    "name": "OPCODE_CSTORE_0x1e",
+    "entry": "000133e2"
+  },
+  {
+    "name": "FUN_ReadExecStorenameSwapBuffers",
+    "entry": "000133e6"
+  },
+  {
+    "name": "OPCODE_CEVAL_0x1f",
+    "entry": "0001340e"
+  },
+  {
+    "name": "OPCODE_CADD_0x20",
+    "entry": "00013414"
+  },
+  {
+    "name": "FUN_ReadExecAddnameSwapBuffers",
+    "entry": "00013418"
+  },
+  {
+    "name": "OPCODE_CSUB_0x21",
+    "entry": "00013440"
+  },
+  {
+    "name": "OPCODE_CMUL_0x22",
+    "entry": "0001344a"
+  },
+  {
+    "name": "OPCODE_CDIV_0x23",
+    "entry": "0001344c"
+  },
+  {
+    "name": "OPCODE_CFONT_0xba",
+    "entry": "0001344e"
+  },
+  {
+    "name": "OPCODE_CNUMPUT_0xbf",
+    "entry": "00013482"
+  },
+  {
+    "name": "OPCODE_CSINPUT_0xb1",
+    "entry": "000134ac"
+  },
+  {
+    "name": "OPCODE_CVINPUT_0xb0",
+    "entry": "000134bc"
+  },
+  {
+    "name": "getstring",
+    "entry": "000134cc"
+  },
+  {
+    "name": "getval",
+    "entry": "00013518"
+  },
+  {
+    "name": "getchar",
+    "entry": "00013580"
+  },
+  {
+    "name": "OPCODE_CSPICPRINT_0xb7",
+    "entry": "00013596"
+  },
+  {
+    "name": "OPCODE_CVPICPRINT_0xb6",
+    "entry": "000135a8"
+  },
+  {
+    "name": "OPCODE_CSPUTPRINT_0xb9",
+    "entry": "000135ba"
+  },
+  {
+    "name": "OPCODE_CVPUTPRINT_0xb8",
+    "entry": "000135cc"
+  },
+  {
+    "name": "OPCODE_CVPRINT_0x24",
+    "entry": "000135de"
+  },
+  {
+    "name": "OPCODE_CSPRINTI_0x25",
+    "entry": "000135ee"
+  },
+  {
+    "name": "OPCODE_CSPRINTA_0x26",
+    "entry": "00013604"
+  },
+  {
+    "name": "putstring",
+    "entry": "00013614"
+  },
+  {
+    "name": "putval",
+    "entry": "00013632"
+  },
+  {
+    "name": "OPCODE_CLOCATE_0x27",
+    "entry": "0001363a"
+  },
+  {
+    "name": "OPCODE_CTAB_0x28",
+    "entry": "0001365a"
+  },
+  {
+    "name": "OPCODE_CRANDOM_0x2a",
+    "entry": "00013672"
+  },
+  {
+    "name": "putchar",
+    "entry": "00013698"
+  },
+  {
+    "name": "printd0",
+    "entry": "000137e0"
+  },
+  {
+    "name": "vald0",
+    "entry": "00013802"
+  },
+  {
+    "name": "OPCODE_CSETTIME_0xae",
+    "entry": "0001387e"
+  },
+  {
+    "name": "OPCODE_CGETTIME_0xaf",
+    "entry": "000138a0"
+  },
+  {
+    "name": "OPCODE_CWLIVE_0x3c",
+    "entry": "000138bc"
+  },
+  {
+    "name": "OPCODE_CLIVE_0x40",
+    "entry": "000138ce"
+  },
+  {
+    "name": "OPCODE_CBLAST_0xde",
+    "entry": "0001395a"
+  },
+  {
+    "name": "OPCODE_CKILL_0x41",
+    "entry": "00013962"
+  },
+  {
+    "name": "OPCODE_CSTOP_0x42",
+    "entry": "00013972"
+  },
+  {
+    "name": "OPCODE_CSTOPRET_0x43",
+    "entry": "00013976"
+  },
+  {
+    "name": "OPCODE_CEXIT_0x44",
+    "entry": "00013988"
+  },
+  {
+    "name": "OPCODE_CLOAD_0x45",
+    "entry": "00013998"
+  },
+  {
+    "name": "OPCODE_CUNLOAD_0x3d",
+    "entry": "000139c0"
+  },
+  {
+    "name": "OPCODE_CDEFSC_0x46",
+    "entry": "000139ca"
+  },
+  {
+    "name": "rescmode",
+    "entry": "00013a70"
+  },
+  {
+    "name": "OPCODE_CSWITCHING_0x3b",
+    "entry": "00013a8a"
+  },
+  {
+    "name": "OPCODE_CCLIPPING_0x3a",
+    "entry": "00013a9e"
+  },
+  {
+    "name": "OPCODE_CSCMOV_0x38",
+    "entry": "00013aa6"
+  },
+  {
+    "name": "OPCODE_CSCSET_0x39",
+    "entry": "00013ad4"
+  },
+  {
+    "name": "OPCODE_CSCREEN_0x47",
+    "entry": "00013b12"
+  },
+  {
+    "name": "OPCODE_CSCHEART_0xc0",
+    "entry": "00013b26"
+  },
+  {
+    "name": "OPCODE_CSCSIZE_0xc2",
+    "entry": "00013b4c"
+  },
+  {
+    "name": "OPCODE_CSCPOS_0xc1",
+    "entry": "00013b72"
+  },
+  {
+    "name": "OPCODE_CSCHORIZ_0xc3",
+    "entry": "00013b98"
+  },
+  {
+    "name": "OPCODE_CSCVERTIC_0xc4",
+    "entry": "00013bd2"
+  },
+  {
+    "name": "OPCODE_CSCREDUCE_0xc5",
+    "entry": "00013c62"
+  },
+  {
+    "name": "OPCODE_CSCSCALE_0xc6",
+    "entry": "00013c9c"
+  },
+  {
+    "name": "OPCODE_CSCBACK_0xdf",
+    "entry": "00013d04"
+  },
+  {
+    "name": "OPCODE_COPENSC_0x4e",
+    "entry": "00013d4c"
+  },
+  {
+    "name": "OPCODE_CCLOSESC_0x4f",
+    "entry": "00013d6e"
+  },
+  {
+    "name": "scadd",
+    "entry": "00013d82"
+  },
+  {
+    "name": "scbreak",
+    "entry": "00013da8"
+  },
+  {
+    "name": "vectoriel",
+    "entry": "00013dda"
+  },
+  {
+    "name": "OPCODE_CXINVON_0x9a",
+    "entry": "00013e42"
+  },
+  {
+    "name": "OPCODE_CXINVOFF_0x9b",
+    "entry": "00013e4a"
+  },
+  {
+    "name": "OPCODE_CXINV_0x99",
+    "entry": "00013e50"
+  },
+  {
+    "name": "OPCODE_CPUT_0x48",
+    "entry": "00013e58"
+  },
+  {
+    "name": "OPCODE_CPUTNAT_0x49",
+    "entry": "00013e82"
+  },
+  {
+    "name": "OPCODE_CXPUT_0xa6",
+    "entry": "00013ec2"
+  },
+  {
+    "name": "OPCODE_CXPUTAT_0xa7",
+    "entry": "00013edc"
+  },
+  {
+    "name": "OPCODE_CMPUT_0xa8",
+    "entry": "00013ef4"
+  },
+  {
+    "name": "OPCODE_CMPUTAT_0xa9",
+    "entry": "00013f08"
+  },
+  {
+    "name": "OPCODE_CMXPUTAT_0xab",
+    "entry": "00013f1c"
+  },
+  {
+    "name": "OPCODE_CMXPUT_0xaa",
+    "entry": "00013f36"
+  },
+  {
+    "name": "put",
+    "entry": "00013f50"
+  },
+  {
+    "name": "putin",
+    "entry": "00013f56"
+  },
+  {
+    "name": "nextnum",
+    "entry": "00014112"
+  },
+  {
+    "name": "testnum",
+    "entry": "0001411c"
+  },
+  {
+    "name": "searchelem",
+    "entry": "0001413e"
+  },
+  {
+    "name": "searchtete",
+    "entry": "00014180"
+  },
+  {
+    "name": "create_elem",
+    "entry": "000141b0"
+  },
+  {
+    "name": "OPCODE_CLINKING_0x83",
+    "entry": "00014214"
+  },
+  {
+    "name": "OPCODE_CREDUCING_0xc7",
+    "entry": "0001421e"
+  },
+  {
+    "name": "OPCODE_CREDON_0x9f",
+    "entry": "00014230"
+  },
+  {
+    "name": "OPCODE_CREDOFF_0xa0",
+    "entry": "00014236"
+  },
+  {
+    "name": "OPCODE_CALIGN_0xd0",
+    "entry": "0001423e"
+  },
+  {
+    "name": "OPCODE_CORDSPR_0xcf",
+    "entry": "00014282"
+  },
+  {
+    "name": "OPCODE_CHSPRITE_0xd6",
+    "entry": "0001428c"
+  },
+  {
+    "name": "deptopix",
+    "entry": "00014318"
+  },
+  {
+    "name": "scalaire",
+    "entry": "0001446c"
+  },
+  {
+    "name": "FUN_Rotate",
+    "entry": "000144d8"
+  },
+  {
+    "name": "adresdes",
+    "entry": "000144da"
+  },
+  {
+    "name": "adresdei",
+    "entry": "000144e4"
+  },
+  {
+    "name": "OPCODE_CCANCEN_0xdd",
+    "entry": "00014522"
+  },
+  {
+    "name": "OPCODE_CERASEN_0x4b",
+    "entry": "0001452a"
+  },
+  {
+    "name": "OPCODE_CCANCEL_0xdb",
+    "entry": "00014552"
+  },
+  {
+    "name": "OPCODE_CERASE_0x4a",
+    "entry": "0001455a"
+  },
+  {
+    "name": "OPCODE_CCANCALL_0xdc",
+    "entry": "00014586"
+  },
+  {
+    "name": "OPCODE_CERASALL_0x50",
+    "entry": "0001458e"
+  },
+  {
+    "name": "kill_elem",
+    "entry": "000145b0"
+  },
+  {
+    "name": "delprec",
+    "entry": "0001461c"
+  },
+  {
+    "name": "OPCODE_CSET_0x4c",
+    "entry": "00014652"
+  },
+  {
+    "name": "OPCODE_CMOV_0x4d",
+    "entry": "0001466c"
+  },
+  {
+    "name": "OPCODE_CVMOV_0x90",
+    "entry": "00014686"
+  },
+  {
+    "name": "OPCODE_CWMOV_0xa2",
+    "entry": "000146a6"
+  },
+  {
+    "name": "OPCODE_CORIENT_0x5f",
+    "entry": "000146f2"
+  },
+  {
+    "name": "FUN_SaveCoords",
+    "entry": "0001472c"
+  },
+  {
+    "name": "FUN_UpdateCoords",
+    "entry": "0001473e"
+  },
+  {
+    "name": "depscreen",
+    "entry": "000147aa"
+  },
+  {
+    "name": "FUN_UpdateImage",
+    "entry": "000147e8"
+  },
+  {
+    "name": "affiscr",
+    "entry": "0001499c"
+  },
+  {
+    "name": "inouvlink",
+    "entry": "00014cd0"
+  },
+  {
+    "name": "iefflink",
+    "entry": "00014d06"
+  },
+  {
+    "name": "iremplink",
+    "entry": "00014d22"
+  },
+  {
+    "name": "FUN_InitLink",
+    "entry": "00014d7e"
+  },
+  {
+    "name": "addlink",
+    "entry": "00014da4"
+  },
+  {
+    "name": "rangesprite",
+    "entry": "00014e0c"
+  },
+  {
+    "name": "fenetre",
+    "entry": "00014e78"
+  },
+  {
+    "name": "memfen",
+    "entry": "00014ff4"
+  },
+  {
+    "name": "oldfen",
+    "entry": "00015032"
+  },
+  {
+    "name": "clipfen",
+    "entry": "0001506e"
+  },
+  {
+    "name": "tstjoints",
+    "entry": "00015122"
+  },
+  {
+    "name": "calcfen",
+    "entry": "00015218"
+  },
+  {
+    "name": "adresform",
+    "entry": "0001532c"
+  },
+  {
+    "name": "OPCODE_CFORME_0x51",
+    "entry": "0001534c"
+  },
+  {
+    "name": "OPCODE_CDELFORME_0x52",
+    "entry": "00015362"
+  },
+  {
+    "name": "OPCODE_CMFORME_0xad",
+    "entry": "0001536a"
+  },
+  {
+    "name": "get_vector",
+    "entry": "00015374"
+  },
+  {
+    "name": "OPCODE_CWTSTMOV_0xa3",
+    "entry": "00015404"
+  },
+  {
+    "name": "OPCODE_CWFTSTMOV_0xa4",
+    "entry": "00015442"
+  },
+  {
+    "name": "OPCODE_CTSTFORM_0xa5",
+    "entry": "0001548c"
+  },
+  {
+    "name": "OPCODE_CTSTMOV_0x53",
+    "entry": "000154ce"
+  },
+  {
+    "name": "OPCODE_CVTSTMOV_0x8e",
+    "entry": "00015512"
+  },
+  {
+    "name": "OPCODE_CVFTSTMOV_0x8f",
+    "entry": "0001555c"
+  },
+  {
+    "name": "OPCODE_CTSTSET_0x54",
+    "entry": "000155b4"
+  },
+  {
+    "name": "OPCODE_CFTSTMOV_0x55",
+    "entry": "000155ec"
+  },
+  {
+    "name": "OPCODE_CFTSTSET_0x56",
+    "entry": "0001563e"
+  },
+  {
+    "name": "OPCODE_CSUCCENT_0x57",
+    "entry": "00015684"
+  },
+  {
+    "name": "OPCODE_CPREDENT_0x58",
+    "entry": "0001569a"
+  },
+  {
+    "name": "OPCODE_CRSTENT_0x60",
+    "entry": "000156be"
+  },
+  {
+    "name": "OPCODE_CMATENT_0xe1",
+    "entry": "000156cc"
+  },
+  {
+    "name": "clipform",
+    "entry": "000156da"
+  },
+  {
+    "name": "multiform",
+    "entry": "000157d8"
+  },
+  {
+    "name": "traitform",
+    "entry": "00015804"
+  },
+  {
+    "name": "monoform",
+    "entry": "00015816"
+  },
+  {
+    "name": "check1_dummy_rts",
+    "entry": "000158d0"
+  },
+  {
+    "name": "traitfirm",
+    "entry": "000158fe"
+  },
+  {
+    "name": "clipmat",
+    "entry": "00015a14"
+  },
+  {
+    "name": "multimat",
+    "entry": "00015a64"
+  },
+  {
+    "name": "traitmat",
+    "entry": "00015a90"
+  },
+  {
+    "name": "monomat",
+    "entry": "00015a9e"
+  },
+  {
+    "name": "OPCODE_CFINDMAT_0x93",
+    "entry": "00015aae"
+  },
+  {
+    "name": "OPCODE_CFINDTYP_0x94",
+    "entry": "00015b04"
+  },
+  {
+    "name": "OPCODE_CFINDCLA_0xca",
+    "entry": "00015b60"
+  },
+  {
+    "name": "OPCODE_CLISTENT_0x9c",
+    "entry": "00015bb2"
+  },
+  {
+    "name": "trinorme",
+    "entry": "00015bf2"
+  },
+  {
+    "name": "OPCODE_CNEARMAT_0x5b",
+    "entry": "00015c40"
+  },
+  {
+    "name": "OPCODE_CNEARTYP_0x5a",
+    "entry": "00015cf6"
+  },
+  {
+    "name": "OPCODE_CNEARCLA_0xcb",
+    "entry": "00015db6"
+  },
+  {
+    "name": "OPCODE_CNEARENT_0x59",
+    "entry": "00015e6c"
+  },
+  {
+    "name": "OPCODE_CVIEWMAT_0x5e",
+    "entry": "00015ebe"
+  },
+  {
+    "name": "OPCODE_CVIEWTYP_0x5d",
+    "entry": "00015eea"
+  },
+  {
+    "name": "OPCODE_CVIEWCLA_0xcc",
+    "entry": "00015f10"
+  },
+  {
+    "name": "OPCODE_CVIEWENT_0x5c",
+    "entry": "00015f36"
+  },
+  {
+    "name": "calcnear",
+    "entry": "00015f5c"
+  },
+  {
+    "name": "OPCODE_CALLENTITY_0x67",
+    "entry": "00015fde"
+  },
+  {
+    "name": "check2_dummy_rts",
+    "entry": "00015fe8"
+  },
+  {
+    "name": "OPCODE_CDIM_0x29",
+    "entry": "00015fea"
+  },
+  {
+    "name": "OPCODE_CSWITCH1_0x2e",
+    "entry": "00016016"
+  },
+  {
+    "name": "OPCODE_CSWITCH2_0x2f",
+    "entry": "0001604a"
+  },
+  {
+    "name": "check3_dummy_rts",
+    "entry": "0001607a"
+  },
+  {
+    "name": "OPCODE_CASLEEP_0x35",
+    "entry": "0001607c"
+  },
+  {
+    "name": "OPCODE_CSLEEP_0x3f",
+    "entry": "00016096"
+  },
+  {
+    "name": "OPCODE_CWAKEUP_0x3e",
+    "entry": "000160a6"
+  },
+  {
+    "name": "OPCODE_CSEND_0x61",
+    "entry": "000160c2"
+  },
+  {
+    "name": "OPERAND_OSCAN_0x39",
+    "entry": "00016150"
+  },
+  {
+    "name": "OPCODE_CSCANCLR_0x66",
+    "entry": "0001618e"
+  },
+  {
+    "name": "OPCODE_CSCANOFF_0x63",
+    "entry": "0001619c"
+  },
+  {
+    "name": "OPCODE_CSCANON_0x62",
+    "entry": "000161a8"
+  },
+  {
+    "name": "OPCODE_CINTEROFF_0x65",
+    "entry": "000161b0"
+  },
+  {
+    "name": "OPCODE_CINTERON_0x64",
+    "entry": "000161b8"
+  },
+  {
+    "name": "OPCODE_CTIMING_0x6a",
+    "entry": "000161c0"
+  },
+  {
+    "name": "OPCODE_CINITAB_0x6f",
+    "entry": "000161cc"
+  },
+  {
+    "name": "OPCODE_CLINEPALET_0xd8",
+    "entry": "000161e6"
+  },
+  {
+    "name": "OPCODE_CSELPALET_0xd7",
+    "entry": "00016288"
+  },
+  {
+    "name": "selpalet",
+    "entry": "000162a0"
+  },
+  {
+    "name": "OPCODE_CPALETTE_0x68",
+    "entry": "000162d0"
+  },
+  {
+    "name": "OPCODE_CSAVEPAL_0xe6",
+    "entry": "00016350"
+  },
+  {
+    "name": "FUN_00016392",
+    "entry": "00016392"
+  },
+  {
+    "name": "FUN_SetMPalette",
+    "entry": "000163ee"
+  },
+  {
+    "name": "OPCODE_CDEFCOLOR_0x69",
+    "entry": "00016404"
+  },
+  {
+    "name": "OPCODE_CMOVCOLOR_0xbd",
+    "entry": "0001644e"
+  },
+  {
+    "name": "addcol",
+    "entry": "000164fe"
+  },
+  {
+    "name": "subcol",
+    "entry": "00016520"
+  },
+  {
+    "name": "OPCODE_CTOPALET_0xbe",
+    "entry": "00016542"
+  },
+  {
+    "name": "topalette",
+    "entry": "00016698"
+  },
+  {
+    "name": "OPCODE_CTOBLACK_0xbc",
+    "entry": "0001674a"
+  },
+  {
+    "name": "inc_color",
+    "entry": "0001679c"
+  },
+  {
+    "name": "dec_color",
+    "entry": "000167a6"
+  },
+  {
+    "name": "OPCODE_CBACKSTAR_0xd1",
+    "entry": "000167b0"
+  },
+  {
+    "name": "OPCODE_CSTARRING_0xd2",
+    "entry": "00016814"
+  },
+  {
+    "name": "OPCODE_CZAP_0x6b",
+    "entry": "00016876"
+  },
+  {
+    "name": "OPCODE_CEXPLODE_0x6c",
+    "entry": "000168cc"
+  },
+  {
+    "name": "OPCODE_CNOISE_0x6e",
+    "entry": "00016938"
+  },
+  {
+    "name": "OPCODE_CENGINE_0xd3",
+    "entry": "000169a4"
+  },
+  {
+    "name": "OPCODE_CDING_0x6d",
+    "entry": "000169b6"
+  },
+  {
+    "name": "runson",
+    "entry": "00016a22"
+  },
+  {
+    "name": "OPCODE_CSETVOLUM_0x98",
+    "entry": "00016b90"
+  },
+  {
+    "name": "OPCODE_CCADENCE_0x97",
+    "entry": "00016ba8"
+  },
+  {
+    "name": "adresmus",
+    "entry": "00016bc4"
+  },
+  {
+    "name": "adresmui",
+    "entry": "00016bce"
+  },
+  {
+    "name": "OPCODE_CMINSTRU_0xce",
+    "entry": "00016c04"
+  },
+  {
+    "name": "OPCODE_CINSTRU_0xcd",
+    "entry": "00016c10"
+  },
+  {
+    "name": "OPCODE_CMMUSIC_0xac",
+    "entry": "00016d80"
+  },
+  {
+    "name": "OPCODE_CMUSIC_0x95",
+    "entry": "00016d8c"
+  },
+  {
+    "name": "OPCODE_CDELMUSIC_0x96",
+    "entry": "00016e76"
+  },
+  {
+    "name": "OPCODE_CQUALITY_0xd5",
+    "entry": "00016e88"
+  },
+  {
+    "name": "OPCODE_CSOUND_0x9d",
+    "entry": "00016e94"
+  },
+  {
+    "name": "OPCODE_CMSOUND_0x9e",
+    "entry": "00016f28"
+  },
+  {
+    "name": "OPCODE_CDELSOUND_0xa1",
+    "entry": "00016f34"
+  },
+  {
+    "name": "OPCODE_CFOPEN_0x70",
+    "entry": "00016f3c"
+  },
+  {
+    "name": "OPCODE_CFCLOSE_0x71",
+    "entry": "00016f6c"
+  },
+  {
+    "name": "OPCODE_CFCREAT_0x72",
+    "entry": "00016f70"
+  },
+  {
+    "name": "OPCODE_CFDEL_0x73",
+    "entry": "00016f88"
+  },
+  {
+    "name": "OPCODE_CFREADV_0x74",
+    "entry": "00016f94"
+  },
+  {
+    "name": "OPCODE_CFWRITEV_0x75",
+    "entry": "00016faa"
+  },
+  {
+    "name": "OPCODE_CFWRITEI_0x76",
+    "entry": "00016fc2"
+  },
+  {
+    "name": "OPCODE_CFREADB_0x77",
+    "entry": "00016fd4"
+  },
+  {
+    "name": "OPCODE_CFWRITEB_0x78",
+    "entry": "00017000"
+  },
+  {
+    "name": "OPCODE_CPLOT_0x79",
+    "entry": "0001702c"
+  },
+  {
+    "name": "OPCODE_CDRAW_0x7a",
+    "entry": "0001704c"
+  },
+  {
+    "name": "OPCODE_CBOX_0x7b",
+    "entry": "0001707c"
+  },
+  {
+    "name": "OPCODE_CBOXF_0x7c",
+    "entry": "000170d0"
+  },
+  {
+    "name": "OPCODE_CINK_0x7d",
+    "entry": "00017100"
+  },
+  {
+    "name": "OPCODE_CPAPER_0xbb",
+    "entry": "00017114"
+  },
+  {
+    "name": "OPCODE_CPSET_0x7e",
+    "entry": "00017128"
+  },
+  {
+    "name": "OPCODE_CPMOVE_0x7f",
+    "entry": "0001713e"
+  },
+  {
+    "name": "OPCODE_CPMODE_0x80",
+    "entry": "00017154"
+  },
+  {
+    "name": "OPCODE_CPICTURE_0x81",
+    "entry": "00017168"
+  },
+  {
+    "name": "FUN_0001717a",
+    "entry": "0001717a"
+  },
+  {
+    "name": "FUN_000171be",
+    "entry": "000171be"
+  },
+  {
+    "name": "OPCODE_CMOUSON_0x84",
+    "entry": "00017302"
+  },
+  {
+    "name": "OPCODE_CMOUSOFF_0x85",
+    "entry": "00017328"
+  },
+  {
+    "name": "OPCODE_CMOUSE_0x86",
+    "entry": "0001735a"
+  },
+  {
+    "name": "OPCODE_CDEFMOUSE_0x87",
+    "entry": "00017390"
+  },
+  {
+    "name": "OPCODE_CSETMOUSE_0x88",
+    "entry": "000173be"
+  },
+  {
+    "name": "OPCODE_CDEFVECT_0x89",
+    "entry": "000173d2"
+  },
+  {
+    "name": "OPCODE_CSETVECT_0x8a",
+    "entry": "000173e4"
+  },
+  {
+    "name": "OPCODE_CDEFWORLD_0x91",
+    "entry": "000173f0"
+  },
+  {
+    "name": "OPCODE_CWORLD_0x92",
+    "entry": "00017404"
+  },
+  {
+    "name": "OPCODE_CXYSCROLL_0x82",
+    "entry": "0001740e"
+  },
+  {
+    "name": "OPCODE_CPROTECT_0x34",
+    "entry": "00017418"
+  },
+  {
+    "name": "start_approach",
+    "entry": "00017428"
+  },
+  {
+    "name": "calscal",
+    "entry": "00017468"
+  },
+  {
+    "name": "OPCODE_CAPPROACH_0x8c",
+    "entry": "000174e2"
+  },
+  {
+    "name": "OPCODE_CESCAPE_0x8d",
+    "entry": "0001752c"
+  },
+  {
+    "name": "FUN_ReadExecOperandToD6",
+    "entry": "00017560"
+  },
+  {
+    "name": "FUN_ReadExecOperandSaveD7ToD6",
+    "entry": "0001756c"
+  },
+  {
+    "name": "FUN_ReadExecOperand",
+    "entry": "0001756e"
+  },
+  {
+    "name": "FUN_ReadExecOperandSwapBuffers",
+    "entry": "0001757a"
+  },
+  {
+    "name": "OPERAND_OIMMB_0x00",
+    "entry": "00017594"
+  },
+  {
+    "name": "OPERAND_OIMMW_0x01",
+    "entry": "0001759a"
+  },
+  {
+    "name": "OPERAND_OIMMP_0x02",
+    "entry": "000175a2"
+  },
+  {
+    "name": "OPERAND_OLOCB_0x03",
+    "entry": "000175b0"
+  },
+  {
+    "name": "OPERAND_OLOCW_0x04",
+    "entry": "000175be"
+  },
+  {
+    "name": "OPERAND_OLOCP_0x05",
+    "entry": "000175ca"
+  },
+  {
+    "name": "OPERAND_OLOCTC_0x07",
+    "entry": "000175e2"
+  },
+  {
+    "name": "OPERAND_OLOCTI_0x08",
+    "entry": "000175f4"
+  },
+  {
+    "name": "OPERAND_OLOCTP_0x06",
+    "entry": "00017604"
+  },
+  {
+    "name": "OPERAND_ODIRB_0x09",
+    "entry": "00017620"
+  },
+  {
+    "name": "OPERAND_ODIRW_0x0a",
+    "entry": "0001762c"
+  },
+  {
+    "name": "OPERAND_ODIRP_0x0b",
+    "entry": "00017636"
+  },
+  {
+    "name": "OPERAND_ODIRTC_0x0d",
+    "entry": "0001764c"
+  },
+  {
+    "name": "OPERAND_ODIRTI_0x0e",
+    "entry": "0001765c"
+  },
+  {
+    "name": "OPERAND_ODIRTP_0x0c",
+    "entry": "0001766a"
+  },
+  {
+    "name": "OPERAND_OMAINB_0x0f",
+    "entry": "00017684"
+  },
+  {
+    "name": "OPERAND_OMAINW_0x10",
+    "entry": "00017698"
+  },
+  {
+    "name": "OPERAND_OMAINP_0x11",
+    "entry": "000176aa"
+  },
+  {
+    "name": "OPERAND_OMAINTC_0x13",
+    "entry": "000176c8"
+  },
+  {
+    "name": "OPERAND_OMAINTI_0x14",
+    "entry": "000176e4"
+  },
+  {
+    "name": "OPERAND_OMAINTP_0x12",
+    "entry": "000176fe"
+  },
+  {
+    "name": "OPERAND_OHIMB_0x15",
+    "entry": "00017724"
+  },
+  {
+    "name": "OPERAND_OHIMW_0x16",
+    "entry": "00017746"
+  },
+  {
+    "name": "OPERAND_OHIMP_0x17",
+    "entry": "00017766"
+  },
+  {
+    "name": "OPERAND_OHIMTC_0x19",
+    "entry": "00017792"
+  },
+  {
+    "name": "OPERAND_OHIMTI_0x1a",
+    "entry": "000177bc"
+  },
+  {
+    "name": "OPERAND_OHIMTP_0x18",
+    "entry": "000177e4"
+  },
+  {
+    "name": "tabchar",
+    "entry": "00017818"
+  },
+  {
+    "name": "tabint",
+    "entry": "00017854"
+  },
+  {
+    "name": "tabstring",
+    "entry": "00017874"
+  },
+  {
+    "name": "OPERAND_OAND_0x21",
+    "entry": "00017898"
+  },
+  {
+    "name": "OPERAND_OOR_0x22",
+    "entry": "000178a0"
+  },
+  {
+    "name": "OPERAND_OXOR_0x23",
+    "entry": "000178a8"
+  },
+  {
+    "name": "OPERAND_OEQV_0x24",
+    "entry": "000178b0"
+  },
+  {
+    "name": "OPERAND_OEGAL_0x25",
+    "entry": "000178ba"
+  },
+  {
+    "name": "OPERAND_ODIFF_0x26",
+    "entry": "000178ce"
+  },
+  {
+    "name": "OPERAND_OINFEG_0x27",
+    "entry": "000178e2"
+  },
+  {
+    "name": "OPERAND_OSUPEG_0x28",
+    "entry": "000178f6"
+  },
+  {
+    "name": "OPERAND_OINF_0x29",
+    "entry": "0001790a"
+  },
+  {
+    "name": "OPERAND_OSUP_0x2a",
+    "entry": "0001791e"
+  },
+  {
+    "name": "OPERAND_OADD_0x2b",
+    "entry": "00017932"
+  },
+  {
+    "name": "OPERAND_OSUB_0x2c",
+    "entry": "0001793a"
+  },
+  {
+    "name": "OPERAND_OMOD_0x2d",
+    "entry": "00017944"
+  },
+  {
+    "name": "OPERAND_ODIV_0x2e",
+    "entry": "00017952"
+  },
+  {
+    "name": "OPERAND_OMUL_0x2f",
+    "entry": "0001795e"
+  },
+  {
+    "name": "OPERAND_ONEG_0x30",
+    "entry": "00017966"
+  },
+  {
+    "name": "OPERAND_OABS_0x31",
+    "entry": "0001796a"
+  },
+  {
+    "name": "OPERAND_ORND_0x32",
+    "entry": "00017974"
+  },
+  {
+    "name": "FUN_ComputeRandom",
+    "entry": "0001798a"
+  },
+  {
+    "name": "OPERAND_OSGN_0x33",
+    "entry": "00017996"
+  },
+  {
+    "name": "OPERAND_ONOT_0x34",
+    "entry": "000179b0"
+  },
+  {
+    "name": "OPERAND_OINKEY_0x35",
+    "entry": "000179b4"
+  },
+  {
+    "name": "OPCODE_CAUTOMODE_0xd9",
+    "entry": "000179d0"
+  },
+  {
+    "name": "OPCODE_CAUTOFILE_0xda",
+    "entry": "000179d6"
+  },
+  {
+    "name": "OPCODE_CAUTOBASE_0xd4",
+    "entry": "000179dc"
+  },
+  {
+    "name": "OPERAND_OKEYON_0x36",
+    "entry": "000179de"
+  },
+  {
+    "name": "OPERAND_OSHIFTKEY_0x3a",
+    "entry": "000179e0"
+  },
+  {
+    "name": "OPERAND_OGETKEY_0x3d",
+    "entry": "000179fc"
+  },
+  {
+    "name": "OPERAND_OJOY_0x37",
+    "entry": "00017a06"
+  },
+  {
+    "name": "OPERAND_OJOYKEY_0x53",
+    "entry": "00017a22"
+  },
+  {
+    "name": "OPERAND_OPRND_0x38",
+    "entry": "00017a3e"
+  },
+  {
+    "name": "OPERAND_OFREE_0x3b",
+    "entry": "00017a4c"
+  },
+  {
+    "name": "OPERAND_OMODEL_0x3c",
+    "entry": "00017b16"
+  },
+  {
+    "name": "OPERAND_OLEFT_0x3e",
+    "entry": "00017b20"
+  },
+  {
+    "name": "OPERAND_ORIGHT_0x3f",
+    "entry": "00017b34"
+  },
+  {
+    "name": "OPERAND_OMID_0x40",
+    "entry": "00017b66"
+  },
+  {
+    "name": "OPERAND_OLEN_0x41",
+    "entry": "00017b8a"
+  },
+  {
+    "name": "OPERAND_OVAL_0x4d",
+    "entry": "00017ba2"
+  },
+  {
+    "name": "OPERAND_OASC_0x42",
+    "entry": "00017c3c"
+  },
+  {
+    "name": "OPERAND_OSTR_0x43",
+    "entry": "00017c48"
+  },
+  {
+    "name": "OPERAND_OCHR_0x4f",
+    "entry": "00017c56"
+  },
+  {
+    "name": "OPERAND_OEXISTF_0x4e",
+    "entry": "00017c62"
+  },
+  {
+    "name": "OPERAND_OCHANGE_0x50",
+    "entry": "00017c7c"
+  },
+  {
+    "name": "OPERAND_OCOUNTRY_0x51",
+    "entry": "00017d26"
+  },
+  {
+    "name": "OPERAND_OMIP_0x52",
+    "entry": "00017d30"
+  },
+  {
+    "name": "OPERAND_OCONFIG_0x54",
+    "entry": "00017d3a"
+  },
+  {
+    "name": "sd7compare",
+    "entry": "00017d44"
+  },
+  {
+    "name": "push_sd7",
+    "entry": "00017d78"
+  },
+  {
+    "name": "pop_sd7",
+    "entry": "00017dac"
+  },
+  {
+    "name": "pop_sd6",
+    "entry": "00017e02"
+  },
+  {
+    "name": "OPERAND_OSPUSHACC_0x4b",
+    "entry": "00017e20"
+  },
+  {
+    "name": "OPERAND_OSPILE_0x4c",
+    "entry": "00017e26"
+  },
+  {
+    "name": "OPERAND_OSEGAL_0x45",
+    "entry": "00017e42"
+  },
+  {
+    "name": "OPERAND_OSDIFF_0x46",
+    "entry": "00017e58"
+  },
+  {
+    "name": "OPERAND_OSINFEG_0x47",
+    "entry": "00017e6e"
+  },
+  {
+    "name": "OPERAND_OSSUPEG_0x48",
+    "entry": "00017e84"
+  },
+  {
+    "name": "OPERAND_OSINF_0x49",
+    "entry": "00017e9a"
+  },
+  {
+    "name": "OPERAND_OSSUP_0x4a",
+    "entry": "00017eb0"
+  },
+  {
+    "name": "OPERAND_OSADD_0x44",
+    "entry": "00017ec6"
+  },
+  {
+    "name": "OPERAND_OPUSHACC_0x20",
+    "entry": "00017efc"
+  },
+  {
+    "name": "OPERAND_OPILE_0x1b",
+    "entry": "00017f00"
+  },
+  {
+    "name": "OPERAND_OEVAL_0x1c",
+    "entry": "00017f06"
+  },
+  {
+    "name": "OPERAND_OFIN_0x1d",
+    "entry": "00017f0c"
+  },
+  {
+    "name": "STORE_SLOCB_0x03",
+    "entry": "00017f10"
+  },
+  {
+    "name": "STORE_SLOCW_0x04",
+    "entry": "00017f1c"
+  },
+  {
+    "name": "STORE_SLOCP_0x05",
+    "entry": "00017f28"
+  },
+  {
+    "name": "STORE_SLOCTC_0x07",
+    "entry": "00017f40"
+  },
+  {
+    "name": "STORE_SLOCTI_0x08",
+    "entry": "00017f52"
+  },
+  {
+    "name": "STORE_SLOCTP_0x06",
+    "entry": "00017f64"
+  },
+  {
+    "name": "STORE_SDIRB_0x09",
+    "entry": "00017f80"
+  },
+  {
+    "name": "STORE_SDIRW_0x0a",
+    "entry": "00017f8a"
+  },
+  {
+    "name": "STORE_SDIRP_0x0b",
+    "entry": "00017f94"
+  },
+  {
+    "name": "STORE_SDIRTC_0x0d",
+    "entry": "00017faa"
+  },
+  {
+    "name": "STORE_SDIRTI_0x0e",
+    "entry": "00017fba"
+  },
+  {
+    "name": "STORE_SDIRTP_0x0c",
+    "entry": "00017fca"
+  },
+  {
+    "name": "STORE_SMAINB_0x0f",
+    "entry": "00017fe4"
+  },
+  {
+    "name": "STORE_SMAINW_0x10",
+    "entry": "00017ff6"
+  },
+  {
+    "name": "STORE_SMAINP_0x11",
+    "entry": "00018008"
+  },
+  {
+    "name": "STORE_SMAINTC_0x13",
+    "entry": "00018026"
+  },
+  {
+    "name": "STORE_SMAINTI_0x14",
+    "entry": "00018042"
+  },
+  {
+    "name": "STORE_SMAINTP_0x12",
+    "entry": "0001805e"
+  },
+  {
+    "name": "STORE_SHIMB_0x15",
+    "entry": "00018084"
+  },
+  {
+    "name": "STORE_SHIMW_0x16",
+    "entry": "000180a4"
+  },
+  {
+    "name": "STORE_SHIMP_0x17",
+    "entry": "000180c4"
+  },
+  {
+    "name": "STORE_SHIMTC_0x19",
+    "entry": "000180f0"
+  },
+  {
+    "name": "STORE_SHIMTI_0x1a",
+    "entry": "0001811a"
+  },
+  {
+    "name": "STORE_SHIMTP_0x18",
+    "entry": "00018144"
+  },
+  {
+    "name": "STORE_SPILE_0x1b",
+    "entry": "00018178"
+  },
+  {
+    "name": "STORE_SEVAL_0x1c",
+    "entry": "0001817c"
+  },
+  {
+    "name": "ADD_ALOCB_0x03",
+    "entry": "00018194"
+  },
+  {
+    "name": "ADD_ALOCW_0x04",
+    "entry": "000181a0"
+  },
+  {
+    "name": "ADD_ALOCP_0x05",
+    "entry": "000181ac"
+  },
+  {
+    "name": "ADD_ALOCTC_0x07",
+    "entry": "000181cc"
+  },
+  {
+    "name": "ADD_ALOCTI_0x08",
+    "entry": "000181de"
+  },
+  {
+    "name": "ADD_ALOCTP_0x06",
+    "entry": "000181f0"
+  },
+  {
+    "name": "ADD_ADIRB_0x09",
+    "entry": "00018214"
+  },
+  {
+    "name": "ADD_ADIRW_0x0a",
+    "entry": "0001821e"
+  },
+  {
+    "name": "ADD_ADIRP_0x0b",
+    "entry": "00018228"
+  },
+  {
+    "name": "ADD_ADIRTC_0x0d",
+    "entry": "00018246"
+  },
+  {
+    "name": "ADD_ADIRTI_0x0e",
+    "entry": "00018256"
+  },
+  {
+    "name": "ADD_ADIRTP_0x0c",
+    "entry": "00018266"
+  },
+  {
+    "name": "ADD_AMAINB_0x0f",
+    "entry": "00018288"
+  },
+  {
+    "name": "ADD_AMAINW_0x10",
+    "entry": "0001829a"
+  },
+  {
+    "name": "ADD_AMAINP_0x11",
+    "entry": "000182ac"
+  },
+  {
+    "name": "ADD_AMAINTC_0x13",
+    "entry": "000182d2"
+  },
+  {
+    "name": "ADD_AMAINTI_0x14",
+    "entry": "000182ee"
+  },
+  {
+    "name": "ADD_AMAINTP_0x12",
+    "entry": "0001830a"
+  },
+  {
+    "name": "ADD_AHIMB_0x15",
+    "entry": "00018338"
+  },
+  {
+    "name": "ADD_AHIMW_0x16",
+    "entry": "00018358"
+  },
+  {
+    "name": "ADD_AHIMP_0x17",
+    "entry": "00018378"
+  },
+  {
+    "name": "ADD_AHIMTC_0x19",
+    "entry": "000183ac"
+  },
+  {
+    "name": "ADD_AHIMTI_0x1a",
+    "entry": "000183d6"
+  },
+  {
+    "name": "ADD_AHIMTP_0x18",
+    "entry": "00018400"
+  },
+  {
+    "name": "ADD_AEVAL_0x1c",
+    "entry": "0001843c"
+  },
+  {
+    "name": "FUN_BootMain",
+    "entry": "00018454"
+  },
+  {
+    "name": "FUN_NewMain",
+    "entry": "0001846e"
+  },
+  {
+    "name": "FUN_LoadMainScript",
+    "entry": "00018510"
+  },
+  {
+    "name": "FUN_InitSprites",
+    "entry": "0001867c"
+  },
+  {
+    "name": "FUN_LoadScript",
+    "entry": "0001870e"
+  },
+  {
+    "name": "FUN_UnpackScript",
+    "entry": "00018818"
+  },
+  {
+    "name": "FUN_GetPack",
+    "entry": "000188b6"
+  },
+  {
+    "name": "FUN_PutPack",
+    "entry": "000188da"
+  },
+  {
+    "name": "FUN_Unpack60",
+    "entry": "00018902"
+  },
+  {
+    "name": "FUN_GetBit3",
+    "entry": "000189ae"
+  },
+  {
+    "name": "FUN_GetBitN",
+    "entry": "000189b0"
+  },
+  {
+    "name": "OPCODE_CSHRINK_0xe2",
+    "entry": "000189f8"
+  },
+  {
+    "name": "shrinkprog",
+    "entry": "00018a8e"
+  },
+  {
+    "name": "debprot",
+    "entry": "00018c48"
+  },
+  {
+    "name": "debprotf",
+    "entry": "00018c90"
+  },
+  {
+    "name": "FUN_InitEntities",
+    "entry": "00018cd8"
+  },
+  {
+    "name": "FUN_RegisterScript",
+    "entry": "00018d16"
+  },
+  {
+    "name": "FUN_LiveScript",
+    "entry": "00018dec"
+  },
+  {
+    "name": "FUN_LiveMainScript",
+    "entry": "00018e22"
+  },
+  {
+    "name": "FUN_KillEntity",
+    "entry": "00018f18"
+  },
+  {
+    "name": "FUN_FileOpen",
+    "entry": "00018fdc"
+  },
+  {
+    "name": "FUN_FileExists",
+    "entry": "00019072"
+  },
+  {
+    "name": "FUN_FileClose",
+    "entry": "00019084"
+  },
+  {
+    "name": "FUN_CreateFile",
+    "entry": "000190b0"
+  },
+  {
+    "name": "trunc",
+    "entry": "000190dc"
+  },
+  {
+    "name": "FUN_FileDelete",
+    "entry": "00019108"
+  },
+  {
+    "name": "FUN_FileRead",
+    "entry": "00019126"
+  },
+  {
+    "name": "FUN_FileWrite",
+    "entry": "00019152"
+  },
+  {
+    "name": "itroutine",
+    "entry": "0001917e"
+  },
+  {
+    "name": "INT_Mouse",
+    "entry": "00019258"
+  },
+  {
+    "name": "canal",
+    "entry": "00019336"
+  },
+  {
+    "name": "FUN_InitChannels",
+    "entry": "0001939a"
+  },
+  {
+    "name": "FUN_InitChannel",
+    "entry": "000193c4"
+  },
+  {
+    "name": "SYS_FatalError",
+    "entry": "00019494"
+  }
+]

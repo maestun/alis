@@ -2,10 +2,10 @@
 <FILE_INFO>
     <BASIC_INFO>
         <STATE NAME="CONTENT_TYPE" TYPE="string" VALUE="Program" />
-        <STATE NAME="PARENT" TYPE="string" VALUE="/" />
-        <STATE NAME="FILE_ID" TYPE="string" VALUE="c0a812ee4e9548247821263500" />
+        <STATE NAME="PARENT" TYPE="string" VALUE="/falcon" />
+        <STATE NAME="FILE_ID" TYPE="string" VALUE="c0a8128d8ee2346122119743500" />
         <STATE NAME="FILE_TYPE" TYPE="int" VALUE="0" />
         <STATE NAME="READ_ONLY" TYPE="boolean" VALUE="false" />
-        <STATE NAME="NAME" TYPE="string" VALUE="IS1-FALCON-START.PRG.1" />
+        <STATE NAME="NAME" TYPE="string" VALUE="ishar2_cracked" />
     </BASIC_INFO>
 </FILE_INFO>

@@ -627,27 +627,27 @@ static void cscanclr(void) {
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 7);
 
     vm.script->context._0x1e_scan_clr = vm.script->context._0x1c_scan_clr;
-    vm.script->context._0x24_scan_inter.scan_clr_bit_7 = 0;
+    BIT_CLR(vm.script->context._0x24_scan_inter, 7);//.scan_clr_bit_7 = 0;
 }
 
 static void cscanon(void) {
-    vm.script->context._0x24_scan_inter.scan_off_bit_0 = 0;
+    BIT_CLR(vm.script->context._0x24_scan_inter, 0);//.scan_off_bit_0 = 0;
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 0);
 }
 
 static void cscanoff(void) {
-    vm.script->context._0x24_scan_inter.scan_off_bit_0 = 1;
+    BIT_SET(vm.script->context._0x24_scan_inter, 0); //.scan_off_bit_0 = 1;
 //    vram_setbit(VRAM_OFFSET_CSCAN_CINTER, 0);
     cscanclr();
 }
 
 static void cinteron(void) {
-    vm.script->context._0x24_scan_inter.inter_off_bit_1 = 0;
+    BIT_CLR(vm.script->context._0x24_scan_inter, 1);//.inter_off_bit_1 = 0;
 //    vram_clrbit(VRAM_OFFSET_CSCAN_CINTER, 1);
 }
 
 static void cinteroff(void) {
-    vm.script->context._0x24_scan_inter.inter_off_bit_1 = 1;
+    BIT_SET(vm.script->context._0x24_scan_inter, 1);//.inter_off_bit_1 = 1;
 //    vram_setbit(VRAM_OFFSET_CSCAN_CINTER, 1);
 }
 
@@ -690,7 +690,7 @@ static void cinitab(void) {
 
 static void cfopen(void) {
     u16 id = 0;
-    if(*(vm.mem + vm.script->pc) == 0xff) {
+    if(*(/*vm.mem + vm.script->pc*/vram_ptr(vm.script->pc)) == 0xff) {
 //        ++(vm.script->pc);
         script_jump(1);
         readexec_opername_swap();

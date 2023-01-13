@@ -22,7 +22,7 @@
 
 
 // =============================================================================
-// MARK: - ERROR CODES
+#pragma mark - ERROR CODES
 // =============================================================================
 #define ALIS_ERR_FOPEN          (0x01)
 #define ALIS_ERR_ENT_OVERFLOW   (0x05)
@@ -30,11 +30,13 @@
 #define ALIS_ERR_FCREATE        (0x08)
 #define ALIS_ERR_FDELETE        (0x09)
 #define ALIS_ERR_CDEFSC         (0x0a)
-#define ALIS_ERR_PROG_OVERFLOW  (0x0b)
-#define ALIS_ERR_VRAM_OVERFLOW  (0x0c)
+#define ALIS_ERR_VRAM_OVERFLOW  (0x0b)
+#define ALIS_ERR_SPRIT_OVERFLOW (0x0c)
 #define ALIS_ERR_FREAD          (0x0d)
 #define ALIS_ERR_FCLOSE         (0x0e)
 #define ALIS_ERR_MAXPROG        (0x13)
+#define ALIS_ERR_VECTOR         (0x14)
+#define ALIS_ERR_MEMFEN         (0x16)
 #define ALIS_ERR_FSEEK          (0x00)
 
 
@@ -87,43 +89,6 @@ typedef struct {
 } sEnt;
 
 
-// all these are offsets !
-// for ishar 1 data w/ ishar2 interpreter:
-typedef struct {
-
-    u32 basemem;       // $22400, set once by host system's 'malloc'
-//    u32 basevar;       // $0
-    
-    // address of a dword table that holds the adresses of loaded script data
-    // (max size is read in packed main script's header, at offset 0x6)
-    u32 atprog;        // $22400, set once, same as basemem
-    
-    // address of the next available atprog slot
-    u32 dernprog;      // $22400, will increment by 4 each time a script is loaded
-    
-    u32 atent;          // $224f0, set once: atent = basemem + (vm.specs.maxprog * sizeof(ptr_t))
-                        // atent ent contains 6*MAXENT (word read in MAIN.AO header at byte 0x8)
-    u32 debent;         // $2261c, set once: debent = atent + (vm.specs.maxent * 6)
-
-    u32 basemain;       // $22690, set once: basemain = debent + vmspecs[0x12] + vmspecs[0x16] + sizeof(struct sVMStat)
-
-    u32 finent;        // $26902
-
-    u32 debsprit;       // $283e0, set once: debsprit = ((atent + vm.specs.debsprit_offset) & 0x0f) + 1
-    u32 finsprit;       // $2d278, set once: finsprit = debsprit + ((vm.specs.finsprit_offset + 3) * 40)
-    u32 basesprit;      // $31f40, set at init_sprites()
-    u16 tvsprit;        // 0x8000, set at init_sprites()
-    u16 backsprit;      // 0x8028, set at init_sprites()
-    u16 texsprit;       // 0x8050, set at init_sprites()
-
-    u32 debprog;       // $2d278, set once: debprog = finsprit
-    u32 finprog;       // $
-
-    u32 finmem;         // end of host memory
-
-} sAlisMemory;
-
-
 
 
 
@@ -145,15 +110,13 @@ typedef struct {
     sAlisMemory     vram;
     
     // vm status (data stored before basemain / $22690)
-    sVMStatus       vstat;
+    // sVMContext      context;
     
     // variables
     // sAlisVars       vars;
     
-    // Absolute address of vm's virtual ram.
-    // On atari the operating system gives us $22400.
-    #define ALIS_VM_RAM_ORG (0x22400)
-    u8 *            vram_org; // basemem
+    
+    // u8 *            vram_org; // basemem
     
     // On atari, it's a stack of absolute script data adresses,
     //   each address being 4 bytes long.
@@ -177,13 +140,15 @@ typedef struct {
     // true if vm is running
     u8              running;
     
-    // virtual 16-bit accumulator (A4)
+    // virtual accumulator (A4)
+    // can store 64 bytes
     u16             vacc_offset;
     s16 *           acc;
     s16 *           acc_org;
+    u8              arr_calc_sp[64];
     
     // MEMORY
-    u8 *            mem; // host: system memory (hardware)
+    // u8 *            mem; // host: system memory (hardware)
     
     // in atari, located at $22400
     // contains the addresses of the loaded scripts' data
@@ -296,6 +261,7 @@ typedef struct {
     pixelbuf_t  pixelbuf;
 } sHost;
 
+
 extern sAlisVM vm;
 extern sHost host;
 
@@ -308,7 +274,6 @@ u8              alis_main(void);
 void            alis_engine(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
-//void            alis_register_script(sAlisScript * script);
 void            alis_error(u8 errnum, ...);
 void            alis_debug(void);
 void            alis_debug_ram(void);

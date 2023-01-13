@@ -1,4 +1,5 @@
 
+from doctest import debug_script
 import os
 
 import alis_fptrs
@@ -112,26 +113,28 @@ class AlisVM():
         self.ram = AlisMemory(platform.value.ram, self.platform.is_le, "alis-vram")
         # virtual accumulator (stack)
         self.acc = []
-        # VM context, located at A6 / $22690
-        self.ctx = AlisContext()
         # engine variables
         self.vars = AlisVars()
         # system abstraction layer
         self.sys = SysIO(platform, data_path)
         self.op_count = 0
         self.oeval_loop = False
+
+        self.init_entities()
+        self.init_sprites()
     # =========================================================================
 
 
     # =========================================================================
     def readexec(self, kind: EAlisOpcodeKind):
         # fetch code
-        byte = self.script.read(1, False)
+        byte = self.script.read()
         opcode = self.opcodes[kind][byte]
         # print(f"{hex(self.script.pc - 1)}: {opcode.name}")
         if kind == EAlisOpcodeKind.OPCODE:
             # TODO: I put an offset to ease debug, remove
-            print(f"{hex(self.script.pc - 1)};{self.op_count};{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}")
+            debug_offset = 0x2d290 if self.script.name == "main" else 0x33580 # for logo
+            print(f"{hex(self.script.pc - 1 + debug_offset)};{self.op_count};{opcode.name};{hex(opcode.code)};{hex(opcode.addr)}")
             self.op_count += 1
         else:
             print(f"- {opcode.name}")
@@ -153,13 +156,15 @@ class AlisVM():
     # =========================================================================
 
     # =========================================================================
-    def run(self):
+    def run__old(self):
         self.__running = True
         # TODO: restore back self.ui.run(self)
-
+        
+        # load main script
+        self.script: AlisScript = self.scripts[self.ids[len(self.ids) - 1]]
         while self.__running:
-            # get last script
-            self.script: AlisScript = self.scripts[self.ids.pop()]
+            # TODO: get the correct script
+
             self.script.is_running = True
 
             print(f"-- Running: {self.script.name} --")
@@ -170,8 +175,7 @@ class AlisVM():
             
             # we got here cuz of cstop
             if self.script.header.subroutine_offset != 0:
-                # TODO: go back
-                # execute subroutine
+                # execute subroutine, but push pc
                 self.vars.b_fseq = 0
                 self.acc.append(self.script.pc)
                 # in original code the offset starts from script_data + 0x6, but
@@ -181,13 +185,157 @@ class AlisVM():
                 self.script.is_running = True
                 while self.script.is_running:
                     self.tick()
+                # restore previous pc
+                self.script.pc = self.acc.pop()
+            else:
+                # TODO: maybe not pop(); instead set previous script
+                self.ids.pop()
 
             # moteur5
             self.update_coords()
-            self.ctx._0x1_cstart = self.ctx._0x2_unknown
-
+            self.script.ctx._0x1_cstart = self.script.ctx._0x2_unknown
 
     # =========================================================================
+
+    def run(self):
+        self.__running = True
+        w_offset_atent = 0
+        self.script: AlisScript = self.scripts[0]
+        self.script.ctx._0x04_unknown_byte = -1 # livemain 0x18ea8
+        self.script.ctx._0x1_cstart = 1 # livemain 0x18ea2
+
+        while(self.__running):
+
+            # TODO: le mettre icitte ?
+            self.sys.poll_event()
+
+            # __moteur2
+            # addr_current_ctx = *(int *)(kAddrAtent + w_offset_atent);
+
+            # TODO: perform context switching here !!
+            addr_current_ctx = self.ram.read(self.map.atent + w_offset_atent, 4)
+            self.vars.b_fseq = 0
+            self.vars.b_fallent = 0
+            
+            if (self.script.ctx._0x24_scan_clr_bit_7 == 1) and (self.script.ctx._0x24_inter_off_bit_1 == False) and (self.script.header.interrupt_offset != 0):
+#         if (// test context: scan/inter/send flags
+#             ((*(char *)(addr_current_ctx + kByte_ScanInterFlags_Minus0x24) < 0) &&
+#             // test context: bit 2 is INTERRUPT bit (0 == interrupt)
+#             ((*(char *)(addr_current_ctx + kByte_ScanInterFlags_Minus0x24) & 2) == 0)) &&
+#             // check for interrupt routine offset in current script's header (at offset 0x0a)
+#             (*(int *)(*(int *)(addr_current_ctx + kLong_ScriptDataStart_Minus0x14) + 0x0a) != 0)) {
+            
+                # __before_moteur4:
+                self.vars.w_save_rsp = self.script.ctx._0x0a_save_acc_offset
+                self.save_coords()
+                self.script.is_running = True
+                while self.script.is_running:
+                    self.readexec_opcode()
+                self.update_coords()
+#             save_rsp = *(uint16_t *)(addr_current_ctx + kWord_SaveVirtualAccOffset_Minus0x0a);
+#             savecoord();
+#             FUN_READEXEC_OPCODE();
+#             updtcoo0();
+
+          # __moteur4:
+#         // TODO: what is -4 in ctx ??
+#         if (*(char *)(addr_current_ctx + kByte_Minus0x04) != 0) {
+            if self.script.ctx._0x04_unknown_byte != 0:
+                if self.script.ctx._0x04_unknown_byte < 0:
+                    self.script.ctx._0x04_unknown_byte = 1
+
+#             // TODO: what is -1 in ctx ??
+#             char pcVar3 = (char *)(addr_current_ctx + kByte_Minus0x01);
+                self.script.ctx._0x1_cstart = self.script.ctx._0x1_cstart - 1
+#             if (--pcVar3 == 0) {
+                if self.script.ctx._0x1_cstart == 0:
+                    self.save_coords()
+#                 // restore A3 and D4 registers, they're lobal and used by FUN_READEXEC_OPCODE
+#                 a3_virtual_pc = *(uint32_t *)(addr_current_ctx + kLong_SaveVirtualProgramCounter_Minus0x08);
+                    self.script.pc = self.script.ctx._0x08_save_program_counter
+#                 d4_virtual_acc_offset = *(uint16_t *)(addr_current_ctx + kWord_SaveVirtualAccOffset_Minus0x0a);
+                    self.script.acc = self.script.ctx._0x0a_save_acc_offset
+                    
+                    self.vars.b_fseq = self.vars.b_fseq + 1
+#                 FUN_READEXEC_OPCODE();
+                    self.script.is_running = True
+                    while self.script.is_running:
+                        self.readexec_opcode()
+                
+#                 // save A3 and D4 registers into context
+                    self.script.ctx._0x08_save_program_counter = self.script.pc
+                    self.script.ctx._0x0a_save_acc_offset = self.script.acc
+#                 *(uint16_t *)(addr_current_ctx + kWord_SaveVirtualAccOffset_Minus0x0a) = d4_virtual_acc_offset;
+#                 *(uint32_t *)(addr_current_ctx + kLong_SaveVirtualProgramCounter_Minus0x08) = a3_virtual_pc;
+                
+                    # get start addr of script data, skip 6 bytes to get offset to an optional subroutine
+                    if self.script.header.interrupt_offset != 0:
+                        # subroutine found
+                        self.vars.b_fseq = 0
+                        self.vars.w_save_rsp = self.script.ctx._0x0a_save_acc_offset
+                        self.script.is_running = True
+                        while self.script.is_running:
+                            self.readexec_opcode()
+
+                    self.update_coords()
+                    self.script.ctx._0x1_cstart = self.script.ctx._0x2_unknown
+
+# __moteur1:
+#         // TODO: c'est ici qu'on maj D5 ?
+#         w_offset_atent = *(short *)(kAddrAtent + 4 + (int)w_offset_atent);
+            w_offset_atent = self.ram.read(self.map.atent + 4 + w_offset_atent, 2)
+        
+#         // inutile
+#         // addr_current_ctx = kAddrAtent;
+
+#         // blit !
+#         if (w_offset_atent == 0) {
+#             image();
+#         }
+            if w_offset_atent == 0:
+                self.sys.render_frame()
+#   }
+# }
+
+    # =========================================================================
+
+    def init_entities(self):
+        # init atent array
+        # contains (max_ent * 6) bytes
+        offset = 0
+        counter = 0
+
+        while offset <= self.map.debent:
+            counter += 6; # sizeof(sEnt)
+            offset = self.map.atent + counter
+            self.ram.write(offset - 2, counter, 2)
+            self.ram.write(offset - 6, 0, 4)
+
+
+    def init_sprites(self):
+        a0 = vm.map.debsprit
+        vm.map.basesprit = vm.map.debsprit + 0x8000
+        d0 = 0x8000
+        vm.vars.w_tvsprite = d0
+        vm.ram.write(a0 + d0 + 0xc, 0, 4)
+        vm.ram.write(a0 + d0 + 0x16, vm.sys.platform.width - 1, 2)
+        vm.ram.write(a0 + d0 + 0x18, vm.sys.platform.height - 1, 2)
+        d0 += 0x28
+        vm.ram.write(a0 + d0 + 0x1, 0, 1)
+        vm.vars.w_backsprite = d0
+        d0 += 0x28
+        vm.vars.w_texsprite = d0
+        vm.ram.write(a0 + d0 + 0xc, 0, 4)
+        vm.ram.write(a0 + d0 + 0x0, -2, 1)
+        vm.vars.b_mouse_flag = 0
+        d0 += 0x28
+        vm.vars.w_libsprite = d0
+
+        a1 = a0 + d0 # $28458
+        # TODO 29/10 continue here
+
+
+
 
     def save_coords(self):
         # TODO: offset + A6 / $22690

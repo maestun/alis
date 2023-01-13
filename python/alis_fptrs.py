@@ -3,30 +3,16 @@
 # 87471ae02afacf5da303a99ce81ec1cd
 # 2022-09-21 17:25:10
 
-from enum import Enum
+from alis_defs import EAlisOpcodeKind
 
+# =============================================================================
+# UTILS
+# =============================================================================
 def set_bit(value, bit):
     return value | (1<<bit)
 
 def clear_bit(value, bit):
     return value & ~(1<<bit)
-
-# =============================================================================
-class EAlisOpcodeKind(str, Enum):
-    OPCODE = "opcode"
-    OPERAND = "operand"
-    STORENAME = "storename"
-    ADDNAME = "addname"
-
-
-# =============================================================================
-class AlisOpcode():
-    def __init__(self, code, fptr, desc, addr):
-        self.code = code
-        self.fptr = fptr
-        self.name = fptr.__name__
-        self.desc = desc
-        self.addr = addr
 
 
 # =============================================================================
@@ -54,19 +40,16 @@ def cbreakpt(vm):
 
 # 0x13126: cjsr8 (0x5)
 def cjsr8(vm):
-	# print("cjsr8 is TO TEST...")
 	offset = vm.script.read(1)
 	cjsr(offset)
 
 # 0x13134: cjsr16 (0x6)
 def cjsr16(vm):
-	# print("cjsr16 is TO TEST...")
 	offset = vm.script.read(2)
 	cjsr(offset)
 
 # 0x13144: cjsr24 (0x7)
 def cjsr24(vm):
-	# print("cjsr24 is TO TEST...")
 	offset = vm.script.read(3)
 	cjsr(vm, offset)
 
@@ -108,7 +91,6 @@ def cjmpind24(vm):
 
 # 0x1324a: cret (0x11)
 def cret(vm):
-	# print("cret is TO TEST...")
 	# return from subroutine (cjsr)
     # retrieve return address **OFFSET** from virtual stack
 	pc = vm.acc.pop()
@@ -116,11 +98,11 @@ def cret(vm):
 
 # 0x132e2: cbz8 (0x12)
 def cbz8(vm):
-	print("cbz8 is MISSING...")
+	cbz(vm, vm.script.read(1, True))
 
 # 0x132f4: cbz16 (0x13)
 def cbz16(vm):
-	print("cbz16 is MISSING...")
+	cbz(vm, vm.script.read(2))
 
 # 0x13308: cbz24 (0x14)
 def cbz24(vm):
@@ -128,15 +110,15 @@ def cbz24(vm):
 
 # 0x13322: cbnz8 (0x15)
 def cbnz8(vm):
-	cbnz(vm, vm.script.read(1))
+	cbnz(vm, vm.script.read(1, True))
 
 # 0x13334: cbnz16 (0x16)
 def cbnz16(vm):
-	print("cbnz16 is MISSING...")
+	cbnz(vm, vm.script.read(2))
 
 # 0x13348: cbnz24 (0x17)
 def cbnz24(vm):
-	print("cbnz24 is MISSING...")
+	cbnz(vm, vm.script.read(3))
 
 # 0x13362: cbeq8 (0x18)
 def cbeq8(vm):
@@ -164,20 +146,23 @@ def cbne24(vm):
 
 # 0x133e2: cstore (0x1e)
 def cstore(vm):
-	# print("cstore is TO TEST...")
-	vm.vars.d6 = vm.vars.d7
-	vm.readexec(EAlisOpcodeKind.OPERAND)
-	cstore_continue(vm)
+	# vm.vars.d6 = vm.vars.d7
+	# vm.readexec(EAlisOpcodeKind.OPERAND)
+	param(vm)
+	store_acc(vm)
+	# cstore_continue(vm)
 
 # 0x1340e: ceval (0x1f)
 def ceval(vm):
-	vm.vars.d6 = vm.vars.d7
-	vm.readexec(EAlisOpcodeKind.OPERAND)
+	param(vm)
+	# vm.vars.d6 = vm.vars.d7
+	# vm.readexec(EAlisOpcodeKind.OPERAND)
 
 # 0x13414: cadd (0x20)
 def cadd(vm):
-	vm.vars.d6 = vm.vars.d7
-	vm.readexec(EAlisOpcodeKind.OPERAND)
+	# vm.vars.d6 = vm.vars.d7
+	# vm.readexec(EAlisOpcodeKind.OPERAND)
+	param(vm)
 	add_acc(vm)
 
 # 0x13440: csub (0x21)
@@ -214,24 +199,24 @@ def ctab(vm):
 
 # 0x15fea: cdim (0x29)
 def cdim(vm):
-	# print("cdim is TO TEST...")
-	# read word param
+	print("TODO: cdim is TO TEST...")
+	# read word param (d0)
 	offset = vm.script.read(2)
-	counter = vm.script.read(1)
-	byte2 = vm.script.read(1)
-
+	
 	offset -= 1
-	vm.ram.write(offset, counter, 1)
+	count = vm.script.read(1)
+	vm.ram.write(vm.map.basemain + offset, count, 1)
+	
 	offset -= 1
-	vm.ram.write(offset, byte2, 1)
+	d2 = vm.script.read(1)
+	vm.ram.write(vm.map.basemain + offset, d2, 1)
 
 	# loop w/ counter, read words, store backwards
-	while counter > 0:
+	while count > 0:
 		w = vm.script.read(2)
 		offset -= 2
-		vm.ram.write(offset, w, 2)
-		counter -= 1
-
+		vm.ram.write(vm.map.basemain + offset, w, 2)
+		count -= 1
 
 # 0x13672: crandom (0x2a)
 def crandom(vm):
@@ -329,7 +314,7 @@ def csleep(vm):
 
 # 0x138ce: clive (0x40)
 def clive(vm):
-	print("clive is STUBBED...")
+	print("TODO: clive is STUBBED...")
 	vm.vars.w_cx = 0
 	vm.vars.w_cy = 0
 	vm.vars.w_cz = 0
@@ -362,7 +347,7 @@ def cexit(vm):
 
 # 0x13998: cload (0x45)
 def cload(vm):
-	print("cload is TO TEST...")
+	print("TODO: cload is TO TEST...")
 	id = vm.script.read(2)
 	if id == 0:
 		tmp = vm.vars.sd7
@@ -378,14 +363,39 @@ def cload(vm):
 
 # 0x139ca: cdefsc (0x46)
 def cdefsc(vm):
-	print("cdefsc is STUBBED...")
-	vm.script.pc += 35
+	print("TODO: cdefsc is STUBBED...")
+	param = vm.script.read(2)
+	# bset.b    0x6,(0x0,A0,D0w*0x1)
+	a0 = vm.map.basemain
+	b = vm.ram.read(a0 + param, 1)
+	b = set_bit(b, 6)
+	vm.ram.write(a0 + param, b, 1)
+
+	# move.b    (A3)+,(0x1,A0,D0w*0x1)
+	b = vm.script.read(1)
+	vm.ram.write(a0 + param + 1, b, 1)
+	
+	# copy 32 bytes
+	for i in range(0, 32):
+		b = vm.script.read(1)
+		vm.ram.write(a0 + param + 6 + i, b, 1)
+
+	a1 = vm.map.basesprit
+	d1 = vm.vars.w_libsprit
+	if d1 == 0:
+		print("TODO: cdefsc ERROR: 0xA")
+	vm.vars.w_libsprit = vm.ram.read(a1 + d1 + 4, 2)
+
+	# TODO: next step
+
+	
+	
 
 # 0x13b12: cscreen (0x47)
 def cscreen(vm):
 	d0 = vm.script.read(2)
-	if d0 != vm.ctx._0x22_cscreen:
-		vm.ctx._0x22_cscreen = d0
+	if d0 != vm.script.ctx._0x22_cscreen:
+		vm.script.ctx._0x22_cscreen = d0
 
 # 0x13e58: cput (0x48)
 def cput(vm):
@@ -393,7 +403,28 @@ def cput(vm):
 
 # 0x13e82: cputnat (0x49)
 def cputnat(vm):
-	print("cputnat is MISSING...")
+	print("cputnat is STUBBED...")
+
+	vm.vars.flagmain = 0
+	vm.vars.flaginvx = vm.script.ctx._0x3_invx
+
+	param(vm)
+	vm.vars.depx = vm.vars.d7
+	
+	param(vm)
+	vm.vars.depy = vm.vars.d7
+	
+	param(vm)
+	vm.vars.depz = vm.vars.d7
+
+	param(vm)
+
+	param1(vm)
+
+	vm.vars.b_numelem = vm.vars.d6 & 0xff
+
+	# TODO: put()
+
 
 # 0x1455a: cerase (0x4a)
 def cerase(vm):
@@ -414,11 +445,10 @@ def cmov(vm):
 # 0x13d4c: copensc (0x4e)
 def copensc(vm):
 	d0 = vm.script.read(2)
-	a0 = vm.map.basemain
-	b = vm.ram.read(a0 + d0, 1)
+	b = vm.ram.read(vm.map.basemain + d0, 1)
 	b = clear_bit(b, 6)
 	b = set_bit(b, 7)
-	vm.ram.write(a0 + d0, b, 1)
+	vm.ram.write(vm.map.basemain + d0, b, 1)
 	scbreak(vm)
 	scadd(vm)
 
@@ -500,30 +530,25 @@ def csend(vm):
 
 # 0x161a8: cscanon (0x62)
 def cscanon(vm):
-	# print("cscanon is TO TEST...")
-	vm.ctx._0x24_scan_off_bit_0 = False
+	vm.script.ctx._0x24_scan_off_bit_0 = False
 
 # 0x1619c: cscanoff (0x63)
 def cscanoff(vm):
-	print("cscanoff is TO TEST...")
-	vm.ctx._0x24_scan_off_bit_0 = True
+	vm.script.ctx._0x24_scan_off_bit_0 = True
 	cscanclr(vm)
 
 # 0x161b8: cinteron (0x64)
 def cinteron(vm):
-	print("cinteron is TO TEST...")
-	vm.ctx._0x24_inter_off_bit_1 = False
+	vm.script.ctx._0x24_inter_off_bit_1 = False
 
 # 0x161b0: cinteroff (0x65)
 def cinteroff(vm):
-	print("cinteroff is TO TEST...")
-	vm.ctx._0x24_inter_off_bit_1 = True
+	vm.script.ctx._0x24_inter_off_bit_1 = True
 
 # 0x1618e: cscanclr (0x66)
 def cscanclr(vm):
-	print("cscanclr is TO TEST...")
-	vm.ctx._0x1e_scan_clr = vm.ctx._0x1c_scan_clr
-	vm.ctx._0x24_scan_clr_bit_7 = False
+	vm.script.ctx._0x1e_scan_clr = vm.script.ctx._0x1c_scan_clr
+	vm.script.ctx._0x24_scan_clr_bit_7 = False
 
 
 # 0x15fde: callentity (0x67)
@@ -540,7 +565,6 @@ def cdefcolor(vm):
 
 # 0x161c0: ctiming (0x6a)
 def ctiming(vm):
-	# print("ctiming is TO TEST...")
 	vm.readexec(EAlisOpcodeKind.OPERAND)
 	vm.vars.b_timing = vm.vars.d7 & 0xff
 
@@ -654,7 +678,17 @@ def cmousoff(vm):
 
 # 0x1735a: cmouse (0x86)
 def cmouse(vm):
-	print("cmouse is MISSING...")
+	print("cmouse is TO TEST...")
+	m = vm.sys.io_mouse()
+	vm.vars.d7 = m.x
+	store_acc(vm)
+	vm.vars.d7 = m.y
+	store_acc(vm)
+	vm.vars.d7 = m.bt
+	store_acc(vm)
+
+	# TODO: continuer
+
 
 # 0x17390: cdefmouse (0x87)
 def cdefmouse(vm):
@@ -870,7 +904,7 @@ def cpaper(vm):
 
 # 0x1674a: ctoblack (0xbc)
 def ctoblack(vm):
-	print("ctoblack is STUBBED...")
+	print("TODO: ctoblack is STUBBED...")
 	save = vm.vars.d7
 	vm.vars.d6 = vm.vars.d7 # TODO: one of these two is useless
 	vm.readexec(EAlisOpcodeKind.OPERAND)
@@ -1151,13 +1185,11 @@ def czoom(vm):
 # =============================================================================
 # 0x17594: oimmb (0x0)
 def oimmb(vm):
-	# print("oimmb is TO TEST...")
 	# reads a byte, extends into r7
 	vm.vars.d7 = vm.script.read(1, True)
 
 # 0x1759a: oimmw (0x1)
 def oimmw(vm):
-	# print("oimmw is TO TEST...")
 	vm.vars.d7 = vm.script.read(2)
 
 # 0x175a2: oimmp (0x2)
@@ -1166,23 +1198,22 @@ def oimmp(vm):
 
 # 0x175b0: olocb (0x3)
 def olocb(vm):
-	# print("olocb is TO TEST...")
+	print("TODO: olocb is TO TEST...")
 	offset = vm.script.read(2)
-	# TODO: it's offset + basemain
-	vm.vars.d7 = vm.ram.read(offset, 1, True)
+	vm.vars.d7 = vm.ram.read(vm.map.basemain + offset, 1, True)
 
 # 0x175be: olocw (0x4)
 def olocw(vm):
-	print("olocw is TO TEST...")
+	print("TODO: olocw is TO TEST...")
 	offset = vm.script.read(2)
 	# TODO: it's offset + basemain
-	vm.vars.d7 = vm.ram.read(offset, 2)
+	vm.vars.d7 = vm.ram.read(vm.map.basemain + offset, 2)
 
 # 0x175ca: olocp (0x5)
 def olocp(vm):
 	offset = vm.script.read(2)
 	# TODO: it's basemain + offset
-	vm.vars.sd7 = vm.ram.readp(offset)
+	vm.vars.sd7 = vm.ram.readp(vm.map.basemain + offset)
 
 # 0x17604: oloctp (0x6)
 def oloctp(vm):
@@ -1190,10 +1221,10 @@ def oloctp(vm):
 
 # 0x175e2: oloctc (0x7)
 def oloctc(vm):
-	print("oloctc is TO TEST...")
+	print("TODO: oloctc is TO TEST...")
 	offset = vm.script.read(2)
-	ret = tab_char(vm, offset)
-	vm.vars.d7 = vm.ram.read(ret)
+	offset = tab_char(vm, offset)
+	vm.vars.d7 = vm.ram.read(vm.map.basemain + offset, True)
 
 # 0x175f4: olocti (0x8)
 def olocti(vm):
@@ -1201,13 +1232,14 @@ def olocti(vm):
 
 # 0x17620: odirb (0x9)
 def odirb(vm):
-	# TODO: reloative to a6
-	vm.vars.d7 = vm.ram.read(vm.script.read(1), 1)
+	offset = vm.script.read(1)
+	vm.vars.d7 = vm.ram.read(vm.map.basemain + offset, 1, True)
 
 # 0x1762c: odirw (0xa)
 def odirw(vm):
 	# TODO: reloative to a6
-	vm.vars.d7 = vm.ram.read(vm.script.read(1), 2)
+	offset = vm.script.read(1)
+	vm.vars.d7 = vm.ram.read(vm.map.basemain + offset, 2)
 
 # 0x17636: odirp (0xb)
 def odirp(vm):
@@ -1280,7 +1312,6 @@ def opile(vm):
 
 # 0x17f06: oeval (0x1c)
 def oeval(vm):
-	# print("oeval is TO TEST...")
 	vm.oeval_loop = True
 	while vm.oeval_loop:
 	    vm.readexec(EAlisOpcodeKind.OPERAND)
@@ -1299,7 +1330,6 @@ def cnul(vm):
 
 # 0x17efc: opushacc (0x20)
 def opushacc(vm):
-	# print("opushacc is MISSING...")
 	vm.acc.append(vm.vars.d7)
 
 # 0x17898: oand (0x21)
@@ -1326,37 +1356,37 @@ def oeqv(vm):
 def oegal(vm):
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
-	vm.vars.d7 = 0xffff if (vm.vars.d6 == vm.vars.d7) else 0x0
+	vm.vars.d7 = -1 if (vm.vars.d6 == vm.vars.d7) else 0x0
 
 # 0x178ce: odiff (0x26)
 def odiff(vm):
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
-	vm.vars.d7 = 0xffff if (vm.vars.d6 != vm.vars.d7) else 0x0
+	vm.vars.d7 = -1 if (vm.vars.d6 != vm.vars.d7) else 0x0
 
 # 0x178e2: oinfeg (0x27)
 def oinfeg(vm):
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
-	vm.vars.d7 = 0xffff if (vm.vars.d6 <= vm.vars.d7) else 0x0
+	vm.vars.d7 = -1 if (vm.vars.d6 <= vm.vars.d7) else 0x0
 
 # 0x178f6: osupeg (0x28)
 def osupeg(vm):
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
-	vm.vars.d7 = 0xffff if (vm.vars.d6 >= vm.vars.d7) else 0x0
+	vm.vars.d7 = -1 if (vm.vars.d6 >= vm.vars.d7) else 0x0
 
 # 0x1790a: oinf (0x29)
 def oinf(vm):
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
-	vm.vars.d7 = 0xffff if (vm.vars.d6 < vm.vars.d7) else 0x0
+	vm.vars.d7 = -1 if (vm.vars.d6 < vm.vars.d7) else 0x0
 
 # 0x1791e: osup (0x2a)
 def osup(vm):
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
-	vm.vars.d7 = 0xffff if (vm.vars.d6 > vm.vars.d7) else 0x0
+	vm.vars.d7 = -1 if (vm.vars.d6 > vm.vars.d7) else 0x0
 
 # 0x17932: oadd (0x2b)
 def oadd(vm):
@@ -1368,7 +1398,7 @@ def osub(vm):
 
 # 0x17944: omod (0x2d)
 def omod(vm):
-	# print("omod is TO TEST...")
+	print("TODO: omod is TO TEST...")
 	vm.vars.d6 = vm.vars.d7
 	vm.readexec(EAlisOpcodeKind.OPERAND)
 	vm.vars.d6 %= vm.vars.d7
@@ -1404,7 +1434,7 @@ def onot(vm):
 
 # 0x179b4: oinkey (0x35)
 def oinkey(vm):
-	print("oinkey is TO TEST...")
+	print("TODO: oinkey is TO TEST...")
 	if vm.vars.b_automode == 0:
 		vm.vars.d7 = vm.sys.inkey()
 	else:
@@ -1417,7 +1447,7 @@ def okeyon(vm):
 
 # 0x17a06: ojoy (0x37)
 def ojoy(vm):
-	print("ojoy is MISSING...")
+	print("ojoy is STUBBED...")
 
 # 0x17a3e: oprnd (0x38)
 def oprnd(vm):
@@ -1429,7 +1459,7 @@ def oscan(vm):
 
 # 0x179e0: oshiftkey (0x3a)
 def oshiftkey(vm):
-	print("oshiftkey is STUBBED...")
+	print("TODO: oshiftkey is TO TEST...")
 	if vm.vars.b_automode == 0:
 		vm.vars.d7 = vm.sys.shiftkey()
 	else:
@@ -1438,7 +1468,7 @@ def oshiftkey(vm):
 
 # 0x17a4c: ofree (0x3b)
 def ofree(vm):
-	print("ofree is STUBBED...")
+	print("TODO: ofree is STUBBED...")
 	if vm.vars.d7 == 0:
 		# TODO: return free program memory (finmem - finprog) in kB
 		pass
@@ -1575,21 +1605,21 @@ def cnul(vm):
 # 0x17f10: slocb (0x3)
 # brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
 def slocb(vm):
-	# print("slocb is TO TEST...")
+	print("TODO: slocb is TO TEST...")
 	offset = vm.script.read(2)
-	vm.ram.write(offset, vm.vars.d7, 1)
+	vm.ram.write(vm.map.basemain + offset, vm.vars.d7, 1)
 
 # 0x17f1c: slocw (0x4)
 def slocw(vm):
-	# print("slocw is TO TEST...")
+	print("TODO: slocw is TO TEST...")
 	offset = vm.script.read(2)
-	vm.ram.write(offset, vm.vars.d7, 2)
+	vm.ram.write(vm.map.basemain + offset, vm.vars.d7, 2)
 
 # 0x17f28: slocp (0x5)
 def slocp(vm):
+	print("TODO: slocp is TO TEST...")
 	offset = vm.script.read(2)
-	# TODO: it's basemain+offset !!
-	vm.ram.writep(offset, vm.vars.oldsd7)
+	vm.ram.writep(vm.map.basemain + offset, vm.vars.oldsd7)
 
 # 0x17f64: sloctp (0x6)
 def sloctp(vm):
@@ -1598,11 +1628,11 @@ def sloctp(vm):
 # 0x17f40: sloctc (0x7)
 # Store at LOCation with offseT: Char
 def sloctc(vm):
-	# print("sloctc is TO TEST...")
+	print("sloctc is TO TEST...")
 	offset = vm.script.read(2)
 	offset = tab_char(vm, offset)
 	vm.vars.d7 = vm.acc.pop()
-	# vm.ram.write(offset, vm.vars.d7, 1)
+	vm.ram.write(vm.map.basemain + offset, vm.vars.d7, 1)
 
 # 0x17f52: slocti (0x8)
 def slocti(vm):
@@ -1610,15 +1640,15 @@ def slocti(vm):
 
 # 0x17f80: sdirb (0x9)
 def sdirb(vm):
-	print("sdirb is MISSING...")
+	print("sdirb is TO TEST...")
+	offset = vm.script.read(1)
+	vm.ram.write(vm.map.basemain + offset, vm.vars.d7, 1)
 
 # 0x17f8a: sdirw (0xa)
 def sdirw(vm):
 	print("sdirw is TO TEST...")
-	vm.ram.write(vm.script.read(1), vm.vars.d7, 2)
-#	    vram_write16(script_read8(), (u16)vm.varD7);
-
-
+	offset = vm.script.read(1)
+	vm.ram.write(vm.map.basemain + offset, vm.vars.d7, 2)
 
 # 0x17f94: sdirp (0xb)
 def sdirp(vm):
@@ -1690,15 +1720,10 @@ def spile(vm):
 
 # 0x1817c: seval (0x1c)
 def seval(vm):
-	# print("seval is TO TEST...")
 	# save d7 to virtual accumulator
 	vm.acc.append(vm.vars.d7)
 	oeval(vm)
 	vm.readexec(EAlisOpcodeKind.STORENAME)
-
-# 0x17f0c: ofin (0x1d)
-# def ofin(vm):
-# 	print("ofin is MISSING...")
 
 
 # =============================================================================
@@ -1746,10 +1771,10 @@ def adirb(vm):
 
 # 0x1821e: adirw (0xa)
 def adirw(vm):
+	print("TODO: adirw is TO TEST...")
 	offset = vm.script.read(1)
-	# TODO: must read at basemain
 	v = vm.ram.read(offset, 2)
-	vm.ram.write(offset, v + vm.vars.d7, 2)
+	vm.ram.write(vm.map.basemain + offset, v + vm.vars.d7, 2)
 
 # 0x18228: adirp (0xb)
 def adirp(vm):
@@ -1823,20 +1848,21 @@ def spile(vm):
 def aeval(vm):
 	print("aeval is MISSING...")
 
-# 0x17f0c: ofin (0x1d)
-# def ofin(vm):
-# 	print("ofin is MISSING...")
-
 
 # =============================================================================
-# COMMON STUFF & UTILS
+# COMMON STUFF
 # =============================================================================
-
 def cbz(vm, offset):
 	if vm.vars.d7 == 0:
 		vm.script.jump(offset)
 
 def cbnz(vm, offset):
+	# TODO: extremely dirty patch !!!
+	# i don't have the right value in D7 cuz livemain() is N/I
+	if vm.op_count == 3192:
+		vm.vars.d7 = 0
+	# ---------------------------------------------
+
 	if vm.vars.d7 != 0:
 		vm.script.jump(offset)
 
@@ -1848,56 +1874,71 @@ def cjsr(vm, offset):
 	vm.acc.append(vm.script.pc)
 	vm.script.jump(offset)
 
-def cstore_continue(vm):
-	# swap chunk 1 / 3
-	tmp = vm.vars.sd7
-	vm.vars.sd7 = vm.vars.oldsd7
-	vm.vars.oldsd7 = tmp    
-	vm.readexec(EAlisOpcodeKind.STORENAME)
+# def cstore_continue(vm):
+# 	# swap chunk 1 / 3
+# 	tmp = vm.vars.sd7
+# 	vm.vars.sd7 = vm.vars.oldsd7
+# 	vm.vars.oldsd7 = tmp    
+# 	vm.readexec(EAlisOpcodeKind.STORENAME)
 
 # 0x17818: tabchar
 def tab_char(vm, offset):
-#                      *******************************************************
-#                      *                      FUNCTION                       *
-#                      *******************************************************
-#                      short __stdcall tabchar(void)
-#        short           D0w:2        <RETURN>
-#        undefined2      D0w:2        offset
-#                      tabchar                                   XREF[12]:  000175e8(c), 00017650(c), 
-#                                                                            000176d6(c), 000177ae(c), 
-#                                                                            00017f46(c), 00017fae(c), 
-#                                                                            00018034(c), 0001810c(c), 
-#                                                                            000181d2(c), 0001824a(c), 
-#                                                                            000182e0(c), 000183c8(c)  
-#   00017818 12 36 00      move.b    (-0x1,A6,D0w*0x1),D1b
-#            ff
-#   0001781c 48 81         ext.w     D1w
-	d1w = vm.ram.read(offset - 1, 1, True)
+	print("tab_char is TO TEST")
+	d1w = vm.ram.read(vm.map.basemain + offset - 1, 1, True)
+	address = vm.map.basemain - offset - 2
 
-#   0001781e 41 f6 00      lea       (__DAT_0000fffe,A6,offset*0x1),A0
-#            fe
-	a0 = offset - 2 # DAT_0000fffe
-
-#   00017822 d0 47         add.w     D7w,offset
-#   00017824 51 c9 00      dbf       D1w,__loop
-#            04
-#   00017828 4e 75         rts
-#                      __loop                                    XREF[2]:   00017824(j), 00017830(j)  
-#   0001782a 34 1c         move.w    (A4)+,D2w
-#   0001782c c5 e0         muls.w    -(A0),D2
-#   0001782e d0 42         add.w     D2w,offset
-#   00017830 51 c9 ff      dbf       D1w,__loop
-#            f8
-#   00017834 4e 75         rts
-	pass
+	offset += vm.vars.d7
+	while d1w > 0:
+		d2w = vm.acc.pop()
+		to_mult = vm.ram.read(address, 2)
+		to_mult *= d2w
+		address -= 1
+		d1w -= 1
+	
+	return offset
 
 def scbreak(vm):
-	print("scbreak is STUBBED..")
+	print("TODO: scbreak is STUBBED..")
 
 def scadd(vm):
-	print("scadd is STUBBED..")
+	print("TODO: scadd is STUBBED..")
 
-# 0x13418
+
+# =============================================================================
+# PARAM STUFF
+# =============================================================================
+
+# 0x17560: param1
+def param1(vm):
+	vm.acc.append(vm.vars.d7)
+	param(vm)
+	vm.vars.d6 = vm.vars.d7
+	vm.vars.d7 = vm.acc.pop()
+
+# 0x1756c: param
+def param(vm):
+	vm.vars.d6 = vm.vars.d7
+	params(vm)
+
+# 0x1756e: params
+def params(vm):
+	vm.readexec(EAlisOpcodeKind.OPERAND)
+
+# 0x1757a: sparam
+def sparam(vm):
+	tmp = vm.vars.sd7
+	vm.vars.sd7 = vm.vars.sd6
+	vm.vars.sd7 = tmp
+	params(vm)
+
+# 0x133e6: storacc0
+def store_acc(vm):
+	tmp = vm.vars.sd7
+	vm.vars.sd7 = vm.vars.oldsd7
+	vm.vars.oldsd7 = tmp
+	vm.readexec(EAlisOpcodeKind.STORENAME)
+
+# 0x13418: addacc0
 def add_acc(vm):
 	tmp = vm.vars.sd7
 	vm.vars.sd7 = vm.vars.oldsd7

@@ -6,6 +6,7 @@
         "dirent.h": "c",
         "alis_private.h": "c",
         "alis.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "stdint.h": "c"
     }
 }

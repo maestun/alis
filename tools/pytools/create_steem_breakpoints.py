@@ -2,6 +2,7 @@
 from enum import Enum, IntEnum
 import configparser
 import os
+import json
 
 # =============================================================================
 class EAlisOpcodeKind(str, Enum):
@@ -144,7 +145,7 @@ class SteemHelper:
     KEY_MASK_W = "MaskW"
     KEY_NAME = "Name"
 
-    def __init__(self, alis_vm, steem_folder):
+    def __init__(self, alis_vm, steem_folder, steem_ini_file = "steem.ini"):
         """_summary_
 
         Args:
@@ -153,7 +154,7 @@ class SteemHelper:
         """
         self.vm = alis_vm
         self.steem_folder = steem_folder
-        self.ini_file = os.path.join(steem_folder, "steem.ini")
+        self.ini_file = os.path.join(steem_folder, steem_ini_file)
         self.log_file = os.path.join(steem_folder, "steem.log")
         self.config = configparser.ConfigParser()
         self.config.optionxform = str
@@ -227,6 +228,28 @@ class SteemHelper:
             self.bp_index = self.bp_index + 1
         
     
+    def add_bp(self, addr: int, name: str, mode=ESteemBreakMode.GLOBAL, bwr=1, mask_r=0, mask_w=0):
+        if self.config.has_section(self.SECTION_DEBUG_ADDR) == False:
+            self.config.add_section(self.SECTION_DEBUG_ADDR)
+        
+        # check if bp exists for this addr
+        bp_exists = False
+        for (key, val) in self.config.items(self.SECTION_DEBUG_ADDR):
+            if val == str(addr):
+                bp_exists = True
+                break
+
+        if bp_exists == False:
+            self.config.set(self.SECTION_DEBUG_ADDR, self.KEY_ADDR + str(self.bp_index), str(addr))
+            self.config.set(self.SECTION_DEBUG_ADDR, self.KEY_MODE + str(self.bp_index), str(mode.value))
+            self.config.set(self.SECTION_DEBUG_ADDR, self.KEY_BWR + str(self.bp_index), str(bwr))
+            self.config.set(self.SECTION_DEBUG_ADDR, self.KEY_MASK_W + str(self.bp_index), str(mask_w))
+            self.config.set(self.SECTION_DEBUG_ADDR, self.KEY_MASK_R + str(self.bp_index), str(mask_r))
+            self.config.set(self.SECTION_DEBUG_ADDR, self.KEY_NAME + str(self.bp_index), name)
+            print(f"Created breakpoint '{name}' at address {str(hex(addr))}")
+            self.bp_index = self.bp_index + 1
+        
+
     def del_all_bps(self):
         if self.config.has_section(self.SECTION_DEBUG_ADDR):
             self.config.remove_section(self.SECTION_DEBUG_ADDR)
@@ -238,8 +261,10 @@ class SteemHelper:
             os.remove(log)
 
 
-    def parse_bps(self):
-        with open(self.log_file, "r") as f: 
+    def parse_bps(self, log_file = ""):
+        if log_file == "":
+            log_file = self.log_file
+        with open(log_file, "r") as f: 
             all_lines = f.read().splitlines()
         bps = []
         for i in range(0, len(all_lines)):
@@ -254,151 +279,25 @@ class SteemHelper:
         return bps
 
 
-    # def handle_op(steem_lines,
-    #             steem_line_idx,
-    #             prefix_str,
-    #             divider,
-    #             op_idx,
-    #             op_table,
-    #             op_occurrences):
-    #     #########################################
-    #     regs_line = steem_lines[steem_line_idx + 1]
-    #     addrs_line = steem_lines[steem_line_idx + 2]
-    #     regs = regs_line.split("  ")
-    #     addrs = addrs_line.split("  ")
-    #     # d0 register contains the opcode in its lower byte
-    #     d0_str = regs[0].split("=")[1]
-    #     op_byte = int(int(d0_str[-2:], 16) / divider)
-    #     # a3 register is the virtual PC address
-    #     vpc = int(addrs[3].split("=")[1], 16) - 1
-    #     op_name = op_table[op_byte]
-    #     output_line = prefix_str + hex(vpc) + ": " + op_name
-
-    #     # statistics
-    #     if not op_name in op_occurrences.keys():
-    #         op_occurrences[op_name] = 1
-    #     else:
-    #         count = op_occurrences[op_name]
-    #         op_occurrences[op_name] = count + 1
-
-    #     # next...
-    #     #steem_line_idx += 2
-    #     #op_idx += 1
-    #     return output_line
-
-    # def parse_log(self, alis_vm, output_file):
-    #     steem_log = open(os.path.join(self.steem_folder, "steem.log"), "r")
-    #     opcode_log = open(output_file, "w")
-    #     steem_lines = steem_log.readlines()
-    #     steem_lines_count = len(steem_lines)
-    #     steem_line_idx = 0
-
-    #     output_lines = []
-    #     opcode_occurrences = {}
-    #     opername_occurrences = {}
-    #     storename_occurrences = {}
-    #     addname_occurrences = {}
-
-    #     opcode_idx = 0
-    #     while steem_line_idx < steem_lines_count:
-    #         steem_line = steem_lines[steem_line_idx]
-    #         opcode_bp_addr = hex(alis_data.opcode_bp_addr)[2:]
-    #         opername_bp_addr = hex(alis_data.opername_bp_addr)[2:]
-    #         storename_bp_addr = hex(alis_data.storename_bp_addr)[2:]
-    #         addname_bp_addr = hex(alis_data.addname_bp_addr)[2:]
-    #         storename_bp_addr_2 = hex(alis_data.storename_bp_addr_2)[2:]
-    #         addname_bp_addr_2 = hex(alis_data.addname_bp_addr_2)[2:]
-
-    #         #########################################
-    #         # FUN_READ_OPCODE
-    #         if "$0" + str(opcode_bp_addr) in steem_line:
-    #             line = handle_op(steem_lines, steem_line_idx, "", 1, opcode_idx,
-    #                             alis_data.opcode_table, opcode_occurrences)
-    #             output_lines.append(line)
-    #             steem_line_idx += 2
-    #             opcode_idx += 1
-    #         #########################################
-
-    #         #########################################
-    #         # FUN_READ_OPERAND
-    #         if "$0" + str(opername_bp_addr) in steem_line:
-    #             line = handle_op(steem_lines, steem_line_idx, "\t", 2, opcode_idx,
-    #                             alis_data.opername_table, opername_occurrences)
-    #             output_lines.append(line)
-    #             steem_line_idx += 2
-    #             opcode_idx += 1
-    #         #########################################
-
-    #         #########################################
-    #         # FUN_READ_STORENAME
-    #         if "$0" + str(storename_bp_addr) in steem_line:
-    #             line = handle_op(steem_lines, steem_line_idx, "\t", 2, opcode_idx,
-    #                             alis_data.storename_table, storename_occurrences)
-    #             output_lines.append(line)
-    #             steem_line_idx += 2
-    #             opcode_idx += 1
-    #         if "$0" + str(storename_bp_addr_2) in steem_line:
-    #             line = handle_op(steem_lines, steem_line_idx, "\t", 2, opcode_idx,
-    #                             alis_data.storename_table, storename_occurrences)
-    #             output_lines.append(line)
-    #             steem_line_idx += 2
-    #             opcode_idx += 1
-    #         #########################################
-
-    #         #########################################
-    #         # FUN_READ_ADDNAME
-    #         if "$0" + str(addname_bp_addr) in steem_line:
-    #             line = handle_op(steem_lines, steem_line_idx, "\t", 2, opcode_idx,
-    #                             alis_data.addname_table, addname_occurrences)
-    #             output_lines.append(line)
-    #             steem_line_idx += 2
-    #             opcode_idx += 1
-    #         if "$0" + str(addname_bp_addr_2) in steem_line:
-    #             line = handle_op(steem_lines, steem_line_idx, "\t\t\tADDNAME", 2, opcode_idx,
-    #                             alis_data.addname_table, addname_occurrences)
-    #             output_lines.append(line)
-    #             steem_line_idx += 2
-    #             opcode_idx += 1
-    #         #########################################
-
-    #         # next line
-    #         steem_line_idx += 1
-
-    #     # print all called opcodes, in order
-    #     print()
-    #     print("HISTORY")
-    #     print()
-    #     for output_line in output_lines:
-    #         print(output_line)
-    #         opcode_log.write(output_line + "\n")
-
-    #     # print opcode usage statistics
-    #     print_stats("OPCODE", opcode_occurrences)
-    #     print_stats("OPERAND", opername_occurrences)
-    #     print_stats("STORENAME", storename_occurrences)
-    #     print_stats("ADDNAME", addname_occurrences)
-
-    #     # close files
-    #     steem_log.close()
-    #     opcode_log.close()
-
-# =============================================================================
+def clear_bps(sh: SteemHelper):
+    sh.del_log()
+    sh.del_all_bps()
+    sh.commit()
 
 
-# vm = AlisVM(name="Ishar / Atari / uncracked / Daze", 
-#             exe_path="./data/ishar/atari/auto/start.prg",
-#             exe_md5="fa11cc8d6166d59edf143e4135ba058c",
-#             exe_addr=0xaa9a,
-#             opcode_tab_addr=0x10b98,
-#             opername_tab_addr=0x10d5e,
-#             storename_tab_addr=0x10e08,
-#             addname_tab_addr=0x10e44)
+def sets_bps_from_ghidra_funcdesc_json(sh: SteemHelper, all_funcs_json) -> dict:
+    clear_bps(sh)
+    for func in all_funcs_json:
+        name = func["name"]
+        addr = int(func["entry"], 16)
+        sh.add_bp(addr, name)
+    sh.commit()
+
 
 vm = AlisVM(name="Ishar II / Atari / cracked by Elite", 
             exe_path="./data/ishar2/atari/auto/ISHAR2OK.PRG",
             exe_md5="87471ae02afacf5da303a99ce81ec1cd",
             exe_addr=0xaa9a,
-            vram_addr=0x22400,
             opcode_tab_addr=0x12cb6,
             opername_tab_addr=0x12e84,
             storename_tab_addr=0x12f2e,
@@ -406,19 +305,50 @@ vm = AlisVM(name="Ishar II / Atari / cracked by Elite",
 
 sh = SteemHelper(vm, "./tools/Steem.SSE.4.0.2.Debug.Win64.DD")
 
-sh.del_log()
-sh.del_all_bps()
-sh.commit()
+# load func descriptors from Ghidra
+all_funcs_json = {}
+addr_names = {}
+json_file = "./tools/Steem.SSE.4.0.2.Debug.Win64.DD/ghidra_all_funcs_is2elite.json"
+with open(json_file, "r") as f:
+    data = f.read()
+    all_funcs_json = json.loads(data)
+    for func in all_funcs_json:
+        addr = int(func["entry"], 16)
+        addr_names[addr] = func["name"]
+    f.close()
 
-sh.add_all_bps(EAlisOpcodeKind.OPCODE)
+# clear_bps(sh)
+# sets_bps_from_ghidra_funcdesc_json(sh, all_funcs_json)
+
+# parse steem log
+print("Parsing huge log")
+bps = sh.parse_bps("./tools/Steem.SSE.4.0.2.Debug.Win64.DD/steem.log")
+
+print("Building report")
+lines = []
+idx = 0
+prev_addr = 0
+with open("./tools/Steem.SSE.4.0.2.Debug.Win64.DD/allfuncs.csv", "w") as f:
+    for bp in bps:
+        name = addr_names[bp.addr]
+        addr = hex(bp.addr)
+        line = str(idx) + ";" + addr + ";" + name + "\n"
+        idx = idx + 1
+        lines.append(line)
+        f.write(line)
+    f.close()
+
+# sh.add_all_bps(EAlisOpcodeKind.OPCODE)
 # sh.add_all_bps(EAlisOpcodeKind.OPERAND)
 # sh.add_all_bps(EAlisOpcodeKind.STORENAME)
 # sh.add_all_bps(EAlisOpcodeKind.ADDNAME)
-sh.commit()
 
-_ = input("Breakpoints created. Run Steem to some point and press enter...\n")
 
-bps = sh.parse_bps()
-for bp in bps:
-    if bp.addr in vm.opcode_addrs[EAlisOpcodeKind.OPCODE]:
-        print(hex(bp.addr) + ": " + vm.get_op_name(EAlisOpcodeKind.OPCODE, bp.addr))
+# _ = input("Breakpoints created. Run Steem to some point and press enter...\n")
+
+# # bps = sh.parse_bps()
+# # for bp in bps:
+# #     if bp.addr in vm.opcode_addrs[EAlisOpcodeKind.OPCODE]:
+# #         print(hex(bp.addr) + ": " + vm.get_op_name(EAlisOpcodeKind.OPCODE, bp.addr))
+
+# bps = sh.parse_bps()

@@ -9,17 +9,13 @@ import struct
 
 #############################################
 # CHANGE DATA HERE DEPENDING ON VM EXECUTABLE
+
+# atari
 reloc_addr = 0xaa9a
 
-# ISHAR 1 / CR ELITE
-# alis_jtab_opcodes = 0x10d22
-# alis_jtab_opcodes_len = 454
-# alis_jtab_opernames = 0x10ee8
-# alis_jtab_opernames_len = 
-# alis_jtab_storenames = 0x
-# alis_jtab_storenames_len = 
-# alis_jtab_addnames = 0x
-# alis_jtab_addnames_len = 
+# amiga
+reloc_addr = 0x21F000
+
 
 # ISHAR 1 / Pasti Image / DAZE
 # alis_jtab_opcodes_addr = 0x10b98
@@ -82,6 +78,26 @@ alis_jtab_addnames_len = 60
 
 # alis_jtab_addnames_addr = 0x16754
 # alis_jtab_addnames_len = 60
+
+# ISHAR 1 / AMIGA
+alis_jtab_opcodes_addr = 0x221b32
+alis_jtab_opcodes_len = 454
+alis_jtab_opernames_addr = 0x221cf8
+alis_jtab_opernames_len = 170
+alis_jtab_storenames_addr = 0x221da2
+alis_jtab_storenames_len = 60
+alis_jtab_addnames_addr = 0x221dde
+alis_jtab_addnames_len = 60
+
+# ISHAR 2 / AMIGA
+alis_jtab_opcodes_addr = 0x222348
+alis_jtab_opcodes_len = 462
+alis_jtab_opernames_addr = 0x222516
+alis_jtab_opernames_len = 170
+alis_jtab_storenames_addr = 0x2225c0
+alis_jtab_storenames_len = 60
+alis_jtab_addnames_addr = 0x2225fc
+alis_jtab_addnames_len = 60
 #############################################
 
 

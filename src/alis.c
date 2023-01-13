@@ -40,7 +40,7 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
     }
     else {
         // fetch code
-        u8 code = *(vm.mem + vm.script->pc++);
+        u8 code = *(u8*)vram_ptr(vm.script->pc++); //(vm.mem + vm.script->pc++);
         sAlisOpcode opcode = table[code];
         debug(EDebugVerbose, " %s", opcode.name);
         return opcode.fptr();
@@ -84,10 +84,9 @@ alisRet readexec_opername_swap(void) {
 }
 
 
-void set_prog(sAlisScript* aScript) {
+void register_script(sAlisScript* aScript) {
     
-    
-    // script size should be even
+    // script size should be even (m68k)
     if(aScript->sz & 1) {
         aScript->sz++;
     }
@@ -96,7 +95,7 @@ void set_prog(sAlisScript* aScript) {
     vm.vram.finprog += aScript->sz;
     
     if(vm.vram.finprog > vm.vram.finmem) {
-        alis_error(ALIS_ERR_PROG_OVERFLOW, "Erreur débordement programme");
+        alis_error(ALIS_ERR_VRAM_OVERFLOW, "Erreur débordement programme");
     }
     
     // check for a free program slot
@@ -119,54 +118,54 @@ void set_prog(sAlisScript* aScript) {
 
 void live_main(void) {
     // should be $22690
-    vm.vram.basemain = vm.vram.debent + vm.script->header.w_unknown5 + vm.script->header.w_unknown7 + kVMStatusSize;
+    vm.vram.basemain = vm.vram.debent + vm.script->header.w_unknown5 + vm.script->header.w_unknown7 + sizeof(sScriptContext);
     
     // should be $26902
     vm.vram.finent = vm.vram.basemain + vm.script->header.vram_alloc_sz; // ram to allocate
     
     // clear ent memory (from basemem => finent)
-    memset(vm.mem + vm.vram.basemain, 0, vm.script->header.vram_alloc_sz);
+    memset(vram_ptr(0) /*vm.mem + vm.vram.basemain*/, 0, vm.script->header.vram_alloc_sz);
     
     // should be $ffac
     vm.vacc_offset = vm.vram.debent - vm.vram.basemain + vm.script->header.w_unknown5;
     
     // now set vstat
-    vm.vstat.vacc_offset_kOffsetMinus10 = vm.vacc_offset;
-    vm.vstat.oscan_oscanclr_2_kOffsetMinus28 = vm.vacc_offset;
-    vm.vstat.oscan_oscanclr_1_kOffsetMinus30 = vm.vacc_offset;
+    vm.script->context._0xa_vacc_offset = vm.vacc_offset;
+    vm.script->context./*oscan_oscanclr_2_kOffsetMinus28*/_0x1c_scan_clr = vm.vacc_offset;
+    vm.script->context./*oscan_oscanclr_1_kOffsetMinus30*/_0x1e_scan_clr = vm.vacc_offset;
     
     // should be $2d290
-    vm.vstat.script_code_addr_kOffsetMinus8 = vm.script->code_org;
+    vm.script->context._0x8_script_ret_offset /*script_code_addr_kOffsetMinus8*/ = vm.script->code_org;
     
-    vm.vstat.unknown5_kOffsetMinus16 = vm.script->header.id;
+    vm.script->context._0x10_script_id /*unknown5_kOffsetMinus16*/ = vm.script->header.id;
 
     // should be $2d278
-    vm.vstat.script_data_addr_kOffsetMinus20 = vm.script->data_org;
+    vm.script->context._0x14_script_org_offset /*script_data_addr_kOffsetMinus20*/ = vm.script->data_org;
     
-    vm.vstat.unknown1_kOffsetMinus46 = vm.script->header.b_0x17;
-    vm.vstat.unknown6_kOffsetMinus2 = 1;
-    vm.vstat.cstart_kOffsetMinus1 = 1;
-    vm.vstat.cstart_csleep_kOffsetMinus4 = 0xff;
-    vm.vstat.cforme_delforme_kOffsetMinus26 = 0xffff;
-    vm.vstat.czap_cexplode_kOffsetMinus14 = 0;
-    vm.vstat.cscan_cinter_kOffsetMinus36 = 2;
+    vm.script->context._0x2e_script_header_byte_2 /*unknown1_kOffsetMinus46*/ = vm.script->header.b_0x17;
+    vm.script->context._0x2_unknown/*unknown6_kOffsetMinus2*/ = 1;
+    vm.script->context._0x1_cstart/*cstart_kOffsetMinus1*/ = 1;
+    vm.script->context._0x4_cstart_csleep/*cstart_csleep_kOffsetMinus4*/ = 0xff;
+    vm.script->context._0x1a_cforme/*cforme_delforme_kOffsetMinus26*/ = 0xffff;
+    vm.script->context._0xe_czap_cexplode_cnoise/*czap_cexplode_kOffsetMinus14*/ = 0;
+    vm.script->context._0x24_scan_inter/*cscan_cinter_kOffsetMinus36*/ = 2;
     
-    vm.vstat.unknown4_kOffsetMinus24 = 0;
-    vm.vstat.vacc_offset_d4_kOffsetMinus12 = 0;
-    vm.vstat.cworld1_kOffsetMinus34 = 0;
-    vm.vstat.csetvect_kOffsetMinus32 = 0;
-    vm.vstat.cxyinv_kOffsetMinus3 = 0;
-    vm.vstat.cred_on_off_kOffsetMinus37 = 0;
+    vm.script->context._0x18_unknown/*unknown4_kOffsetMinus24*/ = 0;
+    vm.script->context._0xc_vacc_offset/*vacc_offset_d4_kOffsetMinus12*/ = 0;
+    vm.script->context._0x22_cworld/*cworld1_kOffsetMinus34*/ = 0;
+    vm.script->context._0x20_set_vect/*csetvect_kOffsetMinus32*/ = 0;
+    vm.script->context._0x3_xinv/*cxyinv_kOffsetMinus3*/ = 0;
+    vm.script->context._0x25_credon_credoff/*cred_on_off_kOffsetMinus37*/ = 0;
     
-    vm.vstat.creducing_2_kOffsetMinus38 = 0xff;
-    vm.vstat.clinking_kOffsetMinus42 = 0;
-    vm.vstat.calign_2_kOffsetMinus44 = 0;
-    vm.vstat.calign_1_kOffsetMinus45 = 0;
-    vm.vstat.unknown2_kOffsetMinus40 = 0;
-    vm.vstat.chsprite_kOffsetMinus47 = 0;
-    vm.vstat.kOffsetMinus50 = 0;
-    vm.vstat.kOffsetMinus52 = 0;
-    vm.vstat.kOffsetMinus48 = 0;
+    vm.script->context._0x26_creducing/*creducing_2_kOffsetMinus38*/ = 0xff;
+    vm.script->context._0x2a_clinking/*clinking_kOffsetMinus42*/ = 0;
+    vm.script->context._0x2c_calign/*calign_2_kOffsetMinus44*/ = 0;
+    vm.script->context._0x2d_calign/*calign_1_kOffsetMinus45*/ = 0;
+    vm.script->context._0x28_unknown/*unknown2_kOffsetMinus40*/ = 0;
+    vm.script->context._0x2f_chsprite/*chsprite_kOffsetMinus47*/ = 0;
+    vm.script->context._0x32_unknown/*kOffsetMinus50*/ = 0;
+    vm.script->context._0x34_unknown/*kOffsetMinus52*/ = 0;
+    vm.script->context._0x30_unknown/*kOffsetMinus48*/ = 0;
 }
 
 void save_coord(void) {
@@ -181,7 +180,7 @@ void update_coord(void) {
 
 void alis_load_main(void) {
     vm.script = script_load(vm.platform.main);
-    set_prog(vm.script);
+    register_script(vm.script);
     live_main();
 }
 
@@ -242,8 +241,7 @@ void alis_init(sPlatform platform) {
     vm.platform = platform;    
     
     // init virtual ram
-    vm.mem = malloc(sizeof(u8) * platform.ram_sz);
-    memset(vm.mem, 0, sizeof(u8) * platform.ram_sz);
+    vram_init();
 
     // open packed main script, it contains vm specs in the header
     FILE * fp = fopen(platform.main, "rb");
@@ -259,13 +257,13 @@ void alis_init(sPlatform platform) {
         vm.specs.finsprit_offset = fread32(fp, platform);
 
         // for debugging and comparing w/ emulator we set this to $22400
-        vm.vram.basemem = ALIS_VM_RAM_ORG; // address computed by host system's 'malloc'
+        vm.vram.base = ALIS_VM_RAM_ORG; // address computed by host system's 'malloc'
         // vm.vram.basevar = 0; // looks unused ?
 
-        vm.vram.atprog = vm.vram.basemem; // set once, addr of script adresses
-        vm.vram.dernprog = vm.vram.basemem; // addr of next available script slot in atprog
+        vm.vram.atprog = vm.vram.base; // set once, addr of script adresses
+        vm.vram.dernprog = vm.vram.base; // addr of next available script slot in atprog
 
-        vm.vram.atent = vm.vram.basemem + (vm.specs.max_prog * sizeof(uint32_t));
+        vm.vram.atent = vm.vram.base + (vm.specs.max_prog * sizeof(uint32_t));
         vm.vram.debent = vm.vram.atent + (vm.specs.max_ent * 6);
         vm.vram.finent = vm.vram.debent;
         
@@ -277,10 +275,11 @@ void alis_init(sPlatform platform) {
         vm.varD6 = vm.varD7 = 0;
         
         // init temp chunks
-        // TODO: might as well (static) alloc some ram.
-        vm.sd7 = vm.mem + 0x1a1e6;
-        vm.sd6 = vm.mem + 0x1a2e6;
-        vm.oldsd7 = vm.mem + 0x1a3e6;
+        // TODO: set manually to match emulator debugging session
+        // will have to static alloc later
+        vm.sd7 = malloc(256); //vm.mem + 0x1a1e6;
+        vm.sd6 = malloc(256);//vm.mem + 0x1a2e6;
+        vm.oldsd7 = malloc(256);//vm.mem + 0x1a3e6;
         
         // init helpers
         if(vm.fp) {
@@ -289,15 +288,17 @@ void alis_init(sPlatform platform) {
         }
         
         // set the vram origin at some arbitrary location (same as atari, to ease debug)
-        vm.vram_org = vm.mem + ALIS_VM_RAM_ORG;
+        // vm.vram_org = vm.mem + ALIS_VM_RAM_ORG;
         
         // the script data address table is located at vram start
-        vm.script_data_orgs = (u32 *)vm.vram_org;
+        vm.script_data_orgs = (u32 *)vram_ptr(0); // (u32 *)vm.vram.base;
         
         // TODO: init virtual accumulator
     //    vm.acc_org = vm.script->vram_org;
     //    vm.acc = vm.script->vram_org + kVirtualRAMSize;
-        vm.acc = vm.acc_org = (vm.mem + 0x198e2);
+        
+        // arr_calc_sp_64
+        vm.acc = vm.acc_org = (vm.vram.base + 0x198e2);
         //vm.script_count = 0;
         
         // init host system stuff
@@ -320,7 +321,7 @@ void alis_init(sPlatform platform) {
         alis_load_main();
 
         printf("\n\
-basemem:    0x%x\n\
+base:       0x%x\n\
 atprog:     0x%x\n\
 dernprog:   0x%x\n\
 atent:      0x%x\n\
@@ -333,7 +334,7 @@ basesprit:  0x%x\n\
 debprog:    0x%x\n\
 finprog:    0x%x\n\
 finmem:     0x%x\n",
-            vm.vram.basemem,
+            vm.vram.base,
             vm.vram.atprog,
             vm.vram.dernprog,
             vm.vram.atent,
@@ -421,15 +422,15 @@ __moteur2:
     
     // a1 <- script.header[offset_interrupt_routine]
     a1 = vm.script->header.offset_to_interrupt_routine;
-    if ((vm.vstat.cscan_cinter_kOffsetMinus36 > 0) ||
-        (vm.vstat.cscan_cinter_kOffsetMinus36 & 1) != 0 ||
+    if ((vm.script->context._0x24_scan_inter/*cscan_cinter_kOffsetMinus36*/ > 0) ||
+        (vm.script->context._0x24_scan_inter & 1) != 0 ||
         a1 == 0) {
         goto __moteur4;
     }
     
 // __before_moteur4:
     vm.script->pc = vm.mem + vm.script->data_org + 10 + vm.script->header.offset_to_interrupt_routine;
-    vm.varD4 = vm.vstat.vacc_offset_kOffsetMinus10;
+    vm.varD4 = vm.script->context._0xa_vacc_offset/*vacc_offset_kOffsetMinus10*/;
     vm.vars.save_rsp = vm.varD4;
     save_coord();
     alis_loop();
@@ -437,33 +438,33 @@ __moteur2:
     
     
 __moteur4:
-    if(vm.vstat.cstart_csleep_kOffsetMinus4 == 0) {
+    if(vm.script->context._0x4_cstart_csleep/*cstart_csleep_kOffsetMinus4*/ == 0) {
         goto __moteur1;
     }
-    else if(vm.vstat.cstart_csleep_kOffsetMinus4 > 0) {
+    else if(vm.script->context._0x4_cstart_csleep > 0) {
         goto __moteur6;
     }
     else {
-        vm.vstat.cstart_csleep_kOffsetMinus4 = 1;
+        vm.script->context._0x4_cstart_csleep = 1;
     }
     
 __moteur6:
-    if(--vm.vstat.cstart_kOffsetMinus1 > 0) {
+    if(--vm.script->context._0x1_cstart > 0) {
         goto __moteur1;
     }
     save_coord();
     
     // reset to start of current script
-    vm.script->pc = vm.vstat.script_code_addr_kOffsetMinus8;
-    vm.varD4 = vm.vstat.vacc_offset_kOffsetMinus10;
+    vm.script->pc = vm.script->context._0x8_script_ret_offset;
+    vm.varD4 = vm.script->context._0xa_vacc_offset;
     vm.vars.fseq++;
     
     // start opcode execution loop
     alis_loop();
     
     // cstop brought us here
-    vm.vstat.vacc_offset_kOffsetMinus10 = vm.varD4;
-    vm.vstat.script_code_addr_kOffsetMinus8 = vm.script->pc;
+    vm.script->context._0xa_vacc_offset = vm.varD4;
+    vm.script->context._0x8_script_ret_offset = vm.script->pc;
     
     // check offset to script subroutine
     if(vm.script->header.offset_to_subscript_routine == 0) {
@@ -473,7 +474,7 @@ __moteur6:
     
     vm.vars.fseq = 0;
     vm.script->pc = vm.script->header.offset_to_subscript_routine;
-    vm.varD4 = vm.vstat.vacc_offset_kOffsetMinus10;
+    vm.varD4 = vm.script->context._0xa_vacc_offset;
     vm.vars.save_rsp = vm.varD4;
     
     // start opcode subroutine execution loop
@@ -481,7 +482,7 @@ __moteur6:
     
 __moteur5:
     update_coord();
-    vm.vstat.cstart_kOffsetMinus1 = vm.vstat.unknown6_kOffsetMinus2;
+    vm.script->context._0x1_cstart = vm.script->context._0x2_unknown;
     goto __moteur1;
 }
 
@@ -565,22 +566,31 @@ void alis_debug(void) {
 // MARK: - MEMORY ACCESS
 // =============================================================================
 
+void vram_init() {
+    vm.vram.ram = malloc(sizeof(u8) * vm.platform.ram_sz);
+    memset(vm.vram.ram, 0, sizeof(u8) * vm.platform.ram_sz);
+}
+
+void vram_free() {
+    free(vm.vram.ram);
+}
+
 /**
  * @brief Returns a byte pointer on (vram+offset)
  * 
  * @param offset 
  * @return u8* 
  */
-u8 * vram_ptr(u16 offset) {
-    return (u8 *)(vm.mem + /*vm.script->vram_org*/ + offset);
+u8 * vram_ptr(u32 offset) {
+    return (u8 *)(vm.vram.ram + vm.vram.base /*vm.script->vram_org*/ + offset);
 }
 
 u8 vram_read8(s32 offset) {
-    return *(u8 *)(vm.mem + /*vm.script->vram_org*/ + offset);
+    return *(u8 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org*/ + offset);
 }
 
 s16 vram_read8ext16(s32 offset) {
-    s16 ret = *(u8 *)(vm.mem + /*vm.script->vram_org +*/ offset);
+    s16 ret = *(u8 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset);
     if(BIT_CHK(ret, 7)) {
         ret |= 0xff00;
     }
@@ -588,7 +598,7 @@ s16 vram_read8ext16(s32 offset) {
 }
 
 s32 vram_read8ext32(s32 offset) {
-    s32 ret = *(u8 *)(vm.mem + /*vm.script->vram_org +*/ offset);
+    s32 ret = *(u8 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset);
     if(BIT_CHK(ret, 7)) {
         ret |= 0xffffff00;
     }
@@ -596,15 +606,15 @@ s32 vram_read8ext32(s32 offset) {
 }
 
 u16 vram_read16(s32 offset) {
-    return *(u16 *)(vm.mem + /*vm.script->vram_org +*/ offset);
+    return *(u16 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset);
 }
 
 u32 vram_read32(s32 offset) {
-    return *(u32 *)(vm.mem + offset);
+    return *(u32 *)(vm.vram.ram + vm.vram.base + offset);
 }
 
 s32 vram_read16ext32(s32 offset) {
-    s32 ret = *(u16 *)(vm.mem + /*vm.script->vram_org +*/ offset);
+    s32 ret = *(u16 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset);
     if(BIT_CHK(ret, 15)) {
         ret |= 0xffffff00;
     }
@@ -612,48 +622,48 @@ s32 vram_read16ext32(s32 offset) {
 }
 
 void vram_readp(s32 offset, u8 * dst_ptr) {
-    u8 * src_ptr = vm.mem + /*vm.script->vram_org +*/ offset;
+    u8 * src_ptr = vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset;
     do {
         *dst_ptr++ = *src_ptr++;
     } while (*src_ptr);
 }
 
 void vram_write8(s32 offset, u8 value) {
-    *(u8 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
+    *(u8 *)(vm.vram.ram + vm.vram.base /*+ vm.script->vram_org*/ + offset) = value;
     debug(EDebugVerbose, "\nwrote char 0x%02x at vram offset 0x%06x", value, offset);
 }
 
 void vram_write16(s32 offset, u16 value) {
-    *(u16 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
+    *(u16 *)(vm.vram.ram + vm.vram.base /*+ vm.script->vram_org*/ + offset) = value;
     debug(EDebugVerbose, "\nwrote word 0x%04x at vram offset 0x%06x", value, offset);
 }
 
 void vram_write32(s32 offset, u32 value) {
-    *(u32 *)(vm.mem /*+ vm.script->vram_org*/ + offset) = value;
+    *(u32 *)(vm.vram.ram + vm.vram.base /*+ vm.script->vram_org*/ + offset) = value;
     debug(EDebugVerbose, "\nwrote dword 0x%08x at vram offset 0x%06x", value, offset);
 }
 
 void vram_writep(u16 offset, u8 * src_ptr) {
-    u8 * dst_ptr = vm.mem + /*vm.script->vram_org +*/ offset;
+    u8 * dst_ptr = vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset;
     do {
         *dst_ptr++ = *src_ptr++;
     } while (*src_ptr);
 }
 
 void vram_setbit(u16 offset, u8 bit) {
-    BIT_SET(*(u8 *)(vm.mem + /*vm.script->vram_org +*/ offset), bit);
+    BIT_SET(*(u8 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset), bit);
 }
 
 void vram_clrbit(u16 offset, u8 bit) {
-    BIT_CLR(*(u8 *)(vm.mem + /*vm.script->vram_org +*/ offset), bit);
+    BIT_CLR(*(u8 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset), bit);
 }
 
 void vram_add8(u16 offset, u8 value) {
-    *(u8 *)(vm.mem + /*vm.script->vram_org +*/ offset) += value;
+    *(u8 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset) += value;
 }
 
 void vram_add16(u16 offset, u16 value) {
-    *(u16 *)(vm.mem + /*vm.script->vram_org +*/ offset) += value;
+    *(u16 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ offset) += value;
 }
 
 
@@ -662,11 +672,11 @@ void vram_add16(u16 offset, u16 value) {
 // =============================================================================
 void vram_push32(u32 value) {
     vm.script->vacc_off -= sizeof(u32);
-    *(u32 *)(vm.mem + /*vm.script->vram_org +*/ vm.script->vacc_off) = value;
+    *(u32 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ vm.script->vacc_off) = value;
 }
 
 u32 vram_peek32(void) {
-    return *(u32 *)(vm.mem + /*vm.script->vram_org +*/ vm.script->vacc_off);
+    return *(u32 *)(vm.vram.ram + vm.vram.base + /*vm.script->vram_org +*/ vm.script->vacc_off);
 }
 
 u32 vram_pop32(void) {

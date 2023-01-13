@@ -12,21 +12,21 @@
 #define kDepackExtension        "bin"
 
 
-typedef struct {
-    u8  data[6];
+typedef struct __attribute__((packed)) {
+    u32 magic_len;
+    u16 script_id;
 } sPackedScriptHeader;
 
 
 // CONTEXT: each script has some context data, stored before vram origin
+// for main: all the vars are stored in reverse ordef BEFORE basemain ($22690)
+// should be 52 bytes (0x34) long
 typedef struct {
-    // vram - 0x33: ???
-    u8 _0x33_unknown;
+    // vram - 0x34: ???
+    u16 _0x34_unknown;
     
-    // vram - 0x30: ???
-    u8 _0x32_unknown;
-    
-    // vram - 0x30: ???
-    u8 _0x31_unknown;
+    // vram - 0x32: ???
+    u16 _0x32_unknown;
     
     // vram - 0x30: ???
     u8 _0x30_unknown;
@@ -62,16 +62,7 @@ typedef struct {
     u8 _0x25_credon_credoff;
     
     // vram - 0x24: scan/inter bitfield
-    struct  {
-        u8 scan_off_bit_0: 1;
-        u8 inter_off_bit_1: 1;
-        u8 _dummy2: 1;
-        u8 _dummy3: 1;
-        u8 _dummy4: 1;
-        u8 _dummy5: 1;
-        u8 _dummy6: 1;
-        u8 scan_clr_bit_7: 1;
-    } _0x24_scan_inter;
+    u8 _0x24_scan_inter;
     
     // vram - 0x23: ???
     u8 _0x23_unknown;
@@ -100,7 +91,7 @@ typedef struct {
     // vram - 0x16: screen position
     u16 _0x16_screen_position;
     
-    // vram - 0x14: script header origin
+    // vram - 0x14: script data origin (pointer to header)
     u32 _0x14_script_org_offset;
     
     // vram - 0x10: script id

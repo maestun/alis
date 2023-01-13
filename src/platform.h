@@ -23,7 +23,7 @@ typedef enum {
 typedef struct {
     EPlatform   kind;
     char        desc[kDescMaxLen];  // platform description
-    char        ext[8];             // script file extension
+    char        ext[4];             // script file extension
     u32         ram_sz;             // size of ram, in bytes
     u32         video_ram_sz;       // size of video ram, in bytes
     u16         width;              // screen info

@@ -2,10 +2,10 @@
 <FILE_INFO>
     <BASIC_INFO>
         <STATE NAME="CONTENT_TYPE" TYPE="string" VALUE="Program" />
-        <STATE NAME="PARENT" TYPE="string" VALUE="/" />
+        <STATE NAME="PARENT" TYPE="string" VALUE="/atari" />
         <STATE NAME="FILE_ID" TYPE="string" VALUE="c0a812ed198602566533665916" />
         <STATE NAME="FILE_TYPE" TYPE="int" VALUE="0" />
         <STATE NAME="READ_ONLY" TYPE="boolean" VALUE="false" />
-        <STATE NAME="NAME" TYPE="string" VALUE="IS1-ATARI-DAZE.prg.1" />
+        <STATE NAME="NAME" TYPE="string" VALUE="ishar1_daze" />
     </BASIC_INFO>
 </FILE_INFO>
