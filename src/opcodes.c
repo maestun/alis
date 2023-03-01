@@ -22,6 +22,513 @@
 #endif
 
 // ============================================================================
+#pragma mark - Experimental
+// ============================================================================
+
+int putdataidx = 0;
+
+s16 putdata[][4] = {
+    { 0x0000, 0x0000, 0xfffb, 0x0a },
+    { 0x00a0, 0x0003, 0x002b, 0x10 },
+    { 0x0000, 0x0000, 0x0000, 0x05 },
+    { 0x0000, 0x0000, 0xfffb, 0x09 },
+    { 0x0050, 0x0002, 0x0034, 0x0b },
+    { 0x0052, 0x0002, 0x0028, 0x0b },
+    { 0x0054, 0x0002, 0x0020, 0x0b },
+    { 0x0000, 0x0000, 0xfffb, 0x0a },
+    { 0x00be, 0x0003, 0x002b, 0x10 },
+    { 0x0046, 0x0002, 0x0028, 0x13 },
+    { 0x00c3, 0x0003, 0x002b, 0x10 },
+    { 0x004b, 0x0002, 0x0028, 0x12 },
+    { 0x00c8, 0x0003, 0x002b, 0x10 },
+    { 0x0050, 0x0002, 0x0028, 0x13 },
+    { 0x00cd, 0x0003, 0x002b, 0x10 },
+    { 0x0055, 0x0002, 0x0028, 0x11 },
+    { 0x00d2, 0x0003, 0x002b, 0x10 },
+    { 0x005a, 0x0002, 0x0028, 0x12 },
+    { 0x00d7, 0x0003, 0x002b, 0x10 },
+    { 0x005f, 0x0002, 0x0028, 0x13 },
+    { 0x00dc, 0x0003, 0x002b, 0x10 },
+    { 0x0064, 0x0002, 0x0028, 0x14 },
+    { 0x00e1, 0x0003, 0x002b, 0x10 },
+    { 0x0069, 0x0002, 0x0028, 0x11 },
+    { 0x00e6, 0x0003, 0x002b, 0x10 },
+    { 0x006e, 0x0002, 0x0028, 0x13 },
+    { 0x00eb, 0x0003, 0x002b, 0x10 },
+    { 0x0073, 0x0002, 0x0028, 0x14 },
+    { 0x00f0, 0x0003, 0x002b, 0x10 },
+    { 0x0078, 0x0002, 0x0028, 0x13 },
+    { 0x00f5, 0x0003, 0x002b, 0x10 },
+    { 0x007d, 0x0002, 0x0028, 0x14 },
+    { 0x00fa, 0x0003, 0x002b, 0x10 },
+    { 0x0082, 0x0002, 0x0028, 0x13 },
+    { 0x00ff, 0x0003, 0x002b, 0x10 },
+    { 0x0087, 0x0002, 0x0028, 0x11 },
+    { 0x0104, 0x0003, 0x002b, 0x10 },
+    { 0x008c, 0x0002, 0x0028, 0x13 },
+    { 0x0109, 0x0003, 0x002b, 0x10 },
+    { 0x0091, 0x0002, 0x0028, 0x12 },
+    { 0x010e, 0x0003, 0x002b, 0x10 },
+    { 0x0096, 0x0002, 0x0028, 0x11 },
+    { 0x0113, 0x0003, 0x002b, 0x10 },
+    { 0x009b, 0x0002, 0x0028, 0x14 },
+    { 0x0118, 0x0003, 0x002b, 0x10 },
+    { 0x00a0, 0x0002, 0x0028, 0x11 },
+    { 0x011d, 0x0003, 0x002b, 0x10 },
+    { 0x00a5, 0x0002, 0x0028, 0x12 },
+    { 0x0122, 0x0003, 0x002b, 0x10 },
+    { 0x00aa, 0x0002, 0x0028, 0x13 },
+    { 0x0127, 0x0003, 0x002b, 0x10 },
+    { 0x00af, 0x0002, 0x0028, 0x11 },
+    { 0x012c, 0x0003, 0x002b, 0x10 },
+    { 0x00b4, 0x0002, 0x0028, 0x12 },
+    { 0x0131, 0x0003, 0x002b, 0x10 },
+    { 0x00b9, 0x0002, 0x0028, 0x14 },
+    { 0x0136, 0x0003, 0x002b, 0x10 },
+    { 0x00be, 0x0002, 0x0028, 0x13 },
+    { 0x013b, 0x0003, 0x002b, 0x10 },
+    { 0x00c3, 0x0002, 0x0028, 0x12 },
+    { 0x0140, 0x0003, 0x002b, 0x10 },
+    { 0x00c8, 0x0002, 0x0028, 0x11 },
+    { 0x0145, 0x0003, 0x002b, 0x10 },
+    { 0x00cd, 0x0002, 0x0028, 0x13 },
+    { 0x014a, 0x0003, 0x002b, 0x10 },
+    { 0x00d2, 0x0002, 0x0028, 0x12 },
+    { 0x014f, 0x0003, 0x002b, 0x10 },
+    { 0x00d7, 0x0002, 0x0028, 0x11 },
+    { 0x0154, 0x0003, 0x002b, 0x10 },
+    { 0x00dc, 0x0002, 0x0028, 0x13 },
+    { 0x0159, 0x0003, 0x002b, 0x10 },
+    { 0x00e1, 0x0002, 0x0028, 0x12 },
+    { 0x015e, 0x0003, 0x002b, 0x10 },
+    { 0x00e6, 0x0002, 0x0028, 0x13 },
+    { 0x0163, 0x0003, 0x002b, 0x10 },
+    { 0x00eb, 0x0002, 0x0028, 0x12 },
+    { 0x0168, 0x0003, 0x002b, 0x10 },
+    { 0x00f0, 0x0002, 0x0028, 0x13 },
+    { 0x016d, 0x0003, 0x002b, 0x10 },
+    { 0x00f5, 0x0002, 0x0028, 0x11 },
+    { 0x0172, 0x0003, 0x002b, 0x10 },
+    { 0x00fa, 0x0002, 0x0028, 0x13 },
+    { 0x0177, 0x0003, 0x002b, 0x10 },
+    { 0x00ff, 0x0002, 0x0028, 0x14 },
+    { 0x017c, 0x0003, 0x002b, 0x10 },
+    { 0x0104, 0x0002, 0x0028, 0x11 },
+    { 0x0181, 0x0003, 0x002b, 0x10 },
+    { 0x0109, 0x0002, 0x0028, 0x12 },
+    { 0x0186, 0x0003, 0x002b, 0x10 },
+    { 0x010e, 0x0002, 0x0028, 0x14 },
+    { 0x018b, 0x0003, 0x002b, 0x10 },
+    { 0x0113, 0x0002, 0x0028, 0x13 },
+    { 0x0190, 0x0003, 0x002b, 0x10 },
+    { 0x0118, 0x0002, 0x0028, 0x11 },
+    { 0x0195, 0x0003, 0x002b, 0x10 },
+    { 0x011d, 0x0002, 0x0028, 0x14 },
+    { 0x019a, 0x0003, 0x002b, 0x10 },
+    { 0x0122, 0x0002, 0x0028, 0x11 },
+    { 0x019f, 0x0003, 0x002b, 0x10 },
+    { 0x0127, 0x0002, 0x0028, 0x13 },
+    { 0x01a4, 0x0003, 0x002b, 0x10 },
+    { 0x012c, 0x0002, 0x0028, 0x11 },
+    { 0x01a9, 0x0003, 0x002b, 0x10 },
+    { 0x0131, 0x0002, 0x0028, 0x14 },
+    { 0x01ae, 0x0003, 0x002b, 0x10 },
+    { 0x0136, 0x0002, 0x0028, 0x13 },
+    { 0x01b3, 0x0003, 0x002b, 0x10 },
+    { 0x013b, 0x0002, 0x0028, 0x11 },
+    { 0x01b8, 0x0003, 0x002b, 0x10 },
+    { 0x0140, 0x0002, 0x0028, 0x14 },
+    { 0x01bd, 0x0003, 0x002b, 0x10 },
+    { 0x0145, 0x0002, 0x0028, 0x12 },
+    { 0x01c2, 0x0003, 0x002b, 0x10 },
+    { 0x014a, 0x0002, 0x0028, 0x11 },
+    { 0x01c7, 0x0003, 0x002b, 0x10 },
+    { 0x014f, 0x0002, 0x0028, 0x14 },
+    { 0x01cc, 0x0003, 0x002b, 0x10 },
+    { 0x0154, 0x0002, 0x0028, 0x11 },
+    { 0x01d1, 0x0003, 0x002b, 0x10 },
+    { 0x0159, 0x0002, 0x0028, 0x14 },
+    { 0x01d6, 0x0003, 0x002b, 0x10 },
+    { 0x015e, 0x0002, 0x0028, 0x12 },
+    { 0x01db, 0x0003, 0x002b, 0x10 },
+    { 0x0163, 0x0002, 0x0028, 0x14 },
+    { 0x0106, 0x0000, 0x003e, 0x02 },
+    { 0x0106, 0x0000, 0x003e, 0x03 },
+    { 0x0106, 0x0000, 0x003e, 0x04 },
+    { 0x0106, 0x0000, 0x003e, 0x03 },
+    { 0x0106, 0x0000, 0x003e, 0x02 },
+    { 0x0074, 0x0000, 0x0079, 0x02 },
+    { 0x0074, 0x0000, 0x0079, 0x03 },
+    { 0x0074, 0x0000, 0x0079, 0x04 },
+    { 0x0074, 0x0000, 0x0079, 0x03 },
+    { 0x0074, 0x0000, 0x0079, 0x02 },
+    { 0x0074, 0x0000, 0x0079, 0x02 },
+    { 0x0074, 0x0000, 0x0079, 0x03 },
+    { 0x0074, 0x0000, 0x0079, 0x04 },
+    { 0x0074, 0x0000, 0x0079, 0x03 },
+    { 0x0074, 0x0000, 0x0079, 0x02 },
+    { 0x0074, 0x0000, 0x0079, 0x02 },
+    { 0x0074, 0x0000, 0x0079, 0x03 },
+    { 0x0074, 0x0000, 0x0079, 0x04 },
+    { 0x0074, 0x0000, 0x0079, 0x03 },
+    { 0x0074, 0x0000, 0x0079, 0x02 }};
+
+static void sim_put(s16 px, s16 py, s16 pz, u8 idx, u8 tst, u8 visible) {
+    
+    fmuldes = 0;
+    putin(idx);
+    return;
+
+//    if (putdataidx < 143)
+//    {
+//        // put(px, py, pz, idx);
+//        if (px  != putdata[putdataidx][0])
+//        {
+//            printf("\nWRONG PARAM X! [ %x != %x ]\n", px, putdata[putdataidx][0]);
+//            px = putdata[putdataidx][0];
+//        }
+//
+//        if (py  != putdata[putdataidx][1])
+//        {
+//            printf("\nWRONG PARAM Y! [ %x != %x ]\n", py, putdata[putdataidx][1]);
+//            py = putdata[putdataidx][1];
+//        }
+//
+//        if (pz  != putdata[putdataidx][2])
+//        {
+//            printf("\nWRONG PARAM Z! [ %x != %x ]\n", pz, putdata[putdataidx][2]);
+//            pz = putdata[putdataidx][2];
+//        }
+//
+//        if (idx != putdata[putdataidx][3])
+//        {
+//            printf("\nWRONG PARAM I! [ %x != %x ]\n", idx, putdata[putdataidx][3]);
+//            idx = putdata[putdataidx][3];
+//        }
+//
+//        putdataidx++;
+//    }
+    
+    if (idx < alis.script->rsrc_count)
+    {
+        alis_rsrc *entry;
+        
+        alis.render_rsrcs[idx][0] = visible;
+        alis.render_rsrcs[idx][1] = idx;
+        alis.render_rsrcs[idx][2] = px;
+        alis.render_rsrcs[idx][3] = py;
+        alis.render_rsrcs[idx][4] = pz;
+        alis.render_rsrcs[idx][5] = tst;
+
+        memset(host.pixelbuf0.data, 0, host.pixelbuf0.w * host.pixelbuf0.h);
+
+        for (int i = 0; i < 256; i++)
+        {
+            visible = alis.render_rsrcs[i][0];
+            if (visible)
+            {
+                idx = alis.render_rsrcs[i][1];
+                entry = alis.script->resources[idx];
+                if (entry)
+                {
+                    px = alis.render_rsrcs[i][2];
+                    py = alis.render_rsrcs[i][3];
+                    pz = alis.render_rsrcs[i][4];
+                    tst = alis.render_rsrcs[i][5];
+                
+                    if (entry->type == composite)
+                    {
+                        for (int b = entry->params[1] - 1; b >= 0; b--)
+                        {
+                            read16(entry->buffer.data + b * 8 + 2, alis.platform);
+                            
+                            uint8_t cmd = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 1 : 0)];
+                            uint8_t index = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 0 : 1)];
+                            int16_t x = px + read16(entry->buffer.data + b * 8 + 2, alis.platform);
+                            int16_t z = pz + read16(entry->buffer.data + b * 8 + 4, alis.platform);
+                            int16_t y = z +  py + read16(entry->buffer.data + b * 8 + 6, alis.platform);
+                            
+                            alis_rsrc *e = alis.script->resources[index];
+                            if (e->type != none && e->type != unknown)
+                            {
+                                uint32_t width = e->params[2];
+                                uint32_t height = e->params[3];
+                                
+                                int xx = 1 + x - ((width + 1) / 2);
+                                int yy = host.pixelbuf0.h - (y + ((height + 1) / 2));
+                                
+                                int vs = 0;
+                                int vt = height;
+                                if (yy < 0)
+                                {
+                                    vt += yy;
+                                    vs -= yy;
+                                }
+                                
+                                int hs = 0;
+                                int hf = xx;
+                                int ht = width;
+                                if (hf < 0)
+                                {
+                                    hf = 0;
+                                    ht += xx;
+                                    hs -= xx;
+                                }
+                                
+                                if (e->type == image2 || e->type == image4ST || e->type == image4 || e->type == image8)
+                                {
+                                    int clear = 0;
+                                    if (e->type == image4)
+                                    {
+                                        clear = e->params[4] + e->params[5];
+                                    }
+                                    
+                                    if (e->type == image8)
+                                    {
+                                        clear = e->params[5];
+                                    }
+                                    
+                                    //if (hf + width >= 0 && hf < 319)
+                                        for (int h = vs; h < vs + vt; h++)
+                                        {
+                                            for (int w = hs; w < hs + ht; w++)
+                                            {
+                                                if (xx + w < 0)
+                                                    continue;
+                                                
+                                                if (xx + w > 319)
+                                                    break;
+                                                
+
+                                                uint8_t color = e->buffer.data[(cmd ? width - (w + 1) : w) + h * width];
+                                                if (color != clear)
+                                                {
+                                                    uint8_t *ptr = host.pixelbuf0.data + xx + w + ((yy + h) * host.pixelbuf0.w);
+                                                    *ptr = color;
+                                                }
+                                            }
+                                        }
+                                }
+                                else if (e->type == rectangle)// && height == 46)
+                                {
+                                    hf = max(0, xx);
+                                    ht = min(319, xx + width);
+                                    if (hf < 319 && ht - hf > 0)
+                                    {
+                                        for (int h = vs; h < vt; h++)
+                                        {
+                                            memset(host.pixelbuf0.data + hf + ((yy + h) * host.pixelbuf0.w), 0, ht - hf);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if ((entry->type == image4ST)
+                             ||(entry->type == image4)
+                             ||(entry->type == image8))
+                    {
+                        int16_t x = px;
+                        int16_t z = pz;
+                        int16_t y = z + py;
+                        
+                        uint32_t width = entry->params[2];
+                        uint32_t height = entry->params[3];
+                        
+                        int xx = 1 + x - ((width + 1) / 2);
+                        int yy = host.pixelbuf0.h - (y + ((height + 1) / 2));
+                        
+                        int vs = 0;
+                        int vf = yy;
+                        int vt = height;
+                        if (vf < 0)
+                        {
+                            vf = 0;
+                            vt += yy;
+                            vs -= yy;
+                        }
+                        
+                        int hs = 0;
+                        int hf = xx;
+                        int ht = width;
+                        if (hf < 0)
+                        {
+                            hf = 0;
+                            ht += xx;
+                            hs -= xx;
+                        }
+                        
+                        int clear = 0;
+                        if (entry->type == image4)
+                        {
+                            clear = entry->params[4] + entry->params[5];
+                        }
+                        
+                        if (entry->type == image8)
+                        {
+                            clear = entry->params[5];
+                        }
+                        
+                        for (int h = vs; h < vs + vt; h++)
+                        {
+                            for (int w = hs; w < hs + ht; w++)
+                            {
+                                if (xx + w < 0)
+                                    continue;
+                                
+                                if (xx + w > 319)
+                                    break;
+                                
+                                uint8_t color = entry->buffer.data[width - w + h * width];
+                                if (color != clear)
+                                {
+                                    uint8_t *ptr = host.pixelbuf0.data + xx + w + ((yy + h) * host.pixelbuf0.w);
+                                    *ptr = color;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        debug(EDebugWarning, " /* unknown */");
+                    }
+                }
+            }
+        }
+    }
+}
+
+//static void sim_put2(u16 px, u16 py, u16 pz, u8 idx, u8 tst, u8 visible, u8 flipx) {
+//
+//    if (idx >= alis.script->rsrc_count)
+//    {
+//        printf("\nindex: %d (%d)\n", (s8)idx, tst);
+//        int a = 0;
+//        return;
+//    }
+//
+//    alis_rsrc *entry = alis.script->resources[idx];
+//
+//    if (entry->type == composite)
+//    {
+//        for (int b = entry->params[1] - 1; b >= 0; b--)
+//        {
+//            read16(entry->buffer.data + b * 8 + 2, alis.platform);
+//
+//            u8 cmd = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 1 : 0)];
+//            if (flipx)
+//                cmd = cmd ? 0 : 1;
+//
+//            uint8_t index = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 0 : 1)];
+//            int16_t x = px + read16(entry->buffer.data + b * 8 + 2, alis.platform);
+//            int16_t z = pz + read16(entry->buffer.data + b * 8 + 4, alis.platform);
+//            int16_t y = z +  py + read16(entry->buffer.data + b * 8 + 6, alis.platform);
+//
+//            sim_put2(x, y, z, index, tst, visible, cmd);
+//        }
+//
+//        return;
+//    }
+//
+//    alis.render_rsrcs[idx][0] = visible;
+//    alis.render_rsrcs[idx][1] = idx;
+//    alis.render_rsrcs[idx][2] = px;
+//    alis.render_rsrcs[idx][3] = py;
+//    alis.render_rsrcs[idx][4] = pz;
+//    alis.render_rsrcs[idx][5] = tst;
+//
+//    memset(host.pixelbuf0.data, 0, host.pixelbuf0.w * host.pixelbuf0.h);
+//
+//    for (int i = 0; i < 256; i++)
+//    {
+//        visible = alis.render_rsrcs[i][0];
+//        if (visible)
+//        {
+//            idx = alis.render_rsrcs[i][1];
+//            entry = alis.script->resources[idx];
+//            if (entry)
+//            {
+//                px = alis.render_rsrcs[i][2];
+//                py = alis.render_rsrcs[i][3];
+//                pz = alis.render_rsrcs[i][4];
+//                tst = alis.render_rsrcs[i][5];
+//
+//                uint32_t width = entry->params[2];
+//                uint32_t height = entry->params[3];
+//
+//                int16_t x = px;
+//                int16_t z = pz;
+//                int16_t y = z + py;
+//
+//                int xx = 1 + x - ((width + 1) / 2);
+//                int yy = host.pixelbuf0.h - (y + ((height + 1) / 2));
+//
+//                int vs = 0;
+//                int vt = height;
+//                if (yy < 0)
+//                {
+//                    vt += yy;
+//                    vs -= yy;
+//                }
+//
+//                int hs = 0;
+//                int hf = xx;
+//                int ht = width;
+//                if (hf < 0)
+//                {
+//                    hf = 0;
+//                    ht += xx;
+//                    hs -= xx;
+//                }
+//
+//                if ((entry->type == image4ST) ||(entry->type == image4) ||(entry->type == image8))
+//                {
+//                    int clear = 0;
+//                    if (entry->type == image4)
+//                    {
+//                        clear = entry->params[4] + entry->params[5];
+//                    }
+//
+//                    if (entry->type == image8)
+//                    {
+//                        clear = entry->params[5];
+//                    }
+//
+//                    for (int h = vs; h < vs + vt; h++)
+//                    {
+//                        for (int w = hs; w < hs + ht; w++)
+//                        {
+//                            uint8_t color = entry->buffer.data[(flipx ? width - (w + 1) : w) + h * width];
+//                            if (color != clear)
+//                            {
+//                                uint8_t *ptr = host.pixelbuf0.data + xx + w + ((yy + h) * host.pixelbuf0.w);
+//                                *ptr = color;
+//                            }
+//                        }
+//                    }
+//                }
+//                else if (entry->type == rectangle)// && height == 46)
+//                {
+//                    hf = max(0, xx);
+//                    ht = min(319, xx + width);
+//                    if (hf < 319 && ht - hf > 0)
+//                    {
+//                        for (int h = vs; h < vt; h++)
+//                        {
+//                            memset(host.pixelbuf0.data + hf + ((yy + h) * host.pixelbuf0.w), 2 + i%4, ht - hf);
+//                        }
+//                    }
+//                }
+//                else
+//                {
+//                    debug(EDebugWarning, " /* unknown */");
+//                }
+//            }
+//        }
+//    }
+//}
+
+// ============================================================================
 #pragma mark - Opcodes
 // ============================================================================
 static void cstore_continue() {
@@ -66,7 +573,13 @@ static void csprinta() {
 }
 
 static void clocate() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
+    
+    readexec_opername_saveD7();
+    readexec_opername_saveD6();
+    s16 xlocate = alis.varD7;
+    s16 ylocate = alis.varD6;
+//    io_locate();
 }
 
 static void ctab() {
@@ -176,7 +689,33 @@ static void cscmov() {
 }
 
 static void cscset() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* SIMULATED */");
+    
+    readexec_opername_saveD7();
+    s16 x = alis.varD7;
+    readexec_opername_saveD7();
+    s16 y = alis.varD7;
+    readexec_opername_saveD7();
+    s16 d = alis.varD7;
+    
+//    u8 *sprite = alis.spritemem + alis.script->context._0x18_unknown;
+//    if (d != *(s16 *)(sprite + 0x1a))
+//    {
+//        *(s16 *)(sprite + 0x1a) = d;
+//        *sprite = *sprite | 0x80;
+//    }
+//
+//    if (y != *(s16 *)(sprite + 0x18))
+//    {
+//        *(s16 *)(sprite + 0x18) = y;
+//        *sprite = *sprite | 0x80;
+//    }
+//
+//    if (x != *(s16 *)(sprite + 0x16))
+//    {
+//        *(s16 *)(sprite + 0x16) = x;
+//        *sprite = *sprite | 0x80;
+//    }
 }
 
 static void cclipping() {
@@ -212,7 +751,12 @@ static void clive() {
     
     u16 d2 = script_read16();
     
+    alis.scripts[d2]->context._0x16_screen_id = alis.script->context._0x16_screen_id;
+    alis.scripts[d2]->context._0x22_cworld = alis.script->context._0x22_cworld;
+    alis.scripts[d2]->context._0x2a_clinking = alis.script->context._0xe_czap_cexplode_cnoise;
+
     cstore_continue();
+    alis.script = alis.scripts[d2];
 }
 
 static void ckill() {
@@ -272,7 +816,7 @@ static void cload() {
         
         sAlisScript * script = script_load(strlower((char *)path));
         alis_register_script(script);
-        alis.script = script;
+//        alis.script = script;
     }
 }
 
@@ -366,6 +910,7 @@ static void cdefsc() {
          move.b         (A3)+,($1,A0,D0)
      */
     *(ram + offset + 1) = script_read8();
+    // *(u8 *)(alis.spritemem - basemain + offset + 1)
     
     /*
          moveq          #$1f,D1
@@ -375,12 +920,21 @@ static void cdefsc() {
          move.b         (A3)+,(A1)+
          dbf            D1,__loop32
     */
+    
     u8 counter = 32;
     u8 * ptr = ram + offset + 6;
     while(counter--) {
         *ptr++ = script_read8();
     }
  
+    // basemain     0x00022690
+    // basesprite   0x00031f40
+    // libsprit     0x00008078 R
+    // libsprit     0x000080a0 W
+    
+    // sprites 39daa, 373da, 38db0, 3892a, 
+
+    
     /*
          movea.l        (ADDR_SCRIPT_0001955e).l,A1 ; qque part dans le script
          
@@ -423,204 +977,68 @@ static void cdefsc() {
      forever:
          bra forever
      */
+    
+    OPCODE_CDEFSC_0x46(ram, offset);
 }
 
 static void cscreen() {
-    u16 pos = script_read16();
-    if (pos != alis.script->context._0x16_screen_position) {
-        alis.script->context._0x16_screen_position = pos;
+    u16 screen_id = script_read16();
+    if (screen_id != alis.script->context._0x16_screen_id) {
+        alis.script->context._0x16_screen_id = screen_id;
     }
 }
 
 static void cput() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* SIMULATED */");
+    
+    // flagmain = 0;
+    *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv);
+    
+    readexec_opername();
+    
+    depx = 0;
+    depz = 0;
+    numelem = 0;
+    
+    sim_put(depx, depy, depz, numelem, 0, 1);
 }
 
-static void sim_put(u16 px, u16 py, u16 pz, u8 idx, u8 tst, u8 visible) {
-
-    // put(px, py, pz, idx);
-    
-    if (idx < alis.script->rsrc_count)
+const char *string_for_type(int type)
+{
+    switch (type)
     {
-        alis_rsrc *entry;
-        
-        alis.render_rsrcs[tst][0] = visible;
-        alis.render_rsrcs[tst][1] = idx;
-        alis.render_rsrcs[tst][2] = px;
-        alis.render_rsrcs[tst][3] = py;
-        alis.render_rsrcs[tst][4] = pz;
-        alis.render_rsrcs[tst][5] = tst;
+        case none:
+            return "none";
+        case image2:
+            return "bitmap 2 bit";
+        case image4ST:
+            return "bitmap 4 bit";
+        case image4:
+            return "bitmap 4 bit (using 8 bit palette)";
+        case image8:
+            return "bitmap 8 bit";
+        case video:
+            return "video";
+        case palette4:
+            return "4 bit palette";
+        case palette8:
+            return "8 bit palette";
+        case composite:
+            return "composite";
+        case rectangle:
+            return "rectangle";
+        default:
+            break;
+    };
 
-        // memset(host.pixelbuf.data, 0, host.pixelbuf.w * host.pixelbuf.h);
-
-        for (int i = 0; i < 256; i++)
-        {
-            visible = alis.render_rsrcs[i][0];
-            if (visible)
-            {
-                idx = alis.render_rsrcs[i][1];
-                entry = alis.script->resources[idx];
-                if (entry)
-                {
-                    px = alis.render_rsrcs[i][2];
-                    py = alis.render_rsrcs[i][3];
-                    pz = alis.render_rsrcs[i][4];
-                    tst = alis.render_rsrcs[i][5];
-                
-                    if (entry->type == composite)
-                    {
-                        for (int b = entry->params[1] - 1; b >= 0; b--)
-                        {
-                            read16(entry->buffer.data + b * 8 + 2, alis.platform);
-                            
-                            uint8_t cmd = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 1 : 0)];
-                            uint8_t index = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 0 : 1)];
-                            int16_t x = px + read16(entry->buffer.data + b * 8 + 2, alis.platform);
-                            int16_t z = pz + read16(entry->buffer.data + b * 8 + 4, alis.platform);
-                            int16_t y = z +  py + read16(entry->buffer.data + b * 8 + 6, alis.platform);
-                            
-                            alis_rsrc *e = alis.script->resources[index];
-                            if (e->type != none && e->type != unknown)
-                            {
-                                uint32_t width = e->params[2];
-                                uint32_t height = e->params[3];
-                                
-                                int xx = 1 + x - ((width + 1) / 2);
-                                int yy = host.pixelbuf.h - (y + ((height + 1) / 2));
-                                
-                                int vs = 0;
-                                int vt = height;
-                                if (yy < 0)
-                                {
-                                    vt += yy;
-                                    vs -= yy;
-                                }
-                                
-                                int hs = 0;
-                                int hf = xx;
-                                int ht = width;
-                                if (hf < 0)
-                                {
-                                    hf = 0;
-                                    ht += xx;
-                                    hs -= xx;
-                                }
-                                
-                                if (e->type == image2 || e->type == image4ST || e->type == image4 || e->type == image8)
-                                {
-                                    int clear = 0;
-                                    if (e->type == image4)
-                                    {
-                                        clear = e->params[4] + e->params[5];
-                                    }
-                                    
-                                    if (e->type == image8)
-                                    {
-                                        clear = e->params[5];
-                                    }
-                                    
-                                    if (hf + width >= 0 && hf < 319)
-                                        for (int h = vs; h < vs + vt; h++)
-                                        {
-                                            for (int w = hs; w < hs + ht; w++)
-                                            {
-                                                uint8_t color = e->buffer.data[(cmd ? width - (w + 1) : w) + h * width];
-                                                if (color != clear)
-                                                {
-                                                    uint8_t *ptr = host.pixelbuf.data + xx + w + ((yy + h) * host.pixelbuf.w);
-                                                    *ptr = color;
-                                                }
-                                            }
-                                        }
-                                }
-                                else if (e->type == rectangle)// && height == 46)
-                                {
-                                    hf = max(0, xx);
-                                    ht = min(319, xx + width);
-                                    if (hf < 319 && ht - hf > 0)
-                                    {
-                                        for (int h = vs; h < vt; h++)
-                                        {
-                                            memset(host.pixelbuf.data + hf + ((yy + h) * host.pixelbuf.w), 0, ht - hf);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else if ((entry->type == image4ST)
-                             ||(entry->type == image4)
-                             ||(entry->type == image8))
-                    {
-                        int16_t x = px;
-                        int16_t z = pz;
-                        int16_t y = z + py;
-                        
-                        uint32_t width = entry->params[2];
-                        uint32_t height = entry->params[3];
-                        
-                        int xx = 1 + x - ((width + 1) / 2);
-                        int yy = host.pixelbuf.h - (y + ((height + 1) / 2));
-                        
-                        int vs = 0;
-                        int vf = yy;
-                        int vt = height;
-                        if (vf < 0)
-                        {
-                            vf = 0;
-                            vt += yy;
-                            vs -= yy;
-                        }
-                        
-                        int hs = 0;
-                        int hf = xx;
-                        int ht = width;
-                        if (hf < 0)
-                        {
-                            hf = 0;
-                            ht += xx;
-                            hs -= xx;
-                        }
-                        
-                        int clear = 0;
-                        if (entry->type == image4)
-                        {
-                            clear = entry->params[4] + entry->params[5];
-                        }
-                        
-                        if (entry->type == image8)
-                        {
-                            clear = entry->params[5];
-                        }
-                        
-                        for (int h = vs; h < vs + vt; h++)
-                        {
-                            for (int w = hs; w < hs + ht; w++)
-                            {
-                                uint8_t color = entry->buffer.data[width - w + h * width];
-                                if (color != clear)
-                                {
-                                    uint8_t *ptr = host.pixelbuf.data + xx + w + ((yy + h) * host.pixelbuf.w);
-                                    *ptr = color;
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        debug(EDebugWarning, " /* unknown */");
-                    }
-                }
-            }
-        }
-    }
+    return "unknown";
 }
 
 static void cputnat() {
     
     // CALLED AT EACH FRAME WHEN SCREEN UPDATE NEEDED ?
     
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* SIMULATED */");
 //    **************************************************************
 //    *                          FUNCTION                          *
 //    **************************************************************
@@ -650,18 +1068,24 @@ static void cputnat() {
 //00013ebc 4e f9 00        jmp        FUN_00013f50.l                                   undefined FUN_00013f50()
 //01 3f 50
 //    -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
-    readexec_opername_saveD7();
-    u16 px = alis.varD7;
-    readexec_opername_saveD7();
-    u16 py = alis.varD7;
-    readexec_opername_saveD7();
-    u16 pz = alis.varD7;
-    readexec_opername_saveD7();
-    u8 idx = alis.varD7;
-    readexec_opername_saveD7();
-    u8 tst = alis.varD7;
     
-    sim_put(px, py, pz, idx, tst, 1);
+    // flagmain = 0;
+    *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv);
+    readexec_opername_saveD7();
+    depx = alis.varD7;
+    readexec_opername_saveD7();
+    depy = alis.varD7;
+    readexec_opername_saveD7();
+    depz = alis.varD7;
+    readexec_opername_saveD7();
+    readexec_opername_saveD6();
+    
+    numelem = alis.varD6;
+    u8 idx = alis.varD7;
+    
+    put(idx);
+    // sim_put(depx, depy, depz, idx, numelem, 1);
+    draw(host.pixelbuf0.data);
 }
 
 static void cerase() {
@@ -669,9 +1093,29 @@ static void cerase() {
 }
 
 static void cerasen() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
     readexec_opername_saveD7();
-    u8 idx = alis.varD7;
+    numelem = alis.varD7;
+    
+    u16 curidx = 0;
+    u16 previdx = 0;
+
+    printf("\n");
+    
+    while (1)
+    {
+        searchelem(&curidx, &previdx);
+        
+        if (curidx == 0)
+            break;
+        
+        killelem(&curidx, &previdx);
+    }
+    
+    // ferase = 0;
+
+
+    // alis.render_rsrcs[idx][0] = 0;
 
 //    **************************************************************
 //    *                          FUNCTION                          *
@@ -738,6 +1182,11 @@ static void copensc() {
     vram_setbit(id, ALIS_BIT_7);
     
     debug(EDebugWarning, " /* STUBBED */");
+    
+//    *(s8 *)(alis.mem + alis.script->vram_org + basemain + id) = *(s8 *)(alis.mem + alis.script->vram_org + basemain + id) & 0xbf;
+//    *(s8 *)(alis.mem + alis.script->vram_org + basemain + id) = *(s8 *)(alis.mem + alis.script->vram_org + basemain + id) | 0x80;
+//    scbreak(id);
+//    scadd(id);
 }
 
 static void cclosesc() {
@@ -873,34 +1322,30 @@ static void cexplode() {
 }
 
 static void cding() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
     
-    u8 pereson = 0; // ...
-    readexec_opername_saveD7();
+    u8 pereson = alis.script->context._0xe_czap_cexplode_cnoise;
+    readexec_opername();
     u8 priorson = alis.varD7;
-    readexec_opername_saveD7();
+    readexec_opername();
     u8 volson = alis.varD7;
-    readexec_opername_saveD7();
-    u8 freqson = alis.varD7;
-    readexec_opername_saveD7();
-    u8 longson = alis.varD7;
+    readexec_opername();
+    u16 freqson = alis.varD7;
+    readexec_opername();
+    u16 longson = alis.varD7;
+    if (longson == 0)
+      return;
 
-//    if (longson)
-//    {
-//        // TODO: playsong
-//
-//        u8 dfreqson = 0;
-//        u32 uVar1 = ((u32)volson << 8) / (u32)alis.varD7;
-//        s16 sVar2 = (s16)uVar1;
-//        if (uVar1 == 0)
-//        {
-//            sVar2 = 1;
-//        }
-//
-//        u8 dvolson = -sVar2;
-//        u8 typeson = 1;
-//        runson();
-//    }
+    u16 dfreqson = 0;
+    u32 uVar1 = ((u32)volson << 8) / (u32)longson;
+    u32 uVar2 = ((u32)volson << 8) % (u32)longson;
+    u32 uVar3 = uVar2 << 0x10 | uVar1;
+    if (uVar1 == 0)
+        uVar3 = 1;
+
+    u16 dvolson = -(s16)uVar3;
+    u8 typeson = 1;
+    // runson(uVar3 & 0xffff0000 | (uint)dvolson);
 }
 
 static void cnoise() {
@@ -1188,24 +1633,39 @@ static void ctstform() {
 }
 
 static void cxput() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* SIMULATED */");
+
+    // flagmain = 0;
+    *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv) ^ 1;
+    readexec_opername();
+    depx = 0;
+    depz = 0;
+    numelem = 0;
+    
+    u8 idx = alis.varD7;
+    put(idx);
+//    sim_put(depx, depy, depz, numelem, 0, 1);
 }
 
 static void cxputat() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* SIMULATED */");
     
+    // flagmain = 0;
+    *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv);
+
     readexec_opername_saveD7();
-    u16 px = alis.varD7;
+    depx = alis.varD7;
     readexec_opername_saveD7();
-    u16 py = alis.varD7;
+    depy = alis.varD7;
     readexec_opername_saveD7();
-    u16 pz = alis.varD7;
+    depz = alis.varD7;
     readexec_opername_saveD7();
+    readexec_opername_saveD6();
     u8 idx = alis.varD7;
-    readexec_opername_saveD7();
-    u8 tst = alis.varD7;
+    numelem = alis.varD6;
     
-    sim_put(px, py, pz, idx, tst, 0);
+    put(idx);
+//    sim_put(depx, depy, depz, idx, numelem, 1);
 }
 
 static void cmput() {
@@ -1292,9 +1752,20 @@ static void cpaper() {
 // fade-out to black
 static void ctoblack() {
     debug(EDebugWarning, " /* STUBBED */");
-    readexec_opername_saveD7();
+    readexec_opername_saveD6();
     
-    memset(host.pixelbuf.palette, 0, 256 * 3);
+    memset(host.pixelbuf0.palette, 0, 256 * 3);
+    
+    
+    for (int ii = 0; ii < 16; ii++)
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 0] = i * 16;
+            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 1] = i * 16;
+            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 2] = i * 16;
+        }
+    }
 }
 
 static void cmovcolor() {
@@ -1305,18 +1776,24 @@ static void cmovcolor() {
 static void ctopalet() {
     debug(EDebugWarning, " /* STUBBED */");
     readexec_opername();
-    
+    readexec_opername_saveD6();
     u16 save = alis.varD7;
-    readexec_opername_saveD7();
-    alis.varD6 = alis.varD7;
-    alis.varD7 = save;
 
     alis_rsrc *e = alis.script->resources[save];
-    memcpy(host.pixelbuf.palette, e->buffer.data, 256 * 3);
+    memcpy(host.pixelbuf0.palette, e->buffer.data, 256 * 3);
 }
 
 static void cnumput() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
+    
+    readexec_opername_saveD7();
+    depx = alis.varD7;
+    readexec_opername_saveD7();
+    depy = alis.varD7;
+    readexec_opername_saveD7();
+    depz = alis.varD7;
+    readexec_opername_saveD7();
+    numelem = alis.varD7;
 }
 
 static void cscheart() {

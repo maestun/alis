@@ -96,7 +96,7 @@ typedef struct {
     u16 _0x18_unknown;
     
     // vram - 0x16: screen position
-    u16 _0x16_screen_position;
+    u16 _0x16_screen_id;
     
     // vram - 0x14: script header origin
     u32 _0x14_script_org_offset;

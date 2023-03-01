@@ -78,7 +78,10 @@ static void sdirb() {
  * 
  */
 static void sdirw() {
-    vram_write16(script_read8(), (u16)alis.varD7);
+    
+    u8 offset = script_read8();
+//    printf("\nXXX sdirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
+    vram_write16(offset, (u16)alis.varD7);
 }
 
 /**

@@ -53,8 +53,20 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "../data/ishar/atari/"
+            argument = "/Users/gildor/Work/alis/data/ishar/atari/"
             isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar/dos/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar2/amiga-aga/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar2/atari/"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

@@ -11,7 +11,7 @@
 #include "utils.h"
 #include "alis_private.h"
 #include "extractor.h"
-
+#include "experimental.h"
 
 
 // TODO: for debugging
@@ -415,6 +415,7 @@ _depak_end:
 sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     // init script
     sAlisScript * script = (sAlisScript *)malloc(sizeof(sAlisScript));
+    memset(script, 0, sizeof(sAlisScript));
     strcpy(script->name, name);
     script->sz = data_sz;
     
@@ -442,6 +443,8 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     memset(&(script->context), 0, sizeof(script->context));
     script->context._0x10_script_id = script->header.id;
     
+    script->context._0x18_unknown = 0;      // sprite adress
+    script->context._0x16_screen_id = 0;
     script->context._0x14_script_org_offset = script->data_org;
     script->context._0x8_script_ret_offset = script->data_org + script->header.code_loc_offset + 2;
     script->context._0x2e_script_header_word_2 = script->header.w_0x1700;
@@ -553,7 +556,6 @@ sAlisScript * script_load(const char * script_path) {
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
             extract_resources(depak_buf, depak_sz, &(script->resources), &(script->rsrc_count));
-
             
             // cleanup
             free(depak_buf);
@@ -591,13 +593,13 @@ void script_unload(sAlisScript * script) {
 void script_read_debug(s32 value, size_t sz) {
     switch (sz) {
         case 1:
-            debug(EDebugVerbose, " 0x%02x", value);
+            debug(EDebugVerbose, " 0x%02x", value & 0xff);
             break;
         case 2:
-            debug(EDebugVerbose, " 0x%04x", value);
+            debug(EDebugVerbose, " 0x%04x", value & 0xffff);
             break;
         case 4:
-            debug(EDebugVerbose, " 0x%06x", value);
+            debug(EDebugVerbose, " 0x%06x", value & 0xffffff);
             break;
         default:
             debug(EDebugVerbose, " %d", value);

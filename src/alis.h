@@ -183,6 +183,8 @@ typedef struct {
     
     // NOTE: ugly hack
     u32         render_rsrcs[256][6];
+    
+    u8 *        spritemem;
 
 } sAlisVM;
 
@@ -190,7 +192,8 @@ typedef struct {
 
     // system stuff
     // mouse_t     mouse;
-    pixelbuf_t  pixelbuf;
+    pixelbuf_t  pixelbuf0;
+    pixelbuf_t  pixelbuf1;
 } sHost;
 
 extern sAlisVM alis;

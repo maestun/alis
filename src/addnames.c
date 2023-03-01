@@ -109,37 +109,37 @@ static void amainw() {
 //000182aa 4e 75           rts
 }
 static void amainp() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void amaintp() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void amaintc() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void amainti() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void ahimb() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void ahimw() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void ahimp() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void ahimtp() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void ahimtc() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void ahimti() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void spile() {
-    // log_debug("STUBBED");
+    debug(EDebugInfo, "STUBBED");
 }
 static void aeval() {
 //    ADDNAME_AEVAL_0x1c
@@ -151,7 +151,7 @@ static void aeval() {
 //0001844a 48 80           ext.w      D0w
 //0001844c 30 30 00 00     move.w     (0x0,A0,D0w*offset JTAB_ADDNAMES),D0w            =
 //00018450 4e f0 00 00     jmp        (0x0,A0,D0w*0x1)
-    
+    debug(EDebugInfo, "STUBBED");
 }
 
 

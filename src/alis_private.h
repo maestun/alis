@@ -24,6 +24,7 @@ alisRet readexec_opername(void);
 alisRet readexec_storename(void);
 alisRet readexec_addname(void);
 alisRet readexec_opername_saveD7(void);
+alisRet readexec_opername_saveD6(void);
 alisRet readexec_addname_swap(void);
 alisRet readexec_opername_swap(void);
 

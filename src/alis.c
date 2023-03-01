@@ -11,6 +11,8 @@
 #include "sys/sys.h"
 #include "utils.h"
 
+#include "experimental.h"
+
 sAlisVM alis;
 sHost host;
 
@@ -46,7 +48,7 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
 }
 
 alisRet readexec_opcode() {
-    debug(EDebugVerbose, "\n%s: 0x%06x:", alis.script->name, alis.script->pc);
+    debug(EDebugVerbose, "\n%s: 0x%06x:", alis.script->name, alis.script->pc); // alis.script->pc - alis.script->pc_org);
     return readexec(opcodes, "opcode", 0);
 }
 
@@ -74,6 +76,14 @@ alisRet readexec_opername_saveD7() {
     return readexec_opername();
 }
 
+alisRet readexec_opername_saveD6() {
+    
+    s16 d7 = alis.varD7;
+    readexec_opername_saveD7();
+    alis.varD6 = alis.varD7;
+    alis.varD7 = d7;
+}
+
 alisRet readexec_opername_swap() {
     u8 * tmp = alis.bssChunk1;
     alis.bssChunk1 = alis.bssChunk3;
@@ -83,6 +93,7 @@ alisRet readexec_opername_swap() {
 
 
 void alis_load_main() {
+    
     // load main scripts as an usual script...
     alis.main = script_load(alis.platform.main);
     
@@ -176,18 +187,28 @@ void alis_init(sPlatform platform) {
     //alis.script_count = 0;
     
     // init host system stuff
-    host.pixelbuf.w = alis.platform.width;
-    host.pixelbuf.h = alis.platform.height;
-    host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
-    memset(host.pixelbuf.data, 0x0, host.pixelbuf.w * host.pixelbuf.h);
-    host.pixelbuf.palette = (u8 *)malloc(256 * 3);
-    memset(host.pixelbuf.palette, 0xff, 256 * 3);
+    host.pixelbuf0.w = alis.platform.width;
+    host.pixelbuf0.h = alis.platform.height;
+    host.pixelbuf0.data = (u8 *)malloc(host.pixelbuf0.w * host.pixelbuf0.h);
+    memset(host.pixelbuf0.data, 0x0, host.pixelbuf0.w * host.pixelbuf0.h);
+    host.pixelbuf0.palette = (u8 *)malloc(256 * 3);
+    memset(host.pixelbuf0.palette, 0xff, 256 * 3);
 
     // load main script
     alis_load_main();
     alis.script = alis.main;
     
     memset(alis.render_rsrcs, 0, sizeof(u32) * 256 * 6);
+    
+    // FUN_STARTUP("main.ao", 0, 0);
+    
+    alis.spritemem = (u8 *)malloc(1024 * 1024);
+    memset(alis.spritemem, 0x0, 1024 * 1024);
+
+    debsprit = 0;
+    finsprit = 0x8000;
+
+    inisprit();
 }
 
 
@@ -202,7 +223,7 @@ void alis_deinit() {
 //    free(alis.bssChunk3);
     
     //vram_deinit(alis.vram);
-    free(host.pixelbuf.data);
+    free(host.pixelbuf0.data);
     free(alis.mem);
 }
 
@@ -212,7 +233,7 @@ void alis_loop() {
     while (alis.running && alis.script->running) {
         alis.running = sys_poll_event();
         readexec_opcode();
-        sys_render(host.pixelbuf);
+        sys_render(host.pixelbuf0);
     }
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }

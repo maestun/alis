@@ -97,6 +97,7 @@ void odirb(/* u8 offset */) {
 void odirw(/* u8 offset */) {
     u8 offset = script_read8();
     alis.varD7 = vram_read16(offset);;
+    // printf("\nXXodirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
 }
 
 // reads a byte offset from script,
@@ -329,7 +330,7 @@ void oabs() {
 }
 
 void ornd() {
-    alis.varD7 = sys_random();
+    alis.varD7 = sys_random() % alis.varD7;
 }
 
 void osgn() {
