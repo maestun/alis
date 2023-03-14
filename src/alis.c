@@ -104,11 +104,11 @@ void alis_load_main() {
         fseek(fp, 6, SEEK_CUR);
         
         // read raw specs header
-        alis.specs.script_data_tab_len = fread16(fp, alis.platform);
-        alis.specs.script_vram_tab_len = fread16(fp, alis.platform);
-        alis.specs.unused = fread32(fp, alis.platform);
-        alis.specs.max_allocatable_vram = fread32(fp, alis.platform);
-        alis.specs.vram_to_data_offset = fread32(fp, alis.platform);
+        alis.specs.script_data_tab_len = fread16(fp, alis.platform.is_little_endian);
+        alis.specs.script_vram_tab_len = fread16(fp, alis.platform.is_little_endian);
+        alis.specs.unused = fread32(fp, alis.platform.is_little_endian);
+        alis.specs.max_allocatable_vram = fread32(fp, alis.platform.is_little_endian);
+        alis.specs.vram_to_data_offset = fread32(fp, alis.platform.is_little_endian);
         alis.specs.vram_to_data_offset += 3;
         alis.specs.vram_to_data_offset *= 0x28;
                     
@@ -191,8 +191,22 @@ void alis_init(sPlatform platform) {
     host.pixelbuf0.h = alis.platform.height;
     host.pixelbuf0.data = (u8 *)malloc(host.pixelbuf0.w * host.pixelbuf0.h);
     memset(host.pixelbuf0.data, 0x0, host.pixelbuf0.w * host.pixelbuf0.h);
-    host.pixelbuf0.palette = (u8 *)malloc(256 * 3);
+//    host.pixelbuf0.palette = (u8 *)malloc(256 * 3);
+//    memset(host.pixelbuf0.palette, 0xff, 256 * 3);
+    host.pixelbuf0.palette = ampalet;
     memset(host.pixelbuf0.palette, 0xff, 256 * 3);
+    
+    // grayscale pal for debugging
+    for (int ii = 0; ii < 16; ii++)
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 0] = 80 + i * 10;
+            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 1] = 80 + i * 10;
+            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 2] = 80 + i * 10;
+        }
+    }
+
 
     // load main script
     alis_load_main();
@@ -233,6 +247,9 @@ void alis_loop() {
     while (alis.running && alis.script->running) {
         alis.running = sys_poll_event();
         readexec_opcode();
+
+        image();
+
         sys_render(host.pixelbuf0);
     }
     // alis loop was stopped by 'cexit', 'cstop', or user event
@@ -411,11 +428,13 @@ void vram_add16(u16 offset, u16 value) {
 // =============================================================================
 void vram_push32(u32 value) {
     alis.script->vacc_off -= sizeof(u32);
-    *(u32 *)(alis.mem + alis.script->vram_org + alis.script->vacc_off) = value;
+    memcpy(alis.mem + alis.script->vram_org + alis.script->vacc_off, (u8 *)&value, sizeof(u32));
 }
 
 u32 vram_peek32() {
-    return *(u32 *)(alis.mem + alis.script->vram_org + alis.script->vacc_off);
+    u32 result;
+    memcpy((u8 *)&result, alis.mem + alis.script->vram_org + alis.script->vacc_off, sizeof(u32));
+    return result;
 }
 
 u32 vram_pop32() {

@@ -75,7 +75,7 @@ int is_host_little_endian() {
 }
 
 
-u32 swap32(u32 num, sPlatform pl) {
+u32 swap32_old(u32 num, sPlatform pl) {
 
     if (pl.is_little_endian != is_host_little_endian()) {
         num = ((num >> 24) & 0xff) | // move byte 3 to byte 0
@@ -87,7 +87,7 @@ u32 swap32(u32 num, sPlatform pl) {
 }
 
 
-u16 swap16(u16 num, sPlatform pl) {
+u16 swap16_old(u16 num, sPlatform pl) {
 
     if(pl.is_little_endian != is_host_little_endian()) {
         num = (num >> 8) | (num << 8);
@@ -96,28 +96,82 @@ u16 swap16(u16 num, sPlatform pl) {
 }
 
 
-u32 fread32(FILE * fp, sPlatform pl) {
+u32 fread32_old(FILE * fp, sPlatform pl) {
     u32 val = 0;
     fread(&val, sizeof(u32), 1, fp);
-    return swap32(val, pl);
+    return swap32_old(val, pl);
 }
 
 
-u16 fread16(FILE * fp, sPlatform pl) {
+u16 fread16_old(FILE * fp, sPlatform pl) {
     u16 val = 0;
     fread(&val, sizeof(u16), 1, fp);
-    return swap16(val, pl);
+    return swap16_old(val, pl);
 }
 
 
-u16 read16(const u8 *ptr, sPlatform pl) {
+u16 read16(const u8 *ptr, u8 is_le) {
     
-    return swap16(*(u16 *)ptr, pl);
+    return swap16(ptr, is_le);
 }
 
 
-u32 read32(const u8 *ptr, sPlatform pl) {
+u32 read24(const u8 *ptr, u8 is_le) {
     
-    return swap32(*(u32 *)ptr, pl);
+    return swap24(ptr, is_le);
 }
 
+
+u32 swap24(const u8 *value, u8 is_le) {
+    
+    u32 result = 0;
+    memcpy((u8 *)&result, value, 3);
+    
+    return is_le == is_host_le() ? result : (((result >> 24) & 0xff) |
+                                            ((result <<  8) & 0xff0000) |
+                                            ((result >>  8) & 0xff00)) >> 8;
+}
+
+
+u32 read32(const u8 *ptr, u8 is_le) {
+    
+    return swap32(ptr, is_le);
+}
+
+int is_host_le() {
+    static unsigned int x = 1;
+    char* c = (char*)&x;
+    return (int)*c;
+}
+
+u32 swap32(const u8 *value, u8 is_le) {
+    
+    u32 result;
+    memcpy((u8 *)&result, value, sizeof(u32));
+    
+    return is_le == is_host_le() ? result : ((result >> 24) & 0xff) |
+                                            ((result <<  8) & 0xff0000) |
+                                            ((result >>  8) & 0xff00) |
+                                            ((result << 24) & 0xff000000);
+}
+
+u32 fread32(FILE* fp, u8 is_le) {
+    u32 v = 0;
+    fread(&v, sizeof(u32), 1, fp);
+    return swap32((u8 *)&v, is_le);
+}
+
+u16 swap16(const u8 *value, u8 is_le) {
+    
+    u16 result;
+    memcpy((u8 *)&result, value, sizeof(u16));
+
+    return is_le == is_host_le() ? result : (result <<  8) |
+                                            (result >>  8);
+}
+
+u16 fread16(FILE* fp, u8 is_le) {
+    u16 v = 0;
+    fread(&v, sizeof(u16), 1, fp);
+    return swap16((u8 *)&v, is_le);
+}

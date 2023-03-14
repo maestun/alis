@@ -8,8 +8,6 @@
 
 #include "config.h"
 
-#include "extractor.h"
-
 #define kMainScriptID           (0)
 #define kDepackFolder           "depack"
 #define kDepackExtension        "bin"
@@ -45,7 +43,7 @@ typedef struct {
     u8 _0x2b_cordspr;
     
     // vram - 0x2a: clinking
-    u8 _0x2a_clinking;
+    u16 _0x2a_clinking;
     
     // vram - 0x28: ???
     u8 _0x28_unknown;
@@ -165,9 +163,6 @@ typedef struct {
     u8              running;
     u32             pc_org; // offset in memory
     u32             pc;     // offset in memory
-    
-    alis_rsrc       **resources;
-    int             rsrc_count;
 } sAlisScript;
 
 

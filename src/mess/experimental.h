@@ -13,6 +13,8 @@
 #include "alis_private.h"
 #include "utils.h"
 
+extern u8 *ampalet;
+
 extern u8 numelem;
 
 extern u8 flaginvx;
@@ -65,10 +67,12 @@ s32 io_tomono(s32 param_1, s32 script_start);
 void scadd(s16 screen);
 void scbreak(s16 screen);
 void scdosprite(s16 screen);
-void vectoriel(s32 at);
+void vectoriel(u16 screen);
 
 void OPCODE_CDEFSC_0x46(u8 *ptr, u16 offset);
 
-void draw(u8 *data);
+void image(void);
+void ctopalette(u8 *paldata, s32 duration);
+void ctoblackpal(s16 duration);
 
 #endif /* experimental_h */

@@ -173,361 +173,6 @@ s16 putdata[][4] = {
     { 0x0074, 0x0000, 0x0079, 0x03 },
     { 0x0074, 0x0000, 0x0079, 0x02 }};
 
-static void sim_put(s16 px, s16 py, s16 pz, u8 idx, u8 tst, u8 visible) {
-    
-    fmuldes = 0;
-    putin(idx);
-    return;
-
-//    if (putdataidx < 143)
-//    {
-//        // put(px, py, pz, idx);
-//        if (px  != putdata[putdataidx][0])
-//        {
-//            printf("\nWRONG PARAM X! [ %x != %x ]\n", px, putdata[putdataidx][0]);
-//            px = putdata[putdataidx][0];
-//        }
-//
-//        if (py  != putdata[putdataidx][1])
-//        {
-//            printf("\nWRONG PARAM Y! [ %x != %x ]\n", py, putdata[putdataidx][1]);
-//            py = putdata[putdataidx][1];
-//        }
-//
-//        if (pz  != putdata[putdataidx][2])
-//        {
-//            printf("\nWRONG PARAM Z! [ %x != %x ]\n", pz, putdata[putdataidx][2]);
-//            pz = putdata[putdataidx][2];
-//        }
-//
-//        if (idx != putdata[putdataidx][3])
-//        {
-//            printf("\nWRONG PARAM I! [ %x != %x ]\n", idx, putdata[putdataidx][3]);
-//            idx = putdata[putdataidx][3];
-//        }
-//
-//        putdataidx++;
-//    }
-    
-    if (idx < alis.script->rsrc_count)
-    {
-        alis_rsrc *entry;
-        
-        alis.render_rsrcs[idx][0] = visible;
-        alis.render_rsrcs[idx][1] = idx;
-        alis.render_rsrcs[idx][2] = px;
-        alis.render_rsrcs[idx][3] = py;
-        alis.render_rsrcs[idx][4] = pz;
-        alis.render_rsrcs[idx][5] = tst;
-
-        memset(host.pixelbuf0.data, 0, host.pixelbuf0.w * host.pixelbuf0.h);
-
-        for (int i = 0; i < 256; i++)
-        {
-            visible = alis.render_rsrcs[i][0];
-            if (visible)
-            {
-                idx = alis.render_rsrcs[i][1];
-                entry = alis.script->resources[idx];
-                if (entry)
-                {
-                    px = alis.render_rsrcs[i][2];
-                    py = alis.render_rsrcs[i][3];
-                    pz = alis.render_rsrcs[i][4];
-                    tst = alis.render_rsrcs[i][5];
-                
-                    if (entry->type == composite)
-                    {
-                        for (int b = entry->params[1] - 1; b >= 0; b--)
-                        {
-                            read16(entry->buffer.data + b * 8 + 2, alis.platform);
-                            
-                            uint8_t cmd = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 1 : 0)];
-                            uint8_t index = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 0 : 1)];
-                            int16_t x = px + read16(entry->buffer.data + b * 8 + 2, alis.platform);
-                            int16_t z = pz + read16(entry->buffer.data + b * 8 + 4, alis.platform);
-                            int16_t y = z +  py + read16(entry->buffer.data + b * 8 + 6, alis.platform);
-                            
-                            alis_rsrc *e = alis.script->resources[index];
-                            if (e->type != none && e->type != unknown)
-                            {
-                                uint32_t width = e->params[2];
-                                uint32_t height = e->params[3];
-                                
-                                int xx = 1 + x - ((width + 1) / 2);
-                                int yy = host.pixelbuf0.h - (y + ((height + 1) / 2));
-                                
-                                int vs = 0;
-                                int vt = height;
-                                if (yy < 0)
-                                {
-                                    vt += yy;
-                                    vs -= yy;
-                                }
-                                
-                                int hs = 0;
-                                int hf = xx;
-                                int ht = width;
-                                if (hf < 0)
-                                {
-                                    hf = 0;
-                                    ht += xx;
-                                    hs -= xx;
-                                }
-                                
-                                if (e->type == image2 || e->type == image4ST || e->type == image4 || e->type == image8)
-                                {
-                                    int clear = 0;
-                                    if (e->type == image4)
-                                    {
-                                        clear = e->params[4] + e->params[5];
-                                    }
-                                    
-                                    if (e->type == image8)
-                                    {
-                                        clear = e->params[5];
-                                    }
-                                    
-                                    //if (hf + width >= 0 && hf < 319)
-                                        for (int h = vs; h < vs + vt; h++)
-                                        {
-                                            for (int w = hs; w < hs + ht; w++)
-                                            {
-                                                if (xx + w < 0)
-                                                    continue;
-                                                
-                                                if (xx + w > 319)
-                                                    break;
-                                                
-
-                                                uint8_t color = e->buffer.data[(cmd ? width - (w + 1) : w) + h * width];
-                                                if (color != clear)
-                                                {
-                                                    uint8_t *ptr = host.pixelbuf0.data + xx + w + ((yy + h) * host.pixelbuf0.w);
-                                                    *ptr = color;
-                                                }
-                                            }
-                                        }
-                                }
-                                else if (e->type == rectangle)// && height == 46)
-                                {
-                                    hf = max(0, xx);
-                                    ht = min(319, xx + width);
-                                    if (hf < 319 && ht - hf > 0)
-                                    {
-                                        for (int h = vs; h < vt; h++)
-                                        {
-                                            memset(host.pixelbuf0.data + hf + ((yy + h) * host.pixelbuf0.w), 0, ht - hf);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else if ((entry->type == image4ST)
-                             ||(entry->type == image4)
-                             ||(entry->type == image8))
-                    {
-                        int16_t x = px;
-                        int16_t z = pz;
-                        int16_t y = z + py;
-                        
-                        uint32_t width = entry->params[2];
-                        uint32_t height = entry->params[3];
-                        
-                        int xx = 1 + x - ((width + 1) / 2);
-                        int yy = host.pixelbuf0.h - (y + ((height + 1) / 2));
-                        
-                        int vs = 0;
-                        int vf = yy;
-                        int vt = height;
-                        if (vf < 0)
-                        {
-                            vf = 0;
-                            vt += yy;
-                            vs -= yy;
-                        }
-                        
-                        int hs = 0;
-                        int hf = xx;
-                        int ht = width;
-                        if (hf < 0)
-                        {
-                            hf = 0;
-                            ht += xx;
-                            hs -= xx;
-                        }
-                        
-                        int clear = 0;
-                        if (entry->type == image4)
-                        {
-                            clear = entry->params[4] + entry->params[5];
-                        }
-                        
-                        if (entry->type == image8)
-                        {
-                            clear = entry->params[5];
-                        }
-                        
-                        for (int h = vs; h < vs + vt; h++)
-                        {
-                            for (int w = hs; w < hs + ht; w++)
-                            {
-                                if (xx + w < 0)
-                                    continue;
-                                
-                                if (xx + w > 319)
-                                    break;
-                                
-                                uint8_t color = entry->buffer.data[width - w + h * width];
-                                if (color != clear)
-                                {
-                                    uint8_t *ptr = host.pixelbuf0.data + xx + w + ((yy + h) * host.pixelbuf0.w);
-                                    *ptr = color;
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        debug(EDebugWarning, " /* unknown */");
-                    }
-                }
-            }
-        }
-    }
-}
-
-//static void sim_put2(u16 px, u16 py, u16 pz, u8 idx, u8 tst, u8 visible, u8 flipx) {
-//
-//    if (idx >= alis.script->rsrc_count)
-//    {
-//        printf("\nindex: %d (%d)\n", (s8)idx, tst);
-//        int a = 0;
-//        return;
-//    }
-//
-//    alis_rsrc *entry = alis.script->resources[idx];
-//
-//    if (entry->type == composite)
-//    {
-//        for (int b = entry->params[1] - 1; b >= 0; b--)
-//        {
-//            read16(entry->buffer.data + b * 8 + 2, alis.platform);
-//
-//            u8 cmd = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 1 : 0)];
-//            if (flipx)
-//                cmd = cmd ? 0 : 1;
-//
-//            uint8_t index = entry->buffer.data[b * 8 + (alis.platform.is_little_endian ? 0 : 1)];
-//            int16_t x = px + read16(entry->buffer.data + b * 8 + 2, alis.platform);
-//            int16_t z = pz + read16(entry->buffer.data + b * 8 + 4, alis.platform);
-//            int16_t y = z +  py + read16(entry->buffer.data + b * 8 + 6, alis.platform);
-//
-//            sim_put2(x, y, z, index, tst, visible, cmd);
-//        }
-//
-//        return;
-//    }
-//
-//    alis.render_rsrcs[idx][0] = visible;
-//    alis.render_rsrcs[idx][1] = idx;
-//    alis.render_rsrcs[idx][2] = px;
-//    alis.render_rsrcs[idx][3] = py;
-//    alis.render_rsrcs[idx][4] = pz;
-//    alis.render_rsrcs[idx][5] = tst;
-//
-//    memset(host.pixelbuf0.data, 0, host.pixelbuf0.w * host.pixelbuf0.h);
-//
-//    for (int i = 0; i < 256; i++)
-//    {
-//        visible = alis.render_rsrcs[i][0];
-//        if (visible)
-//        {
-//            idx = alis.render_rsrcs[i][1];
-//            entry = alis.script->resources[idx];
-//            if (entry)
-//            {
-//                px = alis.render_rsrcs[i][2];
-//                py = alis.render_rsrcs[i][3];
-//                pz = alis.render_rsrcs[i][4];
-//                tst = alis.render_rsrcs[i][5];
-//
-//                uint32_t width = entry->params[2];
-//                uint32_t height = entry->params[3];
-//
-//                int16_t x = px;
-//                int16_t z = pz;
-//                int16_t y = z + py;
-//
-//                int xx = 1 + x - ((width + 1) / 2);
-//                int yy = host.pixelbuf0.h - (y + ((height + 1) / 2));
-//
-//                int vs = 0;
-//                int vt = height;
-//                if (yy < 0)
-//                {
-//                    vt += yy;
-//                    vs -= yy;
-//                }
-//
-//                int hs = 0;
-//                int hf = xx;
-//                int ht = width;
-//                if (hf < 0)
-//                {
-//                    hf = 0;
-//                    ht += xx;
-//                    hs -= xx;
-//                }
-//
-//                if ((entry->type == image4ST) ||(entry->type == image4) ||(entry->type == image8))
-//                {
-//                    int clear = 0;
-//                    if (entry->type == image4)
-//                    {
-//                        clear = entry->params[4] + entry->params[5];
-//                    }
-//
-//                    if (entry->type == image8)
-//                    {
-//                        clear = entry->params[5];
-//                    }
-//
-//                    for (int h = vs; h < vs + vt; h++)
-//                    {
-//                        for (int w = hs; w < hs + ht; w++)
-//                        {
-//                            uint8_t color = entry->buffer.data[(flipx ? width - (w + 1) : w) + h * width];
-//                            if (color != clear)
-//                            {
-//                                uint8_t *ptr = host.pixelbuf0.data + xx + w + ((yy + h) * host.pixelbuf0.w);
-//                                *ptr = color;
-//                            }
-//                        }
-//                    }
-//                }
-//                else if (entry->type == rectangle)// && height == 46)
-//                {
-//                    hf = max(0, xx);
-//                    ht = min(319, xx + width);
-//                    if (hf < 319 && ht - hf > 0)
-//                    {
-//                        for (int h = vs; h < vt; h++)
-//                        {
-//                            memset(host.pixelbuf0.data + hf + ((yy + h) * host.pixelbuf0.w), 2 + i%4, ht - hf);
-//                        }
-//                    }
-//                }
-//                else
-//                {
-//                    debug(EDebugWarning, " /* unknown */");
-//                }
-//            }
-//        }
-//    }
-//}
-
 // ============================================================================
 #pragma mark - Opcodes
 // ============================================================================
@@ -753,7 +398,8 @@ static void clive() {
     
     alis.scripts[d2]->context._0x16_screen_id = alis.script->context._0x16_screen_id;
     alis.scripts[d2]->context._0x22_cworld = alis.script->context._0x22_cworld;
-    alis.scripts[d2]->context._0x2a_clinking = alis.script->context._0xe_czap_cexplode_cnoise;
+    alis.scripts[d2]->context._0x2a_clinking = alis.script->context._0x2a_clinking;
+    alis.scripts[d2]->context._0xe_czap_cexplode_cnoise = alis.script->context._0xe_czap_cexplode_cnoise;
 
     cstore_continue();
     alis.script = alis.scripts[d2];
@@ -926,7 +572,7 @@ static void cdefsc() {
     while(counter--) {
         *ptr++ = script_read8();
     }
- 
+
     // basemain     0x00022690
     // basesprite   0x00031f40
     // libsprit     0x00008078 R
@@ -1000,38 +646,9 @@ static void cput() {
     depz = 0;
     numelem = 0;
     
-    sim_put(depx, depy, depz, numelem, 0, 1);
-}
+    u8 idx = alis.varD7;
 
-const char *string_for_type(int type)
-{
-    switch (type)
-    {
-        case none:
-            return "none";
-        case image2:
-            return "bitmap 2 bit";
-        case image4ST:
-            return "bitmap 4 bit";
-        case image4:
-            return "bitmap 4 bit (using 8 bit palette)";
-        case image8:
-            return "bitmap 8 bit";
-        case video:
-            return "video";
-        case palette4:
-            return "4 bit palette";
-        case palette8:
-            return "8 bit palette";
-        case composite:
-            return "composite";
-        case rectangle:
-            return "rectangle";
-        default:
-            break;
-    };
-
-    return "unknown";
+    put(idx);
 }
 
 static void cputnat() {
@@ -1084,8 +701,6 @@ static void cputnat() {
     u8 idx = alis.varD7;
     
     put(idx);
-    // sim_put(depx, depy, depz, idx, numelem, 1);
-    draw(host.pixelbuf0.data);
 }
 
 static void cerase() {
@@ -1101,7 +716,8 @@ static void cerasen() {
     u16 previdx = 0;
 
     printf("\n");
-    
+    // TODO: ...
+
     while (1)
     {
         searchelem(&curidx, &previdx);
@@ -1754,18 +1370,19 @@ static void ctoblack() {
     debug(EDebugWarning, " /* STUBBED */");
     readexec_opername_saveD6();
     
-    memset(host.pixelbuf0.palette, 0, 256 * 3);
-    
-    
-    for (int ii = 0; ii < 16; ii++)
-    {
-        for (int i = 0; i < 16; i++)
-        {
-            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 0] = i * 16;
-            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 1] = i * 16;
-            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 2] = i * 16;
-        }
-    }
+    s16 duration = alis.varD6;
+    //ctoblackpal(duration);
+  
+    // grayscale pal for debugging
+//    for (int ii = 0; ii < 16; ii++)
+//    {
+//        for (int i = 0; i < 16; i++)
+//        {
+//            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 0] = i * 16;
+//            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 1] = i * 16;
+//            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 2] = i * 16;
+//        }
+//    }
 }
 
 static void cmovcolor() {
@@ -1777,10 +1394,22 @@ static void ctopalet() {
     debug(EDebugWarning, " /* STUBBED */");
     readexec_opername();
     readexec_opername_saveD6();
-    u16 save = alis.varD7;
+    u16 palidx = alis.varD7;
+    u16 duration = alis.varD6;
+    
+    if (palidx < 0)
+    {
+        // TODO: ...
+    }
+    else
+    {
+        s32 addr = adresdes(palidx);
+        u8 *paldata = alis.mem + alis.script->data_org + addr;
+        ctopalette(paldata, duration);
+    }
 
-    alis_rsrc *e = alis.script->resources[save];
-    memcpy(host.pixelbuf0.palette, e->buffer.data, 256 * 3);
+//    alis_rsrc *e = alis.script->resources[palidx];
+//    memcpy(host.pixelbuf0.palette, e->buffer.data, 256 * 3);
 }
 
 static void cnumput() {

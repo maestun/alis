@@ -4,6 +4,7 @@
 //
 
 #include "../sys.h"
+#include "experimental.h"
 #include <SDL2/SDL.h>
 
 mouse_t _mouse;
@@ -58,7 +59,7 @@ void sys_render(pixelbuf_t buffer) {
     for (int px = 0; px < buffer.w * buffer.h; px++)
     {
         int index = buffer.data[px];
-        _pixels[px] = (u32)((0xff << 24) + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
+        _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
     }
     
     SDL_UpdateTexture(_texture, NULL, _pixels, width * sizeof(*_pixels));

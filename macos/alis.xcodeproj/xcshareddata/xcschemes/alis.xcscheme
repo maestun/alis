@@ -54,15 +54,19 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/atari/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/dos/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/ishar2/amiga-aga/"
+            argument = "/Users/gildor/Work/alis/data/colorado/atari/FILES/"
             isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar2/amiga-aga/"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar2/atari/"
