@@ -194,17 +194,16 @@ void alis_init(sPlatform platform) {
     host.pixelbuf.palette = ampalet;
     memset(host.pixelbuf.palette, 0xff, 256 * 3);
     
-    // grayscale pal for debugging
-    for (int ii = 0; ii < 16; ii++)
-    {
-        for (int i = 0; i < 16; i++)
-        {
-            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 0] = 80 + i * 10;
-            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 1] = 80 + i * 10;
-            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 2] = 80 + i * 10;
-        }
-    }
-
+//    // NOTE: grayscale pal for debugging
+//    for (int ii = 0; ii < 16; ii++)
+//    {
+//        for (int i = 0; i < 16; i++)
+//        {
+//            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 0] = 80 + i * 10;
+//            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 1] = 80 + i * 10;
+//            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 2] = 80 + i * 10;
+//        }
+//    }
 
     // load main script
     alis_load_main();

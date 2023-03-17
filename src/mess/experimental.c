@@ -18,11 +18,11 @@
 // NOTE: Mostly cut and paste code from ghidra I'm trying to make sense at the moment
 
 #ifndef max
-#define max(a,b)            (((a) > (b)) ? (a) : (b))
+# define max(a,b)            (((a) > (b)) ? (a) : (b))
 #endif
 
 #ifndef min
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+# define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
 
 #define BASEMNMEM_PTR alis.spritemem + basemain
@@ -30,18 +30,47 @@
 
 #define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
 #define SCENE_VAR(x) ((SceneVariables *)(BASEMNMEM_PTR + x))
+#define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
 
 #define DBTRACE(f, ...) printf("%s " f, __FUNCTION__,  ## __VA_ARGS__); // __PRETTY_FUNCTION__
-//#define ELEM_TRACE(x, ...)
-#define ELEM_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
-#define LINK_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
-#define CLIP_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
-#define DRAW_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
-#define DEBUGFCE
-// #define DEBUGFCE DBTRACE("\n")
-#define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
-#define VERIFYINTEGRITY
-// #define VERIFYINTEGRITY verifyintegrity()
+
+#define DEBUG_ELEM 0
+#define DEBUG_LINK 0
+#define DEBUG_CLIP 0
+#define DEBUG_DRAW 0
+#define DEBUG_FCE  0
+
+#if DEBUG_ELEM > 0
+# define VERIFYINTEGRITY verifyintegrity()
+# define ELEM_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
+#else
+# define VERIFYINTEGRITY
+# define ELEM_TRACE(x, ...)
+#endif
+
+#if DEBUG_LINK > 0
+# define LINK_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
+#else
+# define LINK_TRACE(x, ...)
+#endif
+
+#if DEBUG_CLIP > 0
+# define CLIP_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
+#else
+# define CLIP_TRACE(x, ...)
+#endif
+
+#if DEBUG_DRAW > 0
+# define DRAW_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
+#else
+# define DRAW_TRACE(x, ...)
+#endif
+
+#if DEBUG_FCE > 0
+# define DEBUGFCE DBTRACE("\n")
+#else
+# define DEBUGFCE
+#endif
 
 u8 tvmode = 0;
 u8 flagmain = 0;

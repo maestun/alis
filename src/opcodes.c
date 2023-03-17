@@ -635,8 +635,6 @@ static void cscreen() {
 }
 
 static void cput() {
-    debug(EDebugWarning, " /* SIMULATED */");
-    
     // flagmain = 0;
     *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv);
     
@@ -652,40 +650,6 @@ static void cput() {
 }
 
 static void cputnat() {
-    
-    // CALLED AT EACH FRAME WHEN SCREEN UPDATE NEEDED ?
-    
-    debug(EDebugWarning, " /* SIMULATED */");
-//    **************************************************************
-//    *                          FUNCTION                          *
-//    **************************************************************
-//    undefined OPCODE_CPUTNAT_0x49()
-//undefined         D0b:1          <RETURN>
-//    OPCODE_CPUTNAT_0x49
-//00013e82 42 39 00        clr.b      (DAT_0001959f).l
-//01 95 9f
-//00013e88 13 ee ff        move.b     (-0x3,A6),(DAT_0001959c).l
-//fd 00 01
-//95 9c
-//    LAB_00013e90                                    XREF[3]:     00013ef0(j), 00013f18(j),
-//                                                                 00013f32(j)
-//00013e90 61 00 36 da     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00013e94 33 c7 00        move.w     D7w,(DAT_00019588).l
-//01 95 88
-//00013e9a 61 00 36 d0     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00013e9e 33 c7 00        move.w     D7w,(DAT_0001958a).l
-//01 95 8a
-//00013ea4 61 00 36 c6     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00013ea8 33 c7 00        move.w     D7w,(DAT_0001958c).l
-//01 95 8c
-//00013eae 61 00 36 bc     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00013eb2 61 00 36 ac     bsr.w      FUN_READEXEC_OPERNAME_PUSH_D7                    undefined FUN_READEXEC_OPERNAME_
-//00013eb6 13 c6 00        move.b     D6b,(DAT_00019594).l
-//01 95 94
-//00013ebc 4e f9 00        jmp        FUN_00013f50.l                                   undefined FUN_00013f50()
-//01 3f 50
-//    -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
-    
     // flagmain = 0;
     *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv);
     readexec_opername_saveD7();
@@ -708,7 +672,6 @@ static void cerase() {
 }
 
 static void cerasen() {
-    debug(EDebugWarning, " /* STUBBED */");
     readexec_opername_saveD7();
     numelem = alis.varD7;
     
@@ -729,31 +692,6 @@ static void cerasen() {
     }
     
     // ferase = 0;
-
-
-    // alis.render_rsrcs[idx][0] = 0;
-
-//    **************************************************************
-//    *                          FUNCTION                          *
-//    **************************************************************
-//    undefined OPCODE_CERASEN_0x4b()
-//undefined         D0b:1          <RETURN>
-//    OPCODE_CERASEN_0x4b
-//0001452a 61 00 30 40     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//0001452e 13 c7 00        move.b     D7b,(DAT_00019594).l
-//01 95 94
-//00014534 22 79 00        movea.l    (DAT_1955e_usedby_cdefsc).l,A1
-//01 95 5e
-//    LAB_0001453a                                    XREF[1]:     0001454e(j)
-//0001453a 61 00 fc 02     bsr.w      FUN_0001413e                                     undefined FUN_0001413e()
-//0001453e 67 00 00 0a     beq.w      LAB_0001454a
-//00014542 42 39 00        clr.b      (DAT_0001951d).l
-//01 95 1d
-//00014548 4e 75           rts
-//    LAB_0001454a                                    XREF[1]:     0001453e(j)
-//0001454a 61 00 00 64     bsr.w      FUN_000145b0                                     undefined FUN_000145b0()
-//0001454e 60 00 ff ea     bra.w      LAB_0001453a
-
 }
 
 static void cset() {
@@ -1249,8 +1187,6 @@ static void ctstform() {
 }
 
 static void cxput() {
-    debug(EDebugWarning, " /* SIMULATED */");
-
     // flagmain = 0;
     *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv) ^ 1;
     readexec_opername();
@@ -1260,12 +1196,9 @@ static void cxput() {
     
     u8 idx = alis.varD7;
     put(idx);
-//    sim_put(depx, depy, depz, numelem, 0, 1);
 }
 
 static void cxputat() {
-    debug(EDebugWarning, " /* SIMULATED */");
-    
     // flagmain = 0;
     *(u8 *)(&flaginvx) = *(u8 *)(alis.mem + alis.script->context._0x3_xinv);
 
@@ -1281,7 +1214,6 @@ static void cxputat() {
     numelem = alis.varD6;
     
     put(idx);
-//    sim_put(depx, depy, depz, idx, numelem, 1);
 }
 
 static void cmput() {
@@ -1371,18 +1303,7 @@ static void ctoblack() {
     readexec_opername_saveD6();
     
     s16 duration = alis.varD6;
-    //ctoblackpal(duration);
-  
-    // grayscale pal for debugging
-//    for (int ii = 0; ii < 16; ii++)
-//    {
-//        for (int i = 0; i < 16; i++)
-//        {
-//            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 0] = i * 16;
-//            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 1] = i * 16;
-//            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 2] = i * 16;
-//        }
-//    }
+    ctoblackpal(duration);
 }
 
 static void cmovcolor() {
