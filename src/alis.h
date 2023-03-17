@@ -192,8 +192,7 @@ typedef struct {
 
     // system stuff
     // mouse_t     mouse;
-    pixelbuf_t  pixelbuf0;
-    pixelbuf_t  pixelbuf1;
+    pixelbuf_t  pixelbuf;
 } sHost;
 
 extern sAlisVM alis;

@@ -28,7 +28,7 @@
 #define BASEMNMEM_PTR alis.spritemem + basemain
 #define SPRITEMEM_PTR alis.spritemem + basesprite
 
-#define SPRITE_VAR(x) ((SpriteVariables *)(SPRITEMEM_PTR + x))
+#define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
 #define SCENE_VAR(x) ((SceneVariables *)(BASEMNMEM_PTR + x))
 
 #define DBTRACE(f, ...) printf("%s " f, __FUNCTION__,  ## __VA_ARGS__); // __PRETTY_FUNCTION__
@@ -64,7 +64,7 @@ u8 thepalet = 0;
 u8 defpalet = 0;
 
 u16 *ptabfen = 0;
-u8 tabfen = 0;
+u16 tabfen[640];
 u8 *ptrent = 0;
 u8 tablent = 0;
 
@@ -100,13 +100,13 @@ u16 depx = 0;
 u16 depy = 0;
 u16 depz = 0;
 
-s32 oldcx;
-s32 oldcy;
-s32 oldcz;
+s16 oldcx;
+s16 oldcy;
+s16 oldcz;
 
-s32 oldacx;
-s32 oldacy;
-s32 oldacz;
+s16 oldacx;
+s16 oldacy;
+s16 oldacz;
 
 u8 priorson;
 u8 typeson;
@@ -139,7 +139,7 @@ u32 debram = 0;
 u32 finram = 0;
 u32 savessp = 0;
 
-u32 bufpack = 0x20a00;
+u8 *bufpack = 0; // 0x20a00;
 u32 mworkbuff = 0x20a00;
 u32 adtmono = 0x33700;
 u32 finnoyau = 0x33900;
@@ -148,7 +148,6 @@ u32 basevar = 0;
 u32 ophysic = 0x33900;
 
 u16 nbprog = 0;
-u8 fswitch = 0;
 u8 timing = 0;
 u16 ptscreen = 0;
 u16 vprotect = 0;
@@ -197,18 +196,21 @@ s16 clipl;
 s16 cliph;
 u8 fclip;
 
-u8 *physic;
-// u8 *logic;
-u8 logic[320*200];
-u8  fphysic = 0;
-u8  fphytolog = 0;
-u8  fremouse = 0;
-u8  fremap = 0;
-u8  fremouse2 = 0;
-u8  vtiming = 0;
+u8 buffer0[320*200];
+u8 buffer1[320*200];
+
+u8 *physic = buffer0;
+u8 *logic = buffer1;
+u8 fitroutine = 0;
+u8 fphysic = 0;
+u8 fphytolog = 0;
+u8 fremouse = 0;
+u8 fremap = 0;
+u8 fremouse2 = 0;
+u8 vtiming = 0;
 s16 savmouse[2];
 u32 savmouse2[8];
-u8  switchgo;
+u8 switchgo;
 u16 backlarg;
 u8 *wlogic;
 s16 wlogx1;
@@ -221,14 +223,15 @@ s32 logx2 = 0x13f; // 0x013f00c7; // dimensions 319x199
 s16 logy1 = 0;
 s16 logy2 = 0xc7;
 u16 loglarg = 0xa0; // 0x50 for st
-u8 insid;
-u8  spag = 0;
-u8  wpag = 0;
+u8 insid = 0;
+u8 spag = 0;
+u8 wpag = 0;
 u8 *backmap;
 s32 backx1;
 s32 backx2;
 s16 backy1;
 s16 backy2;
+u32 timeclock = 0;
 
 // to be consistent with old code
 #pragma pack(1)
@@ -237,32 +240,32 @@ typedef union {
     
     struct {
         
-        u8 state;
-        u8 numelem;
-        u16 screen_id;
-        u16 to_next;
-        u16 link;
-        u32 newad:24;
-        u8 newf:8;
-        s16 newx;
-        s16 newy;
-        s16 newd;
-        u32 data:24;
-        u8 flaginvx:8;
-        s16 depx;
-        s16 depy;
-        s16 depz;
-        u8 credon_off;
-        u8 creducing;
-        u16 clinking;
-        u8 cordspr;
-        u8 chsprite;
-        u16 cnoise;
-        u32 sprite_0x28;
-        u16 width;
-        u16 height;
-        u16 newzoomx;
-        u16 newzoomy;
+        u8 state;               // 0x00
+        u8 numelem;             // 0x01
+        u16 screen_id;          // 0x02
+        u16 to_next;            // 0x04
+        u16 link;               // 0x06
+        u32 newad:24;           // 0x08
+        u8 newf:8;              // 0x08 + 3
+        s16 newx;               // 0x0c
+        s16 newy;               // 0x0e
+        s16 newd;               // 0x10
+        u32 data:24;            // 0x12
+        u8 flaginvx:8;          // 0x12 + 3 // +0 on big endian machines
+        s16 depx;               // 0x16
+        s16 depy;               // 0x18
+        s16 depz;               // 0x1a
+        u8 credon_off;          // 0x1c
+        u8 creducing;           // 0x1d
+        u16 clinking;           // 0x1e
+        u8 cordspr;             // 0x20
+        u8 chsprite;            // 0x21
+        u16 cnoise;             // 0x22
+        u32 sprite_0x28;        // 0x24
+        u16 width;              // 0x28
+        u16 height;             // 0x2a
+        u16 newzoomx;           // 0x2c
+        u16 newzoomy;           // 0x2e
     };
     
     u8 variables[0x30];
@@ -315,37 +318,6 @@ typedef union {
 } SceneVariables;
 
 #pragma pack(0)
-
-//typedef enum {
-//
-//    sprite_state                        = 0x00,
-//    sprite_numelem                      = 0x01,
-//    sprite_screen_id                    = 0x02,
-//    sprite_to_next                      = 0x04,
-//    sprite_link                         = 0x06,
-//    sprite_newad                        = 0x08,
-//    sprite_newf                         = 0x08 + 3,
-//    sprite_newx                         = 0x0c,
-//    sprite_newy                         = 0x0e,
-//    sprite_newd                         = 0x10,
-//    sprite_data                         = 0x12,
-//    sprite_flaginvx                     = 0x12 + 3, // +0 on big endian
-//    sprite_depx                         = 0x16,
-//    sprite_depy                         = 0x18,
-//    sprite_depz                         = 0x1a,
-//    sprite_credon_off                   = 0x1c,
-//    sprite_creducing                    = 0x1d,
-//    sprite_clinking                     = 0x1e,
-//    sprite_cordspr                      = 0x20,
-//    sprite_chsprite                     = 0x21,
-//    sprite_cnoise                       = 0x22,
-//    sprite_0x28                         = 0x24,
-//    sprite_width                        = 0x28,
-//    sprite_height                       = 0x2a,
-//    sprite_newzoomx                     = 0x2c,
-//    sprite_newzoomy                     = 0x2e,
-//
-//} SpriteVar;
 
 s32 adresdei(s32 idx)
 {
@@ -421,6 +393,7 @@ s32 adresmus(s32 idx)
 
 void tdarkpal(u8 *paldata)
 {
+    // TODO: ...
 //    u32 color;
 //    u32 *in_A1;
 //    s8 *pbVar4;
@@ -560,23 +533,6 @@ void ctopalette(u8 *paldata, s32 duration)
         palt = 1;
         palt0 = 1;
         palc = duration;
-
-//        if (0x7d < duration)
-//        {
-//            pald = 1;
-//            topalet();
-//            palt = duration / 0x7e;
-//            palt0 = palt;
-//            palc = 0x7e;
-//        }
-//        else
-//        {
-//            pald = (0x7e / (duration & 0xffffU)) + 1;
-//            topalet();
-//            palt = 1;
-//            palt0 = 1;
-//            palc = (s8)duration;
-//        }
     }
     else
     {
@@ -587,6 +543,15 @@ void ctopalette(u8 *paldata, s32 duration)
 
 void OPCODE_CTOPALET_0xbe(s32 palidx, s32 duration)
 {
+    flagmain = 0;
+    if ((((nmode == '\x01') || (nmode == '\x05')) || (nmode == '\x03')) || (nmode == '\a'))
+    {
+        return;
+    }
+    
+    if (palidx < 0)
+    {
+        // TODO: ...
 //    u8 bVar1;
 //    u32 in_D0;
 //    u16 uVar3;
@@ -601,17 +566,6 @@ void OPCODE_CTOPALET_0xbe(s32 palidx, s32 duration)
 //    u32 *puVar11;
 //    u16 *pwVar12;
 //    u16 *puVar13;
-    
-    flagmain = 0;
-//  palidx = readexec_opername();
-//  length = readexec_opername_saveD6();
-    if ((((nmode == '\x01') || (nmode == '\x05')) || (nmode == '\x03')) || (nmode == '\a'))
-    {
-        return;
-    }
-    
-    if (palidx < 0)
-    {
 //        puVar8 = svpalet;
 //        if (palidx != -1)
 //        {
@@ -704,16 +658,6 @@ void ctoblackpal(s16 duration)
     }
 }
 
-void savecoord(u8 *at)
-{
-    oldcx = at[0x00];
-    oldcy = at[0x04];
-    oldcz = at[0x08];
-    oldacx = at[0x0c];
-    oldacy = at[0x10];
-    oldacz = at[0x14];
-}
-
 bool verifyintegrity(void)
 {
     DEBUGFCE;
@@ -766,8 +710,6 @@ bool verifyintegrity(void)
     }
 
     u16 scsprite = ptscreen;
-//    prevmouse = fremouse;
-//    u8 *oldscr_ptr = physic;
     
     while (scsprite != 0)
     {
@@ -932,7 +874,7 @@ void nextnum(u16 *curidx, u16 *previdx)
     *previdx = *curidx;
     *curidx = SPRITE_VAR(*curidx)->to_next;
     SpriteVariables *cursprvar = SPRITE_VAR(*curidx);
-    if ((cursprvar->state != 0 && cursprvar->screen_id == alis.script->context._0x16_screen_id) && cursprvar->numelem == numelem)
+    if (cursprvar != NULL && cursprvar->screen_id == alis.script->context._0x16_screen_id && cursprvar->numelem == numelem)
     {
         ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
         return;
@@ -981,30 +923,29 @@ void createlem(u16 *curidx, u16 *previdx)
     ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
 }
 
-s16 delprec(u16 elemidx)
+void delprec(short elemidx)
 {
     DEBUGFCE;
 
-    SceneVariables *cursprvar = SCENE_VAR(elemidx);
+    SpriteVariables *cursprvar = SPRITE_VAR(elemidx);
     s16 scridx = cursprvar->screen_id;
 
     SceneVariables *scrsprvar = SCENE_VAR(scridx);
     if (elemidx == scrsprvar->screen_id)
     {
-        scrsprvar->screen_id = cursprvar->link;
-        return scridx;
+        scrsprvar->screen_id = cursprvar->screen_id;;
+        return;
     }
     
-    s16 tmpidx = scrsprvar->screen_id;
-    SceneVariables *tmpsprvar = SCENE_VAR(tmpidx);
-    while (elemidx != tmpsprvar->link)
+    u16 spridx = scrsprvar->screen_id;
+    SpriteVariables *tmpsprvar = SPRITE_VAR(spridx);
+    while (tmpsprvar != NULL && elemidx != tmpsprvar->link)
     {
-        tmpidx = tmpsprvar->link;
-        tmpsprvar = SCENE_VAR(tmpidx);
+        spridx = tmpsprvar->link;
+        tmpsprvar = SPRITE_VAR(spridx);
     }
     
     tmpsprvar->link = cursprvar->link;
-    return tmpidx;
 }
 
 void killelem(u16 *curidx, u16 *previdx)
@@ -1012,9 +953,7 @@ void killelem(u16 *curidx, u16 *previdx)
     DEBUGFCE;
     ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
 
-    SpriteVariables *prevsprvar = SPRITE_VAR(*previdx);
     SpriteVariables *cursprvar = SPRITE_VAR(*curidx);
-
     if (ferase == '\0' && -1 < (s8)cursprvar->state)
     {
         cursprvar->state = 1;
@@ -1025,7 +964,7 @@ void killelem(u16 *curidx, u16 *previdx)
         }
         else
         {
-             prevsprvar->to_next = cursprvar->to_next;
+            SPRITE_VAR(*previdx)->to_next = cursprvar->to_next;
         }
     }
     else
@@ -1036,7 +975,7 @@ void killelem(u16 *curidx, u16 *previdx)
         }
         else
         {
-            prevsprvar->to_next = cursprvar->to_next;
+            SPRITE_VAR(*previdx)->to_next = cursprvar->to_next;
         }
       
         cursprvar->to_next = libsprit;
@@ -1052,7 +991,7 @@ void killelem(u16 *curidx, u16 *previdx)
         }
     }
     
-    *curidx = prevsprvar->to_next;
+    *curidx = *previdx ? SPRITE_VAR(*previdx)->to_next : 0;
     VERIFYINTEGRITY;
 }
 
@@ -1069,8 +1008,6 @@ void putin(u8 idx)
     DEBUGFCE;
     ELEM_TRACE("  idx: 0x%.2x numelem: 0x%.6x\n", idx, numelem);
 
-    // numelem = idx;
-    
     s32 addr = adresdes(idx);
     u8 *resourcedata = alis.mem + alis.script->data_org + addr;
 
@@ -1286,14 +1223,15 @@ void calcfen(s16 elemidx1, s16 elemidx3)
         feny2 = blocy2;
         if (tmpy < blocy2)
             feny2 = tmpy;
-            
+     
+        // NOTE: just for bitplane graphics
 //        fenx1 &= 0xfff0;
 //        fenx2 |= 0xf;
 
         fenlargw = (u16)((fenx2 - fenx1) + 1) >> 2;
         
         // TODO: uncoment if and when physic is initialized
-        // adfenintv = (u32)feny1 * 0x140 + physic + (s32)(fenx1 >> 1);
+        adfenintv = (u32)feny1 * 0x140 + physic + (s32)(fenx1 >> 1);
     }
     
     LINK_TRACE("0x%.4x 0x%.4x\n", ELEMIDX(elemidx1), ELEMIDX(elemidx3));
@@ -1306,45 +1244,49 @@ u8 clipfen(SpriteVariables *sprite)
     DEBUGFCE;
 
     fclip = 0;
-    s16 spritex2 = sprite->newx;
-    if (fenx2 < spritex2)
-        return fclip;
-
-    s16 spritey2 = sprite->newy;
-    if (feny2 < spritey2)
-        return fclip;
-
-    s16 spritex1 = sprite->depx;
-    if (spritex1 < fenx1)
-        return fclip;
-
-    s16 spritey1 = sprite->depy;
-    if (spritey1 < feny1)
-        return fclip;
-
-    if (spritex2 < fenx1)
-        spritex2 = fenx1;
-
-    if (spritey2 < feny1)
-        spritey2 = feny1;
-
+    s16 spritex1 = sprite->newx;
     if (fenx2 < spritex1)
-        spritex1 = fenx2;
+        return fclip;
 
+    s16 spritey1 = sprite->newy;
     if (feny2 < spritey1)
-        spritey1 = feny2;
+        return fclip;
 
-    clipx1 = spritex2;
-    clipy1 = spritey2;
-    clipx2 = spritex1;
-    clipy2 = spritey1;
+    s16 spritex2 = sprite->depx;
+    if (spritex2 < fenx1)
+        return fclip;
+
+    s16 spritey2 = sprite->depy;
+    if (spritey2 < feny1)
+        return fclip;
+
+    if (spritex1 < fenx1)
+        spritex1 = fenx1;
+
+    if (spritey1 < feny1)
+        spritey1 = feny1;
+
+    if (fenx2 < spritex2)
+        spritex2 = fenx2;
+
+    if (feny2 < spritey2)
+        spritey2 = feny2;
+
+    clipx1 = spritex1;
+    clipy1 = spritey1;
+    clipx2 = spritex2;
+    clipy2 = spritey2;
+    
+    DRAW_TRACE("SPR   0x%.4x 0x%.4x 0x%.4x 0x%.4x\n", spritex1, spritey1, spritex2, spritey2);
+    DRAW_TRACE("FEN   0x%.4x 0x%.4x 0x%.4x 0x%.4x\n", fenx1, feny1, fenx2, feny2);
+    DRAW_TRACE("CLIP  0x%.4x 0x%.4x 0x%.4x 0x%.4x\n", clipx1, clipy1, clipx2, clipy2);
+    
     clipl = (spritex1 - spritex2) + 1;
     cliph = (spritey1 - spritey2) + 1;
     fclip = 1;
     return fclip;
 }
 
-//s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
 void rangesprite(s16 elemidx1, s16 elemidx3)
 {
     DEBUGFCE;
@@ -1389,13 +1331,6 @@ void rangesprite(s16 elemidx1, s16 elemidx3)
     VERIFYINTEGRITY;
 
     idx1sprvar->state = 0;
-    
-//    if (elemidx2 == previdx3)
-//    {
-//        elemidx2 = elemidx1;
-//    }
-//
-//    return elemidx2;
 }
 
 void tstjoints(s16 elemidx)
@@ -1425,6 +1360,8 @@ void tstjoints(s16 elemidx)
         blocx2 = tmpx;
         blocy2 = tmpy;
         joints = 1;
+
+        return;
     }
     
     joints = 0;
@@ -1491,7 +1428,7 @@ void deptopix(SceneVariables *scene, s16 elemidx)
         
         scalaire(scene, &tmpdepx, &tmpdepy, &tmpdepz);
 
-        s16 sVar3 = 0;
+        s16 offset = 0;
         u8 cred = scene->creducing;
         if ((-1 < (s8)cred) && -1 < (s8)elemsprvar->credon_off)
         {
@@ -1505,7 +1442,7 @@ void deptopix(SceneVariables *scene, s16 elemidx)
             scridx = (tmpdepz >> (elemsprvar->credon_off & 0x3f)) + (s16)elemsprvar->creducing;
             if (scridx < 0)
             {
-                sVar3 = 0;
+                offset = 0;
             }
             else
             {
@@ -1514,15 +1451,14 @@ void deptopix(SceneVariables *scene, s16 elemidx)
                     scridx = scene->clinking;
                 }
                 
-                sVar3 = scridx << 2;
+                offset = scridx << 2;
             }
         }
         
         tmpdepx = (tmpdepx >> (scene->credon_off & 0x3f)) + scene->unknown0x0a;
         tmpdepy = (tmpdepy >> (scene->credon_off & 0x3f)) + scene->unknown0x0c;
         
-        newad = (elemsprvar->data & 0xffffff);
-        // newad = (elemsprvar->data & 0xffffff) + sVar3);
+        newad = (elemsprvar->data & 0xffffff) + offset;
         u8 *spritedata = (alis.mem + alis.script->data_org + newad);
         if (spritedata[0] == '\x03')
         {
@@ -1558,6 +1494,27 @@ void waitphysic(void)
     do {} while (fphysic != '\0');
 }
 
+void trsfen(u8 *src, u8 *tgt)
+{
+    DEBUGFCE;
+    
+    src += fenx1 + feny1 * 320;
+    tgt += fenx1 + feny1 * 320;
+    
+    u16 skip = 320 - (fenx2 - fenx1);
+
+    for (s32 y = feny1; y < feny2; y++)
+    {
+        for (s32 x = fenx1; x < fenx2; x++, src++, tgt++)
+        {
+            *tgt = *src;
+        }
+        
+        tgt += skip;
+        src += skip;
+    }
+}
+
 void phytolog(void)
 {
     DEBUGFCE;
@@ -1565,146 +1522,171 @@ void phytolog(void)
     feny1 = 0;
     fenx2 = 0x13f;
     feny2 = 199;
-//    trsfen();
+    trsfen(physic, logic);
 }
 
 void mouserase(void)
 {
     DEBUGFCE;
     
-    u8 *paVar7 = physic;
-    if (fremouse2 != '\0')
+    // TODO: ...
+//    u8 *paVar7 = physic;
+//    if (fremouse2 != '\0')
+//    {
+//        paVar7 = logic;
+//    }
+//
+//    s16 sVar2 = 0;
+//    s16 sVar4 = 0xf;
+//    s16 sVar3 = 0x120;
+//
+//    if (-1 < savmouse[0])
+//    {
+//        u8 bVar1 = 0x12f < savmouse[0];
+//        if (bVar1)
+//        {
+//            sVar2 = 0x10;
+//            sVar3 = 0x130;
+//        }
+//
+//        u32 *puVar5 = savmouse2;
+//        if ((s16)(-savmouse[1] + 0xb8) < 0)
+//        {
+//            sVar4 = -savmouse[1] + 199;
+//        }
+//
+//        u32 *puVar8 = (u32 *)(paVar7 + savmouse[1] * 0x140 + (savmouse[0] & 0xfff0));
+//
+//        do
+//        {
+//            u32 *puVar6;
+//            u32 *puVar9;
+//            if (!bVar1)
+//            {
+//                puVar8[0] = puVar5[0];
+//                puVar8[1] = puVar5[1];
+//                puVar6 = puVar5 + 3;
+//                puVar9 = puVar8 + 3;
+//                puVar8[2] = puVar5[2];
+//                puVar5 = puVar5 + 4;
+//                puVar8 = puVar8 + 4;
+//                puVar9[0] = puVar6[0];
+//            }
+//
+//            puVar8[0] = puVar5[0];
+//            puVar8[1] = puVar5[1];
+//            puVar8[2] = puVar5[2];
+//            puVar8[3] = puVar5[3];
+//            puVar8 = (u32 *)((s32)puVar8 + sVar3 + 0x10);
+//            puVar5 = (u32 *)((s32)puVar5 + sVar2 + 0x10);
+//            sVar4 --;
+//        }
+//        while (sVar4 != -1);
+//    }
+}
+
+void tvtofen(void)
+{
+    DEBUGFCE;
+
+    // fenx2 = fenlargw * 4 + fenx1 - 1;
+    trsfen(physic, logic);
+}
+
+void memfen(void)
+{
+    ptabfen[0] = fenx1;
+    ptabfen[1] = fenx2;
+    ptabfen[2] = feny1;
+    ptabfen[3] = feny2;
+    ptabfen += 4;
+
+    u16 *endtabfen = tabfen + sizeof(tabfen);
+    if (ptabfen < endtabfen)
     {
-        paVar7 = logic;
+        return;
     }
-    
-    s16 sVar2 = 0;
-    s16 sVar4 = 0xf;
-    s16 sVar3 = 0x120;
-    
-    if (-1 < savmouse[0])
-    {
-        u8 bVar1 = 0x12f < savmouse[0];
-        if (bVar1)
-        {
-            sVar2 = 0x10;
-            sVar3 = 0x130;
-        }
-        
-        u32 *puVar5 = savmouse2;
-        if ((s16)(-savmouse[1] + 0xb8) < 0)
-        {
-            sVar4 = -savmouse[1] + 199;
-        }
-        
-        u32 *puVar8 = (u32 *)(paVar7 + savmouse[1] * 0x140 + (savmouse[0] & 0xfff0));
-        
-        do
-        {
-            u32 *puVar6;
-            u32 *puVar9;
-            if (!bVar1)
-            {
-                puVar8[0] = puVar5[0];
-                puVar8[1] = puVar5[1];
-                puVar6 = puVar5 + 3;
-                puVar9 = puVar8 + 3;
-                puVar8[2] = puVar5[2];
-                puVar5 = puVar5 + 4;
-                puVar8 = puVar8 + 4;
-                puVar9[0] = puVar6[0];
-            }
-            
-            puVar8[0] = puVar5[0];
-            puVar8[1] = puVar5[1];
-            puVar8[2] = puVar5[2];
-            puVar8[3] = puVar5[3];
-            puVar8 = (u32 *)((s32)puVar8 + sVar3 + 0x10);
-            puVar5 = (u32 *)((s32)puVar5 + sVar2 + 0x10);
-            sVar4 --;
-        }
-        while (sVar4 != -1);
-    }
+
+    // error
 }
 
 void oldfen(void)
 {
     DEBUGFCE;
 
-    u16 *puVar1 = (u16 *)&tabfen;
-    while ((s32)puVar1 < ptabfen)
+    for (u16 *tabptr = tabfen; tabptr < ptabfen; tabptr += 4)
     {
-        fenx1 = puVar1[0];
-        fenlargw = puVar1[1];
-        feny1 = puVar1[2];
-        feny2 = puVar1[3];
-        puVar1 = &puVar1[4];
-        // tvtofen();
+        fenx1 = tabptr[0];
+        fenx2 = tabptr[1];
+        feny1 = tabptr[2];
+        feny2 = tabptr[3];
+        tvtofen();
     }
 }
 
 void setphysic(void)
 {
     DEBUGFCE;
-//    if (insid == '\0')
-//    {
-//        DAT_00ff8203 = (u8)((u32)physic >> 8);
-//        DAT_00ff8201 = (u8)((u32)physic >> 0x10);
-//    }
-//
-//    bufpack = logic;
-//    fphysic = 1;
+    
+    if (insid == 0)
+    {
+        host.pixelbuf.data = physic;
+    }
+
+    bufpack = logic;
+    fphysic = 1;
 }
 
 u8 *folscreen(u8 *scene)
 {
     DEBUGFCE;
 
-    s16 *psVar1 = *(s16 **)(atent + *(s16 *)(scene + 0x60));
-    if ((-1 < *(s16 *)(scene + 0x60)) && (psVar1 != (s16 *)0x0))
-    {
-        if ((scene[0x84] & 1) != 0)
-        {
-            if ((s16)(*psVar1 + *(s16 *)(scene + 0x86)) != *(s16 *)(scene + 0x16))
-            {
-                *(s16 *)(scene + 0x16) = *psVar1 + *(s16 *)(scene + 0x86);
-                *scene = *scene | 0x80;
-            }
-            if ((s16)(psVar1[4] + *(s16 *)(scene + 0x88)) != *(s16 *)(scene + 0x18))
-            {
-                *(s16 *)(scene + 0x18) = psVar1[4] + *(s16 *)(scene + 0x88);
-                *scene = *scene | 0x80;
-            }
-            if ((s16)(psVar1[8] + *(s16 *)(scene + 0x8a)) != *(s16 *)(scene + 0x1a))
-            {
-                *(s16 *)(scene + 0x1a) = psVar1[8] + *(s16 *)(scene + 0x8a);
-                *scene = *scene | 0x80;
-            }
-        }
-        
-        if ((scene[0x84] & 2) != 0)
-        {
-            s16 sVar2 = psVar1[0x0c] + psVar1[0x20] + *(s16 *)(scene + 0x8c);
-            if (sVar2 != *(s16 *)(scene + 0x34))
-            {
-                *(s16 *)(scene + 0x34) = sVar2;
-                *scene = *scene | 0x80;
-            }
-            sVar2 = psVar1[0x10] + psVar1[0x22] + *(s16 *)(scene + 0x8e);
-            if (sVar2 != *(s16 *)(scene + 0x36))
-            {
-                *(s16 *)(scene + 0x36) = sVar2;
-                *scene = *scene | 0x80;
-            }
-            sVar2 = psVar1[0x14] + psVar1[0x24] + *(s16 *)(scene + 0x90);
-            if (sVar2 != *(s16 *)(scene + 0x38))
-            {
-                *(s16 *)(scene + 0x38) = sVar2;
-                *scene = *scene | 0x80;
-            }
-        }
-    }
-    
+    // TODO: ...
+//    s16 *psVar1 = *(s16 **)(atent + *(s16 *)(scene + 0x60));
+//    if ((-1 < *(s16 *)(scene + 0x60)) && (psVar1 != (s16 *)0x0))
+//    {
+//        if ((scene[0x84] & 1) != 0)
+//        {
+//            if ((s16)(*psVar1 + *(s16 *)(scene + 0x86)) != *(s16 *)(scene + 0x16))
+//            {
+//                *(s16 *)(scene + 0x16) = *psVar1 + *(s16 *)(scene + 0x86);
+//                *scene = *scene | 0x80;
+//            }
+//            if ((s16)(psVar1[4] + *(s16 *)(scene + 0x88)) != *(s16 *)(scene + 0x18))
+//            {
+//                *(s16 *)(scene + 0x18) = psVar1[4] + *(s16 *)(scene + 0x88);
+//                *scene = *scene | 0x80;
+//            }
+//            if ((s16)(psVar1[8] + *(s16 *)(scene + 0x8a)) != *(s16 *)(scene + 0x1a))
+//            {
+//                *(s16 *)(scene + 0x1a) = psVar1[8] + *(s16 *)(scene + 0x8a);
+//                *scene = *scene | 0x80;
+//            }
+//        }
+//
+//        if ((scene[0x84] & 2) != 0)
+//        {
+//            s16 sVar2 = psVar1[0x0c] + psVar1[0x20] + *(s16 *)(scene + 0x8c);
+//            if (sVar2 != *(s16 *)(scene + 0x34))
+//            {
+//                *(s16 *)(scene + 0x34) = sVar2;
+//                *scene = *scene | 0x80;
+//            }
+//            sVar2 = psVar1[0x10] + psVar1[0x22] + *(s16 *)(scene + 0x8e);
+//            if (sVar2 != *(s16 *)(scene + 0x36))
+//            {
+//                *(s16 *)(scene + 0x36) = sVar2;
+//                *scene = *scene | 0x80;
+//            }
+//            sVar2 = psVar1[0x14] + psVar1[0x24] + *(s16 *)(scene + 0x90);
+//            if (sVar2 != *(s16 *)(scene + 0x38))
+//            {
+//                *(s16 *)(scene + 0x38) = sVar2;
+//                *scene = *scene | 0x80;
+//            }
+//        }
+//    }
+
     return scene;
 }
 
@@ -1820,8 +1802,7 @@ void clrfen(void)
     
     for (s16 y = feny1; y < feny2; y++)
     {
-//        memset(physic + fenx1 + y * 320, 0, tmpx);
-        memset(host.pixelbuf0.data + fenx1 + y * 320, 0, tmpx);
+        memset(physic + fenx1 + y * 320, 0, tmpx);
     }
 }
 
@@ -1863,7 +1844,7 @@ void destofen(SpriteVariables *sprite)
     u8 *bitmap = (alis.mem + alis.script->data_org + spnewad);
     if (*bitmap < '\0')
         return;
-
+    
     s16 posx1 = sprite->newx;
     if ((s16)clipx2 < posx1)
         return;
@@ -1895,7 +1876,7 @@ void destofen(SpriteVariables *sprite)
     blocy2 = ypos2;
     if (clipy2 < ypos2)
         blocy2 = clipy2;
-    
+
     u8 *at = bitmap + 6;
 
     u8 color;
@@ -1939,6 +1920,9 @@ void destofen(SpriteVariables *sprite)
     DRAW_TRACE("  to:  %.3dx%.3d\n", posx1, posy1);
     DRAW_TRACE("  dim: %.3dx%.3d\n", width, height);
     
+    // NOTE: just a hack to write directly to output buffer
+    // u8 *logic = host.pixelbuf.data;
+    
     switch (bitmap[0])
     {
         case 0x01:
@@ -1949,7 +1933,7 @@ void destofen(SpriteVariables *sprite)
             
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
             {
-                u8 *tgt = host.pixelbuf0.data + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf0.w);
+                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
                     if ((posy1 + h) < 0 || (posy1 + h) >= 200)
@@ -1970,7 +1954,7 @@ void destofen(SpriteVariables *sprite)
             
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
             {
-                u8 *tgt = host.pixelbuf0.data + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf0.w);
+                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
                     u16 wh = ((flip ? (width - (w + 2)) : w)) / 2;
@@ -1978,10 +1962,10 @@ void destofen(SpriteVariables *sprite)
                     color = 0 + w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
                     if (color != clear)
                     {
-                        if ((posy1 + h) < 0 || (posy1 + h) >= 200)
-                            continue;
+//                        if ((posy1 + h) < 0 || (posy1 + h) >= 200)
+//                            continue;
                         
-                        tgt = host.pixelbuf0.data + (w + posx1) + ((posy1 + h) * host.pixelbuf0.w);
+                        tgt = logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
                         *tgt = color;
                     }
                 }
@@ -2002,7 +1986,7 @@ void destofen(SpriteVariables *sprite)
 
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
             {
-                u8 *tgt = host.pixelbuf0.data + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf0.w);
+                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
                     u16 wh = ((flip ? (width - (w + 2)) : w)) / 2;
@@ -2028,7 +2012,7 @@ void destofen(SpriteVariables *sprite)
 
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
             {
-                u8 *tgt = host.pixelbuf0.data + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf0.w);
+                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
                     color = *(at + (flip ? width - (w + 1) : w) + h * width);
@@ -2058,1178 +2042,16 @@ void destofen(SpriteVariables *sprite)
             break;
         }
     }
-    
-    // TODO: to be removed, hack to show changes immediatelly
-    sys_render(host.pixelbuf0);
 }
-
-//s16 DAT_0000d5e4;
-//s16 DAT_0000d5e6;
-//s16 DAT_0000d5e8;
-//s16 DAT_0000d5ea;
-//s16 DAT_0000df60;
-//s16 DAT_0000df62;
-//s16 DAT_0000df64;
-//s16 DAT_0000df66;
-//s16 DAT_0000df68;
-//s16 DAT_0000df6a;
-//s16 DAT_0000df6c;
-//s16 DAT_0000df6e;
-//s16 DAT_000195ba;
-//s16 DAT_000195bc;
-//s16 DAT_000195d0;
-//s16 DAT_000196cc;
-//s16 DAT_000196e6;
-//s16 DAT_000196e6;
-//s16 DAT_000196e6;
-//s16 DAT_000196e6;
-//s16 DAT_000196e6;
-//s16 DAT_000196e6;
-//
-//u32 CONCAT11(u8 a, u8 b)
-//{
-//    u16 result = (((u16)a) << 8) + b;
-//    return result;
-//}
-//
-//u32 CONCAT22(u16 a, u16 b)
-//{
-//    u32 result = (((u32)a) << 16) + b;
-//    return result;
-//}
-//
-//
-//u32 CONCAT21(u16 a, u8 b)
-//{
-//    u32 result = (((u32)a) << 8) + b;
-//    return result;
-//}
-//
-//u32 CONCAT31(u32 a, u16 b)
-//{
-//    u32 result = (((u32)a) << 8) + b;
-//    return result;
-//}
-//
-//void destofenX(SpriteVariables *sprite)
-//{
-//    u8 uVar1;
-//    u8 uVar2;
-//    u8 uVar3;
-//    u8 uVar4;
-//    u8 uVar5;
-//    u8 uVar6;
-//    s16 sVar10;
-//    u16 uVar11;
-//    u32 uVar7;
-//    u32 uVar8;
-//    u16 uVar12;
-//    u16 uVar13;
-//    s32 iVar9;
-//    u32 uVar14;
-//    u16 uVar16;
-//    u16 uVar17;
-//    s32 iVar15;
-//    u32 uVar18;
-//    u16 uVar21;
-//    s32 iVar19;
-//    u16 uVar24;
-//    s32 iVar22;
-//    u32 uVar25;
-//    u32 uVar26;
-//    u32 uVar28;
-//    u16 wwidth;
-//    u32 uVar29;
-//    u16 uVar31;
-//    u16 uVar32;
-//    u16 *puVar33;
-//    u16 *puVar34;
-//    u16 *logicptr;
-//    u16 *puVar36;
-//    s32 rwwidth;
-//    u16 *puVar39;
-//    u32 *puVar40;
-//    s16 sVar41;
-//    u16 uStack_2;
-//
-//    // s8 *bitmap = (s8 *)(*(s32 *)(*(u32 *)(sprite + sprite_newad) & 0xffffff) + (s32)(s32 *)(*(u32 *)(sprite + sprite_newad) & 0xffffff));
-//    u32 spnewad = sprite->newad & 0xffffff;
-//    u8 *bitmap = (alis.mem + alis.script->data_org + spnewad);
-//    if (*bitmap < '\0')
-//        return;
-//
-//    s16 xpos1 = sprite->newx;
-//    if ((s16)clipx2 < xpos1)
-//        return;
-//
-//    s16 ypos1 = sprite->newy;
-//    if (clipy2 < ypos1)
-//        return;
-//
-//    s16 xpos2 = xpos1 + read16(bitmap + 2, alis.platform.is_little_endian);
-//    if (xpos2 < clipx1)
-//        return;
-//
-//    s16 ypos2 = ypos1 + read16(bitmap + 4, alis.platform.is_little_endian);
-//    if (ypos2 < clipx1)
-//        return;
-//
-//    blocx1 = xpos1;
-//    if (xpos1 < clipx1)
-//        blocx1 = clipx1;
-//
-//    blocy1 = ypos1;
-//    if (ypos1 < clipx1)
-//        blocy1 = clipx1;
-//
-//    blocx2 = xpos2;
-//    if (clipx2 < xpos2)
-//        blocx2 = clipx2;
-//
-//    blocy2 = ypos2;
-//    if (clipy2 < ypos2)
-//        blocy2 = clipy2;
-//
-//    uStack_2 = blocy2 - blocy1;
-//    xpos1 = blocx1 & 0xfff0;
-//    xpos2 = blocx2 | 0xf;
-//    wwidth = (xpos2 - xpos1) >> 4;              // width in words
-//    rwwidth = wloglarg - ((wwidth + 1) * 4); // remaining screen width in words
-//    ypos2 = rwwidth * 2;
-//    DAT_000195d0 = (u16)(read16(bitmap + 2, alis.platform.is_little_endian) + 1U) >> 2;
-//    ypos1 = (DAT_000195d0 + (wwidth + 1) * -4) * 2;
-//    uVar26 = (u32)(u16)(blocy1 - DAT_000196cc) * (u32)wloglarg * 2;
-//    uVar25 = uVar26 & 0xffff0000;
-//    logicptr = (u16 *)((s32)(s16)(((u16)(blocx1 - wlogx1) & 0xfff0) >> 1) + uVar26 + wlogic);
-//
-//    if (*bitmap == '\x01')
-//    {
-//        // rectangle
-//
-//        DAT_000195ba = (u16)(xpos1 <= sprite->newx);
-//        DAT_000195bc = 0;
-//        xpos1 = wwidth;
-//        if ((read16(bitmap + 2, alis.platform.is_little_endian) + sprite->newx) < xpos2)
-//        {
-//            DAT_000195bc = 1;
-//            xpos1 = wwidth - 1;
-//            if ((s16)(wwidth - 1) < 0)
-//            {
-//                DAT_000195bc = -1;
-//                xpos1 = wwidth;
-//            }
-//        }
-//
-//        ypos1 = DAT_000195bc;
-//
-//        // set solid color for four bitplanes
-//
-//        u16 bit1 = 0;
-//        if ((bitmap[1] & 1U) != 0)
-//            bit1 = 0xffff;
-//
-//        u16 bit2 = 0;
-//        if ((bitmap[1] & 2U) != 0)
-//            bit2 = 0xffff;
-//
-//        u16 bit3 = 0;
-//        if ((bitmap[1] & 4U) != 0)
-//            bit3 = 0xffff;
-//
-//        u16 bit4 = 0;
-//        if ((bitmap[1] & 8U) != 0)
-//            bit4 = 0xffff;
-//
-//        uVar28 = bit4 << 0x10 | bit4 >> 0x10;
-//        uVar32 = (s16)(0x10000 >> (sprite->newx & 0xf)) - 1;
-//        DAT_0000df60 = uVar32 & bit1;
-//        DAT_0000df62 = uVar32 & bit2;
-//        DAT_0000df64 = uVar32 & bit3;
-//        DAT_0000df66 = uVar32 & (u16)bit4;
-//        uVar31 = ~((s16)(0x8000 >> ((u16)(sprite->newx + read16(bitmap + 2, alis.platform.is_little_endian)) & 0xf)) - 1U);
-//        DAT_0000df68 = uVar31 & bit1;
-//        DAT_0000df6a = uVar31 & bit2;
-//        DAT_0000df6c = uVar31 & bit3;
-//        DAT_0000df6e = uVar31 & (u16)bit4;
-//        if ((DAT_000195ba != 0) && (DAT_000195bc < 0))
-//        {
-//            DAT_000195ba = 0;
-//            uVar31 = uVar31 & uVar32;
-//            DAT_0000df68 = uVar32 & DAT_0000df68;
-//            DAT_0000df6a = uVar32 & DAT_0000df6a;
-//            DAT_0000df6c = uVar32 & DAT_0000df6c;
-//            DAT_0000df6e = uVar32 & DAT_0000df6e;
-//        }
-//
-//        uVar12 = DAT_000195ba;
-//        uVar32 = ~uVar32;
-//        uVar31 = ~uVar31;
-//        bit4 = (u32)DAT_000195bc;
-//
-//        do
-//        {
-//            uVar13 = xpos1;
-//            if (uVar12 == 0)
-//            {
-//                if (-1 < ypos1)
-//                {
-//                    uVar25 = (u32)bit1 | uVar25 & 0xffff0000;
-//                    goto LAB_0000df1a;
-//                }
-//LAB_0000df2c:
-//                uVar13 = logicptr[0] & uVar31 | DAT_0000df68;
-//                uVar17 = logicptr[1] & uVar31 | DAT_0000df6a;
-//                uVar16 = logicptr[2] & uVar31 | DAT_0000df6c;
-//                uVar21 = logicptr[3] & uVar31 | DAT_0000df6e;
-//                logicptr[0] = uVar13;
-//                logicptr[1] = uVar17;
-//                logicptr[2] = uVar16;
-//                logicptr[3] = uVar21;
-//
-//                uVar25 = CONCAT22((s16)*logicptr >> 0xf,uVar13);
-//                puVar39 = logicptr + 4;
-//            }
-//            else
-//            {
-//                uVar17 = logicptr[0];
-//                puVar39 = logicptr + 4;
-//                uVar16 = logicptr[1] & uVar32 | DAT_0000df62;
-//                uVar21 = logicptr[2] & uVar32 | DAT_0000df64;
-//                uVar24 = logicptr[3] & uVar32 | DAT_0000df66;
-//                logicptr[0] = uVar17 & uVar32 | DAT_0000df60;
-//                logicptr[1] = uVar16;
-//                logicptr[2] = uVar21;
-//                logicptr[3] = uVar24;
-//                logicptr = puVar39;
-//                if (ypos1 < 0)
-//                    goto LAB_0000df2c;
-//
-//                uVar25 = CONCAT22((s16)uVar17 >> 0xf,bit1);
-//
-//                for (u16 i = 0; i < uVar13; i++)
-//                {
-//LAB_0000df1a:
-//                    logicptr[0] = (u16)uVar25;
-//                    logicptr[1] = bit2;
-//                    logicptr[2] = bit3;
-//                    logicptr[3] = (u16)(uVar28 >> 0x10);
-//
-//                    puVar39 = logicptr + 4;
-//                    logicptr = puVar39;
-//                }
-//
-//                uVar25 = uVar25 & 0xffff0000 | bit4 & 0xffff;
-//                if (ypos1 != 0)
-//                    goto LAB_0000df2c;
-//            }
-//
-//            logicptr = puVar39 + rwwidth;
-//            uVar13 = (s16)uVar28 - 1;
-//            uVar28 = uVar28 & 0xffff0000 | (u32)uVar13;
-//            if (uVar13 == 0xffff)
-//            {
-//                return;
-//            }
-//        }
-//        while( true );
-//    }
-//
-//    uVar26 = (u32)(u16)(blocy1 - sprite->newy) * (u32)DAT_000195d0 * 2;
-//    iVar9 = uVar26 + 6;
-//    uVar26 = uVar26 & 0xffff0000;
-//    sVar10 = ((u16)((blocx1 - sprite->newx) - 1) >> 4) * 8;
-//    if ((sprite->newf & 1) != 0)
-//    {
-//        ypos2 = ((u16)((blocx1 - sprite->newx) - 1) >> 4) << 3;
-//        if (xpos1 <= sprite->newx)
-//        {
-//            ypos2 = 0;
-//            ypos1 = ypos1 + 8;
-//        }
-//        DAT_000195ba = (u16)(xpos1 <= sprite->newx);
-//        DAT_000195bc = 0;
-//        puVar40 = (u32 *)(bitmap + (((s32)(s16)(DAT_000195d0 * 2) + (u32)(u16)(blocy1 - sprite->newy) * (u32)(u16)(DAT_000195d0 * 2) + -10) - (s32)ypos2));
-//        ypos1 = ypos1 - (read16(bitmap + 2, alis.platform.is_little_endian) + 1U & 0xfffc);
-//        xpos1 = wwidth;
-//        if ((s16)((read16(bitmap + 2, alis.platform.is_little_endian) | 0xf) + sprite->newx) < xpos2)
-//        {
-//            DAT_000195bc = 1;
-//            xpos1 = wwidth - 1;
-//            if ((s16)(wwidth - 1) < 0)
-//            {
-//                DAT_000195bc = -1;
-//                xpos1 = wwidth;
-//            }
-//            ypos1 = ypos1 + 8;
-//        }
-//
-//        ypos2 = DAT_000195bc;
-//        xpos2 = sprite->newx;
-//        do
-//        {
-//            if (DAT_000195ba == 0)
-//            {
-//                wwidth = xpos1;
-//                if (-1 < ypos2)
-//                    goto LAB_0000e8da;
-//LAB_0000e982:
-//                uVar26 = 0;
-//                uVar25 = 0;
-//                uVar28 = puVar40[2];
-//                uVar29 = puVar40[3];
-//                puVar39 = logicptr;
-//LAB_0000e98c:
-//                uVar8 = (u32)(xpos2 & 0xf);
-//                iVar9 = (uVar26 & 0xffff0000 | uVar28 >> 0x10) << uVar8;
-//                iVar15 = (uVar25 & 0xffff0000 | uVar29 >> 0x10) << uVar8;
-//                iVar19 = (uVar26 << 0x10 | uVar28 & 0xffff) << uVar8;
-//                iVar22 = (uVar25 << 0x10 | uVar29 & 0xffff) << uVar8;
-//                uVar1 = (&DAT_000196e6)[(s16)((u16)((u32)iVar19 >> 0x10) & 0xff)];
-//                uVar2 = (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar19 >> 0x18)];
-//                uVar3 = (&DAT_000196e6)[(s16)((u16)((u32)iVar15 >> 0x10) & 0xff)];
-//                uVar4 = (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar15 >> 0x18)];
-//                uVar5 = (&DAT_000196e6)[(s16)((u16)((u32)iVar22 >> 0x10) & 0xff)];
-//                uVar6 = (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar22 >> 0x18)];
-//                wwidth = ~(CONCAT11((&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x10)], (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x18)]) | CONCAT11(uVar1,uVar2) | CONCAT11(uVar3,uVar4) | CONCAT11(uVar5,uVar6));
-//                logicptr = puVar39 + 4;
-//                uVar11 = *puVar39 & wwidth;
-//                uVar26 = CONCAT22((s16)*puVar39 >> 0xf,uVar11);
-//                puVar39[0] = CONCAT11((&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x10)], (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x18)]) | uVar11;
-//                puVar39[1] = CONCAT11(uVar1,uVar2) | puVar39[1] & wwidth;
-//                puVar39[2] = CONCAT11(uVar3,uVar4) | puVar39[2] & wwidth;
-//                puVar39[3] = CONCAT11(uVar5,uVar6) | puVar39[3] & wwidth;
-//            }
-//            else
-//            {
-//                uVar28 = 0;
-//                uVar29 = 0;
-//                uVar26 = puVar40[2];
-//                uVar25 = puVar40[3];
-//                puVar39 = logicptr;
-//                uVar11 = xpos1;
-//                if (ypos2 < 0)
-//                    goto LAB_0000e98c;
-//
-//                while (true)
-//                {
-//                    uVar8 = (u32)(xpos2 & 0xf);
-//                    iVar9 = (uVar26 & 0xffff0000 | uVar28 >> 0x10) << uVar8;
-//                    iVar15 = (uVar25 & 0xffff0000 | uVar29 >> 0x10) << uVar8;
-//                    iVar19 = (uVar26 << 0x10 | uVar28 & 0xffff) << uVar8;
-//                    iVar22 = (uVar25 << 0x10 | uVar29 & 0xffff) << uVar8;
-//                    uVar1 = (&DAT_000196e6)[(s16)((u16)((u32)iVar19 >> 0x10) & 0xff)];
-//                    uVar2 = (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar19 >> 0x18)];
-//                    uVar3 = (&DAT_000196e6)[(s16)((u16)((u32)iVar22 >> 0x10) & 0xff)];
-//                    uVar4 = (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar22 >> 0x18)];
-//                    uVar31 = (u16)CONCAT31(CONCAT21(uVar11,(&DAT_000196e6)[(s16)((u16)((u32)iVar15 >> 0x10) & 0xff)]), (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar15 >> 0x18)]);
-//                    wwidth = ~(CONCAT11((&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x10)], (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x18)]) | CONCAT11(uVar1,uVar2) | uVar31 | CONCAT11(uVar3,uVar4));
-//                    logicptr = puVar39 + 4;
-//                    uVar32 = *puVar39 & wwidth;
-//                    uVar26 = CONCAT22((s16)*puVar39 >> 0xf,uVar32);
-//                    puVar39[0] = CONCAT11((&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x10)], (&DAT_000196e6)[(s16)(u16)(u8)((u32)iVar9 >> 0x18)]) | uVar32;
-//                    puVar39[1] = CONCAT11(uVar1,uVar2) | puVar39[1] & wwidth;
-//                    puVar39[2] = uVar31 | puVar39[2] & wwidth;
-//                    puVar39[3] = CONCAT11(uVar3,uVar4) | puVar39[3] & wwidth;
-//                    wwidth = uVar11 - 1;
-//                    if ((u16)(uVar11 - 1) == 0xffff)
-//                        break;
-//LAB_0000e8da:
-//                    uVar26 = *puVar40;
-//                    uVar25 = puVar40[1];
-//                    uVar28 = puVar40[2];
-//                    uVar29 = puVar40[3];
-//                    puVar40 = puVar40 + -2;
-//                    puVar39 = logicptr;
-//                    uVar11 = wwidth;
-//                }
-//
-//                if (ypos2 != 0)
-//                    goto LAB_0000e982;
-//            }
-//
-//            puVar40 = (u32 *)((s32)puVar40 - (s32)ypos1);
-//            logicptr = logicptr + rwwidth;
-//            uStack_2 = uStack_2 - 1;
-//            if (uStack_2 == 0xffff)
-//            {
-//                return;
-//            }
-//        }
-//        while( true );
-//    }
-//
-//    if ((sprite->newx & 0xf) == 0)
-//    {
-//        if (*bitmap == '\x02')
-//        {
-//            // ST image
-//
-//            uVar25 = (u32)(u16)(sVar10 + 8);
-//            if (xpos1 <= sprite->newx)
-//            {
-//                uVar25 = 0;
-//            }
-//            uVar26 = uVar26 | uVar25;
-//            // transfen((u8 *)(bitmap + (s16)uVar25 + iVar9), (u8 *)puVar35, ypos, height, uVar30, uStack_2);
-//            return;
-//        }
-//
-//        if ((bitmap[1] & 0x10U) == 0)
-//        {
-//            if ((bitmap[1] & 0x20U) == 0)
-//            {
-//                sVar10 += 8;
-//                if (xpos1 <= sprite->newx) {
-//                    sVar10 = 0;
-//                }
-//                puVar39 = (u16 *)(bitmap + sVar10 + iVar9);
-//                xpos1 = wwidth;
-//
-//                do
-//                {
-//                    do
-//                    {
-//                        puVar36 = logicptr;
-//                        xpos2 = *puVar39;
-//                        uVar11 = puVar39[1];
-//                        logicptr = puVar39 + 3;
-//                        uVar32 = puVar39[2];
-//                        puVar39 = puVar39 + 4;
-//                        uVar31 = *logicptr;
-//                        uVar25 = uVar26 & 0xffff0000;
-//                        uVar12 = xpos2 | uVar11 | uVar32 | uVar31;
-//                        uVar26 = uVar25 | uVar12;
-//                        if (uVar12 != 0)
-//                        {
-//                            uVar12 = ~uVar12;
-//                            uVar26 = uVar25 | uVar12;
-//                            if (uVar12 == 0)
-//                            {
-//                                puVar36[0] = xpos2;
-//                                puVar36[1] = uVar11;
-//                                puVar36[2] = uVar32;
-//                                puVar36[3] = uVar31;
-//                            }
-//                            else
-//                            {
-//                                uVar13 = *puVar36 & uVar12;
-//                                uVar26 = CONCAT22((s16)*puVar36 >> 0xf,uVar13);
-//                                puVar36[0] = xpos2 | uVar13;
-//                                puVar36[1] = uVar11 | puVar36[1] & uVar12;
-//                                puVar36[2] = uVar32 | puVar36[2] & uVar12;
-//                                puVar36[3] = uVar31 | puVar36[3] & uVar12;
-//                            }
-//                        }
-//
-//                        xpos1 = xpos1 - 1;
-//                        logicptr = puVar36 + 4;
-//                    }
-//                    while (xpos1 != 0xffff);
-//
-//                    puVar39 = (u16 *)((s32)ypos1 + (s32)puVar39);
-//                    uStack_2 = uStack_2 - 1;
-//                    logicptr = (u16 *)((s32)puVar36 + ypos2 + 8);
-//                    xpos1 = wwidth;
-//                }
-//                while (uStack_2 != 0xffff);
-//
-//                return;
-//            }
-//
-//            uVar25 = (u32)(u16)(sVar10 + 8);
-//            if (xpos1 <= sprite->newx)
-//            {
-//                uVar25 = 0;
-//            }
-//            uVar26 = uVar26 | uVar25;
-//            puVar39 = (u16 *)(bitmap + (s16)uVar25 + iVar9);
-//            xpos1 = wwidth;
-//
-//            do
-//            {
-//                do
-//                {
-//                    puVar36 = logicptr;
-//                    xpos2 = puVar39[0];
-//                    uVar11 = puVar39[1];
-//                    uVar32 = puVar39[2];
-//                    puVar39 = puVar39 + 4;
-//                    uVar31 = xpos2 | uVar11 | uVar32;
-//                    if (uVar31 != 0)
-//                    {
-//                        uVar31 = ~uVar31;
-//                        if (uVar31 == 0)
-//                        {
-//                            puVar36[0] = xpos2;
-//                            puVar36[1] = uVar11;
-//                            puVar36[2] = uVar32;
-//                            puVar36[3] = 0;
-//                        }
-//                        else
-//                        {
-//                            xpos2 = puVar36[0] & uVar31 | xpos2;
-//                            uVar26 = CONCAT22((s16)*puVar36 >> 0xf,xpos2);
-//                            puVar36[0] = xpos2;
-//                            puVar36[1] = puVar36[1] & uVar31 | uVar11;
-//                            puVar36[2] = puVar36[2] & uVar31 | uVar32;
-//                            puVar36[3] = puVar36[3] & uVar31;
-//                        }
-//                    }
-//                    xpos1 = xpos1 - 1;
-//                    logicptr = puVar36 + 4;
-//                }
-//                while (xpos1 != 0xffff);
-//
-//                puVar39 = (u16 *)((s32)ypos1 + (s32)puVar39);
-//                uStack_2 = uStack_2 - 1;
-//                logicptr = (u16 *)((s32)puVar36 + ypos2 + 8);
-//                xpos1 = wwidth;
-//            }
-//            while (uStack_2 != 0xffff);
-//
-//            return;
-//        }
-//
-//        uVar25 = (u32)(u16)(sVar10 + 8);
-//        if (xpos1 <= sprite->newx)
-//        {
-//            uVar25 = 0;
-//        }
-//
-//        uVar26 = uVar26 | uVar25;
-//        puVar39 = (u16 *)(bitmap + (s16)uVar25 + iVar9);
-//        xpos1 = wwidth;
-//
-//        do
-//        {
-//            do
-//            {
-//                puVar36 = logicptr;
-//                xpos2 = *puVar39;
-//                uVar11 = puVar39[1];
-//                puVar39 = puVar39 + 4;
-//                if ((xpos2 | uVar11) != 0)
-//                {
-//                    uVar32 = ~(xpos2 | uVar11);
-//                    if (uVar32 == 0)
-//                    {
-//                        *puVar36 = xpos2;
-//                        puVar36[1] = uVar11;
-//                        puVar36[2] = 0;
-//                        puVar36[3] = 0;
-//                    }
-//                    else
-//                    {
-//                        xpos2 = *puVar36 & uVar32 | xpos2;
-//                        uVar26 = CONCAT22((s16)*puVar36 >> 0xf,xpos2);
-//                        *puVar36 = xpos2;
-//                        puVar36[1] = puVar36[1] & uVar32 | uVar11;
-//                        puVar36[2] = puVar36[2] & uVar32;
-//                        puVar36[3] = puVar36[3] & uVar32;
-//                    }
-//                }
-//
-//                xpos1 = xpos1 - 1;
-//                logicptr = puVar36 + 4;
-//            }
-//            while (xpos1 != 0xffff);
-//
-//            puVar39 = (u16 *)((s32)ypos1 + (s32)puVar39);
-//            uStack_2 = uStack_2 - 1;
-//            logicptr = (u16 *)((s32)puVar36 + ypos2 + 8);
-//            xpos1 = wwidth;
-//        }
-//        while (uStack_2 != 0xffff);
-//
-//        return;
-//    }
-//
-//    sVar41 = ypos1 + -8;
-//    if (xpos1 <= sprite->newx)
-//    {
-//        sVar10 = 0;
-//        sVar41 = ypos1;
-//    }
-//
-//    DAT_000195ba = (u16)(xpos1 <= sprite->newx);
-//    DAT_000195bc = 0;
-//    puVar39 = (u16 *)(bitmap + sVar10 + iVar9);
-//    DAT_0000d5e6 = wwidth;
-//    if ((s16)((read16(bitmap + 2, alis.platform.is_little_endian) | 0xf) + sprite->newx) < xpos2)
-//    {
-//        DAT_000195bc = 1;
-//        DAT_0000d5e6 = wwidth - 1;
-//        if ((s16)(wwidth - 1) < 0) {
-//            DAT_000195bc = -1;
-//            DAT_0000d5e6 = wwidth;
-//        }
-//        sVar41 = sVar41 + 8;
-//    }
-//
-//    ypos1 = DAT_000195bc;
-//    DAT_0000d5e4 = uStack_2;
-//    if (*bitmap != '\x02')
-//    {
-//        if ((bitmap[1] & 0x10U) != 0)
-//        {
-//            xpos1 = sprite->newx;
-//            DAT_0000d5ea = DAT_000195bc;
-//            DAT_0000d5e8 = DAT_000195ba;
-//            do
-//            {
-//                xpos2 = DAT_0000d5e6;
-//                ypos1 = DAT_0000d5ea;
-//                if (DAT_0000d5e8 != 0)
-//                {
-//                    uVar26 = 0;
-//                    uVar25 = 0;
-//                    goto LAB_0000dc48;
-//                }
-//
-//                puVar36 = puVar39 + 1;
-//                wwidth = *puVar39;
-//                puVar39 = puVar39 + 4;
-//                uVar26 = (u32)wwidth << 0x10;
-//                uVar25 = (u32)*puVar36 << 0x10;
-//                uVar28 = uVar26;
-//                uVar29 = uVar25;
-//                if (-1 < DAT_0000d5ea)
-//                    goto LAB_0000dc48;
-//
-//                do
-//                {
-//                    xpos2 = 0;
-//                    ypos1 = 0;
-//                    uVar26 = uVar28;
-//                    uVar25 = uVar29;
-//                    puVar36 = logicptr;
-//                    while (true)
-//                    {
-//                        uVar8 = uVar28 >> (xpos1 & 0xf);
-//                        uVar11 = (u16)uVar8;
-//                        uVar32 = (u16)(uVar29 >> (xpos1 & 0xf));
-//                        wwidth = uVar11 | uVar32;
-//                        if (wwidth != 0)
-//                        {
-//                            wwidth = ~wwidth;
-//                            if (wwidth == 0)
-//                            {
-//                                *puVar36 = uVar11;
-//                                puVar36[1] = uVar32;
-//                                *(u32 *)(puVar36 + 2) = 0;
-//                            }
-//                            else
-//                            {
-//                                *puVar36 = *puVar36 & wwidth | uVar11;
-//                                puVar36[1] = puVar36[1] & wwidth | uVar32;
-//                                puVar36[2] = puVar36[2] & wwidth;
-//                                puVar36[3] = puVar36[3] & wwidth;
-//                            }
-//                        }
-//
-//                        xpos2 = xpos2 - 1;
-//                        logicptr = puVar36 + 4;
-//                        if (xpos2 == 0xffff)
-//                            break;
-//LAB_0000dc48:
-//                        puVar36 = puVar39 + 1;
-//                        wwidth = *puVar39;
-//                        uVar28 = uVar26 | wwidth;
-//                        uVar29 = uVar25 | *puVar36;
-//                        puVar39 = puVar39 + 4;
-//                        uVar26 = (u32)wwidth << 0x10;
-//                        uVar25 = (u32)*puVar36 << 0x10;
-//                        puVar36 = logicptr;
-//                    }
-//
-//                    logicptr = puVar36 + 4;
-//                    uVar28 = uVar26;
-//                    uVar29 = uVar25;
-//                }
-//                while (ypos1 != 0);
-//
-//                puVar39 = (u16 *)((s32)sVar41 + (s32)puVar39);
-//                logicptr = (u16 *)((s32)ypos2 + (s32)logicptr);
-//                uStack_2 = uStack_2 - 1;
-//            }
-//            while (-1 < (s16)uStack_2);
-//
-//            return;
-//        }
-//
-//        if ((bitmap[1] & 0x20U) == 0)
-//        {
-//            xpos1 = sprite->newx;
-//            DAT_0000d5ea = DAT_000195bc;
-//            DAT_0000d5e8 = DAT_000195ba;
-//            do
-//            {
-//                uVar26 = (u32)DAT_0000d5e6;
-//                ypos1 = DAT_0000d5ea;
-//                if (DAT_0000d5e8 != 0)
-//                {
-//                    uVar25 = 0;
-//                    uVar28 = 0;
-//                    uVar29 = 0;
-//                    goto LAB_0000d830;
-//                }
-//
-//                puVar36 = puVar39 + 1;
-//                xpos2 = *puVar39;
-//                puVar33 = puVar39 + 2;
-//                puVar39 = puVar39 + 4;
-//                uVar25 = (u32)xpos2 << 0x10;
-//                uVar28 = (u32)*puVar36 << 0x10;
-//                uVar29 = (u32)*puVar33 << 0x10;
-//                uVar8 = uVar25;
-//                uVar14 = uVar28;
-//                uVar18 = uVar29;
-//                xpos2 = DAT_0000d5e6;
-//                if (-1 < DAT_0000d5ea)
-//                    goto LAB_0000d830;
-//
-//                do
-//                {
-//                    uVar26 = 0;
-//                    ypos1 = 0;
-//                    uVar25 = uVar8;
-//                    uVar28 = uVar14;
-//                    uVar29 = uVar18;
-//                    puVar36 = logicptr;
-//
-//                    while ( true )
-//                    {
-//                        uVar7 = (u32)(xpos1 & 0xf);
-//                        wwidth = (u16)(uVar8 >> uVar7);
-//                        uVar32 = (u16)(uVar14 >> uVar7);
-//                        uVar31 = (u16)(uVar18 >> uVar7);
-//                        uVar12 = (u16)(uVar26 >> uVar7);
-//                        uVar11 = wwidth | uVar32 | uVar31 | uVar12;
-//                        if (uVar11 != 0)
-//                        {
-//                            uVar11 = ~uVar11;
-//                            if (uVar11 == 0)
-//                            {
-//                                *puVar36 = wwidth;
-//                                puVar36[1] = uVar32;
-//                                puVar36[2] = uVar31;
-//                                puVar36[3] = uVar12;
-//                            }
-//                            else
-//                            {
-//                                *puVar36 = *puVar36 & uVar11 | wwidth;
-//                                puVar36[1] = puVar36[1] & uVar11 | uVar32;
-//                                puVar36[2] = puVar36[2] & uVar11 | uVar31;
-//                                puVar36[3] = puVar36[3] & uVar11 | uVar12;
-//                            }
-//                        }
-//                        uVar26 = uVar8 >> uVar7 & 0xffff0000 | (u32)(u16)(xpos2 - 1);
-//                        logicptr = puVar36 + 4;
-//                        if ((u16)(xpos2 - 1) == 0xffff)
-//                            break;
-//LAB_0000d830:
-//                        xpos2 = (u16)uVar26;
-//                        puVar36 = puVar39 + 1;
-//                        wwidth = *puVar39;
-//                        uVar8 = uVar25 | wwidth;
-//                        puVar33 = puVar39 + 2;
-//                        uVar14 = uVar28 | *puVar36;
-//                        puVar34 = puVar39 + 3;
-//                        uVar18 = uVar29 | *puVar33;
-//                        puVar39 = puVar39 + 4;
-//                        uVar26 = (u32)*puVar34;
-//                        uVar25 = (u32)wwidth << 0x10;
-//                        uVar28 = (u32)*puVar36 << 0x10;
-//                        uVar29 = (u32)*puVar33 << 0x10;
-//                        puVar36 = logicptr;
-//                    }
-//
-//                    logicptr = puVar36 + 4;
-//                    uVar8 = uVar25;
-//                    uVar14 = uVar28;
-//                    uVar18 = uVar29;
-//                }
-//                while (ypos1 != 0);
-//
-//                puVar39 = (u16 *)((s32)sVar41 + (s32)puVar39);
-//                logicptr = (u16 *)((s32)ypos2 + (s32)logicptr);
-//                uStack_2 = uStack_2 - 1;
-//            }
-//            while (-1 < (s16)uStack_2);
-//
-//            return;
-//        }
-//
-//        xpos1 = sprite->newx;
-//        DAT_0000d5ea = DAT_000195bc;
-//        DAT_0000d5e8 = DAT_000195ba;
-//        do
-//        {
-//            xpos2 = DAT_0000d5e6;
-//            ypos1 = DAT_0000d5ea;
-//            if (DAT_0000d5e8 != 0)
-//            {
-//                uVar26 = 0;
-//                uVar25 = 0;
-//                uVar28 = 0;
-//                goto LAB_0000da5e;
-//            }
-//            puVar36 = puVar39 + 1;
-//            wwidth = *puVar39;
-//            puVar33 = puVar39 + 2;
-//            puVar39 = puVar39 + 4;
-//            uVar26 = (u32)wwidth << 0x10;
-//            uVar25 = (u32)*puVar36 << 0x10;
-//            uVar28 = (u32)*puVar33 << 0x10;
-//            uVar29 = uVar26;
-//            uVar8 = uVar25;
-//            uVar14 = uVar28;
-//            if (-1 < DAT_0000d5ea)
-//                goto LAB_0000da5e;
-//
-//            do
-//            {
-//                xpos2 = 0;
-//                ypos1 = 0;
-//                uVar26 = uVar29;
-//                uVar25 = uVar8;
-//                uVar28 = uVar14;
-//                puVar36 = logicptr;
-//                while( true )
-//                {
-//                    uVar18 = (u32)(xpos1 & 0xf);
-//                    uVar7 = uVar29 >> uVar18;
-//                    uVar11 = (u16)uVar7;
-//                    uVar32 = (u16)(uVar8 >> uVar18);
-//                    uVar31 = (u16)(uVar14 >> uVar18);
-//                    wwidth = uVar11 | uVar32 | uVar31;
-//                    if (wwidth != 0)
-//                    {
-//                        wwidth = ~wwidth;
-//                        if (wwidth == 0)
-//                        {
-//                            *puVar36 = uVar11;
-//                            puVar36[1] = uVar32;
-//                            puVar36[2] = uVar31;
-//                            puVar36[3] = 0;
-//                        }
-//                        else
-//                        {
-//                            *puVar36 = *puVar36 & wwidth | uVar11;
-//                            puVar36[1] = puVar36[1] & wwidth | uVar32;
-//                            puVar36[2] = puVar36[2] & wwidth | uVar31;
-//                            puVar36[3] = puVar36[3] & wwidth;
-//                        }
-//                    }
-//
-//                    xpos2 = xpos2 - 1;
-//                    logicptr = puVar36 + 4;
-//                    if (xpos2 == 0xffff)
-//                        break;
-//LAB_0000da5e:
-//                    puVar36 = puVar39 + 1;
-//                    wwidth = *puVar39;
-//                    uVar29 = uVar26 | wwidth;
-//                    puVar33 = puVar39 + 2;
-//                    uVar8 = uVar25 | *puVar36;
-//                    uVar14 = uVar28 | *puVar33;
-//                    puVar39 = puVar39 + 4;
-//                    uVar26 = (u32)wwidth << 0x10;
-//                    uVar25 = (u32)*puVar36 << 0x10;
-//                    uVar28 = (u32)*puVar33 << 0x10;
-//                    puVar36 = logicptr;
-//                }
-//
-//                logicptr = puVar36 + 4;
-//                uVar29 = uVar26;
-//                uVar8 = uVar25;
-//                uVar14 = uVar28;
-//            }
-//            while (ypos1 != 0);
-//
-//            puVar39 = (u16 *)((s32)sVar41 + (s32)puVar39);
-//            logicptr = (u16 *)((s32)ypos2 + (s32)logicptr);
-//            uStack_2 = uStack_2 - 1;
-//        }
-//        while (-1 < (s16)uStack_2);
-//
-//        return;
-//    }
-//
-//    if ((bitmap[1] & 0x10U) != 0)
-//    {
-//        xpos1 = sprite->newx & 0xf;
-//        DAT_0000d5ea = DAT_000195bc;
-//        DAT_0000d5e8 = DAT_000195ba;
-//
-//        do
-//        {
-//            xpos2 = DAT_0000d5e6;
-//            if (DAT_0000d5e8 == 0)
-//            {
-//                wwidth = *puVar39;
-//                uVar11 = puVar39[1];
-//                puVar39 = puVar39 + 4;
-//                puVar36 = logicptr;
-//                if (-1 < ypos1)
-//                    goto LAB_0000dd48;
-//LAB_0000dd68:
-//                xpos2 = (u16)(((u32)wwidth << 0x10) >> xpos1);
-//                uVar11 = (u16)(((u32)uVar11 << 0x10) >> xpos1);
-//                wwidth = ~(xpos2 | uVar11);
-//                xpos2 = *puVar36 & wwidth | xpos2;
-//                uVar26 = uVar26 & 0xffff0000 | (u32)xpos2;
-//                logicptr = puVar36 + 4;
-//                *puVar36 = xpos2;
-//                puVar36[1] = puVar36[1] & wwidth | uVar11;
-//                puVar36[2] = puVar36[2] & wwidth;
-//                puVar36[3] = puVar36[3] & wwidth;
-//            }
-//            else
-//            {
-//                wwidth = *puVar39;
-//                uVar11 = puVar39[1];
-//                uVar32 = ~((wwidth | uVar11) >> xpos1);
-//                uVar26 = (u32)uVar32;
-//                uVar31 = *logicptr & uVar32 | wwidth >> xpos1;
-//                rwwidth = CONCAT22(wwidth,uVar31);
-//                wwidth = logicptr[1] & uVar32 | uVar11 >> xpos1;
-//                iVar9 = CONCAT22(uVar11,wwidth);
-//                *logicptr = uVar31;
-//                logicptr[1] = wwidth;
-//                logicptr[2] = logicptr[2] & uVar32;
-//                logicptr[3] = logicptr[3] & uVar32;
-//                while( true )
-//                {
-//                    logicptr = logicptr + 4;
-//                    puVar39 = puVar39 + 4;
-//                    uVar11 = (u16)((u32)iVar9 >> 0x10);
-//                    wwidth = (u16)((u32)rwwidth >> 0x10);
-//                    xpos2 = xpos2 - 1;
-//                    if (xpos2 == 0xffff)
-//                        break;
-//LAB_0000dd48:
-//                    uVar32 = puVar39[1];
-//                    rwwidth = CONCAT22(wwidth,*puVar39) << 0x10;
-//                    iVar9 = CONCAT22(uVar11,uVar32) << 0x10;
-//                    uVar26 = CONCAT22(wwidth,*puVar39) >> xpos1;
-//                    *logicptr = (u16)uVar26;
-//                    logicptr[1] = (u16)(CONCAT22(uVar11,uVar32) >> xpos1);
-//                    *(u32 *)(logicptr + 2) = 0;
-//                }
-//
-//                puVar36 = logicptr;
-//                if (ypos1 != 0)
-//                    goto LAB_0000dd68;
-//            }
-//            puVar39 = (u16 *)((s32)sVar41 + (s32)puVar39);
-//            logicptr = (u16 *)((s32)ypos2 + (s32)logicptr);
-//            uStack_2 = uStack_2 - 1;
-//            if ((s16)uStack_2 < 0)
-//            {
-//                return;
-//            }
-//        }
-//        while( true );
-//    }
-//
-//    if ((bitmap[1] & 0x20U) != 0)
-//    {
-//        xpos1 = sprite->newx & 0xf;
-//        DAT_0000d5ea = DAT_000195bc;
-//        DAT_0000d5e8 = DAT_000195ba;
-//        do
-//        {
-//            xpos2 = DAT_0000d5e6;
-//            if (DAT_0000d5e8 == 0)
-//            {
-//                wwidth = *puVar39;
-//                uVar11 = puVar39[1];
-//                uVar32 = puVar39[2];
-//                puVar39 = puVar39 + 4;
-//                puVar36 = logicptr;
-//                if (-1 < ypos1)
-//                    goto LAB_0000db86;
-//LAB_0000dbb2:
-//                uVar25 = (u32)xpos1;
-//                xpos2 = (u16)(0 >> uVar25);
-//                uVar11 = (u16)(((u32)uVar11 << 0x10) >> uVar25);
-//                uVar32 = (u16)(((u32)uVar32 << 0x10) >> uVar25);
-//                wwidth = ~(xpos2 | uVar11 | uVar32);
-//                xpos2 = *puVar36 & wwidth | xpos2;
-//                uVar26 = uVar26 & 0xffff0000 | (u32)xpos2;
-//                logicptr = puVar36 + 4;
-//                *puVar36 = xpos2;
-//                puVar36[1] = puVar36[1] & wwidth | uVar11;
-//                puVar36[2] = puVar36[2] & wwidth | uVar32;
-//                puVar36[3] = puVar36[3] & wwidth;
-//            }
-//            else
-//            {
-//                wwidth = puVar39[1];
-//                uVar11 = puVar39[2];
-//                uVar32 = ~((u16)(*puVar39 | wwidth | uVar11) >> xpos1);
-//                uVar26 = (u32)uVar32;
-//                uVar31 = logicptr[1] & uVar32 | wwidth >> xpos1;
-//                rwwidth = CONCAT22(wwidth,uVar31);
-//                wwidth = logicptr[2] & uVar32 | uVar11 >> xpos1;
-//                iVar9 = CONCAT22(uVar11,wwidth);
-//                *logicptr = *logicptr & uVar32 | *puVar39 >> xpos1;
-//                logicptr[1] = uVar31;
-//                logicptr[2] = wwidth;
-//                logicptr[3] = logicptr[3] & uVar32;
-//                while( true )
-//                {
-//                    wwidth = 0;
-//                    logicptr = logicptr + 4;
-//                    puVar39 = puVar39 + 4;
-//                    uVar32 = (u16)((u32)iVar9 >> 0x10);
-//                    uVar11 = (u16)((u32)rwwidth >> 0x10);
-//                    xpos2 = xpos2 - 1;
-//                    if (xpos2 == 0xffff)
-//                        break;
-//LAB_0000db86:
-//                    uVar31 = puVar39[1];
-//                    uVar12 = puVar39[2];
-//                    rwwidth = CONCAT22(uVar11,uVar31) << 0x10;
-//                    iVar9 = CONCAT22(uVar32,uVar12) << 0x10;
-//                    uVar26 = CONCAT22(wwidth,*puVar39) >> xpos1;
-//                    *logicptr = (u16)uVar26;
-//                    logicptr[1] = (u16)(CONCAT22(uVar11,uVar31) >> xpos1);
-//                    logicptr[2] = (u16)(CONCAT22(uVar32,uVar12) >> xpos1);
-//                    logicptr[3] = 0;
-//                }
-//                puVar36 = logicptr;
-//                if (ypos1 != 0)
-//                    goto LAB_0000dbb2;
-//            }
-//            puVar39 = (u16 *)((s32)sVar41 + (s32)puVar39);
-//            logicptr = (u16 *)((s32)ypos2 + (s32)logicptr);
-//            uStack_2 = uStack_2 - 1;
-//            if ((s16)uStack_2 < 0)
-//            {
-//                return;
-//            }
-//        }
-//        while( true );
-//    }
-//
-//    xpos1 = sprite->newx & 0xf;
-//    DAT_0000d5ea = DAT_000195bc;
-//    DAT_0000d5e8 = DAT_000195ba;
-//    do
-//    {
-//        xpos2 = DAT_0000d5e6;
-//        uVar26 = uVar26 & 0xffff0000 | (u32)DAT_0000d5e6;
-//        if (DAT_0000d5e8 == 0)
-//        {
-//            wwidth = *puVar39;
-//            uVar11 = puVar39[1];
-//            puVar36 = puVar39 + 3;
-//            uVar32 = puVar39[2];
-//            puVar39 = puVar39 + 4;
-//            uVar31 = *puVar36;
-//            puVar36 = logicptr;
-//            if (-1 < ypos1)
-//                goto LAB_0000d986;
-//LAB_0000d9ba:
-//            uVar25 = (u32)xpos1;
-//            xpos2 = (u16)(0 >> uVar25);
-//            uVar11 = (u16)(((u32)uVar11 << 0x10) >> uVar25);
-//            uVar32 = (u16)(((u32)uVar32 << 0x10) >> uVar25);
-//            uVar31 = (u16)(((u32)uVar31 << 0x10) >> uVar25);
-//            wwidth = ~(xpos2 | uVar11 | uVar32 | uVar31);
-//            xpos2 = *puVar36 & wwidth | xpos2;
-//            uVar26 = uVar26 & 0xffff0000 | (u32)xpos2;
-//            logicptr = puVar36 + 4;
-//            *puVar36 = xpos2;
-//            puVar36[1] = puVar36[1] & wwidth | uVar11;
-//            puVar36[2] = puVar36[2] & wwidth | uVar32;
-//            puVar36[3] = puVar36[3] & wwidth | uVar31;
-//        }
-//        else
-//        {
-//            wwidth = puVar39[1];
-//            uVar11 = puVar39[2];
-//            uVar32 = puVar39[3];
-//            uVar31 = ~((u16)(*puVar39 | wwidth | uVar11 | uVar32) >> xpos1);
-//            uVar26 = 0;
-//            uVar12 = logicptr[1] & uVar31 | wwidth >> xpos1;
-//            rwwidth = CONCAT22(wwidth,uVar12);
-//            wwidth = logicptr[2] & uVar31 | uVar11 >> xpos1;
-//            iVar9 = CONCAT22(uVar11,wwidth);
-//            uVar11 = logicptr[3] & uVar31 | uVar32 >> xpos1;
-//            iVar15 = CONCAT22(uVar32,uVar11);
-//            *logicptr = *logicptr & uVar31 | *puVar39 >> xpos1;
-//            logicptr[1] = uVar12;
-//            logicptr[2] = wwidth;
-//            logicptr[3] = uVar11;
-//            while( true )
-//            {
-//                wwidth = 0;
-//                logicptr = logicptr + 4;
-//                puVar39 = puVar39 + 4;
-//                uVar31 = (u16)((u32)iVar15 >> 0x10);
-//                uVar32 = (u16)((u32)iVar9 >> 0x10);
-//                uVar11 = (u16)((u32)rwwidth >> 0x10);
-//                uVar26 = uVar26 & 0xffff0000 | (u32)(u16)(xpos2 - 1);
-//                if ((u16)(xpos2 - 1) == 0xffff)
-//                    break;
-//LAB_0000d986:
-//                xpos2 = (u16)uVar26;
-//                uVar12 = puVar39[1];
-//                uVar13 = puVar39[2];
-//                uVar17 = puVar39[3];
-//                rwwidth = CONCAT22(uVar11,uVar12) << 0x10;
-//                iVar9 = CONCAT22(uVar32,uVar13) << 0x10;
-//                iVar15 = CONCAT22(uVar31,uVar17) << 0x10;
-//                uVar26 = CONCAT22(wwidth,*puVar39) >> xpos1;
-//                logicptr[0] = (u16)(CONCAT22(wwidth,*puVar39) >> xpos1);
-//                logicptr[1] = (u16)(CONCAT22(uVar11,uVar12) >> xpos1);
-//                logicptr[2] = (u16)(CONCAT22(uVar32,uVar13) >> xpos1);
-//                logicptr[3] = (u16)(CONCAT22(uVar31,uVar17) >> xpos1);
-//            }
-//            puVar36 = logicptr;
-//            if (ypos1 != 0)
-//                goto LAB_0000d9ba;
-//        }
-//        puVar39 = (u16 *)((s32)sVar41 + (s32)puVar39);
-//        logicptr = (u16 *)((s32)ypos2 + (s32)logicptr);
-//        uStack_2 = uStack_2 - 1;
-//        if ((s16)uStack_2 < 0)
-//        {
-//            return;
-//        }
-//    } while( true );
-//}
 
 void calctop(void)
 {
     return;
 }
 
-void memfen(void)
-{
-    ptabfen[0] = fenx1;
-    ptabfen[1] = fenlargw;
-    ptabfen[2] = feny1;
-    ptabfen[3] = feny2;
-    ptabfen = ptabfen + 4;
-  
-    // TODO: ...
-//    if (ptabfen < 0x20581)
-//    {
-//        return;
-//    }
-    
-    // perror(param_1,0x16,param_2,param_3);
-    return;
-}
-
 void fentotv(void)
 {
-    // TODO: trsfen
-    // trsfen();
+    trsfen(logic, physic);
 }
 
 void fenetre(SceneVariables *scene, u16 elemidx1, u16 elemidx3)
@@ -3374,13 +2196,11 @@ void fenetre(SceneVariables *scene, u16 elemidx1, u16 elemidx3)
 
             tmpidx = scene->to_next;
             scridx = tmpidx;
-//            tmpidx = scene->to_next;
-//            scridx = (s8 *)((u32)scridx & 0xffff0000 | (u32)uVar1);
         }
 
         // TODO: mouse
 //        cVar2 = fremouse;
-//        if (((-1 < fmouse) && (fmouse != '\x02')) && (fswitch == '\0'))
+//        if (((-1 < fmouse) && (fmouse != '\x02')) && (alis._cclipping == '\0'))
 //        {
 //            do
 //            {
@@ -3398,26 +2218,26 @@ void fenetre(SceneVariables *scene, u16 elemidx1, u16 elemidx3)
 //            }
 //        }
 
-//        if ((a2[1] & 0x20) == 0)
-//        {
-//            if (fswitch != '\0')
-//            {
-//                if (wpag == '\0')
-//                {
-//                    memfen();
-//                }
-//
-//                return;
-//            }
-//
-//            if (wpag == '\0')
-//            {
-//                fentotv();
-//            }
-//        }
+        if ((scene->numelem & 0x20) == 0)
+        {
+            if (alis._cclipping != 0)
+            {
+                if (wpag == 0)
+                {
+                    memfen();
+                }
+
+                return;
+            }
+
+            if (wpag == 0)
+            {
+                fentotv();
+            }
+        }
 
         // TODO: mouse
-//        if (fswitch == '\0')
+//        if (alis._cclipping == '\0')
 //        {
 //            if ((tvmode != '\0') && (-1 < fmouse))
 //            {
@@ -3429,184 +2249,12 @@ void fenetre(SceneVariables *scene, u16 elemidx1, u16 elemidx3)
     }
 }
 
-// ishar 2
-//void affiscr(u8 *scene,s16 d3w)
-//{
-//  u8 *a0;
-//  u16 d1w;
-//  s8 cVar1;
-//  u32 uVar2;
-//  s16 sVar5;
-//  u16 d1w_00;
-//  u32 uVar3;
-//  s16 sVar6;
-//  u8 uVar8;
-//  s16 sVar4;
-//
-//  if ((fremap != '\0') || ((s8)*scene < '\0')) {
-//    depscreen(scene, d3w);
-//  }
-//  wback = (scene[1] & 4) != 0;
-//  wpag = '\0';
-//  if ((*scene & 0x20) != 0) {
-//    wpag = '\x01';
-//    spag = spag + -1;
-//    if (spag == '\0') {
-//      wpag = -1;
-//    }
-//  }
-//  if ((scene[1] & 0x10) == 0) {
-//    uVar3 = (u32)(u16)d3w;
-//affiscin:
-//    do {
-//      uVar2 = uVar3;
-//      sVar4 = (s16)uVar2;
-//      d1w_00 = *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar4);
-//      uVar3 = (u32)d1w_00;
-//      if (d1w_00 == 0) goto affiscr1;
-//      cVar1 = *(s8 *)(SPRITEMEM_PTR + (s16)d1w_00);
-//      if (cVar1 != '\0') {
-//        joints = 0;
-//        if (cVar1 == '\x02') {
-//          sVar6 = inilink(d1w_00);
-//          uVar8 = sVar6 == 0;
-//          if (sVar6 < 0) {
-//            deptopix(scene,d1w_00);
-//            tstjoints(d1w_00);
-//            if ((bool)uVar8) {
-//              *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar4) =
-//                   *(u16 *)(SPRITEMEM_PTR + 6 + (s32)(s16)d1w_00);
-//              fenetre(scene,d1w_00,d3w);
-//            }
-//            else {
-//              *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar4) =
-//                   *(u16 *)(SPRITEMEM_PTR + 6 + (s32)(s16)d1w_00);
-//            }
-//            *(u32 *)(SPRITEMEM_PTR + 8 + (s32)(s16)d1w_00) = newad;
-//              // *(u32 *)(SPRITEMEM_PTR + 0xc + (s32)(s16)d1w_00) = newx;
-//              *(u16 *)(SPRITEMEM_PTR + 0xc + (s32)(s16)d1w_00) = newx;
-//              *(u16 *)(SPRITEMEM_PTR + 0xe + (s32)(s16)d1w_00) = newy;
-//              *(u16 *)(SPRITEMEM_PTR + 0x10 + (s32)(s16)d1w_00) = newd;
-//            *(u8 *)(SPRITEMEM_PTR + 8 + (s32)(s16)d1w_00) = newf;
-//            rangesprite(d1w_00,d3w);
-//            fenetre(scene,d1w_00,d3w);
-//            uVar3 = uVar2;
-//            goto affiscin;
-//          }
-//          iremplink(scene,(s16)uVar3,sVar4,d3w);
-//        }
-//        else {
-//          if (cVar1 == -1) {
-//            sVar6 = inilink(d1w_00);
-//            inouvlink(scene,(s16)uVar3,sVar4,d3w);
-//          }
-//          else {
-//            sVar6 = inilink(d1w_00);
-//            iefflink((s16)uVar3,sVar4);
-//          }
-//          if (sVar6 < 0) {
-//            joints = 1;
-//            fenetre(scene,d1w_00,d3w);
-//            uVar3 = uVar2;
-//            goto affiscin;
-//          }
-//        }
-//        while( true ) {
-//          sVar4 = (s16)uVar3;
-//          d1w = *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar4);
-//          uVar3 = (u32)d1w;
-//          if (d1w == 0) break;
-//          if (sVar6 == *(s16 *)(SPRITEMEM_PTR + 0x1e + (s32)(s16)d1w)) {
-//            cVar1 = *(s8 *)(SPRITEMEM_PTR + (s16)d1w);
-//            if (cVar1 != '\0') {
-//              if (cVar1 < '\0') {
-//                inouvlink(scene,d1w,sVar4,d3w);
-//              }
-//              else if (cVar1 == '\x02') {
-//                iremplink(scene,d1w,sVar4,d3w);
-//              }
-//              else {
-//                iefflink(d1w,sVar4);
-//              }
-//            }
-//          }
-//        }
-//        joints = 1;
-//        fenetre(scene,d1w_00,d3w);
-//        uVar3 = uVar2;
-//      }
-//    } while( true );
-//  }
-//  fenx1 = *(s16 *)(scene + 0xe);
-//  feny1 = *(s16 *)(scene + 0x10);
-//  fenx2 = fenx1 + *(s16 *)(scene + 0x12);
-//  feny2 = feny1 + *(s16 *)(scene + 0x14);
-//  fenlargw = (u16)((fenx2 - fenx1) + 1U) >> 2;
-//  clipx1 = fenx1;
-//  clipy1 = feny1;
-//  clipx2 = fenx2;
-//  clipy2 = feny2;
-//  sVar4 = d3w;
-//  if ((scene[1] & 0x40) == 0) {
-//    clrfen();
-//  }
-//  while (sVar5 = sVar4, sVar4 = *(s16 *)(SPRITEMEM_PTR + 6 + (s32)sVar5), sVar6 = ptscreen, sVar4 != 0) {
-//    if (*(s8 *)(SPRITEMEM_PTR + sVar4) != '\0') {
-//      if (*(s8 *)(SPRITEMEM_PTR + sVar4) == '\x01') {
-//        *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar5) = *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar4);
-//        *(s16 *)(SPRITEMEM_PTR + 4 + (s32)sVar4) = libsprit;
-//        libsprit = sVar4;
-//        sVar4 = sVar5;
-//      }
-//      else {
-//        deptopix(scene,sVar4);
-//        *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar5) = *(u16 *)(SPRITEMEM_PTR + 6 + (s32)sVar4);
-//        *(u32 *)(SPRITEMEM_PTR + 8 + (s32)sVar4) = newad;
-//        //*(u32 *)(SPRITEMEM_PTR + 0xc + (s32)sVar4) = newx;
-//          *(u16 *)(SPRITEMEM_PTR + 0xc + (s32)(s16)sVar4) = newx;
-//          *(u16 *)(SPRITEMEM_PTR + 0xe + (s32)(s16)sVar4) = newy;
-//        *(u16 *)(SPRITEMEM_PTR + 0x10 + (s32)sVar4) = newd;
-//        *(u8 *)(SPRITEMEM_PTR + 8 + (s32)sVar4) = newf;
-//        rangesprite(sVar4,d3w);
-//        sVar4 = sVar5;
-//      }
-//    }
-//  }
-//  for (; sVar6 != 0; sVar6 = *(s16 *)(BASEMNMEM_PTR + 4 + (s32)sVar6)) {
-//    if ((((*(u8 *)(BASEMNMEM_PTR + sVar6) & 0x40) == 0) && (sVar4 = *(s16 *)(BASEMNMEM_PTR + 2 + (s32)sVar6), sVar4 != 0)) && (clipfen(SPRITE_VAR(sVar4)), fclip != '\0'))
-//    {
-//      while (sVar4 = *(s16 *)(SPRITEMEM_PTR + 6 + (s32)sVar4), sVar4 != 0) {
-//        a0 = (u8 *)(SPRITEMEM_PTR + sVar4);
-//        if (((-1 < (s8)*a0) && (-1 < (s8)a0[8])) && (-1 < *(s16 *)(a0 + 0x10))) {
-//          destofen(a0);
-//          switchgo = 1;
-//        }
-//      }
-//    }
-//  }
-//  if ((fswitch == '\0') && (wpag == '\0')) {
-//    fentotv();
-//  }
-//affiscr1:
-//  if (wpag < '\0') {
-//    *scene = *scene & 0xdf;
-//    fenx1 = *(s16 *)(scene + 0xe);
-//    feny1 = *(s16 *)(scene + 0x10);
-//    fenx2 = *(s16 *)(scene + 0xe) + *(s16 *)(scene + 0x12);
-//    feny2 = *(s16 *)(scene + 0x10) + *(s16 *)(scene + 0x14);
-//    // scrolpage();
-//  }
-//  return;
-//}
-
-// ishar 3
 void affiscr(SceneVariables *scene, u16 elemidx3)
 {
     DEBUGFCE;
 
     u8 state;
     bool issprit;
-    u8 uVar8;
     u16 uvaridx;
     u16 nextidx;
     s16 linkidx;
@@ -3623,7 +2271,6 @@ void affiscr(SceneVariables *scene, u16 elemidx3)
     if (fremap != 0 || scene->state < 0)
     {
         depscreen(scene, elemidx3);
-        // VERIFYINTEGRITY;
     }
 
     if ((scene->numelem & 2) == 0 || (scene->state & 0x80U) == 0)
@@ -3670,14 +2317,14 @@ affiscin:
                         linkidx = inilink(nextidx);
                         if (linkidx < 0)
                         {
-                            uVar8 = wback == '\0';
-                            if (!(bool)uVar8)
+                            bool not_wback = wback == '\0';
+                            if (!(bool)not_wback)
                             {
-                                uVar8 = backprof == nextsprvar->newd;
+                                not_wback = backprof == nextsprvar->newd;
                                 if ((s16)backprof <= nextsprvar->newd)
                                 {
                                     pback = 1;
-                                    uVar8 = false;
+                                    not_wback = false;
                                 }
                             }
 
@@ -3685,7 +2332,7 @@ affiscin:
                             tstjoints(nextidx);
                             VERIFYINTEGRITY;
 
-                            if ((bool)uVar8)
+                            if ((bool)not_wback)
                             {
                                 SPRITE_VAR(previdx)->link = nextsprvar->link;
                                 fenetre(scene, nextidx, elemidx3);
@@ -3706,11 +2353,8 @@ affiscin:
                             nextsprvar->newzoomy = newzoomy;
 
                             elemidx = nextidx;
-                            rangesprite(elemidx/*, previdx*/, elemidx3);
+                            rangesprite(elemidx, elemidx3);
                             fenetre(scene, elemidx, elemidx3);
-                            // pcVar3 = (s8 *)((u32)pcVar3 & 0xffff0000 | uVar9 & 0xffff);
-                            //nextidx = elemidx3;
-
                             VERIFYINTEGRITY;
 
                             goto affiscin;
@@ -3741,9 +2385,7 @@ affiscin:
                         {
                             VERIFYINTEGRITY;
                             joints = 1;
-//                            fenetre(scene, elemidx, elemidx3);
                             fenetre(scene, nextidx, elemidx3);
-                            // pcVar3 = (s8 *)((u32)pcVar3 & 0xffff0000 | uVar9 & 0xffff);
                             VERIFYINTEGRITY;
                             nextidx = elemidx3;
                             goto affiscin;
@@ -3790,7 +2432,6 @@ affiscin:
 
                     joints = 1;
                     fenetre(scene, previdx, elemidx3);
-//                  pcVar3 = (s8 *)((u32)pcVar3 & 0xffff0000 | uVar9 & 0xffff);
                     nextidx = elemidx3;
                 }
             }
@@ -3857,9 +2498,8 @@ affiscin:
                     nextsprvar->newzoomy = newzoomy;
 
                     VERIFYINTEGRITY;
-                    rangesprite(nextidx/*, uvaridx*/, elemidx3);
+                    rangesprite(nextidx, elemidx3);
                     VERIFYINTEGRITY;
-                    //nextidx = uvaridx;
                 }
             }
         }
@@ -3901,14 +2541,14 @@ affiscin:
         issprit = elemidx == 0;
     }
 
-    if ((fswitch == '\0') && (wpag == '\0'))
+    if ((alis._cclipping == '\0') && (wpag == '\0'))
     {
-//      fentotv();
+        fentotv();
     }
 
     VERIFYINTEGRITY;
+    
 affiscr1:
-    // VERIFYINTEGRITY;
 
     if (wpag < '\0')
     {
@@ -3923,19 +2563,51 @@ affiscr1:
     scene->state &= 0x7f;
 }
 
-void image(void)
+void itroutine(void)
 {
-    DEBUGFCE;
+    u8 prevtiming = vtiming;
+    timeclock ++;
+    fitroutine = 1;
+    vtiming = vtiming + '\x01';
+    if (vtiming == 0) {
+        vtiming = prevtiming;
+    }
     
-    // TODO: just a hack to animate palette
-    // following snippet is from itroutine
-    if ((palc != 0) && ((--palt) == 0))
+    if (palc != 0 && (--palt) == 0)
     {
         palt = palt0;
         topalet();
-        palc --;
+        palc = palc + -1;
     }
+    
+    // TODO: audio
+//    if ((bcanal0 != '\0') && (-1 < bcanal0))
+//    {
+//        canal();
+//    }
+//
+//    if ((bcanal1 != '\0') && (-1 < bcanal1))
+//    {
+//        canal();
+//    }
+//
+//    if ((bcanal2 != '\0') && (-1 < bcanal2))
+//    {
+//        canal();
+//        check3();
+//    }
+//
+//    if ((bcanal3 != '\0') && (-1 < bcanal3))
+//    {
+//        canal();
+//    }
+    
+    fitroutine = 0;
+}
 
+void image(void)
+{
+    DEBUGFCE;
     
 //    if (amiga != '\0')
 //    {
@@ -3943,26 +2615,29 @@ void image(void)
 //    }
 //
 //    waitphysic();
-    if ((fswitch != '\0') && (fphytolog != '\0'))
+    if ((alis._cclipping != '\0') && (fphytolog != '\0'))
     {
         fphytolog = '\0';
         phytolog();
     }
     
-    s8 prevmouse = fremouse;
+    // s8 prevmouse = fremouse;
     
     // wait for vblank
     // do {} while (vtiming < timing);
     
     vtiming = 0;
-//    if (fswitch != '\0')
-//    {
-//        if (fmouse < '\0')
-//        {
-//            oldfen();
-//        }
-//        else
-//        {
+    
+    // TODO: implement oldfen > transfen (it displays content of logic)
+    if (alis._cclipping != '\0')
+    {
+        // TODO: mouse
+        if (fmouse < '\0')
+        {
+            oldfen();
+        }
+        else
+        {
 //            do { } while (fremouse2 != '\0');
 //
 //            fremouse = fremouse + '\x01';
@@ -3971,7 +2646,7 @@ void image(void)
 //                fremouse = prevmouse;
 //            }
 //
-//            oldfen();
+            oldfen();
 //            fremouse2 = 1;
 //            if (fmouse != '\x02')
 //            {
@@ -3984,10 +2659,10 @@ void image(void)
 //            {
 //                fmouse = -1;
 //            }
-//        }
-//
-//        ptabfen = &tabfen;
-//    }
+        }
+
+        ptabfen = tabfen;
+    }
     
     switchgo = '\0';
     wlogic = logic;
@@ -4002,7 +2677,7 @@ void image(void)
     
     u16 scnidx = ptscreen;
 //    prevmouse = fremouse;
-//    u8 *oldscr_ptr = physic;
+    u8 *oldphys = physic;
     
     while (scnidx != 0)
     {
@@ -4016,9 +2691,9 @@ void image(void)
         scnidx = scene->to_next;
     }
 
-//    fremap = 0;
-//    if (fswitch != '\0')
-//    {
+    fremap = 0;
+    if (alis._cclipping != '\0')
+    {
 //        do
 //        {
 //            if (switchgo == '\0')
@@ -4031,15 +2706,16 @@ void image(void)
 //        }
 //        while (((fmouse != '\0') && (-1 < fmouse)) && ((void)(fremouse = prevmouse + '\x01'), fremouse != '\0'));
 //
-//        physic = logic;
-//        logic = oldscr_ptr;
-//        setphysic();
+        physic = logic;
+        logic = oldphys;
+        setphysic();
+        
 //        if ((fmouse != '\0') && (-1 < fmouse))
 //        {
 //            fremouse2 = '\x01';
 //            fremouse = -1;
 //        }
-//    }
+    }
 }
 
 u32 finmem = 0;
@@ -4069,7 +2745,7 @@ void inisys(void)
 //    __m68k_trap(0xe);
     ophysic = 0x33900;
     u32 uVar2 = finram - 0x12d00U | 0xff;
-    physic = host.pixelbuf0.data; // uVar2 + 1;
+    physic = host.pixelbuf.data; // uVar2 + 1;
     finmem = uVar2 - 0x3ff;
     
 }
@@ -4236,6 +2912,75 @@ void initent(void)
     nbent = 1;
     dernent = 6;
 }
+
+void savecoord(u8 *a6)
+{
+    oldcx = *(u16 *)(a6 + 0x00);
+    oldcy = *(u16 *)(a6 + 0x08);
+    oldcz = *(u16 *)(a6 + 0x10);
+    oldacx = *(u16 *)(a6 + 0x18);
+    oldacy = *(u16 *)(a6 + 0x20);
+    oldacz = *(u16 *)(a6 + 0x28);
+}
+
+void updtcoord(u8 *a6)
+{
+    s16 angle = *(u16 *)(a6 + 0x18);
+    if (angle != oldacx)
+    {
+        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+            angle = angle % 0x168;
+        
+        if (angle < -0x168 && (angle += 0x168) < -0x168)
+            angle = angle % 0x168;
+        
+        *(s16 *)(a6 + 0x18) = angle;
+    }
+    
+    angle = *(u16 *)(a6 + 0x20);
+    if (angle != oldacy)
+    {
+        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+            angle = angle % 0x168;
+        
+        if (angle < -0x168 && (angle += 0x168) < -0x168)
+            angle = angle % 0x168;
+        
+        *(s16 *)(a6 + 0x20) = angle;
+    }
+
+    angle = *(u16 *)(a6 + 0x28);
+    if (angle != oldacy)
+    {
+        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+            angle = angle % 0x168;
+        
+        if (angle < -0x168 && (angle += 0x168) < -0x168)
+            angle = angle % 0x168;
+        
+        *(s16 *)(a6 + 0x28) = angle;
+    }
+
+    s16 addx = *(s16 *)(a6 + 0x00) - oldcx;
+    s16 addy = *(s16 *)(a6 + 0x08) - oldcy;
+    s16 addz = *(s16 *)(a6 + 0x10) - oldcz;
+    u16 unknown28 = *(u16 *)(a6 + 0x28);
+    
+    if (angle != oldacz || addz != 0 || addx != 0 || addy != 0)
+    {
+        for (SpriteVariables *sprite = SPRITE_VAR(*(s16 *)(a6 - 0x18)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+        {
+            if (sprite->state == 0)
+                sprite->state = 2;
+            
+            sprite->depx += addx;
+            sprite->depy += addy;
+            sprite->depz += addz;
+            sprite->sprite_0x28 = unknown28;
+        }
+    }
+}
+
 
 void setprog(u32 param_1, u16 *script_start, u32 param_3, s8 *param_4)
 {
@@ -4543,10 +3288,10 @@ void OPCODE_CDEFSC_0x46(u8 *ptr, u16 screen)
     SpriteVariables *sprite = SPRITE_VAR(libsprit);
     sprite->link = 0;
     sprite->numelem = scene->numelem;
-    sprite->newx = scene->newx & 0xfff0;
+    sprite->newx = scene->newx;// & 0xfff0;
     sprite->newy = scene->newy;
     sprite->newd = 0x7fff;
-    sprite->depx = scene->newx + scene->width | 0xf;
+    sprite->depx = scene->newx + scene->width;// | 0xf;
     sprite->depy = scene->newy + scene->height;
 
     printf("\n0x%.4x\n", ELEMIDX(libsprit));
@@ -4622,10 +3367,10 @@ void scdosprite(s16 screen)
 
     SpriteVariables *sprite = SPRITE_VAR(spritidx);
     sprite->numelem = scene->numelem;
-    sprite->newx = scene->newx & 0xfff0;
+    sprite->newx = scene->newx;// & 0xfff0;
     sprite->newy = scene->newy;
     sprite->newd = 0x7fff;
-    sprite->depx = scene->newx + scene->width | 0x0f;
+    sprite->depx = scene->newx + scene->width;// | 0x0f;
     sprite->depy = scene->newy + scene->height;
 }
 

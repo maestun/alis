@@ -187,23 +187,21 @@ void alis_init(sPlatform platform) {
     //alis.script_count = 0;
     
     // init host system stuff
-    host.pixelbuf0.w = alis.platform.width;
-    host.pixelbuf0.h = alis.platform.height;
-    host.pixelbuf0.data = (u8 *)malloc(host.pixelbuf0.w * host.pixelbuf0.h);
-    memset(host.pixelbuf0.data, 0x0, host.pixelbuf0.w * host.pixelbuf0.h);
-//    host.pixelbuf0.palette = (u8 *)malloc(256 * 3);
-//    memset(host.pixelbuf0.palette, 0xff, 256 * 3);
-    host.pixelbuf0.palette = ampalet;
-    memset(host.pixelbuf0.palette, 0xff, 256 * 3);
+    host.pixelbuf.w = alis.platform.width;
+    host.pixelbuf.h = alis.platform.height;
+    host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
+    memset(host.pixelbuf.data, 0x0, host.pixelbuf.w * host.pixelbuf.h);
+    host.pixelbuf.palette = ampalet;
+    memset(host.pixelbuf.palette, 0xff, 256 * 3);
     
     // grayscale pal for debugging
     for (int ii = 0; ii < 16; ii++)
     {
         for (int i = 0; i < 16; i++)
         {
-            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 0] = 80 + i * 10;
-            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 1] = 80 + i * 10;
-            host.pixelbuf0.palette[(ii * 16 * 3) + (i * 3) + 2] = 80 + i * 10;
+            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 0] = 80 + i * 10;
+            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 1] = 80 + i * 10;
+            host.pixelbuf.palette[(ii * 16 * 3) + (i * 3) + 2] = 80 + i * 10;
         }
     }
 
@@ -237,7 +235,7 @@ void alis_deinit() {
 //    free(alis.bssChunk3);
     
     //vram_deinit(alis.vram);
-    free(host.pixelbuf0.data);
+    free(host.pixelbuf.data);
     free(alis.mem);
 }
 
@@ -247,10 +245,10 @@ void alis_loop() {
     while (alis.running && alis.script->running) {
         alis.running = sys_poll_event();
         readexec_opcode();
-
-        image();
-
-        sys_render(host.pixelbuf0);
+        
+        // TODO: probably not the best place to call this
+        itroutine();
+        sys_render(host.pixelbuf);
     }
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
@@ -295,11 +293,20 @@ u8 alis_main() {
             // the current script has an 'offset' in its header
             // so we must perform a change of script... within the same script
             // the address to jump to is:
+            
+            // TODO: ...
+            // savecoord(a6);
+
             alis.script->pc = alis.script->data_org + offset + 6; /* skip ID, word 1, word 2: 6 bytes */
             alis_loop();
             alis.script_index++;
+
+            // updtcoord(a6);
         }
         else {
+            
+            image();
+
             // return to previous script ?
             alis.script_index--;
         }

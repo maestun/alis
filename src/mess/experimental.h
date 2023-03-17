@@ -71,6 +71,7 @@ void vectoriel(u16 screen);
 
 void OPCODE_CDEFSC_0x46(u8 *ptr, u16 offset);
 
+void itroutine(void);
 void image(void);
 void ctopalette(u8 *paldata, s32 duration);
 void ctoblackpal(s16 duration);
