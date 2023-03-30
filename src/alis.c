@@ -48,7 +48,7 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
 }
 
 alisRet readexec_opcode() {
-    debug(EDebugVerbose, "\n%s: 0x%06x:", alis.script->name, alis.script->pc); // alis.script->pc - alis.script->pc_org);
+    debug(EDebugVerbose, "\n%s: 0x%06x:", alis.script->name, alis.script->pc - alis.script->pc_org);
     return readexec(opcodes, "opcode", 0);
 }
 
@@ -123,6 +123,9 @@ void alis_load_main() {
             u16 offset = (1 + idx) * sizeof(sScriptLoc);
             alis.script_vram_orgs[idx] = (sScriptLoc){0, offset};
         }
+        
+        alis.script_vram_orgs[0].vram_offset = (u32)((u8 *)alis.script_vram_orgs - alis.mem);
+        nbent = 1;
         
         alis.specs.script_vram_max_addr = ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
 
@@ -209,7 +212,13 @@ void alis_init(sPlatform platform) {
     alis_load_main();
     alis.script = alis.main;
     
-    memset(alis.render_rsrcs, 0, sizeof(u32) * 256 * 6);
+    // TODO: ...
+    alis_register_script(alis.script);
+
+    sScriptLoc *prev_ent = &(alis.script_vram_orgs[0]);
+    dernent = prev_ent->offset;
+    prev_ent->vram_offset = alis.script->header.id;
+    prev_ent->offset = 0;
     
     // FUN_STARTUP("main.ao", 0, 0);
     
@@ -220,6 +229,8 @@ void alis_init(sPlatform platform) {
     finsprit = 0x8000;
 
     inisprit();
+    
+    gettimeofday(&alis.time, NULL);
 }
 
 
@@ -242,12 +253,7 @@ void alis_deinit() {
 void alis_loop() {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
-        alis.running = sys_poll_event();
         readexec_opcode();
-        
-        // TODO: probably not the best place to call this
-        itroutine();
-        sys_render(host.pixelbuf);
     }
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
@@ -259,7 +265,6 @@ void alis_register_script(sAlisScript * script) {
     // alis.script_id_stack[alis.script_count++] = id;
 }
 
-
 u8 alis_main() {
     u8 ret = 0;
     
@@ -269,46 +274,7 @@ u8 alis_main() {
         
         alis._cstopret = 0;
         alis._callentity = 0;
-        
-        // fetch script to run
-        // u8 id = alis.script_id_stack[alis.script_index];
-        // alis.script = alis.scripts[id];
-        // alis.sid = alis.script->header.id;
-        alis.script->pc = alis.script->context._0x8_script_ret_offset;
-        
-        alis_loop();
-        
-        // TODO: handle virtual interrupts
-        
-        // save virtual accumulator offset
-        alis.script->context._0xc_vacc_offset = alis.script->vacc_off;
-        
-        // push return address for the current script
-        alis.script->context._0x8_script_ret_offset = alis.script->pc;
-        
-        // compute offset in current script to continue loop in same script
-        u32 offset = alis.script->header.ret_offset;
-        if(offset) {
-            // the current script has an 'offset' in its header
-            // so we must perform a change of script... within the same script
-            // the address to jump to is:
-            
-            // TODO: ...
-            // savecoord(a6);
-
-            alis.script->pc = alis.script->data_org + offset + 6; /* skip ID, word 1, word 2: 6 bytes */
-            alis_loop();
-            alis.script_index++;
-
-            // updtcoord(a6);
-        }
-        else {
-            
-            image();
-
-            // return to previous script ?
-            alis.script_index--;
-        }
+        moteur2(0);
     }
     
     // alis was stopped by 'cexit' opcode

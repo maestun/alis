@@ -58,15 +58,18 @@ typedef struct {
     u8 _0x25_credon_credoff;
     
     // vram - 0x24: scan/inter bitfield
-    struct  {
-        u8 scan_off_bit_0: 1;
-        u8 inter_off_bit_1: 1;
-        u8 _dummy2: 1;
-        u8 _dummy3: 1;
-        u8 _dummy4: 1;
-        u8 _dummy5: 1;
-        u8 _dummy6: 1;
-        u8 scan_clr_bit_7: 1;
+    union {
+        struct {
+            u8 scan_off_bit_0: 1;
+            u8 inter_off_bit_1: 1;
+            u8 _dummy2: 1;
+            u8 _dummy3: 1;
+            u8 _dummy4: 1;
+            u8 _dummy5: 1;
+            u8 _dummy6: 1;
+            u8 scan_clr_bit_7: 1;
+        };
+        u8 data;
     } _0x24_scan_inter;
     
     // vram - 0x23: ???

@@ -7,6 +7,9 @@
 #include "experimental.h"
 #include <SDL2/SDL.h>
 
+u8 _button_count = 0;
+u16 _buttons[16];
+
 mouse_t _mouse;
 
 SDL_Renderer *  _renderer;
@@ -44,12 +47,38 @@ u8 sys_poll_event() {
     _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
     _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
     
-    
     switch (_event.type) {
-    case SDL_QUIT:
-        running = 0;
-        break;
-    }
+        case SDL_QUIT:
+        {
+            running = 0;
+            break;
+        }
+        case SDL_KEYDOWN:
+        {
+            _buttons[_button_count] = _event.key.keysym.scancode;
+            _button_count = (_button_count + 1) % 16;
+            break;
+        }
+        case SDL_KEYUP:
+        {
+            u8 found = 0;
+            u8 count = _button_count;
+            for (s32 i = 0; i < count; i++)
+            {
+                if (found)
+                {
+                    _buttons[i - 1] = _buttons[i];
+                }
+                else if (_buttons[_button_count] == _event.key.keysym.scancode)
+                {
+                    _button_count = (_button_count - 1 < 0) ? 15 : _button_count - 1;
+                    found = 1;
+                }
+            }
+            break;
+        }
+    };
+    
     return running;
 }
 

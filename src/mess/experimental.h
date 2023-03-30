@@ -13,6 +13,10 @@
 #include "alis_private.h"
 #include "utils.h"
 
+extern u8 fseq;
+
+extern u8 thepalet;
+extern u8 defpalet;
 extern u8 *ampalet;
 
 extern u8 numelem;
@@ -75,5 +79,7 @@ void itroutine(void);
 void image(void);
 void ctopalette(u8 *paldata, s32 duration);
 void ctoblackpal(s16 duration);
+
+void moteur2(s16 offset);
 
 #endif /* experimental_h */

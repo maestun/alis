@@ -4,7 +4,6 @@
 //
 
 #include "alis.h"
-// #include "depack/asm.h"
 #include "unpack.h"
 #include "debug.h"
 #include "platform.h"
@@ -455,8 +454,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->context._0x1_cstart = 1;
     script->context._0x4_cstart_csleep = 0xff;
     script->context._0x1a_cforme = 0xff;
-    script->context._0x24_scan_inter.inter_off_bit_1 = 1;
-    script->context._0x24_scan_inter.scan_off_bit_0 = 1;
+    script->context._0x24_scan_inter.data = 2;
     script->context._0x26_creducing = 0xff;
     script->context._0x2a_clinking = 0xffac;
     

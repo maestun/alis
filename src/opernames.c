@@ -145,6 +145,11 @@ void omainti() {
 
 void ohimb() {
     debug(EDebugWarning, " /* STUBBED */");
+    u16 offset = script_read16(); // 51ce
+    u32 test = vram_read16(offset); // 6
+
+    u16 index = script_read16(); // 0d
+    alis.varD7 = alis.script_vram_orgs[index].vram_offset;
 }
 
 void ohimw() {
@@ -347,7 +352,10 @@ void onot() {
 }
 
 void oinkey() {
-    debug(EDebugWarning, " /* STUBBED */");
+    if (_button_count)
+    {
+        alis.varD7 = _buttons[_button_count - 1];
+    }
 }
 
 void okeyon() {
@@ -363,7 +371,16 @@ void oprnd() {
 }
 
 void oscan() {
-    debug(EDebugWarning, " /* STUBBED */");
+    if (alis.script->context._0x1e_scan_clr == alis.script->context._0x1c_scan_clr)
+        return;
+
+    s16 scan_clr = alis.script->context._0x1e_scan_clr + 2;
+    if (-0x35 < scan_clr)
+        scan_clr -= *(short *)(alis.mem + alis.script->context._0x14_script_org_offset + 0x16);
+
+    alis.script->context._0x1e_scan_clr = scan_clr;
+    if (scan_clr == alis.script->context._0x1c_scan_clr)
+        alis.script->context._0x24_scan_inter.scan_clr_bit_7 &= 0x7f;
 }
 
 void oshiftkey() {

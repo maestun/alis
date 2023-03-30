@@ -25,6 +25,8 @@
 # define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
 
+#define FRAME_TICKS (1000000 / 10) // 10 fps looks about right in logo animation
+
 #define BASEMNMEM_PTR alis.spritemem + basemain
 #define SPRITEMEM_PTR alis.spritemem + basesprite
 
@@ -129,9 +131,9 @@ u16 depx = 0;
 u16 depy = 0;
 u16 depz = 0;
 
-s16 oldcx;
-s16 oldcy;
-s16 oldcz;
+s16 oldcx = 0;
+s16 oldcy = 0;
+s16 oldcz = 0;
 
 s16 oldacx;
 s16 oldacy;
@@ -687,6 +689,22 @@ void ctoblackpal(s16 duration)
     }
 }
 
+void printelem(void)
+{
+    s32 cursprit = debsprit;
+    cursprit += 0x78;
+    cursprit += 0x60;
+
+    do
+    {
+        ELEM_TRACE("0x%.4x\n%.2x%.2x %.4x\n%.4x %.4x\n", ELEMIDX(cursprit), *(u8 *)(SPRITEMEM_PTR + cursprit + 0), *(u8 *)(SPRITEMEM_PTR + cursprit + 1), *(u16 *)(SPRITEMEM_PTR + cursprit + 2),
+                   *(u16 *)(SPRITEMEM_PTR + cursprit + 4) == 0 ? 0 : ELEMIDX(*(u16 *)(SPRITEMEM_PTR + cursprit + 4)),
+                   *(u16 *)(SPRITEMEM_PTR + cursprit + 6) == 0 ? 0 : ELEMIDX(*(u16 *)(SPRITEMEM_PTR + cursprit + 6)));
+        cursprit += 0x30;
+    }
+    while (cursprit < debsprit + 16 * 0x30);
+}
+
 bool verifyintegrity(void)
 {
     DEBUGFCE;
@@ -846,10 +864,12 @@ u8 searchelem(u16 *curidx, u16 *previdx)
     
     *previdx = 0;
     *curidx = alis.script->context._0x18_unknown;
+    
+    u16 dbgidx = ELEMIDX(*curidx);
     if (*curidx == 0)
     {
-        ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
-        return 1;
+        ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+        return 0;
     }
     
     SpriteVariables *cursprvar = NULL;
@@ -857,13 +877,14 @@ u8 searchelem(u16 *curidx, u16 *previdx)
     do
     {
         cursprvar = SPRITE_VAR(*curidx);
+        dbgidx = ELEMIDX(*curidx);
         screen_id = cursprvar->screen_id;
         if (screen_id <= alis.script->context._0x16_screen_id)
         {
             if (alis.script->context._0x16_screen_id != screen_id)
             {
-                ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
-                return 1;
+                ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+                return 0;
             }
 
             num = cursprvar->numelem;
@@ -871,12 +892,12 @@ u8 searchelem(u16 *curidx, u16 *previdx)
             {
                 if (numelem != num)
                 {
-                    ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
-                    return 1;
+                    ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+                    return 0;
                 }
 
-                ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
-                return 0;
+                ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+                return 1;
             }
         }
 
@@ -885,7 +906,7 @@ u8 searchelem(u16 *curidx, u16 *previdx)
     }
     while (*curidx != 0);
 
-    ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+    ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
     return 0;
 }
 
@@ -896,7 +917,7 @@ u8 testnum(u16 *curidx)
     return ((cursprvar->screen_id == alis.script->context._0x16_screen_id) && (cursprvar->numelem == numelem)) ? 1 : 0;
 }
 
-void nextnum(u16 *curidx, u16 *previdx)
+u8 nextnum(u16 *curidx, u16 *previdx)
 {
     DEBUGFCE;
 
@@ -906,10 +927,11 @@ void nextnum(u16 *curidx, u16 *previdx)
     if (cursprvar != NULL && cursprvar->screen_id == alis.script->context._0x16_screen_id && cursprvar->numelem == numelem)
     {
         ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
-        return;
+        return 1;
     }
 
     ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+    return 0;
 }
 
 void createlem(u16 *curidx, u16 *previdx)
@@ -948,11 +970,11 @@ void createlem(u16 *curidx, u16 *previdx)
         *curidx = sprit;
     }
 
-    VERIFYINTEGRITY;
-    ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+//    VERIFYINTEGRITY;
+    ELEM_TRACE(" cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
 }
 
-void delprec(short elemidx)
+void delprec(s16 elemidx)
 {
     DEBUGFCE;
 
@@ -980,7 +1002,7 @@ void delprec(short elemidx)
 void killelem(u16 *curidx, u16 *previdx)
 {
     DEBUGFCE;
-    ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+    ELEM_TRACE("  cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
 
     SpriteVariables *cursprvar = SPRITE_VAR(*curidx);
     if (ferase == '\0' && -1 < (s8)cursprvar->state)
@@ -1015,13 +1037,13 @@ void killelem(u16 *curidx, u16 *previdx)
         if (*previdx)
         {
             *curidx = alis.script->context._0x18_unknown;
-            VERIFYINTEGRITY;
+//            VERIFYINTEGRITY;
             return;
         }
     }
     
     *curidx = *previdx ? SPRITE_VAR(*previdx)->to_next : 0;
-    VERIFYINTEGRITY;
+//    VERIFYINTEGRITY;
 }
 
 void put(u8 idx)
@@ -1029,13 +1051,15 @@ void put(u8 idx)
     DEBUGFCE;
 
     fmuldes = 0;
+    ELEM_TRACE("\n");
+    ELEM_TRACE("   idx: 0x%.2x numelem: 0x%.2x\n", idx, numelem);
     putin(idx);
 }
 
 void putin(u8 idx)
 {
     DEBUGFCE;
-    ELEM_TRACE("  idx: 0x%.2x numelem: 0x%.6x\n", idx, numelem);
+    SpriteVariables *debug = 0;
 
     s32 addr = adresdes(idx);
     u8 *resourcedata = alis.mem + alis.script->data_org + addr;
@@ -1099,16 +1123,20 @@ void putin(u8 idx)
     }
     else
     {
+        ELEM_TRACE("     idx: 0x%.2x numelem: 0x%.2x\n", idx, numelem);
+
         u16 cursprite = 0;
         u16 prevsprite = 0;
-
+        
+//        printelem();
+        
         if (fadddes == 0)
         {
             if (fmuldes)
                 goto put13;
 
-            searchelem(&cursprite, &prevsprite);
-            if (cursprite == 0)
+            u8 ret = searchelem(&cursprite, &prevsprite);
+            if (ret == 0)
                 createlem(&cursprite, &prevsprite);
 
             if (-1 < (s8)SPRITE_VAR(cursprite)->state)
@@ -1120,23 +1148,27 @@ put30:
         else
         {
 put13:
-            searchelem(&cursprite, &prevsprite);
-            if (cursprite)
             {
-                do
+                u8 ret = searchelem(&cursprite, &prevsprite);
+                if (ret)
                 {
-                    if (SPRITE_VAR(cursprite)->state == 0)
-                        goto put30;
-                  
-                    nextnum(&cursprite, &prevsprite);
+                    do
+                    {
+                        if (SPRITE_VAR(cursprite)->state == 0)
+                            goto put30;
+                        
+                        ret = nextnum(&cursprite, &prevsprite);
+                    }
+                    while (ret);
                 }
-                while (cursprite != 0); //(bVar3);
+                
+                createlem(&cursprite, &prevsprite);
             }
-            
-            createlem(&cursprite, &prevsprite);
         }
         
         addr = adresdes(idx);
+
+        ELEM_TRACE("  cursprite: 0x%.4x addr: 0x%.4x\n", ELEMIDX(cursprite), ELEMIDX(addr));
 
         SpriteVariables *cursprvar = SPRITE_VAR(cursprite);
         cursprvar->data       = addr;
@@ -1163,15 +1195,16 @@ put13:
             cursprvar->credon_off = alis.script->context._0x26_creducing;
             cursprvar->creducing  = alis.script->context._0x27_creducing;
         }
+        debug = SPRITE_VAR(cursprite);
     }
-
+    
     if (fmuldes == 0)
     {
         u16 cursprite = 0;
         u16 prevsprite = 0;
 
-        searchelem(&cursprite, &prevsprite);
-        if (fmuldes != 0)
+        u8 res = searchelem(&cursprite, &prevsprite);
+        if (res != 0)
         {
             return;
         }
@@ -1187,21 +1220,23 @@ put13:
                     return;
                 }
 
-                u8 test = testnum(&cursprite);
-                if (!test)
+                res = testnum(&cursprite);
+                if (!res)
                 {
                     fadddes = 0;
                     return;
                 }
             }
 
-            nextnum(&cursprite, &prevsprite);
+            res = nextnum(&cursprite, &prevsprite);
         }
-        while (cursprite != 0);
+        while (res);
     }
     
     fadddes = 0;
-    VERIFYINTEGRITY;
+//    VERIFYINTEGRITY;
+    
+//    printelem();
 }
 
 s16 inilink(s16 elemidx)
@@ -1259,7 +1294,6 @@ void calcfen(s16 elemidx1, s16 elemidx3)
 
         fenlargw = (u16)((fenx2 - fenx1) + 1) >> 2;
         
-        // TODO: uncoment if and when physic is initialized
         adfenintv = (u32)feny1 * 0x140 + physic + (s32)(fenx1 >> 1);
     }
     
@@ -1316,7 +1350,7 @@ u8 clipfen(SpriteVariables *sprite)
     return fclip;
 }
 
-void rangesprite(s16 elemidx1, s16 elemidx3)
+s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
 {
     DEBUGFCE;
 
@@ -1350,16 +1384,55 @@ void rangesprite(s16 elemidx1, s16 elemidx3)
     }
 
     // TODO: this is causing infinite loop
-    VERIFYINTEGRITY;
-    LINK_TRACE("----\n");
     LINK_TRACE("sprite 0x%.4x -> 0x%.4x replaced by 0x%.4x\n", ELEMIDX(elemidx1), ELEMIDX(idx1sprvar->link), ELEMIDX(nextidx3));
     LINK_TRACE("sprite 0x%.4x -> 0x%.4x replaced by 0x%.4x\n", ELEMIDX(previdx3), ELEMIDX(SPRITE_VAR(previdx3)->link), ELEMIDX(elemidx1));
-    LINK_TRACE("----\n");
-    idx1sprvar->link = nextidx3;
-    SPRITE_VAR(previdx3)->link = elemidx1;
-    VERIFYINTEGRITY;
 
     idx1sprvar->state = 0;
+    idx1sprvar->link = nextidx3;
+    SPRITE_VAR(previdx3)->link = elemidx1;
+
+    if (elemidx2 == previdx3)
+    {
+        elemidx2 = elemidx1;
+    }
+    
+    return elemidx2;
+}
+
+s16 rangesprite_i2(s16 elemidx1, s16 elemidx2, s16 elemidx3)
+{
+    SpriteVariables *idx1sprvar = SPRITE_VAR(elemidx1);
+    s16 newd1  =  idx1sprvar->newd;
+    s8 cordspr1 = idx1sprvar->cordspr;
+    s8 numelem1 = idx1sprvar->numelem;
+    
+    s16 previdx3 = elemidx3;
+    SpriteVariables *idx3sprvar = NULL;
+
+    while ((elemidx3 = (SPRITE_VAR(previdx3)->link)) != 0)
+    {
+        idx3sprvar = SPRITE_VAR(elemidx3);
+        s16 newd2 =   idx3sprvar->newd;
+        s8 cordspr2 = idx3sprvar->cordspr;
+        s8 numelem2 = idx3sprvar->numelem;
+
+        if (((-1 < (s8)(SPRITE_VAR(elemidx3)->state)) &&
+             (newd2 <= newd1)) && ((newd2 < newd1 ||
+              ((cordspr2 <= cordspr1 && ((cordspr2 < cordspr1 ||
+                  ((numelem2 <= numelem1 && ((numelem2 < numelem1 || ((s8)(SPRITE_VAR(elemidx1)->state) == -1))))))))))))
+            break;
+    }
+    
+    SPRITE_VAR(elemidx1)->state = 0;
+    SPRITE_VAR(elemidx1)->link = elemidx3;
+    SPRITE_VAR(previdx3)->link = elemidx1;
+    
+    if (elemidx2 == previdx3)
+    {
+        elemidx2 = elemidx1;
+    }
+    
+    return elemidx2;
 }
 
 void tstjoints(s16 elemidx)
@@ -1744,7 +1817,7 @@ void addlink(s16 elemidx)
     }
 }
 
-void inouvlink(SceneVariables *scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
+s16 inouvlink(SceneVariables *scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
 {
     DEBUGFCE;
 
@@ -1765,10 +1838,10 @@ void inouvlink(SceneVariables *scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
     elem2sprvar->link = elem1sprvar->link;
 
     addlink(elemidx1);
-    rangesprite(elemidx1/*, elemidx2*/, elemidx3);
+    return rangesprite(elemidx1, elemidx2, elemidx3);
 }
 
-void iremplink(SceneVariables *scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
+s16 iremplink(SceneVariables *scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
 {
     DEBUGFCE;
 
@@ -1778,8 +1851,7 @@ void iremplink(SceneVariables *scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
     if (wback != 0 && (s16)backprof <= elem1sprvar->newd)
     {
         pback = 1;
-        inouvlink(scene, elemidx1, elemidx2, elemidx3);
-        return;
+        return inouvlink(scene, elemidx1, elemidx2, elemidx3);
     }
     
     deptopix(scene, elemidx1);
@@ -1798,10 +1870,10 @@ void iremplink(SceneVariables *scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
     elem2sprvar->link = elem1sprvar->link;
 
     addlink(elemidx1);
-    rangesprite(elemidx1/*, elemidx2*/, elemidx3);
+    return rangesprite(elemidx1, elemidx2, elemidx3);
 }
 
-void iefflink(s16 elemidx1, s16 elemidx2)
+s16 iefflink(s16 elemidx1, s16 elemidx2)
 {
     DEBUGFCE;
 
@@ -1817,6 +1889,8 @@ void iefflink(s16 elemidx1, s16 elemidx2)
     {
         pback = 1;
     }
+    
+    return elemidx2;
 }
 
 u16 scdirect = 0;
@@ -1943,7 +2017,18 @@ void destofen(SpriteVariables *sprite)
         bmpx2 -= (xpos2 - blocx2);
     }
     
-    DRAW_TRACE("%.2x %.2x (%.2x %.2x)\n", sprite->state, sprite->numelem, bitmap[0], bitmap[1]);
+    s16 index = -1;
+    for (s32 i = 0; i < 24; i++)
+    {
+        s32 addr = adresdes(i);
+        if (sprite->data == addr)
+        {
+            index = i;
+            break;
+        }
+    }
+    
+    DRAW_TRACE("%.2d %.2x %.2x (%.2x %.2x)\n", index, sprite->state, sprite->numelem, bitmap[0], bitmap[1]);
     DRAW_TRACE("%.3d %.3d %.3d %.3d\n", blocx1, blocy1, blocx2, blocy2);
     DRAW_TRACE("%.3d %.3d %.3d %.3d\n", bmpx1 + posx1, bmpy1 + posy1, bmpx2 + posx1, bmpy2 + posy1);
     DRAW_TRACE("  to:  %.3dx%.3d\n", posx1, posy1);
@@ -2280,194 +2365,162 @@ void fenetre(SceneVariables *scene, u16 elemidx1, u16 elemidx3)
 
 void affiscr(SceneVariables *scene, u16 elemidx3)
 {
-    DEBUGFCE;
-
     u8 state;
+    s16 elemidx1;
+    s16 elemidx2;
+    s16 tmpidx1;
+    s16 tmpidx2;
+    s16 tmpidx3;
     bool issprit;
-    u16 uvaridx;
-    u16 nextidx;
-    s16 linkidx;
-    s16 previdx;
-    s16 elemidx;
-    s16 tempidx;
-
-    // NOTE: falcon or ishar 3 specific
-//    if (((u8 *)scene)[0x84] != '\0')
+    bool isback;
+    
+//    if (a2[0x84] != '\0')
 //    {
-//        scene = (s8 *)folscreen((u8 *)scene);
+//        a2 = folscreen(a2);
 //    }
-
-    if (fremap != 0 || scene->state < 0)
+    
+    if ((fremap != '\0') || ((s8)scene->state < '\0'))
     {
-        depscreen(scene, elemidx3);
+        depscreen(scene,elemidx3);
     }
-
+    
     if ((scene->numelem & 2) == 0 || (scene->state & 0x80U) == 0)
     {
         wback = (scene->numelem & 4) != 0;
         wpag = '\0';
-
         if ((scene->state & 0x20U) != 0)
         {
             wpag = '\x01';
-            spag --;
+            spag = spag + -1;
             if (spag == '\0')
             {
                 wpag = -1;
             }
         }
-
-        SpriteVariables *nextsprvar = NULL;
-
+        
+        elemidx1 = elemidx3;
+        
         if ((scene->numelem & 0x10) == 0)
         {
-
 affiscin:
-            nextidx = elemidx3;
-
             do
             {
-                previdx = elemidx3;
-                nextidx = SPRITE_VAR(nextidx)->link;
-                if (nextidx == 0)
+                tmpidx2 = elemidx1;
+                elemidx1 = SPRITE_VAR(tmpidx2)->link;
+                if (elemidx1 == 0)
                     goto affiscr1;
-
-                nextsprvar = SPRITE_VAR(nextidx);
-                state = nextsprvar->state;
-
+                
+                state = SPRITE_VAR(elemidx1)->state;
                 if (state != 0)
                 {
                     joints = 0;
                     pback = 0;
-                    elemidx = previdx;
-                    tempidx = nextidx;
                     if (state == 2)
                     {
-                        linkidx = inilink(nextidx);
-                        if (linkidx < 0)
+                        tmpidx1 = elemidx1;
+                        tmpidx3 = inilink(elemidx1);
+                        if (tmpidx3 < 0)
                         {
-                            bool not_wback = wback == '\0';
-                            if (!(bool)not_wback)
+                            isback = wback == '\0';
+                            if (!isback)
                             {
-                                not_wback = backprof == nextsprvar->newd;
-                                if ((s16)backprof <= nextsprvar->newd)
+                                isback = backprof == SPRITE_VAR(elemidx1)->newd;
+                                if (backprof <= SPRITE_VAR(elemidx1)->newd)
                                 {
                                     pback = 1;
-                                    not_wback = false;
+                                    isback = false;
                                 }
                             }
-
-                            deptopix(scene, nextidx);
-                            tstjoints(nextidx);
-                            VERIFYINTEGRITY;
-
-                            if ((bool)not_wback)
+                            
+                            deptopix(scene,elemidx1);
+                            tstjoints(elemidx1);
+                            if (isback)
                             {
-                                SPRITE_VAR(previdx)->link = nextsprvar->link;
-                                fenetre(scene, nextidx, elemidx3);
+                                SPRITE_VAR(tmpidx2)->link = SPRITE_VAR(elemidx1)->link;
+                                fenetre(scene,elemidx1,elemidx3);
                             }
                             else
                             {
-                                SPRITE_VAR(previdx)->link = nextsprvar->link;
+                                SPRITE_VAR(tmpidx2)->link = SPRITE_VAR(elemidx1)->link;
                             }
-
-                            nextsprvar->newad = newad;
-                            nextsprvar->newx = newx;
-                            nextsprvar->newy = newy;
-                            nextsprvar->newd = newd;
-                            nextsprvar->newf = newf;
-                            nextsprvar->width = newl;
-                            nextsprvar->height = newh;
-                            nextsprvar->newzoomx = newzoomx;
-                            nextsprvar->newzoomy = newzoomy;
-
-                            elemidx = nextidx;
-                            rangesprite(elemidx, elemidx3);
-                            fenetre(scene, elemidx, elemidx3);
-                            VERIFYINTEGRITY;
-
+                            
+                            SpriteVariables *sprvar = SPRITE_VAR(elemidx1);
+                            sprvar->newad = newad;
+                            sprvar->newx = newx;
+                            sprvar->newy = newy;
+                            sprvar->newd = newd;
+                            sprvar->newf = newf;
+                            sprvar->width = newl;
+                            sprvar->height = newh;
+                            sprvar->newzoomx = newzoomx;
+                            sprvar->newzoomy = newzoomy;
+                            
+                            tmpidx2 = rangesprite(elemidx1,tmpidx2,elemidx3);
+                            fenetre(scene,elemidx1,elemidx3);
+                            elemidx1 = tmpidx2;
                             goto affiscin;
                         }
-
-                        iremplink(scene, tempidx, elemidx, elemidx3);
+                        
+                        tmpidx1 = iremplink(scene,tmpidx1,tmpidx2,elemidx3);
                     }
                     else
                     {
                         if (state == 0xff)
                         {
-                            VERIFYINTEGRITY;
-                            // handle new sprites
-                            linkidx = inilink(nextidx);
-                            inouvlink(scene, tempidx, elemidx, elemidx3);
-                            VERIFYINTEGRITY;
+                            tmpidx1 = elemidx1;
+                            tmpidx3 = inilink(elemidx1);
+                            tmpidx1 = inouvlink(scene,tmpidx1,tmpidx2,elemidx3);
                         }
                         else
                         {
-                            VERIFYINTEGRITY;
-                            linkidx = inilink(nextidx);
-                            iefflink(tempidx, elemidx);
-                            tempidx = elemidx;
-                            VERIFYINTEGRITY;
+                            tmpidx1 = elemidx1;
+                            tmpidx3 = inilink(elemidx1);
+                            tmpidx1 = iefflink(tmpidx1,tmpidx2);
                         }
-
-                        if (linkidx < 0)
+                        
+                        if (tmpidx3 < 0)
                         {
-                            VERIFYINTEGRITY;
                             joints = 1;
-                            fenetre(scene, nextidx, elemidx3);
-                            VERIFYINTEGRITY;
-                            nextidx = elemidx3;
+                            fenetre(scene,elemidx1,elemidx3);
+                            elemidx1 = tmpidx2;
                             goto affiscin;
                         }
                     }
-
-                    while (true)
+                    
+                    elemidx2 = tmpidx1;
+                    while ((tmpidx1 = SPRITE_VAR(elemidx2)->link) != 0)
                     {
-                        VERIFYINTEGRITY;
-                        elemidx = tempidx;
-                        nextidx = SPRITE_VAR(elemidx)->link;
-                        tempidx = nextidx;
-                        if (nextidx == 0)
-                            break;
-
-                        nextsprvar = SPRITE_VAR(nextidx);
-                        if (linkidx == nextsprvar->clinking)
+                        if (tmpidx3 == SPRITE_VAR(tmpidx1)->clinking)
                         {
-                            state = nextsprvar->state;
+                            state = SPRITE_VAR(tmpidx1)->state;
                             if (state != 0)
                             {
-                                if ((s8)state < 0)
+                                if ((s8)state < '\0')
                                 {
-                                    VERIFYINTEGRITY;
-                                    inouvlink(scene, nextidx, elemidx, elemidx3);
-                                    VERIFYINTEGRITY;
+                                    tmpidx1 = inouvlink(scene,tmpidx1,elemidx2,elemidx3);
                                 }
                                 else if (state == 2)
                                 {
-                                    VERIFYINTEGRITY;
-                                    iremplink(scene, nextidx, elemidx, elemidx3);
-                                    VERIFYINTEGRITY;
+                                    tmpidx1 = iremplink(scene,tmpidx1,elemidx2,elemidx3);
                                 }
                                 else
                                 {
-                                    VERIFYINTEGRITY;
-                                    iefflink(nextidx, elemidx);
-                                    VERIFYINTEGRITY;
-                                    nextidx = elemidx;
+                                    tmpidx1 = iefflink(tmpidx1,elemidx2);
                                 }
                             }
                         }
+                        
+                        elemidx2 = tmpidx1;
                     }
-
+                    
                     joints = 1;
-                    fenetre(scene, previdx, elemidx3);
-                    nextidx = elemidx3;
+                    fenetre(scene,elemidx1,elemidx3);
+                    elemidx1 = tmpidx2;
                 }
             }
-            while (true);
+            while(true);
         }
-
-        VERIFYINTEGRITY;
+        
         fenx1 = scene->newx;
         feny1 = scene->newy;
         fenx2 = fenx1 + scene->width;
@@ -2481,104 +2534,84 @@ affiscin:
         clipy1 = feny1;
         clipx2 = fenx2;
         clipy2 = feny2;
-        nextidx = elemidx3;
+        
         if ((scene->numelem & 0x40) == 0)
         {
             clrfen();
         }
-
-        VERIFYINTEGRITY;
-
-        SpriteVariables *prevsprvar = NULL;
-        while ((nextidx = SPRITE_VAR((uvaridx = nextidx))->link) != 0)
+        
+        tmpidx2 = elemidx1;
+        while ((elemidx1 = SPRITE_VAR(tmpidx2)->link) != 0)
         {
-            VERIFYINTEGRITY;
-            nextsprvar = SPRITE_VAR(nextidx);
-            state = nextsprvar->state;
-            if (state != 0)
+            if (SPRITE_VAR(elemidx1)->state != 0)
             {
-                prevsprvar = SPRITE_VAR(uvaridx);
-
-                if (state == 1)
+                if (SPRITE_VAR(elemidx1)->state == 1)
                 {
-                    VERIFYINTEGRITY;
-                    prevsprvar->link = nextsprvar->link;
-                    nextsprvar->to_next = libsprit;
-                    libsprit = nextidx;
-                    nextidx = uvaridx;
-                    VERIFYINTEGRITY;
-
+                    SPRITE_VAR(tmpidx2)->link = SPRITE_VAR(elemidx1)->link;
+                    SPRITE_VAR(elemidx1)->to_next = libsprit;
+                    libsprit = elemidx1;
+                    elemidx1 = tmpidx2;
                 }
                 else
                 {
-                    VERIFYINTEGRITY;
-                    deptopix(scene, nextidx);
-                    VERIFYINTEGRITY;
+                    deptopix(scene,elemidx1);
+                    SPRITE_VAR(tmpidx2)->link = SPRITE_VAR(elemidx1)->link;
 
-                    prevsprvar->link = nextsprvar->link;
-                    nextsprvar->newad = newad;
-                    nextsprvar->newx = newx;
-                    nextsprvar->newy = newy;
-                    nextsprvar->newd = newd;
-                    nextsprvar->newf = newf;
-                    nextsprvar->width = newl;
-                    nextsprvar->height = newh;
-                    nextsprvar->newzoomx = newzoomx;
-                    nextsprvar->newzoomy = newzoomy;
-
-                    VERIFYINTEGRITY;
-                    rangesprite(nextidx, elemidx3);
-                    VERIFYINTEGRITY;
+                    SpriteVariables *sprvar = SPRITE_VAR(elemidx1);
+                    sprvar->newad = newad;
+                    sprvar->newx = newx;
+                    sprvar->newy = newy;
+                    sprvar->newd = newd;
+                    sprvar->newf = newf;
+                    sprvar->width = newl;
+                    sprvar->height = newh;
+                    sprvar->newzoomx = newzoomx;
+                    sprvar->newzoomy = newzoomy;
+                    elemidx1 = rangesprite(elemidx1,tmpidx2,elemidx3);
                 }
             }
         }
-
+        
         issprit = ptscreen == 0;
-        elemidx = ptscreen;
+        elemidx1 = ptscreen;
     }
     else
     {
-        elemidx = scene->to_next;
-        issprit = elemidx == 0;
+        issprit = *(s16 *)((u8 *)scene + 4) == 0;
+        elemidx1 = *(s16 *)((u8 *)scene + 4);
     }
-
-    VERIFYINTEGRITY;
-
-    SceneVariables *parentscene = NULL;
-    SpriteVariables *linksprvar = NULL;
-
+    
     while (!issprit)
     {
-        parentscene = SCENE_VAR(elemidx);
-
-        if ((((parentscene->state & 0x40U) == 0) && (linkidx = parentscene->screen_id != 0)) && clipfen(SPRITE_VAR(linkidx)) != 0)
+        SceneVariables *elemscene = SCENE_VAR(elemidx1);
+        if (((elemscene->state & 0x40U) == 0) && ((tmpidx2 = elemscene->screen_id) != 0))
         {
-            while ((linkidx = SPRITE_VAR(linkidx)->link) != 0)
+            clipfen(SPRITE_VAR(tmpidx2));
+            
+            if (fclip != '\0')
             {
-                linksprvar = SPRITE_VAR(linkidx);
-                if (-1 < (s8)linksprvar->state && -1 < (s8)linksprvar->newf && -1 < linksprvar->newd)
+                while ((tmpidx2 = SPRITE_VAR(tmpidx2)->link) != 0)
                 {
-                    DRAW_TRACE("SPRITE %.4x\n", ELEMIDX(linkidx));
-                    destofen(linksprvar);
-                    switchgo = 1;
+                    if (((-1 < (s8)SPRITE_VAR(tmpidx2)->state) && (-1 < (s8)SPRITE_VAR(tmpidx2)->newf)) && (-1 < SPRITE_VAR(tmpidx2)->newd))
+                    {
+                        destofen(SPRITE_VAR(tmpidx2));
+                        switchgo = 1;
+                    }
                 }
             }
         }
-
-        SceneVariables *scene = SCENE_VAR(elemidx);
-        elemidx = scene->to_next;
-        issprit = elemidx == 0;
+        
+        issprit = SCENE_VAR(elemidx1)->to_next == 0;
+        elemidx1 = SCENE_VAR(elemidx1)->to_next;
     }
-
+    
     if ((alis._cclipping == '\0') && (wpag == '\0'))
     {
         fentotv();
     }
-
-    VERIFYINTEGRITY;
     
-affiscr1:
-
+  affiscr1:
+    
     if (wpag < '\0')
     {
         scene->state &= 0xdf;
@@ -2586,11 +2619,335 @@ affiscr1:
         feny1 = scene->newy;
         fenx2 = scene->newx + scene->width;
         feny2 = scene->newy + scene->height;
-        // scrolpage(basesprite,BASEMNMEM_PTR,(u32)feny2);
+        // scrolpage(a0,CONCAT22(uVar2,feny2));
     }
-
+    
     scene->state &= 0x7f;
 }
+
+//void affiscr(SceneVariables *scene, u16 elemidx3)
+//{
+//    DEBUGFCE;
+//
+//    u8 state;
+//    bool issprit;
+//    u16 uvaridx;
+//    u16 nextidx;
+//    s16 linkidx;
+//    s16 previdx;
+//    s16 elemidx;
+//    s16 tempidx;
+//
+//    // NOTE: falcon or ishar 3 specific
+////    if (((u8 *)scene)[0x84] != '\0')
+////    {
+////        scene = (s8 *)folscreen((u8 *)scene);
+////    }
+//
+//    if (fremap != 0 || scene->state < 0)
+//    {
+//        depscreen(scene, elemidx3);
+//    }
+//
+//    if ((scene->numelem & 2) == 0 || (scene->state & 0x80U) == 0)
+//    {
+//        wback = (scene->numelem & 4) != 0;
+//        wpag = '\0';
+//
+//        if ((scene->state & 0x20U) != 0)
+//        {
+//            wpag = '\x01';
+//            spag --;
+//            if (spag == '\0')
+//            {
+//                wpag = -1;
+//            }
+//        }
+//
+//        SpriteVariables *nextsprvar = NULL;
+//
+//        DBTRACE("\n");
+//
+//        bool first = true;
+//        if ((scene->numelem & 0x10) == 0)
+//        {
+//
+//affiscin:
+//            nextidx = elemidx3;
+//
+//            do
+//            {
+//                previdx = elemidx3;
+//                nextidx = SPRITE_VAR(nextidx)->link;
+//                if (first && nextidx)
+//                {
+//                    u16 test = ELEMIDX(nextidx);
+//                    DBTRACE("0x%.4x\n", test);
+//
+////                    first = false;
+//                }
+//
+//                if (nextidx == 0)
+//                    goto affiscr1;
+//
+//                nextsprvar = SPRITE_VAR(nextidx);
+//                state = nextsprvar->state;
+//
+//                if (state != 0)
+//                {
+//                    joints = 0;
+//                    pback = 0;
+//                    elemidx = previdx;
+//                    tempidx = nextidx;
+//                    if (state == 2)
+//                    {
+//                        linkidx = inilink(nextidx);
+//                        if (linkidx < 0)
+//                        {
+//                            bool not_wback = wback == '\0';
+//                            if (!(bool)not_wback)
+//                            {
+//                                not_wback = backprof == nextsprvar->newd;
+//                                if ((s16)backprof <= nextsprvar->newd)
+//                                {
+//                                    pback = 1;
+//                                    not_wback = false;
+//                                }
+//                            }
+//
+//                            deptopix(scene, nextidx);
+//                            tstjoints(nextidx);
+////                            VERIFYINTEGRITY;
+//
+//                            if ((bool)not_wback)
+//                            {
+//                                SPRITE_VAR(previdx)->link = nextsprvar->link;
+//                                fenetre(scene, nextidx, elemidx3);
+//                            }
+//                            else
+//                            {
+//                                SPRITE_VAR(previdx)->link = nextsprvar->link;
+//                            }
+//
+//                            nextsprvar->newad = newad;
+//                            nextsprvar->newx = newx;
+//                            nextsprvar->newy = newy;
+//                            nextsprvar->newd = newd;
+//                            nextsprvar->newf = newf;
+//                            nextsprvar->width = newl;
+//                            nextsprvar->height = newh;
+//                            nextsprvar->newzoomx = newzoomx;
+//                            nextsprvar->newzoomy = newzoomy;
+//
+//                            elemidx = nextidx;
+//                            rangesprite(elemidx, elemidx3);
+//                            fenetre(scene, elemidx, elemidx3);
+////                            VERIFYINTEGRITY;
+//
+//                            goto affiscin;
+//                        }
+//
+//                        iremplink(scene, tempidx, elemidx, elemidx3);
+//                    }
+//                    else
+//                    {
+//                        if (state == 0xff)
+//                        {
+////                            VERIFYINTEGRITY;
+//                            // handle new sprites
+//                            linkidx = inilink(nextidx);
+//                            inouvlink(scene, tempidx, elemidx, elemidx3);
+////                            VERIFYINTEGRITY;
+//                        }
+//                        else
+//                        {
+////                            VERIFYINTEGRITY;
+//                            linkidx = inilink(nextidx);
+//                            iefflink(tempidx, elemidx);
+//                            tempidx = elemidx;
+////                            VERIFYINTEGRITY;
+//                        }
+//
+//                        if (linkidx < 0)
+//                        {
+////                            VERIFYINTEGRITY;
+//                            joints = 1;
+//                            fenetre(scene, nextidx, elemidx3);
+////                            VERIFYINTEGRITY;
+//                            nextidx = elemidx3;
+//                            goto affiscin;
+//                        }
+//                    }
+//
+//                    while (true)
+//                    {
+////                        VERIFYINTEGRITY;
+//                        elemidx = tempidx;
+//                        nextidx = SPRITE_VAR(elemidx)->link;
+//                        tempidx = nextidx;
+//                        if (nextidx == 0)
+//                            break;
+//
+//                        nextsprvar = SPRITE_VAR(nextidx);
+//                        if (linkidx == nextsprvar->clinking)
+//                        {
+//                            state = nextsprvar->state;
+//                            if (state != 0)
+//                            {
+//                                if ((s8)state < 0)
+//                                {
+////                                    VERIFYINTEGRITY;
+//                                    inouvlink(scene, nextidx, elemidx, elemidx3);
+////                                    VERIFYINTEGRITY;
+//                                }
+//                                else if (state == 2)
+//                                {
+////                                    VERIFYINTEGRITY;
+//                                    iremplink(scene, nextidx, elemidx, elemidx3);
+////                                    VERIFYINTEGRITY;
+//                                }
+//                                else
+//                                {
+////                                    VERIFYINTEGRITY;
+//                                    iefflink(nextidx, elemidx);
+////                                    VERIFYINTEGRITY;
+//                                    nextidx = elemidx;
+//                                }
+//                            }
+//                        }
+//                    }
+//
+//                    joints = 1;
+//                    fenetre(scene, previdx, elemidx3);
+//                    nextidx = elemidx3;
+//                }
+//            }
+//            while (true);
+//        }
+//
+////        VERIFYINTEGRITY;
+//        fenx1 = scene->newx;
+//        feny1 = scene->newy;
+//        fenx2 = fenx1 + scene->width;
+//        feny2 = feny1 + scene->height;
+//        clipl = (fenx2 - fenx1) + 1;
+//        cliph = (feny2 - feny1) + 1;
+//
+//        fenlargw = clipl >> 2;
+//
+//        clipx1 = fenx1;
+//        clipy1 = feny1;
+//        clipx2 = fenx2;
+//        clipy2 = feny2;
+//        nextidx = elemidx3;
+//        if ((scene->numelem & 0x40) == 0)
+//        {
+//            clrfen();
+//        }
+//
+////        VERIFYINTEGRITY;
+//
+//        SpriteVariables *prevsprvar = NULL;
+//        while ((nextidx = SPRITE_VAR((uvaridx = nextidx))->link) != 0)
+//        {
+////            VERIFYINTEGRITY;
+//            nextsprvar = SPRITE_VAR(nextidx);
+//            state = nextsprvar->state;
+//            if (state != 0)
+//            {
+//                prevsprvar = SPRITE_VAR(uvaridx);
+//
+//                if (state == 1)
+//                {
+////                    VERIFYINTEGRITY;
+//                    prevsprvar->link = nextsprvar->link;
+//                    nextsprvar->to_next = libsprit;
+//                    libsprit = nextidx;
+//                    nextidx = uvaridx;
+////                    VERIFYINTEGRITY;
+//                }
+//                else
+//                {
+////                    VERIFYINTEGRITY;
+//                    deptopix(scene, nextidx);
+////                    VERIFYINTEGRITY;
+//
+//                    prevsprvar->link = nextsprvar->link;
+//                    nextsprvar->newad = newad;
+//                    nextsprvar->newx = newx;
+//                    nextsprvar->newy = newy;
+//                    nextsprvar->newd = newd;
+//                    nextsprvar->newf = newf;
+//                    nextsprvar->width = newl;
+//                    nextsprvar->height = newh;
+//                    nextsprvar->newzoomx = newzoomx;
+//                    nextsprvar->newzoomy = newzoomy;
+//
+////                    VERIFYINTEGRITY;
+//                    rangesprite(nextidx, elemidx3);
+////                    VERIFYINTEGRITY;
+//                }
+//            }
+//        }
+//
+//        issprit = ptscreen == 0;
+//        elemidx = ptscreen;
+//    }
+//    else
+//    {
+//        elemidx = scene->to_next;
+//        issprit = elemidx == 0;
+//    }
+//
+////    VERIFYINTEGRITY;
+//
+//    SceneVariables *parentscene = NULL;
+//    SpriteVariables *linksprvar = NULL;
+//
+//    while (!issprit)
+//    {
+//        parentscene = SCENE_VAR(elemidx);
+//
+//        if ((((parentscene->state & 0x40U) == 0) && (linkidx = parentscene->screen_id != 0)) && clipfen(SPRITE_VAR(linkidx)) != 0)
+//        {
+//            while ((linkidx = SPRITE_VAR(linkidx)->link) != 0)
+//            {
+//                linksprvar = SPRITE_VAR(linkidx);
+//                if (-1 < (s8)linksprvar->state && -1 < (s8)linksprvar->newf && -1 < linksprvar->newd)
+//                {
+//                    DRAW_TRACE("SPRITE %.4x\n", ELEMIDX(linkidx));
+//                    destofen(linksprvar);
+//                    switchgo = 1;
+//                }
+//            }
+//        }
+//
+//        SceneVariables *scene = SCENE_VAR(elemidx);
+//        elemidx = scene->to_next;
+//        issprit = elemidx == 0;
+//    }
+//
+//    if ((alis._cclipping == '\0') && (wpag == '\0'))
+//    {
+//        fentotv();
+//    }
+//
+////    VERIFYINTEGRITY;
+//
+//affiscr1:
+//
+//    if (wpag < '\0')
+//    {
+//        scene->state &= 0xdf;
+//        fenx1 = scene->newx;
+//        feny1 = scene->newy;
+//        fenx2 = scene->newx + scene->width;
+//        feny2 = scene->newy + scene->height;
+//        // scrolpage(basesprite,BASEMNMEM_PTR,(u32)feny2);
+//    }
+//
+//    scene->state &= 0x7f;
+//}
 
 void itroutine(void)
 {
@@ -2634,9 +2991,24 @@ void itroutine(void)
     fitroutine = 0;
 }
 
+void waitframe(void) {
+    
+    struct timeval now, start;
+    gettimeofday(&start, NULL);
+    
+    while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (alis.time.tv_sec * 1000000 + alis.time.tv_usec) < FRAME_TICKS)) {
+        usleep(1000);
+    }
+
+    alis.time = now;
+}
+
 void image(void)
 {
     DEBUGFCE;
+    VERIFYINTEGRITY;
+    
+    waitframe();
     
 //    if (amiga != '\0')
 //    {
@@ -2649,6 +3021,8 @@ void image(void)
         fphytolog = '\0';
         phytolog();
     }
+    
+    alis.running = sys_poll_event();
     
     // s8 prevmouse = fremouse;
     
@@ -2745,6 +3119,10 @@ void image(void)
 //            fremouse = -1;
 //        }
     }
+    
+    sys_render(host.pixelbuf);
+
+    VERIFYINTEGRITY;
 }
 
 u32 finmem = 0;
@@ -2944,60 +3322,29 @@ void initent(void)
 
 void savecoord(u8 *a6)
 {
-    oldcx = *(u16 *)(a6 + 0x00);
-    oldcy = *(u16 *)(a6 + 0x08);
-    oldcz = *(u16 *)(a6 + 0x10);
-    oldacx = *(u16 *)(a6 + 0x18);
-    oldacy = *(u16 *)(a6 + 0x20);
-    oldacz = *(u16 *)(a6 + 0x28);
+    // ishar 1&2
+    oldcx = *(u16 *)(a6 + 0);
+    oldcy = *(u16 *)(a6 + 2);
+    oldcz = *(u16 *)(a6 + 4);
+
+//    //ishar 3
+//    oldcx = *(u16 *)(a6 + 0x00);
+//    oldcy = *(u16 *)(a6 + 0x08);
+//    oldcz = *(u16 *)(a6 + 0x10);
+//    oldacx = *(u16 *)(a6 + 0x18);
+//    oldacy = *(u16 *)(a6 + 0x20);
+//    oldacz = *(u16 *)(a6 + 0x28);
 }
 
 void updtcoord(u8 *a6)
 {
-    s16 angle = *(u16 *)(a6 + 0x18);
-    if (angle != oldacx)
+    // ishar 1&2
+    s16 addx = *(s16 *)(a6 + 0) - oldcx;
+    s16 addy = *(s16 *)(a6 + 2) - oldcy;
+    s16 addz = *(s16 *)(a6 + 4) - oldcz;
+    if (addz != 0 || addx != 0 || addy != 0)
     {
-        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
-            angle = angle % 0x168;
-        
-        if (angle < -0x168 && (angle += 0x168) < -0x168)
-            angle = angle % 0x168;
-        
-        *(s16 *)(a6 + 0x18) = angle;
-    }
-    
-    angle = *(u16 *)(a6 + 0x20);
-    if (angle != oldacy)
-    {
-        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
-            angle = angle % 0x168;
-        
-        if (angle < -0x168 && (angle += 0x168) < -0x168)
-            angle = angle % 0x168;
-        
-        *(s16 *)(a6 + 0x20) = angle;
-    }
-
-    angle = *(u16 *)(a6 + 0x28);
-    if (angle != oldacy)
-    {
-        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
-            angle = angle % 0x168;
-        
-        if (angle < -0x168 && (angle += 0x168) < -0x168)
-            angle = angle % 0x168;
-        
-        *(s16 *)(a6 + 0x28) = angle;
-    }
-
-    s16 addx = *(s16 *)(a6 + 0x00) - oldcx;
-    s16 addy = *(s16 *)(a6 + 0x08) - oldcy;
-    s16 addz = *(s16 *)(a6 + 0x10) - oldcz;
-    u16 unknown28 = *(u16 *)(a6 + 0x28);
-    
-    if (angle != oldacz || addz != 0 || addx != 0 || addy != 0)
-    {
-        for (SpriteVariables *sprite = SPRITE_VAR(*(s16 *)(a6 - 0x18)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+        for (SpriteVariables *sprite = SPRITE_VAR(alis.script->context._0x18_unknown); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
         {
             if (sprite->state == 0)
                 sprite->state = 2;
@@ -3005,9 +3352,64 @@ void updtcoord(u8 *a6)
             sprite->depx += addx;
             sprite->depy += addy;
             sprite->depz += addz;
-            sprite->sprite_0x28 = unknown28;
         }
     }
+    
+    // ishar 3
+//    s16 angle = *(u16 *)(a6 + 0x18);
+//    if (angle != oldacx)
+//    {
+//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+//            angle = angle % 0x168;
+//
+//        if (angle < -0x168 && (angle += 0x168) < -0x168)
+//            angle = angle % 0x168;
+//
+//        *(s16 *)(a6 + 0x18) = angle;
+//    }
+//
+//    angle = *(u16 *)(a6 + 0x20);
+//    if (angle != oldacy)
+//    {
+//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+//            angle = angle % 0x168;
+//
+//        if (angle < -0x168 && (angle += 0x168) < -0x168)
+//            angle = angle % 0x168;
+//
+//        *(s16 *)(a6 + 0x20) = angle;
+//    }
+//
+//    angle = *(u16 *)(a6 + 0x28);
+//    if (angle != oldacy)
+//    {
+//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+//            angle = angle % 0x168;
+//
+//        if (angle < -0x168 && (angle += 0x168) < -0x168)
+//            angle = angle % 0x168;
+//
+//        *(s16 *)(a6 + 0x28) = angle;
+//    }
+//
+//    s16 addx = *(s16 *)(a6 + 0x00) - oldcx;
+//    s16 addy = *(s16 *)(a6 + 0x08) - oldcy;
+//    s16 addz = *(s16 *)(a6 + 0x10) - oldcz;
+//    u16 unknown28 = *(u16 *)(a6 + 0x28);
+//
+//    if (angle != oldacz || addz != 0 || addx != 0 || addy != 0)
+//    {
+//        for (SpriteVariables *sprite = SPRITE_VAR(alis.script->context._0x18_unknown); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+//        {
+//            if (sprite->state == 0)
+//                sprite->state = 2;
+//
+//            sprite->depx += addx;
+//            sprite->depy += addy;
+//            sprite->depz += addz;
+//            sprite->sprite_0x28 = unknown28;
+//        }
+//    }
 }
 
 
@@ -3578,4 +3980,151 @@ s32 io_tomono(s32 param_1, s32 script_start)
 //    }
     
     return param_1;
+}
+
+u8 fallent = 0;
+u8 fseq = 0;
+u16 saversp = 0;
+
+void moteur4(s16 offset)
+{
+    u32 index = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].vram_offset; // NOTE: repurposed vram_offset as a script index
+    
+    // TODO: ...
+    if (nbent > 1 && index == 0)
+    {
+        // return;
+        sleep(0);
+    }
+    
+    sAlisScript *script = alis.scripts[index];
+    alis.script = script;
+
+    u8 *vram_addr = alis.mem + alis.script->vram_org;
+
+    fallent = 0;
+    fseq = 0;
+    
+    if (alis.script->context._0x24_scan_inter.data < 0 && (alis.script->context._0x24_scan_inter.data & 2) == 0)
+    {
+        s32 script_offset = swap32((alis.mem + alis.script->context._0x14_script_org_offset + 10), alis.platform.is_little_endian);
+        if (script_offset != 0)
+        {
+            saversp = alis.script->context._0x10_script_id;
+            savecoord(vram_addr);
+            alis.script->pc = alis.script->context._0x14_script_org_offset + 10 + script_offset;
+            alis_loop();
+            updtcoord(vram_addr);
+        }
+    }
+}
+
+void moteur3(s16 offset)
+{
+    u8 *vram_addr = alis.mem + alis.script->vram_org;
+    
+    savecoord(vram_addr);
+    alis.script->pc = alis.script->context._0x8_script_ret_offset;
+    
+//    u32 xx = offset == 0 ? 0x2edf0 : 0x034bc0;
+//    printf("\n %s PRE  A3 0x%.6x\n", alis.script->name, alis.script->pc - alis.script->pc_org + xx);
+    
+    // on real HW its assigned to d4w and later modified while doing reeadexec
+    // and than stored with new value
+    // set to d4w and can be changed in OPCODE_CJSR24_0x07 and likely others
+    u16 unknown0x10 = alis.script->context._0x10_script_id;
+    fseq ++;
+    alis_loop();
+    alis.script->context._0x10_script_id = unknown0x10;
+    alis.script->context._0x8_script_ret_offset = alis.script->pc;
+
+//    printf("\n %s POST A3 0x%.6x\n", alis.script->name, alis.script->pc - alis.script->pc_org + xx);
+
+    s32 script_offset = swap32(alis.mem + alis.script->context._0x14_script_org_offset + 6, alis.platform.is_little_endian);
+    if (script_offset != 0)
+    {
+        fseq = 0;
+        saversp = alis.script->context._0x10_script_id;
+        alis.script->pc = alis.script->context._0x14_script_org_offset + 6 + script_offset;
+        alis_loop();
+    }
+    
+    updtcoord(vram_addr);
+}
+
+u16 moteur1(s16 offset)
+{
+    do
+    {
+        do
+        {
+            do
+            {
+                // TODO: call it from a timer?
+                itroutine();
+                
+                offset = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].offset;
+                if (offset == 0)
+                {
+                    image();
+                    return 0;
+                }
+                
+                moteur4(offset);
+            }
+            while (alis.script->context._0x4_cstart_csleep == 0);
+            
+            if ((s8)alis.script->context._0x4_cstart_csleep < 0)
+            {
+                alis.script->context._0x4_cstart_csleep = 1;
+            }
+            
+            alis.script->context._0x1_cstart --;
+        }
+        while (alis.script->context._0x1_cstart != 0);
+        
+        moteur3(offset);
+        
+        alis.script->context._0x1_cstart = alis.script->context._0x2_unknown;
+    }
+    while (true);
+    
+    return 0;
+}
+
+void moteur2(s16 offset)
+{
+    do
+    {
+        // TODO: call it from a timer?
+        itroutine();
+        
+        moteur4(offset);
+        
+        if (alis.script->context._0x4_cstart_csleep != 0)
+        {
+            if ((s8)alis.script->context._0x4_cstart_csleep < 0)
+            {
+                alis.script->context._0x4_cstart_csleep = 1;
+            }
+            
+            alis.script->context._0x1_cstart --;
+            if (alis.script->context._0x1_cstart == 0)
+            {
+                moteur3(offset);
+
+                alis.script->context._0x1_cstart = alis.script->context._0x2_unknown;
+
+                offset = moteur1(offset);
+                continue;
+            }
+        }
+        
+        offset = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].offset;
+        if (offset == 0)
+        {
+            image();
+        }
+    }
+    while (true);
 }

@@ -6,6 +6,8 @@
 #ifndef alis_vm_h
 #define alis_vm_h
 
+#include <sys/time.h>
+
 #include "config.h"
 #include "debug.h"
 #include "platform.h"
@@ -181,10 +183,9 @@ typedef struct {
     u16         _DAT_000195fc;
     u16         _DAT_000195fe;
     
-    // NOTE: ugly hack
-    u32         render_rsrcs[256][6];
-    
     u8 *        spritemem;
+    
+    struct timeval time;
 
 } sAlisVM;
 
@@ -202,6 +203,7 @@ extern sHost host;
 // =============================================================================
 // MARK: - API
 // =============================================================================
+
 void            alis_init(sPlatform platform);
 u8              alis_main(void);
 void            alis_deinit(void);
@@ -211,5 +213,7 @@ void            alis_error(u8 errnum, ...);
 void            alis_debug(void);
 void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
+
+void            alis_loop(void);
 
 #endif /* alis_vm_h */

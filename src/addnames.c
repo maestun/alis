@@ -63,8 +63,30 @@ static void aloctp() {
 static void aloctc() {
     debug(EDebugInfo, "aloctc STUBBED\n");
 }
+
+short tabint(short d0w,short d7w,short *a4/*,short *a6*/)
+{
+    s16 *a0 = (s16 *)vram_ptr(d0w - 2); // (short *)(a6 + d0w - 2);
+    s16 result = d0w + d7w * 2;
+    s16 length = *(s8 *)vram_ptr(d0w - 1); // *(char *)(a6 + d0w - 1) - 1;
+    
+    for (int i = 0; i < length; i++, a4++, a0--)
+    {
+        result += *a4 * *a0;
+    }
+    
+    return result;
+}
+
 static void alocti() {
     debug(EDebugInfo, "alocti STUBBED\n");
+
+    u16 offset = script_read16();
+
+    // TODO: finish
+//    short *a4;
+//    short result = tabint(offset, alis.varD7, a4);
+//    vram_add16(result, *a4);
 }
 static void adirb() {
     u8 offset = script_read8();

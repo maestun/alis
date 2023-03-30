@@ -260,14 +260,18 @@ static void crandom() {
     }
 }
 
+u32 save_loop_pc;
 
 // cloopX(jmp_offset, addname(ram_offset))
 // decrement value in RAM[offset2]
 // if obtained value is zero, then jump with jmp_offset
-static void cloop(u32 offset) {
+static void cloop(s32 offset) {
+    save_loop_pc = alis.script->pc;
     alis.varD7 = -1;
     readexec_addname_swap();
-    if(alis.sr.zero) {
+    if(!alis.sr.zero)
+    {
+        alis.script->pc = save_loop_pc;
         script_jump(offset);
     }
 }
@@ -384,8 +388,14 @@ static void cwakeup() {
     debug(EDebugWarning, " /* MISSING */");
 }
 
+static void cstop(void);
+
 static void csleep() {
-    debug(EDebugWarning, " /* MISSING */");
+    alis.script->context._0x4_cstart_csleep = 0;
+    if (fseq)
+    {
+        cstop();
+    }
 }
 
 static void clive() {
@@ -394,15 +404,42 @@ static void clive() {
     alis._DAT_000195fc = 0;
     alis._DAT_000195fe = 0;
     
-    u16 d2 = script_read16();
+    u16 id = script_read16();
     
-    alis.scripts[d2]->context._0x16_screen_id = alis.script->context._0x16_screen_id;
-    alis.scripts[d2]->context._0x22_cworld = alis.script->context._0x22_cworld;
-    alis.scripts[d2]->context._0x2a_clinking = alis.script->context._0x2a_clinking;
-    alis.scripts[d2]->context._0xe_czap_cexplode_cnoise = alis.script->context._0xe_czap_cexplode_cnoise;
+    u8 *prev_vram = alis.mem + alis.script->vram_org;
+    u8 *next_vram = alis.mem + alis.scripts[id]->vram_org;
+    memcpy(next_vram, prev_vram, 8);
+    
+    s16 wcx = 0;
+    s16 wcy = 0;
+    s16 wcz = 0;
+
+    *(s16 *)(next_vram + 0) = wcx + *(s16 *)(next_vram + 0);
+    *(s16 *)(next_vram + 2) = wcy + *(s16 *)(next_vram + 2);
+    *(s16 *)(next_vram + 1) = wcz + *(s16 *)(next_vram + 1);
+    
+    *(u8 *)(next_vram + 0x9) = *(u8 *)(prev_vram + 0x9);
+    *(u8 *)(next_vram + 0xa) = *(u8 *)(prev_vram + 0xa);
+    *(u8 *)(next_vram + 0xb) = *(u8 *)(prev_vram + 0xb);
+    
+    alis.scripts[id]->context._0x10_script_id = alis.script->context._0x10_script_id;
+    alis.scripts[id]->context._0x16_screen_id = alis.script->context._0x16_screen_id;
+    alis.scripts[id]->context._0x22_cworld    = alis.script->context._0x22_cworld;
+    alis.scripts[id]->context._0x2a_clinking  = alis.script->context._0xe_czap_cexplode_cnoise;
+
+    sScriptLoc *prev_ent = &(alis.script_vram_orgs[alis.script->header.id]);
+    u16 prev_offset = prev_ent->offset;
+    prev_ent->offset = dernent;
+    
+    sScriptLoc *next_ent = &(alis.script_vram_orgs[id]);
+    dernent = next_ent->offset;
+    
+    next_ent->offset = prev_offset;
+    next_ent->vram_offset = id; // script->vram_org;
+
+    nbent ++;
 
     cstore_continue();
-    alis.script = alis.scripts[d2];
 }
 
 static void ckill() {
@@ -462,7 +499,6 @@ static void cload() {
         
         sAlisScript * script = script_load(strlower((char *)path));
         alis_register_script(script);
-//        alis.script = script;
     }
 }
 
@@ -535,7 +571,6 @@ void FUN_00013dda() {
 
 // reads 35 bytes
 static void cdefsc() {
-    debug(EDebugWarning, " /* STUBBED */");
     /*
      ; code address: $139ca
      opcode_cdefsc:
@@ -678,14 +713,10 @@ static void cerasen() {
     u16 curidx = 0;
     u16 previdx = 0;
 
-    printf("\n");
-    // TODO: ...
-
     while (1)
     {
-        searchelem(&curidx, &previdx);
-        
-        if (curidx == 0)
+        u8 ret = searchelem(&curidx, &previdx);
+        if (ret == 0)
             break;
         
         killelem(&curidx, &previdx);
@@ -817,7 +848,57 @@ static void crstent() {
 }
 
 static void csend() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
+    
+    u16 length = script_read8();
+    readexec_opername();
+    if (alis.varD7 == -1) // expected value is 6
+        goto LAB_0001613e;
+    
+    sAlisScript *script = alis.scripts[alis.varD7 / 6];
+    u8 *script_addr = alis.mem + alis.script->vram_org;
+    if (script_addr == NULL)
+        goto LAB_0001613e;
+    
+    if ((script->context._0x24_scan_inter.data & 1) != 0)
+        goto LAB_0001613e;
+    
+    s16 sVar2 = swap16((alis.mem + script->context._0x14_script_org_offset + 0x16), alis.platform.is_little_endian);
+    s16 sVar4 = script->context._0x1c_scan_clr; // expected value 0xffac
+    s16 sVar5;
+
+    while (1)
+    {
+        readexec_opername();
+
+        sVar5 = sVar4 + 2;
+        if (-0x35 < sVar5)
+        {
+            sVar5 -= sVar2;
+        }
+        
+        if (sVar5 == script->context._0x1e_scan_clr)
+            break;
+        
+        *(s16 *)(script_addr + sVar4) = alis.varD7;
+        
+        length --;
+        sVar4 = sVar5;
+        if (length == 0xffff)
+        {
+            script->context._0x1c_scan_clr = sVar5;
+            script->context._0x24_scan_inter.data |= 0x80;
+            return;
+        }
+    }
+    
+    script->context._0x1c_scan_clr = sVar5;
+    
+    while ((--length) != 0xffff)
+    {
+LAB_0001613e:
+        readexec_opername();
+    }
 }
 
 static void cscanclr() {
@@ -855,7 +936,8 @@ static void callentity() {
 }
 
 static void cpalette() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
+    readexec_opername();
 }
 
 static void cdefcolor() {
@@ -1299,7 +1381,6 @@ static void cpaper() {
 
 // fade-out to black
 static void ctoblack() {
-    debug(EDebugWarning, " /* STUBBED */");
     readexec_opername_saveD6();
     
     s16 duration = alis.varD6;
@@ -1312,7 +1393,6 @@ static void cmovcolor() {
 
 // fade-in to palette
 static void ctopalet() {
-    debug(EDebugWarning, " /* STUBBED */");
     readexec_opername();
     readexec_opername_saveD6();
     u16 palidx = alis.varD7;
@@ -1321,6 +1401,7 @@ static void ctopalet() {
     if (palidx < 0)
     {
         // TODO: ...
+        debug(EDebugWarning, " /* STUBBED */");
     }
     else
     {
@@ -1328,9 +1409,6 @@ static void ctopalet() {
         u8 *paldata = alis.mem + alis.script->data_org + addr;
         ctopalette(paldata, duration);
     }
-
-//    alis_rsrc *e = alis.script->resources[palidx];
-//    memcpy(host.pixelbuf0.palette, e->buffer.data, 256 * 3);
 }
 
 static void cnumput() {
@@ -1442,23 +1520,10 @@ static void chsprite() {
 }
 
 static void cselpalet() {
-    debug(EDebugWarning, " /* MISSING */");
-//    **************************************************************
-//    *                          FUNCTION                          *
-//    **************************************************************
-//    undefined OPCODE_CSELPALET_0xd7()
-//undefined         D0b:1          <RETURN>
-//    OPCODE_CSELPALET_0xd7
-//00016288 61 00 12 e4     bsr.w      FUN_READEXEC_OPERNAME                            undefined FUN_READEXEC_OPERNAME()
-//0001628c 02 47 00 03     andi.w     #0x3,D7w
-//00016290 13 c7 00        move.b     D7b,(DAT_0001968c).l
-//01 96 8c
-//00016296 13 fc 00        move.b     #0x1,(DAT_0001968d).l
-//01 00 01
-//96 8d
-//0001629e 4e 75           rts
     readexec_opername();
     alis.varD7 &= 0x3; // 4 palettes: 0...3
+    thepalet = alis.varD7;
+    defpalet = 1;
 }
 
 static void clinepalet() {
@@ -1733,22 +1798,20 @@ static void cjmp24() {
 // ============================================================================
 #pragma mark - Flow control - Branch if zero
 // ============================================================================
-static void cbz(u32 offset) {
-    if(alis.varD7 == 0) {
-//        alis.pc += offset;
-        script_jump(offset);
-    }
-}
 
 static void cbz8() {
-    cbz(script_read8ext16());
+    s16 offset = alis.varD7 ? 1 : script_read8ext16();
+    script_jump(offset);
 }
 
 static void cbz16() {
-    cbz(script_read16());
+    s16 offset = alis.varD7 ? 2 : script_read16();
+    script_jump(offset);
 }
+
 static void cbz24() {
-    cbz(script_read24());
+    s16 offset = alis.varD7 ? 3 : script_read24();
+    script_jump(offset);
 }
 
 

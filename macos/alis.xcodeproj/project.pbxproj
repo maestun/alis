@@ -11,6 +11,8 @@
 		0981CBD2250B46970097F862 /* addnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCE250B46970097F862 /* addnames.c */; };
 		0981CBD3250B46970097F862 /* escnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCF250B46970097F862 /* escnames.c */; };
 		0981CBD4250B46970097F862 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
+		6803AFC329C5172A00C42135 /* unpack.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745929B972E200F51FAE /* unpack.c */; };
+		6803AFC429C5172E00C42135 /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745029B972E200F51FAE /* platform.c */; };
 		6808EE05297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
 		6808EE06297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
 		68B9745A29B972E200F51FAE /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745029B972E200F51FAE /* platform.c */; };
@@ -21,7 +23,6 @@
 		8B20A3DC256913C40045BF66 /* utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402F250A2F9300C947F9 /* utils.c */; };
 		8B20A3DD256913C40045BF66 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402B250A2A8F00C947F9 /* main.c */; };
 		8B20A3DE256913C40045BF66 /* alis.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C400F250921E900C947F9 /* alis.c */; };
-		8B20A3DF256913C40045BF66 /* asm.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4035250A3C7F00C947F9 /* asm.c */; };
 		8B20A3E1256913C40045BF66 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
 		8B20A3E2256913C40045BF66 /* script.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C403A250A3E5200C947F9 /* script.c */; };
 		8B20A3E3256913C40045BF66 /* opcodes.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4016250A247D00C947F9 /* opcodes.c */; };
@@ -112,8 +113,6 @@
 		8B9C402D250A2AEF00C947F9 /* config.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 		8B9C402E250A2F9300C947F9 /* utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils.h; sourceTree = "<group>"; };
 		8B9C402F250A2F9300C947F9 /* utils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utils.c; sourceTree = "<group>"; };
-		8B9C4035250A3C7F00C947F9 /* asm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = asm.c; sourceTree = "<group>"; };
-		8B9C4036250A3C7F00C947F9 /* asm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = asm.h; sourceTree = "<group>"; };
 		8B9C4039250A3E5200C947F9 /* script.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = script.h; sourceTree = "<group>"; };
 		8B9C403A250A3E5200C947F9 /* script.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = script.c; sourceTree = "<group>"; };
 		8B9C4042250A6AC200C947F9 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = debug.h; sourceTree = "<group>"; };
@@ -268,8 +267,6 @@
 				68B9745529B972E200F51FAE /* platform.h */,
 				68B9745929B972E200F51FAE /* unpack.c */,
 				68B9745329B972E200F51FAE /* unpack.h */,
-				8B9C4036250A3C7F00C947F9 /* asm.h */,
-				8B9C4035250A3C7F00C947F9 /* asm.c */,
 			);
 			path = depack;
 			sourceTree = "<group>";
@@ -352,9 +349,10 @@
 				8B20A3DD256913C40045BF66 /* main.c in Sources */,
 				8B20A3DE256913C40045BF66 /* alis.c in Sources */,
 				6808EE06297069760045BA8A /* experimental.c in Sources */,
-				8B20A3DF256913C40045BF66 /* asm.c in Sources */,
 				8B20A3E1256913C40045BF66 /* opernames.c in Sources */,
+				6803AFC329C5172A00C42135 /* unpack.c in Sources */,
 				8B20A3E2256913C40045BF66 /* script.c in Sources */,
+				6803AFC429C5172E00C42135 /* platform.c in Sources */,
 				8B20A3E3256913C40045BF66 /* opcodes.c in Sources */,
 				8B20A3E4256913C40045BF66 /* escnames.c in Sources */,
 				8B20A3E5256913C40045BF66 /* debug.c in Sources */,
