@@ -407,10 +407,13 @@ int is_main(u16 check) {
 //    return;
 //}
 
-u32 endmem = 0x2261c;
 // =============================================================================
 // MARK: - Script API
 // =============================================================================
+
+// 000224f0 0002edd8 0002263c
+// 000224f0 00034ba8 0002788c // 392b
+
 sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     // init script
     sAlisScript * script = (sAlisScript *)malloc(sizeof(sAlisScript));
@@ -431,24 +434,30 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     
     // TODO: this is for debug / static allocs
     sScriptDebug debug_data = script_debug_data[script->header.id];
+    
 
     // tell where the script vram is located in host memory
     // script->vram_org = debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
-    endmem += sizeof(script->context) + script->header.w_unknown5 + script->header.w_unknown7;
-    script->vram_org = endmem;
+    alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(script->context));
+
+    script->vram_org = alis.finent;
     script->vacc_off = debug_data.vacc_off;
-    script->data_org = script->vram_org + 0xffff; //debug_data.data_org;
-    
-    endmem += data_sz + 0xffff;
+    script->data_org = alis.finprog;
+//    script->data_org = script->vram_org + 0xc760; //debug_data.data_org;
+
+    alis.finent += swap16((data + 0x14), alis.platform.is_little_endian);
+    alis.finprog += data_sz;
+
+    printf("buffer at: 0x%.6x to: 0x%.6x\n", script->vram_org, alis.finent);
+    printf("script at: 0x%.6x to: 0x%.6x\n", script->data_org, alis.finprog);
     
     // init context
     memset(&(script->context), 0, sizeof(script->context));
     script->context._0x10_script_id = script->header.id;
-    
     script->context._0x18_unknown = 0;      // sprite adress
     script->context._0x16_screen_id = 0;
     script->context._0x14_script_org_offset = script->data_org;
-    script->context._0x8_script_ret_offset = script->data_org + script->header.code_loc_offset + 2;
+    script->context._0x8_script_ret_offset = script->data_org + script->header.code_loc_offset + 2; // 0x2edf0
     script->context._0x2e_script_header_word_2 = script->header.w_0x1700;
     script->context._0x2_unknown = 1;
     script->context._0x1_cstart = 1;
@@ -507,7 +516,7 @@ sAlisScript * script_load(const char * script_path) {
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
         debug(EDebugVerbose,
-              "Loading script file: %s\n", script_path);
+              "\nLoading script file: %s\n", script_path);
         
         // get packed file size
         fseek(fp, 0L, SEEK_END);
@@ -547,16 +556,11 @@ sAlisScript * script_load(const char * script_path) {
             u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
             
             depak_sz = unpack_script(script_path, alis.platform.is_little_endian, &depak_buf);
-            
-//            depak(pak_buf,
-//                  depak_buf,
-//                  pak_sz,
-//                  depak_sz,
-//                  dic);
-            
             debug(EDebugVerbose,
                        "Depacking done in %ld bytes (~%d%% packing ratio)\n",
                        depak_sz, 100 - (100 * pak_sz) / depak_sz);
+            
+            // depak_sz -= is_main(check) ? 0x16 : 0x6;
         
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);

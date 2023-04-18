@@ -27,8 +27,8 @@
 
 #define FRAME_TICKS (1000000 / 10) // 10 fps looks about right in logo animation
 
-#define BASEMNMEM_PTR alis.spritemem + basemain
-#define SPRITEMEM_PTR alis.spritemem + basesprite
+#define BASEMNMEM_PTR alis.spritemem + alis.basemain
+#define SPRITEMEM_PTR alis.spritemem + alis.basesprite
 
 #define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
 #define SCENE_VAR(x) ((SceneVariables *)(BASEMNMEM_PTR + x))
@@ -75,7 +75,6 @@
 #endif
 
 u8 tvmode = 0;
-u8 flagmain = 0;
 
 u8 tpalet[1024];
 u8 mpalet[1024];
@@ -99,37 +98,9 @@ u16 tabfen[640];
 u8 *ptrent = 0;
 u8 tablent = 0;
 
-
 s32 bufrvb;
 
-u8 numelem = 0;
-
-u8 flaginvx = 0;
-u8 fmuldes = 0;
-u8 fadddes = 0;
-
-s32 atent;
-s32 debent;
-s32 finent;
-s32 maxent;
-s16 nbent;
-s16 dernent;
-
-s32 basemain;
-s32 basesprite;
-u16 libsprit;
-s32 debsprit;
-s32 finsprit;
-s32 backsprite;
-s32 tvsprite;
-s32 texsprite;
-s32 atexsprite;
-s32 mousprite;
 s32 mousflag;
-
-u16 depx = 0;
-u16 depy = 0;
-u16 depz = 0;
 
 s16 oldcx = 0;
 s16 oldcy = 0;
@@ -139,15 +110,6 @@ s16 oldacx;
 s16 oldacy;
 s16 oldacz;
 
-u8 priorson;
-u8 typeson;
-u16 longson;
-u16 freqson;
-u16 dfreqson;
-u8 volson;
-u16 dvolson;
-u16 pereson;
-
 s8 nmode = 0;
 s8 falcon = 0;
 s8 a1200 = 0;
@@ -155,14 +117,6 @@ s8 amiga = 0;
 s8 atari = 0;
 s8 fsound = 1;
 s8 fmusic = 1;
-
-s8 *sd7 = 0;
-s8 *sd6 = 0;
-s8 *oldsd7 = 0;
-s8 *bsd7bis = 0;
-
-s8 bsd7[256];
-s8 bsd6[256];
 
 s8 *savsp = 0;
 u32 command = 0;
@@ -178,21 +132,16 @@ u32 basemem = 0x33900;
 u32 basevar = 0;
 u32 ophysic = 0x33900;
 
-u16 nbprog = 0;
 u8 timing = 0;
 u16 ptscreen = 0;
 u16 vprotect = 0;
 s8 fmouse = 0xff;
 u16 fonum = 0xffff;
 u8 sback = 0;
-u32 debprog = 0;
 
-u32 finprog;
-u32 dernprog;
+u32 adaline = 0;
 
-u16 maxprog;
-
-s32 ferase = 0;
+u8 ferase = 0;
 
 u32 newad;
 s16 newx;
@@ -366,7 +315,7 @@ s32 adresdei(s32 idx)
 
 s32 adresdes(s32 idx)
 {
-    if (flagmain != '\0')
+    if (alis.flagmain != 0)
         return adresdei(idx);
     
     u8 *addr = alis.mem + alis.script->context._0x14_script_org_offset;
@@ -407,7 +356,7 @@ s32 adresmui(s32 idx)
 
 s32 adresmus(s32 idx)
 {
-    if (flagmain != '\0')
+    if (alis.flagmain != 0)
         return adresmui(idx);
 
     u8 *addr = alis.mem + alis.script->context._0x14_script_org_offset;
@@ -574,7 +523,7 @@ void ctopalette(u8 *paldata, s32 duration)
 
 void OPCODE_CTOPALET_0xbe(s32 palidx, s32 duration)
 {
-    flagmain = 0;
+    alis.flagmain = 0;
     if ((((nmode == '\x01') || (nmode == '\x05')) || (nmode == '\x03')) || (nmode == '\a'))
     {
         return;
@@ -691,7 +640,7 @@ void ctoblackpal(s16 duration)
 
 void printelem(void)
 {
-    s32 cursprit = debsprit;
+    s32 cursprit = alis.debsprit;
     cursprit += 0x78;
     cursprit += 0x60;
 
@@ -702,18 +651,18 @@ void printelem(void)
                    *(u16 *)(SPRITEMEM_PTR + cursprit + 6) == 0 ? 0 : ELEMIDX(*(u16 *)(SPRITEMEM_PTR + cursprit + 6)));
         cursprit += 0x30;
     }
-    while (cursprit < debsprit + 16 * 0x30);
+    while (cursprit < alis.debsprit + 16 * 0x30);
 }
 
-bool verifyintegrity(void)
+u8 verifyintegrity(void)
 {
     DEBUGFCE;
     
-    bool result = true;
+    u8 result = true;
 
-    if (libsprit == 0)
+    if (alis.libsprit == 0)
     {
-        ELEM_TRACE("ERROR: libsprit = 0!\n");
+        ELEM_TRACE("ERROR: alis.libsprit = 0!\n");
         result = false;
     }
     
@@ -782,77 +731,49 @@ bool verifyintegrity(void)
 
 void inisprit(void)
 {
-    basemain = 0;
-    s32 cursprit = debsprit;
-    s32 base = debsprit + 0x8000;
-    tvsprite = 0x8000;
-    basesprite = base;
+    alis.basemain = 0;
+    alis.debsprit = 0;
+    alis.finsprit = 0x7fff;
+
+    s32 cursprit = alis.debsprit;
+    alis.tvsprite = 0x8000;
+    alis.basesprite = alis.debsprit + 0x8000;
     *(s32 *)(alis.spritemem + cursprit + 0x0c) = 0;
     *(s16 *)(alis.spritemem + cursprit + 0x16) = 0x13f;
     *(s16 *)(alis.spritemem + cursprit + 0x18) = 199;
     *(s8 *) (alis.spritemem + cursprit + 0x29) = 0;
-    backsprite = 0x000e; // 0x8028;
-    texsprite = 0x0042; // 0x8050;
+    alis.backsprite = 0x000e; // 0x8028;
+    alis.texsprite = 0x0042; // 0x8050;
     *(s32 *)(alis.spritemem + cursprit + 0x5c) = 0;
     *(s8 *) (alis.spritemem + cursprit + 0x50) = 0xfe;
-    mousflag = 0;
-    libsprit = 0x78;
+    alis.mousflag = 0;
+    alis.libsprit = 0x78; // 0x8078;
     cursprit += 0x78;
     
-    do
-    {
-        SPRITE_VAR(cursprit)->to_next = cursprit + 0x30;
-        cursprit += 0x30;
-    }
-    while (cursprit < finsprit);
-    
-    *(s16 *)(SPRITEMEM_PTR + cursprit + -0x24) = 0;
-
-//    u16 sp = libsprit;
-//    for (s32 i = 0; i < 100; i++)
-//    {
-//        sp = *(s16 *)(SPRITEMEM_PTR + sprite_to_next + sp);
-//    }
-    
-    
-//    basemain = 0;
-//    s32 cursprit = debsprit;
-//    s32 base = debsprit + 0x8000;
-//    tvsprite = 0x8000;
-//    basesprite = base;
-//    *(s32 *)(alis.spritemem + cursprit + sprite_newx) = 0;
-//    *(s16 *)(alis.spritemem + cursprit + sprite_depx) = 0x13f;
-//    *(s16 *)(alis.spritemem + cursprit + sprite_depy) = 199;
-//    *(s8 *) (alis.spritemem + cursprit + 0x31) = 0;
-//    backsprite = 0x8030;
-//    texsprite = 0x8060;
-//    atexsprite = cursprit + 0x90;
-//    mousprite = 0x8090;
-//    *(s32 *)(alis.spritemem + cursprit + 0x9c) = 0;
-//    *(s8 *) (alis.spritemem + cursprit + 0x90) = 0xfe;
-//    mousflag = 0;
-//    // s16 size = -0x7f40;
-//    s16 size = -0x7f88;
-////    libsprit = 0x80c0;
-////    libsprit = 0x8078;
-//    libsprit = 0x80c8;
-////    cursprit += 0xc0;
-//    cursprit += 0xc8;
+//    s16 sprit = 0x8078;
 //
 //    do
 //    {
-//        // size += 0x30;       // Falcon
-//        size += 0x28;       // ST
+//        do
+//        {
+//            sprit += 0x28;
+//        }
+//        while (sprit == 0);
 //
-//        // save offsets for eaech sprit
-//        *(s16 *)(alis.spritemem + cursprit + sprite_to_next) = size;
-//        cursprit = base + size;
+//        *(s16 *)(alis.spritemem + cursprit + 4) = sprit;
+//        cursprit = alis.basesprite + sVar1;
 //    }
-//    while (cursprit < finsprit);
-//
-//    // save 0 for the last offset to indicate end
-////    *(s32 *)(alis.spritemem + cursprit - sprite_newzoomx) = 0;
-//    *(s32 *)(alis.spritemem + cursprit - 0x24) = 0;
+//    while (cursprit < alis.finsprit);
+
+    do
+    {
+        SpriteVariables *sprite = SPRITE_VAR(cursprit);
+        sprite->to_next = cursprit + 0x30;
+        cursprit += 0x30;
+    }
+    while (cursprit < alis.finsprit);
+    
+    *(s16 *)(SPRITEMEM_PTR + cursprit + -0x24) = 0;
 }
 
 u8 searchelem(u16 *curidx, u16 *previdx)
@@ -868,7 +789,7 @@ u8 searchelem(u16 *curidx, u16 *previdx)
     u16 dbgidx = ELEMIDX(*curidx);
     if (*curidx == 0)
     {
-        ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+        ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
         return 0;
     }
     
@@ -883,20 +804,20 @@ u8 searchelem(u16 *curidx, u16 *previdx)
         {
             if (alis.script->context._0x16_screen_id != screen_id)
             {
-                ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+                ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
                 return 0;
             }
 
             num = cursprvar->numelem;
-            if (num <= numelem)
+            if (num <= alis.numelem)
             {
-                if (numelem != num)
+                if (alis.numelem != num)
                 {
-                    ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+                    ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
                     return 0;
                 }
 
-                ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+                ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
                 return 1;
             }
         }
@@ -906,7 +827,7 @@ u8 searchelem(u16 *curidx, u16 *previdx)
     }
     while (*curidx != 0);
 
-    ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+    ELEM_TRACE("cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
     return 0;
 }
 
@@ -914,7 +835,7 @@ u8 testnum(u16 *curidx)
 {
     DEBUGFCE;
     SpriteVariables *cursprvar = SPRITE_VAR(*curidx);
-    return ((cursprvar->screen_id == alis.script->context._0x16_screen_id) && (cursprvar->numelem == numelem)) ? 1 : 0;
+    return ((cursprvar->screen_id == alis.script->context._0x16_screen_id) && (cursprvar->numelem == alis.numelem)) ? 1 : 0;
 }
 
 u8 nextnum(u16 *curidx, u16 *previdx)
@@ -924,13 +845,13 @@ u8 nextnum(u16 *curidx, u16 *previdx)
     *previdx = *curidx;
     *curidx = SPRITE_VAR(*curidx)->to_next;
     SpriteVariables *cursprvar = SPRITE_VAR(*curidx);
-    if (cursprvar != NULL && cursprvar->screen_id == alis.script->context._0x16_screen_id && cursprvar->numelem == numelem)
+    if (cursprvar != NULL && cursprvar->screen_id == alis.script->context._0x16_screen_id && cursprvar->numelem == alis.numelem)
     {
-        ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+        ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
         return 1;
     }
 
-    ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+    ELEM_TRACE("   cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
     return 0;
 }
 
@@ -938,30 +859,30 @@ void createlem(u16 *curidx, u16 *previdx)
 {
     DEBUGFCE;
 
-    SpriteVariables *cursprvar = SPRITE_VAR(libsprit);
+    SpriteVariables *cursprvar = SPRITE_VAR(alis.libsprit);
 
-    if (libsprit != 0)
+    if (alis.libsprit != 0)
     {
-        u16 sprit = libsprit;
+        u16 sprit = alis.libsprit;
         u16 nextsprit = cursprvar->to_next;
 
         if (*previdx == 0)
         {
-            alis.script->context._0x18_unknown = libsprit;
-            libsprit = nextsprit;
+            alis.script->context._0x18_unknown = alis.libsprit;
+            alis.libsprit = nextsprit;
         }
         else
         {
             SpriteVariables *prevsprvar = SPRITE_VAR(*previdx);
-            prevsprvar->to_next = libsprit;
-            libsprit = nextsprit;
+            prevsprvar->to_next = alis.libsprit;
+            alis.libsprit = nextsprit;
         }
 
         s16 scrnidx = SCENE_VAR(alis.script->context._0x16_screen_id)->screen_id;
         SpriteVariables *scrnsprvar = SPRITE_VAR(scrnidx);
 
         cursprvar->state = 0xff;
-        cursprvar->numelem = numelem;
+        cursprvar->numelem = alis.numelem;
         cursprvar->screen_id = alis.script->context._0x16_screen_id;
         cursprvar->to_next = *curidx;
         cursprvar->link = scrnsprvar->link;
@@ -971,7 +892,7 @@ void createlem(u16 *curidx, u16 *previdx)
     }
 
 //    VERIFYINTEGRITY;
-    ELEM_TRACE(" cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+    ELEM_TRACE(" cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
 }
 
 void delprec(s16 elemidx)
@@ -1002,7 +923,7 @@ void delprec(s16 elemidx)
 void killelem(u16 *curidx, u16 *previdx)
 {
     DEBUGFCE;
-    ELEM_TRACE("  cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), numelem);
+    ELEM_TRACE("  cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
 
     SpriteVariables *cursprvar = SPRITE_VAR(*curidx);
     if (ferase == '\0' && -1 < (s8)cursprvar->state)
@@ -1028,21 +949,21 @@ void killelem(u16 *curidx, u16 *previdx)
         {
             SPRITE_VAR(*previdx)->to_next = cursprvar->to_next;
         }
-      
-        cursprvar->to_next = libsprit;
-        libsprit = *curidx;
+        
+        cursprvar->to_next = alis.libsprit;
+        alis.libsprit = *curidx;
         
         delprec(*curidx);
-        
-        if (*previdx)
-        {
-            *curidx = alis.script->context._0x18_unknown;
+    }
+
+    if (*previdx == 0)
+    {
+        *curidx = alis.script->context._0x18_unknown;
 //            VERIFYINTEGRITY;
-            return;
-        }
+        return;
     }
     
-    *curidx = *previdx ? SPRITE_VAR(*previdx)->to_next : 0;
+    *curidx = SPRITE_VAR(*previdx)->to_next;
 //    VERIFYINTEGRITY;
 }
 
@@ -1050,9 +971,9 @@ void put(u8 idx)
 {
     DEBUGFCE;
 
-    fmuldes = 0;
+    alis.fmuldes = 0;
     ELEM_TRACE("\n");
-    ELEM_TRACE("   idx: 0x%.2x numelem: 0x%.2x\n", idx, numelem);
+    ELEM_TRACE("   idx: 0x%.2x numelem: 0x%.2x\n", idx, alis.numelem);
     putin(idx);
 }
 
@@ -1064,9 +985,9 @@ void putin(u8 idx)
     s32 addr = adresdes(idx);
     u8 *resourcedata = alis.mem + alis.script->data_org + addr;
 
-    u16 x = depx;
-    u16 z = depz;
-    u16 y = depy;
+    u16 x = alis.depx;
+    u16 z = alis.depz;
+    u16 y = alis.depy;
     
     if (resourcedata[0] > 0x80)
     {
@@ -1086,53 +1007,53 @@ void putin(u8 idx)
 
         for (s32 i = 0; i < rsrccount; i++)
         {
-            invx = flaginvx;
-            muldes = fmuldes;
+            invx = alis.flaginvx;
+            muldes = alis.fmuldes;
             
             s16 curelem = read16(currsrc + 0, alis.platform.is_little_endian);
             s16 curdepx = read16(currsrc + 2, alis.platform.is_little_endian);
-            if (*((u8 *)(&flaginvx)) != 0)
+            if (*((u8 *)(&alis.flaginvx)) != 0)
                 curdepx = -curdepx;
 
-            depx += curdepx;
+            alis.depx += curdepx;
 
             s16 curdepy = read16(currsrc + 4, alis.platform.is_little_endian);
-            depy = curdepy + y;
+            alis.depy = curdepy + y;
 
             s16 curdepz = read16(currsrc + 6, alis.platform.is_little_endian);
-            depz = curdepz + z;
+            alis.depz = curdepz + z;
             
             if (curelem < 0)
-                *((u8 *)(&flaginvx)) ^= 1;
+                *((u8 *)(&alis.flaginvx)) ^= 1;
 
-            fmuldes = 1;
+            alis.fmuldes = 1;
 
             putin(curelem);
 
-            depx = x;
-            depy = y;
-            depz = z;
+            alis.depx = x;
+            alis.depy = y;
+            alis.depz = z;
             
-            flaginvx = invx;
-            fmuldes = muldes;
+            alis.flaginvx = invx;
+            alis.fmuldes = muldes;
 
             currsrc += 8;
         }
         
-        fmuldes = 0;
+        alis.fmuldes = 0;
     }
     else
     {
-        ELEM_TRACE("     idx: 0x%.2x numelem: 0x%.2x\n", idx, numelem);
+        ELEM_TRACE("     idx: 0x%.2x numelem: 0x%.2x\n", idx, alis.numelem);
 
         u16 cursprite = 0;
         u16 prevsprite = 0;
         
 //        printelem();
         
-        if (fadddes == 0)
+        if (alis.fadddes == 0)
         {
-            if (fmuldes)
+            if (alis.fmuldes)
                 goto put13;
 
             u8 ret = searchelem(&cursprite, &prevsprite);
@@ -1171,11 +1092,11 @@ put13:
         ELEM_TRACE("  cursprite: 0x%.4x addr: 0x%.4x\n", ELEMIDX(cursprite), ELEMIDX(addr));
 
         SpriteVariables *cursprvar = SPRITE_VAR(cursprite);
-        cursprvar->data       = addr;
-        cursprvar->flaginvx   = (u8)flaginvx;
-        cursprvar->depx       = oldcx + depx;
-        cursprvar->depy       = oldcy + depy;
-        cursprvar->depz       = oldcz + depz;
+        cursprvar->data       = alis.script->data_org + addr;
+        cursprvar->flaginvx   = (u8)alis.flaginvx;
+        cursprvar->depx       = oldcx + alis.depx;
+        cursprvar->depy       = oldcy + alis.depy;
+        cursprvar->depz       = oldcz + alis.depz;
         cursprvar->credon_off = alis.script->context._0x25_credon_credoff;
         cursprvar->creducing  = alis.script->context._0x27_creducing;
         cursprvar->clinking   = alis.script->context._0x2a_clinking;
@@ -1198,7 +1119,7 @@ put13:
         debug = SPRITE_VAR(cursprite);
     }
     
-    if (fmuldes == 0)
+    if (alis.fmuldes == 0)
     {
         u16 cursprite = 0;
         u16 prevsprite = 0;
@@ -1216,14 +1137,14 @@ put13:
                 killelem(&cursprite, &prevsprite);
                 if (cursprite == 0)
                 {
-                    fadddes = 0;
+                    alis.fadddes = 0;
                     return;
                 }
 
                 res = testnum(&cursprite);
                 if (!res)
                 {
-                    fadddes = 0;
+                    alis.fadddes = 0;
                     return;
                 }
             }
@@ -1233,7 +1154,7 @@ put13:
         while (res);
     }
     
-    fadddes = 0;
+    alis.fadddes = 0;
 //    VERIFYINTEGRITY;
     
 //    printelem();
@@ -1358,7 +1279,7 @@ s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
     s16 newd1  =  idx1sprvar->newd;
     s8 cordspr1 = idx1sprvar->cordspr;
     s8 numelem1 = idx1sprvar->numelem;
-    if (wback != 0 && elemidx1 != backsprite && backprof <= newd1)
+    if (wback != 0 && elemidx1 != alis.backsprite && backprof <= newd1)
     {
         pback = 1;
     }
@@ -1561,7 +1482,7 @@ void deptopix(SceneVariables *scene, s16 elemidx)
         tmpdepy = (tmpdepy >> (scene->credon_off & 0x3f)) + scene->unknown0x0c;
         
         newad = (elemsprvar->data & 0xffffff) + offset;
-        u8 *spritedata = (alis.mem + alis.script->data_org + newad);
+        u8 *spritedata = (alis.mem + newad);
         if (spritedata[0] == '\x03')
         {
             tmpdepx += (elemsprvar->flaginvx ? -1 : 1) * read16(spritedata + 4, alis.platform.is_little_endian);
@@ -1572,7 +1493,7 @@ void deptopix(SceneVariables *scene, s16 elemidx)
             }
             
             newad = (newad + (read16(spritedata + 2, alis.platform.is_little_endian) << 2));
-            spritedata = (alis.mem + alis.script->data_org + newad);
+            spritedata = (alis.mem + newad);
         }
         
         newl = read16(spritedata + 2, alis.platform.is_little_endian);
@@ -1744,7 +1665,7 @@ u8 *folscreen(u8 *scene)
     DEBUGFCE;
 
     // TODO: ...
-//    s16 *psVar1 = *(s16 **)(atent + *(s16 *)(scene + 0x60));
+//    s16 *psVar1 = *(s16 **)(alis.atent + *(s16 *)(scene + 0x60));
 //    if ((-1 < *(s16 *)(scene + 0x60)) && (psVar1 != (s16 *)0x0))
 //    {
 //        if ((scene[0x84] & 1) != 0)
@@ -1882,9 +1803,9 @@ s16 iefflink(s16 elemidx1, s16 elemidx2)
     SpriteVariables *elem1sprvar = SPRITE_VAR(elemidx1);
     SpriteVariables *elem2sprvar = SPRITE_VAR(elemidx2);
     elem2sprvar->link = elem1sprvar->link;
-    elem1sprvar->to_next = libsprit;
+    elem1sprvar->to_next = alis.libsprit;
     
-    libsprit = elemidx1;
+    alis.libsprit = elemidx1;
     if (wback != 0 && backprof <= elem1sprvar->newd)
     {
         pback = 1;
@@ -1943,8 +1864,8 @@ void destofen(SpriteVariables *sprite)
     u32 spnewad = sprite->newad & 0xffffff;
     if (spnewad == 0)
         return;
-
-    u8 *bitmap = (alis.mem + alis.script->data_org + spnewad);
+    
+    u8 *bitmap = (alis.mem + spnewad);
     if (*bitmap < '\0')
         return;
     
@@ -2241,7 +2162,7 @@ void fenetre(SceneVariables *scene, u16 elemidx1, u16 elemidx3)
                                         while (true)
                                         {
                                             tmpidx = sprite->link;
-                                            if ((tmpidx == 0) || (tmpidx == backsprite))
+                                            if ((tmpidx == 0) || (tmpidx == alis.backsprite))
                                                 break;
 
                                             sprite = SPRITE_VAR(tmpidx);
@@ -2281,7 +2202,7 @@ void fenetre(SceneVariables *scene, u16 elemidx1, u16 elemidx3)
                                 if (tmpidx == 0)
                                     break;
 
-                                if ((sback != 0) && (tmpidx == backsprite))
+                                if ((sback != 0) && (tmpidx == alis.backsprite))
                                 {
                                     wlogic = logic;
                                     wlogx1 = logx1;
@@ -2371,8 +2292,8 @@ void affiscr(SceneVariables *scene, u16 elemidx3)
     s16 tmpidx1;
     s16 tmpidx2;
     s16 tmpidx3;
-    bool issprit;
-    bool isback;
+    u8 issprit;
+    u8 isback;
     
 //    if (a2[0x84] != '\0')
 //    {
@@ -2381,7 +2302,7 @@ void affiscr(SceneVariables *scene, u16 elemidx3)
     
     if ((fremap != '\0') || ((s8)scene->state < '\0'))
     {
-        depscreen(scene,elemidx3);
+        depscreen(scene, elemidx3);
     }
     
     if ((scene->numelem & 2) == 0 || (scene->state & 0x80U) == 0)
@@ -2548,8 +2469,8 @@ affiscin:
                 if (SPRITE_VAR(elemidx1)->state == 1)
                 {
                     SPRITE_VAR(tmpidx2)->link = SPRITE_VAR(elemidx1)->link;
-                    SPRITE_VAR(elemidx1)->to_next = libsprit;
-                    libsprit = elemidx1;
+                    SPRITE_VAR(elemidx1)->to_next = alis.libsprit;
+                    alis.libsprit = elemidx1;
                     elemidx1 = tmpidx2;
                 }
                 else
@@ -2630,7 +2551,7 @@ affiscin:
 //    DEBUGFCE;
 //
 //    u8 state;
-//    bool issprit;
+//    u8 issprit;
 //    u16 uvaridx;
 //    u16 nextidx;
 //    s16 linkidx;
@@ -2668,7 +2589,7 @@ affiscin:
 //
 //        DBTRACE("\n");
 //
-//        bool first = true;
+//        u8 first = true;
 //        if ((scene->numelem & 0x10) == 0)
 //        {
 //
@@ -2704,8 +2625,8 @@ affiscin:
 //                        linkidx = inilink(nextidx);
 //                        if (linkidx < 0)
 //                        {
-//                            bool not_wback = wback == '\0';
-//                            if (!(bool)not_wback)
+//                            u8 not_wback = wback == '\0';
+//                            if (!(u8)not_wback)
 //                            {
 //                                not_wback = backprof == nextsprvar->newd;
 //                                if ((s16)backprof <= nextsprvar->newd)
@@ -2719,7 +2640,7 @@ affiscin:
 //                            tstjoints(nextidx);
 ////                            VERIFYINTEGRITY;
 //
-//                            if ((bool)not_wback)
+//                            if ((u8)not_wback)
 //                            {
 //                                SPRITE_VAR(previdx)->link = nextsprvar->link;
 //                                fenetre(scene, nextidx, elemidx3);
@@ -2861,8 +2782,8 @@ affiscin:
 //                {
 ////                    VERIFYINTEGRITY;
 //                    prevsprvar->link = nextsprvar->link;
-//                    nextsprvar->to_next = libsprit;
-//                    libsprit = nextidx;
+//                    nextsprvar->to_next = alis.libsprit;
+//                    alis.libsprit = nextidx;
 //                    nextidx = uvaridx;
 ////                    VERIFYINTEGRITY;
 //                }
@@ -2943,7 +2864,7 @@ affiscin:
 //        feny1 = scene->newy;
 //        fenx2 = scene->newx + scene->width;
 //        feny2 = scene->newy + scene->height;
-//        // scrolpage(basesprite,BASEMNMEM_PTR,(u32)feny2);
+//        // scrolpage(alis.basesprite,BASEMNMEM_PTR,(u32)feny2);
 //    }
 //
 //    scene->state &= 0x7f;
@@ -3091,6 +3012,12 @@ void image(void)
             affiscr(scene, sprite3);
         }
 
+        if (scene->to_next == 0xc500)
+        {
+            sleep(0);
+            break;
+        }
+        
         scnidx = scene->to_next;
     }
 
@@ -3125,9 +3052,6 @@ void image(void)
     VERIFYINTEGRITY;
 }
 
-u32 finmem = 0;
-u32 adaline = 0;
-
 u8 *buffer = 0;
 
 void inisys(void)
@@ -3153,7 +3077,7 @@ void inisys(void)
     ophysic = 0x33900;
     u32 uVar2 = finram - 0x12d00U | 0xff;
     physic = host.pixelbuf.data; // uVar2 + 1;
-    finmem = uVar2 - 0x3ff;
+    alis.finmem = uVar2 - 0x3ff;
     
 }
 
@@ -3161,21 +3085,21 @@ void livemain(u16 *param_1, s16 param_2, s8 *param_3)
 {
 //    // A1 61f00, D1 0
 //
-//    // atent 4d540
-//    // debent    4d546
-//    // finent 4d7d4
+//    // alis.atent 4d540
+//    // alis.debent    4d546
+//    // alis.finent 4d7d4
 //    // total 654 (entry 8 bytes)
-//    // debsprit 511a0
-//    // finent   511a0
+//    // alis.debsprit 511a0
+//    // alis.finent   511a0
 //
 //
-//    s32 iVar4 = (s16)param_1[9] + finent;
+//    s32 iVar4 = (s16)param_1[9] + alis.finent;
 //    u32 *puVar5 = (u32 *)((s16)param_1[0xb] + iVar4);
 //    s32 iVar6 = (s32)puVar5 + 0x3e;
-//    *(s32 *)(atent + param_2) = iVar6;
+//    *(s32 *)(alis.atent + param_2) = iVar6;
 //    u32 uVar2 = (u32)(u16)param_1[10];
 //    s32 iVar1 = uVar2 + iVar6;
-//    if (debsprit <= (s32)(uVar2 + iVar6))
+//    if (alis.debsprit <= (s32)(uVar2 + iVar6))
 //    {
 ////        perror(param_3, 0xc, param_2, (s32)param_1);
 //        return;
@@ -3183,10 +3107,10 @@ void livemain(u16 *param_1, s16 param_2, s8 *param_3)
 //
 //    do
 //    {
-//        finent = iVar1;
+//        alis.finent = iVar1;
 //        *(u16 *)((s32)puVar5 + uVar2 + 0x3c) = 0;
 //        uVar2 = uVar2 - 2;
-//        iVar1 = finent;
+//        iVar1 = alis.finent;
 //    }
 //    while (uVar2 != 0);
 //
@@ -3225,33 +3149,31 @@ void livemain(u16 *param_1, s16 param_2, s8 *param_3)
 //    *(u8 *)((s32)puVar5 + 0xe) = 0;
 }
 
-u32 atprog;
-
 void liveprog(s8 *param_1,u16 *param_2,s8 *param_3)
 {
 //    s16 unaff_D5w;
 //
-//    s16 sVar3 = dernent;
-//    s32 iVar6 = atent;
-//    u16 uVar2 = *(u16 *)(atent + 4 + (s32)unaff_D5w);
-//    *(s16 *)(atent + 4 + (s32)unaff_D5w) = dernent;
-//    s32 iVar1 = (s32)dernent;
-//    dernent = *(u16 *)(iVar6 + 4 + (s32)dernent);
+//    s16 sVar3 = alis.dernent;
+//    s32 iVar6 = alis.atent;
+//    u16 uVar2 = *(u16 *)(alis.atent + 4 + (s32)unaff_D5w);
+//    *(s16 *)(alis.atent + 4 + (s32)unaff_D5w) = alis.dernent;
+//    s32 iVar1 = (s32)alis.dernent;
+//    alis.dernent = *(u16 *)(iVar6 + 4 + (s32)alis.dernent);
 //    *(u16 *)(iVar6 + 4 + iVar1) = uVar2;
-//    nbent = nbent + 1;
-//    if (maxent < nbent)
+//    alis.nbent ++;
+//    if (alis.maxent < alis.nbent)
 //    {
 ////        perror(param_1, 5, sVar3, (s32)param_2);
 //        return;
 //    }
 //
-//    iVar6 = (s16)param_2[9] + finent;
+//    iVar6 = (s16)param_2[9] + alis.finent;
 //    u32 *puVar7 = (u32 *)((s16)param_2[0xb] + iVar6);
 //    s32 iVar8 = (s32)puVar7 + 0x3e;
-//    *(s32 *)(atent + sVar3) = iVar8;
+//    *(s32 *)(alis.atent + sVar3) = iVar8;
 //    u32 uVar4 = (u32)(u16)param_2[10];
 //    iVar1 = uVar4 + iVar8;
-//    if (debsprit <= (s32)(uVar4 + iVar8))
+//    if (alis.debsprit <= (s32)(uVar4 + iVar8))
 //    {
 ////        perror(param_3, 0xc, sVar3, (s32)param_2);
 //        return;
@@ -3259,10 +3181,10 @@ void liveprog(s8 *param_1,u16 *param_2,s8 *param_3)
 //
 //    do
 //    {
-//        finent = iVar1;
+//        alis.finent = iVar1;
 //        *(u16 *)((s32)puVar7 + uVar4 + 0x3c) = 0;
 //        uVar4 = uVar4 - 2;
-//        iVar1 = finent;
+//        iVar1 = alis.finent;
 //    }
 //    while (uVar4 != 0);
 //
@@ -3303,7 +3225,7 @@ void liveprog(s8 *param_1,u16 *param_2,s8 *param_3)
 
 void initent(void)
 {
-    s32 at = atent;
+    s32 at = alis.atent;
     s32 len = 0;
     
     do
@@ -3313,11 +3235,11 @@ void initent(void)
         *(s16 *)(alis.spritemem + at - 2) = len;
         *(u32 *)(alis.spritemem + at - 6) = 0;
     }
-    while (at < debent); // debent 00 04
+    while (at < alis.debent); // alis.debent 00 04
   
-    *(u16 *)(alis.spritemem + atent + 4) = 0;
-    nbent = 1;
-    dernent = 6;
+    *(u16 *)(alis.spritemem + alis.atent + 4) = 0;
+    alis.nbent = 1;
+    alis.dernent = 6;
 }
 
 void savecoord(u8 *a6)
@@ -3594,8 +3516,8 @@ u32 loadprog(void *param_1, size_t param_2, s8 *script, s8 *param_4)
 //        atprog = basevar;
 //    }
 //
-////    atent = atprog + (u32)DAT_0001fd04._2_2_ * 2;   // 00 04
-//    atent = atprog + 0x7fff;
+////    alis.atent = atprog + (u32)DAT_0001fd04._2_2_ * 2;   // 00 04
+//    alis.atent = atprog + 0x7fff;
 //    nbprog = 0;
 //    fswitch = 0;
 //    timing = 0;
@@ -3605,17 +3527,17 @@ u32 loadprog(void *param_1, size_t param_2, s8 *script, s8 *param_4)
 //    fmouse = 0xff;
 //    fonum = 0xffff;
 //    sback = 0;
-////    maxent = DAT_0001fd08;    // 00 6e
-////    debent = atent + (u32)DAT_0001fd08 * 3;
-////    debsprit = ((u32)((s32)debent + ram0x0001fd0e) | 0xf) + 1;
-////    finsprit = (u16 *)(debsprit + (DAT_0001fd12 + 3U & 0xffff) * 0x30);
-//    maxent = 0x6e;
-//    debent = atent + 0x7fff;
+////    alis.maxent = DAT_0001fd08;    // 00 6e
+////    alis.debent = alis.atent + (u32)DAT_0001fd08 * 3;
+////    alis.debsprit = ((u32)((s32)alis.debent + ram0x0001fd0e) | 0xf) + 1;
+////    alis.finsprit = (u16 *)(alis.debsprit + (DAT_0001fd12 + 3U & 0xffff) * 0x30);
+//    alis.maxent = 0x6e;
+//    alis.debent = alis.atent + 0x7fff;
 //
-//    debsprit = debent;
-//    finsprit = debent + 0x7fff;
+//    alis.debsprit = alis.debent;
+//    alis.finsprit = alis.debent + 0x7fff;
 //
-//    debprog = finsprit;
+//    debprog = alis.finsprit;
 //    if (basevar != 0)
 //    {
 //        debprog = basemem;
@@ -3629,7 +3551,7 @@ u32 loadprog(void *param_1, size_t param_2, s8 *script, s8 *param_4)
 //
 //    finprog = debprog;
 //    dernprog = atprog;
-//    finent = debent;
+//    alis.finent = alis.debent;
 //    initent();
 //    inisprit_sm();
 ////    typepack = buffer._0_1_;
@@ -3649,7 +3571,7 @@ u32 loadprog(void *param_1, size_t param_2, s8 *script, s8 *param_4)
 ////    setprog((u32)pvVar6,puVar10,uVar5);
 ////    livemain(puVar10, 0, (s8 *)0x1cf6e);
 ////    *(u16 *)(pcVar9 + -0x16) = 0;
-////    basemain = pcVar9;
+////    alis.basemain = pcVar9;
 //    return uVar5;
     return 0;
 }
@@ -3676,9 +3598,6 @@ void FUN_STARTUP(s8 *script, size_t param_2, u32 param_3)
     
     u32 uVar1 = 0;
 
-    sd7 = bsd7;               // 256 bytes empty mem
-    sd6 = bsd6;               // 256 bytes empty mem
-    oldsd7 = bsd7bis;         // 256 bytes empty mem
     atpalet = tpalet;         // 1024 bytes empty pal
     ampalet = mpalet;         // 1024 bytes empty pal
     ptabfen = &tabfen;        // &tabfen == &tablent ?
@@ -3689,7 +3608,7 @@ void FUN_STARTUP(s8 *script, size_t param_2, u32 param_3)
     inisys();
 //   uVar1 = inicanaux(); audio???
     bootmain((void *)0x1680a, param_2, script, uVar1);
-//  moteur2(atent,uVar1,param_3);
+//  moteur2(alis.atent,uVar1,param_3);
     return;
 }
 
@@ -3698,13 +3617,13 @@ void OPCODE_CDEFSC_0x46(u8 *ptr, u16 screen)
 {
     memcpy(BASEMNMEM_PTR + 0x06 + screen, ptr + screen + 0x06, 32);
 
-    if (libsprit == 0)
+    if (alis.libsprit == 0)
         return;
 
     SceneVariables *scene = SCENE_VAR(screen);
     scene->state = *(u8 *)(ptr + 0x00 + screen);
     scene->numelem = *(u8 *)(ptr + 0x01 + screen);
-    scene->screen_id = libsprit;
+    scene->screen_id = alis.libsprit;
     scene->to_next = 0;
     scene->newx = read16((u8 *)&(scene->newx), alis.platform.is_little_endian);
     scene->newy = read16((u8 *)&(scene->newy), alis.platform.is_little_endian);
@@ -3716,7 +3635,7 @@ void OPCODE_CDEFSC_0x46(u8 *ptr, u16 screen)
     scene->unknown0x2c = 0;
     scene->unknown0x2e = 0;
 
-    SpriteVariables *sprite = SPRITE_VAR(libsprit);
+    SpriteVariables *sprite = SPRITE_VAR(alis.libsprit);
     sprite->link = 0;
     sprite->numelem = scene->numelem;
     sprite->newx = scene->newx;// & 0xfff0;
@@ -3725,11 +3644,11 @@ void OPCODE_CDEFSC_0x46(u8 *ptr, u16 screen)
     sprite->depx = scene->newx + scene->width;// | 0xf;
     sprite->depy = scene->newy + scene->height;
 
-    printf("\n0x%.4x\n", ELEMIDX(libsprit));
+    printf("\n0x%.4x\n", ELEMIDX(alis.libsprit));
     printf("0x%.4x 0x%.4x 0x%.4x 0x%.4x\n", scene->newx, scene->newy, scene->width, scene->height);
     printf("0x%.4x 0x%.4x 0x%.4x 0x%.4x\n", sprite->newx, sprite->newy, sprite->depx, sprite->depy);
 
-    libsprit = sprite->to_next;
+    alis.libsprit = sprite->to_next;
 
     scadd(screen);
     vectoriel(screen);
@@ -3989,14 +3908,6 @@ u16 saversp = 0;
 void moteur4(s16 offset)
 {
     u32 index = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].vram_offset; // NOTE: repurposed vram_offset as a script index
-    
-    // TODO: ...
-    if (nbent > 1 && index == 0)
-    {
-        // return;
-        sleep(0);
-    }
-    
     sAlisScript *script = alis.scripts[index];
     alis.script = script;
 
@@ -4127,4 +4038,428 @@ void moteur2(s16 offset)
         }
     }
     while (true);
+}
+    
+u8 debprotf(u16 d2w, u16 *d0w)
+{
+    u16 uVar1;
+    u16 total;
+  
+    u16 end = alis.nbprog - 1;
+    u16 start = 0;
+    
+    do
+    {
+        total = (u16)(start + end) >> 1;
+        *d0w = total << 2;
+        
+        u32 addr = 0x2edd8;//*(u32 *)(alis.mem + atprog);
+        u16 test = *(u16 *)(alis.mem + addr);
+        uVar1 = **(u16 **)(alis.mem + alis.atprog + *d0w);
+        if (uVar1 == d2w)
+        {
+            return 1;
+        }
+        
+        if (uVar1 < d2w)
+        {
+            start = total + 1;
+        }
+        else
+        {
+            end = total - 1;
+        }
+    }
+    while (start <= end);
+    
+    return 0;
+}
+
+//void cerasall(sAlisScript *script, u8 d0b)
+//{
+//    u16 elemidx1 = script->context._0x18_unknown;
+//    if (elemidx1 == 0)
+//    {
+//        ferase = 0;
+//        return;
+//    }
+//
+//    u16 tmpidx = 0;
+//    
+//    do
+//    {
+//        // d0b = killelem(d0b, elemidx1, tmpidx);
+//        killelem(&elemidx1, &tmpidx);
+//    }
+//    while (elemidx1);
+//  
+//    ferase = 0;
+//}
+
+//void killent(u16 d0w, u32 d3, u16 d5w)
+//{
+//    // script
+//    u32 uVar1 = *(u32 *)(alis.mem + alis.atent + (s16)d0w);
+//    if (uVar1 == 0)
+//    {
+//        ferase = 0;
+//        return;
+//    }
+//    
+//    cerasall();
+//
+//    s32 script_org = alis.script->context._0x14_script_org_offset;
+//    u32 uVar6 = (u32)(u16)(*(s16 *)(alis.mem + script_org + 0x12) + *(s16 *)(alis.mem + script_org + 0x16) + 0x34);
+//    script_org = uVar6 + *(u16 *)(alis.mem + script_org + 0x14);
+//
+//    u16 *puVar8 = (u16 *)(alis.mem + uVar1 - uVar6);
+//    u16 *puVar9 = (u16 *)(alis.mem + (s32)puVar8 + script_org);
+//
+//    do
+//    {
+//        *puVar8 = *puVar9;
+//        puVar8++;
+//        puVar9++;
+//    }
+//    while ((s32)puVar9 < alis.finent);
+//    
+//    alis.finent -= script_org;
+//    u16 previdx = 0;
+//    u16 nextidx;
+//
+//    while (true)
+//    {
+//        nextidx = *(u16 *)(alis.mem + alis.atent + 4 + previdx);
+//        if (d0w == nextidx)
+//        {
+//            d3 = (u32)previdx;
+//        }
+//        
+//        if (nextidx == 0)
+//        {
+//            break;
+//        }
+//        
+//        previdx = nextidx;
+//        if (uVar1 <= *(u32 *)(alis.mem + alis.atent + nextidx))
+//        {
+//            *(s32 *)(alis.mem + alis.atent + nextidx) = *(s32 *)(alis.mem + alis.atent + nextidx) - script_org;
+//        }
+//    }
+//    
+//    *(u16 *)(alis.mem + alis.atent + 4 + d3) = *(u16 *)(alis.mem + alis.atent + 4 + d0w);
+//    *(u32 *)(alis.mem + alis.atent + 0 + d0w) = 0;
+//    *(u16 *)(alis.mem + alis.atent + 4 + d0w) = alis.dernent;
+//    
+//    alis.dernent = d0w;
+//    alis.nbent--;
+//    
+//    if (d5w != d0w)
+//    {
+//        return;
+//    }
+//    
+//    moteur1((s16)d3);
+//    return;
+//}
+
+void shrinkprog(sAlisScript *script, s8 unload_script)
+{
+                // a0 = 34ba8
+                // a1 = 22404
+                // a2 = 39df0
+                // d1 = 5248
+                // d2 = 1
+                // d5 = 0
+                // d7 = 1
+    
+    // finprog -= script->sz;
+
+//    u16 previdx = 0;
+//    u16 curidx = alis.script->context._0x18_unknown;
+//    while (curidx != 0)
+//    {
+//        cursprvar = SPRITE_VAR(curidx);
+//        u16 screen_id = cursprvar->screen_id;
+//        u16 state = cursprvar->state;
+//        u16 link = cursprvar->link;
+//        u32 clink = cursprvar->clinking;
+//
+//        ELEM_TRACE("    N: 0x%.4x L: 0x%.4x Sc: 0x%.4x St: 0x%.2x Cl: 0x%.8x\n", ELEMIDX(curidx), ELEMIDX(link), ELEMIDX(screen_id), state, clink);
+//
+//        if (link == curidx)
+//        {
+//            ELEM_TRACE("ERROR: link = 0\n");
+//            result = false;
+//        }
+//
+//        if (link)
+//        {
+//            u16 link2 = SPRITE_VAR(link)->link;
+//
+//            if (link2 == curidx)
+//            {
+//                ELEM_TRACE("ERROR: infinite loop\n");
+//                result = false;
+//                cursprvar->link = 0;
+//            }
+//        }
+//
+//        previdx = curidx;
+//        curidx = cursprvar->to_next;
+//    }
+
+//    SpriteVariables *cursprvar;
+
+    if (unload_script != 0)
+    {
+//        dernprog -= 4;
+//        nbprog --;
+        
+//        u32 a0 = 0x34ba8;
+//        u16 d5w = 0;
+//
+//        u16 curidx = 0;
+//        u16 iVar8;
+//        u16 sVar9;
+//        cursprvar = SPRITE_VAR(curidx);
+//        for (curidx = cursprvar->to_next; curidx != 0; curidx = cursprvar->to_next)
+//        {
+//            cursprvar = SPRITE_VAR(curidx);
+//
+//            // script
+//            iVar8 = *(s32 *)(alis.mem + alis.atent + curidx);
+//            if (script_id == alis.script->context._0x10_script_id)
+//            {
+//                killent(curidx, (u32)a0, d5w);
+//                curidx = (u32)a0 & 0xffff;
+//            }
+//            else if ((s32)a0 <= alis.script->context._0x14_script_org_offset)
+//            {
+//                alis.script->context._0x14_script_org_offset -= script_size;
+//                alis.script->context._0x8_script_ret_offset -= script_size;
+//                u16 test = alis.script->context._0x14_script_org_offset + 0x16;
+//                sVar9 = -0x34 - *(s16 *)(alis.mem + alis.script->context._0x14_script_org_offset + 0x16);
+//                while (alis.script->context._0x10_script_id < sVar9)
+//                {
+//                    sVar9 -= 4;
+//                    *(s32 *)(alis.mem + iVar8 + sVar9) -= script_size;
+//                }
+//            }
+//        }
+    }
+
+
+//    u16 d5w;
+//    u16 uVar1;
+//    s32 iVar4;
+//    u32 uVar5;
+//    s16 sVar6;
+//
+//    // move headers into space freed by closing script
+////    for (s16 *psVar7 = a0; (s32)a2 < finprog; psVar7++, a2++)
+////    {
+////        *psVar7 = *a2;
+////    }
+//
+//    // shrink used mem by script size
+//    finprog -= script_size;
+//
+//    if (unload_script != 0)
+//    {
+//        // shift script addresses to fill released spcace
+////        for (u32 *puVar10 = (u32 *)(a1 + 4); (s32)puVar10 < dernprog; puVar10++)
+////        {
+////            puVar10[-1] = puVar10[0];
+////        }
+//
+//        dernprog -= 4;
+//        nbprog --;
+//    }
+//
+//    s32 *piVar12 = atprog;
+//
+//    // shift actual script
+////    do
+////    {
+////        if ((s32)a0 < *piVar12)
+////        {
+////            *piVar12 = *piVar12 - script_size;
+////        }
+////
+////        piVar12 ++;
+////    }
+////    while ((s32)piVar12 < dernprog);
+//
+//    s32 iVar8 = alis.basesprite;
+//    s32 iVar2 = alis.basemain;
+//    s16 sVar9 = ptscreen;
+//
+//    if (unload_script != 0)
+//    {
+//        uVar5 = 0;
+//        while (true)
+//        {
+//            uVar1 = *(u16 *)(alis.atent + 4 + uVar5);
+//            uVar5 = (u32)uVar1;
+//            iVar8 = alis.basesprite;
+//            iVar2 = alis.basemain;
+//            sVar9 = ptscreen;
+//            if (uVar1 == 0)
+//                break;
+//
+//            // script
+//            iVar8 = *(s32 *)(alis.atent + (s16)uVar1);
+//            if (script_id == alis.script->context._0x10_script_id)
+//            {
+//                killent(uVar1, (u32)a0, d5w);
+//                uVar5 = (u32)a0 & 0xffff;
+//            }
+//            else if ((s32)a0 <= alis.script->context._0x14_script_org_offset)
+//            {
+//                alis.script->context._0x14_script_org_offset -= script_size;
+//                alis.script->context._0x8_script_ret_offset -= script_size;
+//                sVar9 = -0x34 - *(s16 *)(alis.script->context._0x14_script_org_offset + 0x16);
+//                while (alis.script->context._0x10_script_id < sVar9)
+//                {
+//                    sVar9 -= 4;
+//                    *(s32 *)(iVar8 + sVar9) -= script_size;
+//                }
+//            }
+//        }
+//    }
+//
+//    s16 *psVar7;
+//    s32 iVar3 = alis.atent;
+//
+//    for (; iVar4 = alis.basemain, iVar3 = alis.basesprite, sVar9 != 0; sVar9 = *(s16 *)(iVar4 + 4 + (s32)sVar9))
+//    {
+//        sVar6 = *(s16 *)(alis.basemain + 2 + (s32)sVar9);
+//        alis.basesprite = iVar8;
+//        alis.basemain = iVar2;
+//
+//        while (sVar6 = *(s16 *)(iVar3 + 6 + (s32)sVar6), sVar6 != 0)
+//        {
+//            psVar7 = (s16 *)(*(u32 *)(iVar3 + 8 + (s32)sVar6) & 0xffffff);
+//            if (a0 < psVar7)
+//            {
+//                iVar8 = (s32)psVar7 - script_size;
+//                *(s16 *)(iVar3 + 10 + (s32)sVar6) = (s16)iVar8;
+//                *(s8 *)(iVar3 + 9 + (s32)sVar6) = (s8)((u32)iVar8 >> 0x10);
+//            }
+//
+//            psVar7 = (s16 *)(*(u32 *)(iVar3 + 0x12 + (s32)sVar6) & 0xffffff);
+//            if (a0 < psVar7)
+//            {
+//                iVar8 = (s32)psVar7 - script_size;
+//                *(s16 *)(iVar3 + 0x14 + (s32)sVar6) = (s16)iVar8;
+//                *(s8 *)(iVar3 + 0x13 + (s32)sVar6) = (s8)((u32)iVar8 >> 0x10);
+//            }
+//        }
+//
+//        iVar8 = alis.basesprite;
+//        iVar2 = alis.basemain;
+//        alis.basemain = iVar4;
+//        alis.basesprite = iVar3;
+//    }
+//
+//    alis.basesprite = iVar8;
+//    alis.basemain = iVar2;
+}
+
+//void OPCODE_CUNLOAD_0x3d(void)
+//{
+//    u16 index = script_read16();
+//    if ((index != 0xffff))
+//    {
+//        u8 bVar3 = index == alis.script->context._0x10_script_id;
+//        if (!bVar3)
+//        {
+//            u16 d0w;
+//            bVar3 = debprotf(index, &d0w);
+//            if (bVar3)
+//            {
+//                s16 *a2 = (s16 *)0xfffffff;
+//                s16 *a0 = *(s16 **)(d0w + atprog);
+//
+//                for (s16 **curprog = atprog; curprog != dernprog; curprog++)
+//                {
+//                    if (((s32)a0 < (s32)*curprog) && ((s32)*curprog < (s32)a2))
+//                    {
+//                        a2 = *curprog;
+//                    }
+//                }
+//
+//                if (a2 == (s16 *)0xfffffff)
+//                {
+//                    a2 = finprog;
+//                }
+//
+//                shrinkprog(a0, (s32)(s16 **)(d0w + (s32)atprog), a2, (s32)a2 - (s32)a0, index, '\x01') ;
+//            }
+//        }
+//    }
+//}
+
+void alis_putchar(s8 character)
+{
+    if (alis.charmode == 0)
+    {
+        // io_putchar(d0);
+        return;
+    }
+    
+    if (alis.charmode != 1)
+    {
+        if (alis.charmode != 2)
+        {
+            return;
+        }
+        
+        if (character == '\n')
+        {
+            alis.depz = alis.depz - (u16)alis.fohaut;
+        }
+        else if (character == '\r')
+        {
+            alis.depx = 0;
+        }
+        else
+        {
+            if (character != ' ')
+            {
+                if (alis.fonum < 0)
+                {
+                    return;
+                }
+                
+                s16 charidx = ((u16)character) - alis.foasc;
+                if ((-1 < charidx) && ((s16)(charidx - alis.fomax) < 0))
+                {
+                    alis.flagmain = 1;
+                    alis.flaginvx = 0;
+                    alis.fadddes = 1;
+                    put(charidx + alis.fonum);
+                }
+            }
+            
+            alis.depx = (u16)alis.folarg + alis.depx;
+        }
+    }
+}
+
+void alis_putstring(void)
+{
+    for (u8 *strptr = alis.sd7; *strptr; strptr++)
+    {
+        alis_putchar(*strptr);
+    }
+}
+
+void sparam(void)
+{
+    u8 *oldsd7 = alis.sd7;
+    alis.sd7 = alis.sd6;
+    alis.sd6 = oldsd7;
+    readexec_opername();
 }

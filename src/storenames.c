@@ -38,13 +38,13 @@ static void slocw() {
  * 
  */
 static void slocp() {
-    vram_writep(script_read16(), alis.bssChunk3);
+    vram_writep(script_read16(), alis.bsd7bis);
 }
 
 // Store at LOCation with offseT: Pointer
 static void sloctp() {
     u16 offset = loctp_common(script_read16());
-    u8 * ptr = alis.bssChunk3;
+    u8 * ptr = alis.bsd7bis;
     while (*ptr) {
         vram_write8(offset++, *ptr++);
     }
@@ -89,7 +89,7 @@ static void sdirw() {
  * 
  */
 static void sdirp() {
-    vram_writep(script_read8(), alis.bssChunk3);
+    vram_writep(script_read8(), alis.bsd7bis);
 }
 
 static void sdirtp() {

@@ -9,8 +9,15 @@
 #include "../config.h"
 #include "../debug.h"
 
-extern u8 _button_count;
-extern u16 _buttons[16];
+extern u16 button;
+extern u8 shift;
+extern u8 joystick0;
+extern u8 joystick1;
+
+u8 io_inkey(void);
+u8 io_shiftkey(void);
+u8 io_joy(u8 port);
+u8 io_joykey(u8 test);
 
 // =============================================================================
 #pragma mark - LIFECYCLE

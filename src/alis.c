@@ -65,9 +65,9 @@ alisRet readexec_addname() {
 }
 
 alisRet readexec_addname_swap() {
-    u8 * tmp = alis.bssChunk1;
-    alis.bssChunk1 = alis.bssChunk3;
-    alis.bssChunk3 = tmp;
+    u8 * tmp = alis.bsd7;
+    alis.bsd7 = alis.bsd7bis;
+    alis.bsd7bis = tmp;
     return readexec_addname();
 }
 
@@ -85,17 +85,21 @@ alisRet readexec_opername_saveD6() {
 }
 
 alisRet readexec_opername_swap() {
-    u8 * tmp = alis.bssChunk1;
-    alis.bssChunk1 = alis.bssChunk3;
-    alis.bssChunk3 = tmp;
+    u8 * tmp = alis.bsd7;
+    alis.bsd7 = alis.bsd7bis;
+    alis.bsd7bis = tmp;
     return readexec_opername();
 }
 
 
 void alis_load_main() {
     
-    // load main scripts as an usual script...
-    alis.main = script_load(alis.platform.main);
+    // 22400    = atprog > 2edd8 (22400 > 34ba8) ALIS_VM_RAM_ORG
+    // 224f0    = atent
+    // 2261c    = finent
+    // 22690    = header
+    
+    alis.nbprog = 0;
     
     // packed main script contains vm specs in the header
     FILE * fp = fopen(alis.platform.main, "rb");
@@ -111,10 +115,30 @@ void alis_load_main() {
         alis.specs.vram_to_data_offset = fread32(fp, alis.platform.is_little_endian);
         alis.specs.vram_to_data_offset += 3;
         alis.specs.vram_to_data_offset *= 0x28;
-                    
-        // set the location of scripts' vrams table
-        alis.script_vram_orgs = (sScriptLoc *)(alis.vram_org + (alis.specs.script_data_tab_len * sizeof(u32)));
         
+        // set the location of scripts' vrams table
+        alis.script_vram_orgs = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
+        alis.atent = (s32)((u8 *)alis.script_vram_orgs - alis.mem);
+//        alis.atent = alis.atprog + 0xf0;
+        alis.maxent = alis.specs.script_vram_tab_len;
+        alis.debent = alis.atent + alis.maxent * 6;
+        alis.debsprit = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1;
+        alis.finsprit = alis.debsprit + alis.specs.vram_to_data_offset;
+        // NOTE: not really sure why, but without + 0x18 to finsprit wrong parts of code are executed. Investigate!
+        alis.finsprit += 0x18;
+        alis.debprog = alis.finsprit;
+        alis.finprog = alis.debprog;
+        alis.dernprog = alis.atprog;
+        alis.finent = alis.debent;
+
+    //    alis.debsprit = 0;
+    //    alis.finsprit = 0x8000;
+        
+        // TODO: ...
+        alis.finmem = 0xf6e98;
+
+        inisprit();
+
         // compute the end address of the scripts' vrams table
         u32 script_vram_tab_end = (u32)((u8 *)alis.script_vram_orgs - alis.mem + (alis.specs.script_vram_tab_len * sizeof(sScriptLoc)));
 
@@ -125,9 +149,9 @@ void alis_load_main() {
         }
         
         alis.script_vram_orgs[0].vram_offset = (u32)((u8 *)alis.script_vram_orgs - alis.mem);
-        nbent = 1;
+        alis.nbent = 1;
         
-        alis.specs.script_vram_max_addr = ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
+        alis.specs.script_vram_max_addr = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1; // ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
 
         u32 main_script_data_addr = alis.specs.script_vram_max_addr + alis.specs.vram_to_data_offset;
 
@@ -144,6 +168,10 @@ void alis_load_main() {
               alis.specs.script_vram_max_addr,
               alis.specs.unused);
         fclose(fp);
+        
+        // load main scripts as an usual script...
+        alis.main = script_load(alis.platform.main);
+        alis.basemain = alis.main->vram_org;
     }
 }
 
@@ -156,18 +184,61 @@ void alis_init(sPlatform platform) {
     
     debug(EDebugVerbose, "ALIS: Init.\n");
     
+    alis.automode = 0;
+
     // init virtual ram
     alis.mem = malloc(sizeof(u8) * kHostRAMSize);
     memset(alis.mem, 0, sizeof(u8) * kHostRAMSize);
+
+    alis.spritemem = (u8 *)malloc(1024 * 1024);
+    memset(alis.spritemem, 0x0, 1024 * 1024);
+
+    alis.flagmain = 0;
+    alis.numelem = 0;
+    
+    alis.flaginvx = 0;
+    alis.fmuldes = 0;
+    alis.fadddes = 0;
+
+    alis.depx = 0;
+    alis.depy = 0;
+    alis.depz = 0;
+
+    alis.basemem = 0x22400;
+    alis.basevar = 0;
+    alis.finmem = 0x22000;
+
+    alis.nbprog = 0;
+    alis.maxprog = 0;
+    alis.atprog = alis.basemem;
+
+//    alis.atent = alis.atprog + 0xf0;
+//    alis.maxent = 0x32;
+//    alis.debent = alis.atent + alis.maxent * 6;
+//    alis.debsprit = alis.debent;
+//    alis.finsprit = alis.debent + 0xc7bc;
+//    alis.debprog = alis.finsprit;
+//    alis.finprog = alis.debprog;
+//    alis.dernprog = alis.atprog;
+//    alis.finent = alis.debent;
+//    // alis.basemain
+//
+////    alis.debsprit = 0;
+////    alis.finsprit = 0x8000;
+//
+//    inisprit();
     
     // init virtual registers
     alis.varD6 = alis.varD7 = 0;
     
     // init temp chunks
     // TODO: might as well (static) alloc some ram.
-    alis.bssChunk1 = alis.mem + 0x1a1e6;
-    alis.bssChunk2 = alis.mem + 0x1a2e6;
-    alis.bssChunk3 = alis.mem + 0x1a3e6;
+    alis.bsd7 = alis.mem + 0x1a1e6;
+    alis.bsd6 = alis.mem + 0x1a2e6;
+    alis.bsd7bis = alis.mem + 0x1a3e6;
+    
+    alis.sd7 = alis.bsd7;
+    alis.sd6 = alis.bsd6;
     
     // init helpers
     if(alis.fp) {
@@ -216,19 +287,9 @@ void alis_init(sPlatform platform) {
     alis_register_script(alis.script);
 
     sScriptLoc *prev_ent = &(alis.script_vram_orgs[0]);
-    dernent = prev_ent->offset;
+    alis.dernent = prev_ent->offset;
     prev_ent->vram_offset = alis.script->header.id;
     prev_ent->offset = 0;
-    
-    // FUN_STARTUP("main.ao", 0, 0);
-    
-    alis.spritemem = (u8 *)malloc(1024 * 1024);
-    memset(alis.spritemem, 0x0, 1024 * 1024);
-
-    debsprit = 0;
-    finsprit = 0x8000;
-
-    inisprit();
     
     gettimeofday(&alis.time, NULL);
 }
@@ -258,11 +319,12 @@ void alis_loop() {
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
 
-
 void alis_register_script(sAlisScript * script) {
     u8 id = script->header.id;
     alis.scripts[id] = script;
     // alis.script_id_stack[alis.script_count++] = id;
+
+    alis.nbprog++;
 }
 
 u8 alis_main() {

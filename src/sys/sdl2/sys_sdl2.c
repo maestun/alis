@@ -7,8 +7,10 @@
 #include "experimental.h"
 #include <SDL2/SDL.h>
 
-u8 _button_count = 0;
-u16 _buttons[16];
+u8 joystick0 = 0;
+u8 joystick1 = 0;
+u8 shift = 0;
+u16 button = 0;
 
 mouse_t _mouse;
 
@@ -20,6 +22,64 @@ SDL_Texture *   _texture;
 
 int width = 320;
 int height = 200;
+
+u8 io_inkey(void)
+{
+    return button;
+}
+
+u8 io_shiftkey(void)
+{
+    return shift;
+}
+
+u8 io_getkey(void)
+{
+    // wait for input
+    
+    u8 result = io_inkey();
+    while (result == 0)
+    {
+        result = io_inkey();
+    }
+    
+    // wait for user to release key
+    
+    u8 dummy;
+
+    do
+    {
+        dummy = io_inkey();
+    }
+    while (dummy != 0);
+    
+    return result;
+}
+
+u8 io_joy(u8 port)
+{
+    return port ? joystick0 : joystick1;
+}
+
+u8 io_joykey(u8 test)
+{
+    u8 result = 0;
+    
+    if (test == 0)
+    {
+        result = (joystick1 & 0x80) != 0;
+        if ((shift & 4) != 0)
+            result = result | 2;
+
+        if ((shift & 8) != 0)
+            result = result | 4;
+
+        if (button == -0x1f)
+            result = result | 0x80;
+    }
+    
+    return result;
+}
 
 void sys_init() {
     SDL_Init(SDL_INIT_VIDEO);
@@ -55,25 +115,25 @@ u8 sys_poll_event() {
         }
         case SDL_KEYDOWN:
         {
-            _buttons[_button_count] = _event.key.keysym.scancode;
-            _button_count = (_button_count + 1) % 16;
+            if (_event.key.keysym.mod == KMOD_RSHIFT || _event.key.keysym.mod == KMOD_LSHIFT)
+            {
+                shift = 1;
+            }
+            else
+            {
+                button = _event.key.keysym.scancode;
+            }
             break;
         }
         case SDL_KEYUP:
         {
-            u8 found = 0;
-            u8 count = _button_count;
-            for (s32 i = 0; i < count; i++)
+            if (_event.key.keysym.mod == KMOD_RSHIFT || _event.key.keysym.mod == KMOD_LSHIFT)
             {
-                if (found)
-                {
-                    _buttons[i - 1] = _buttons[i];
-                }
-                else if (_buttons[_button_count] == _event.key.keysym.scancode)
-                {
-                    _button_count = (_button_count - 1 < 0) ? 15 : _button_count - 1;
-                    found = 1;
-                }
+                shift = 0;
+            }
+            else if (button == _event.key.keysym.scancode)
+            {
+                button = 0;
             }
             break;
         }

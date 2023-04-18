@@ -51,7 +51,7 @@ void oimmw() {
 
 void oimmp() {
     // reads null-terminated data into bssChunk3
-    script_read_until_zero(alis.bssChunk2);
+    script_read_until_zero(alis.bsd6);
 }
 
 void olocb() {
@@ -68,7 +68,7 @@ void olocw() {
 
 void olocp() {
     u16 offset = script_read16();
-    vram_writep(offset, alis.bssChunk3);
+    vram_writep(offset, alis.bsd7bis);
 }
 
 void oloctp() {
@@ -104,7 +104,7 @@ void odirw(/* u8 offset */) {
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
 void odirp(/* u8 offset */) {
     u8 offset = script_read8();
-    vram_readp(offset, alis.bssChunk3);
+    vram_readp(offset, alis.bsd7bis);
 }
 
 void odirtp() {
@@ -115,8 +115,30 @@ void odirtc() {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
+//void tabint(s16 d0w, s16 d7w, s16 *a4, s16 *a6)
+//{
+//    s16 *psVar4 = (s16 *)(a6 + d0w + -2);
+//    s16 sVar1 = d7w * 2;
+//    s16 sVar2 = d0w + sVar1;
+//    s16 sVar3 = *(s8 *)(a6 + d0w + -1) + -1;
+//    if (sVar3 != -1)
+//    {
+//        do
+//        {
+//            psVar4 --;
+//            sVar2 = sVar2 + *a4 * *psVar4;
+//            sVar3 --;
+//            a4 ++;
+//        }
+//        while (sVar3 != -1);
+//    }
+//}
+
 void odirti() {
     debug(EDebugWarning, " /* STUBBED */");
+    
+    u8 offset = script_read8();
+    // tabint((u16)offset, unaff_A4);
 }
 
 void omainb() {
@@ -352,9 +374,9 @@ void onot() {
 }
 
 void oinkey() {
-    if (_button_count)
+    if (alis.automode == 0)
     {
-        alis.varD7 = _buttons[_button_count - 1];
+        alis.varD7 = io_inkey();
     }
 }
 
@@ -363,7 +385,10 @@ void okeyon() {
 }
 
 void ojoy() {
-    debug(EDebugWarning, " /* STUBBED */");
+    if (alis.automode == 0)
+    {
+        alis.varD7 = io_joy(alis.varD7);
+    }
 }
 
 void oprnd() {
@@ -384,7 +409,10 @@ void oscan() {
 }
 
 void oshiftkey() {
-    debug(EDebugWarning, " /* STUBBED */");
+    if (alis.automode == 0)
+    {
+        alis.varD7 = io_shiftkey();
+    }
 }
 
 void ofree() {
@@ -413,12 +441,12 @@ void omid() {
 }
 
 void olen() {
-    alis.varD7 = strlen((const char *)alis.bssChunk3);
+    alis.varD7 = strlen((const char *)alis.bsd7bis);
 }
 
 void oasc() {
     alis.varD7 = 0;
-    alis.varD7 = alis.bssChunk3[0];
+    alis.varD7 = alis.bsd7bis[0];
 }
 
 void ostr() {
@@ -465,9 +493,9 @@ void ospushacc() {
 }
 
 void ospile() {
-    u8 * tmp = alis.bssChunk3;
-    alis.bssChunk3 = alis.bssChunk2;
-    alis.bssChunk2 = tmp;
+    u8 * tmp = alis.bsd7bis;
+    alis.bsd7bis = alis.bsd6;
+    alis.bsd6 = tmp;
     
     debug(EDebugWarning, " /* STUBBED */");
 }
@@ -480,12 +508,12 @@ void oval() {
 void oexistf() {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
-    strcat(path, (char *)alis.bssChunk3);
+    strcat(path, (char *)alis.bsd7bis);
     alis.varD7 = sys_fexists(path) ? 0xffff : 0x0;
 }
 
 void ochr() {
-    alis.bssChunk3[0] = (u8)alis.varD7;
+    alis.bsd7bis[0] = (u8)alis.varD7;
 }
 
 void ochange() {
@@ -502,7 +530,10 @@ void omip() {
 }
 
 void ojoykey() {
-    debug(EDebugWarning, " /* STUBBED */");
+    if (alis.automode == 0)
+    {
+        alis.varD7 = io_joykey(alis.varD7);
+    }
 }
 
 void oconfig() {

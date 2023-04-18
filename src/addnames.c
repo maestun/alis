@@ -45,7 +45,7 @@ static void alocw() {
 static void alocp() {
     u16 offset = script_read16();
     u8 * a1 = vram_ptr(offset);
-    u8 * a0 = alis.bssChunk3;
+    u8 * a0 = alis.bsd7bis;
     
     // set (vram+offset) pointer to first zero byte
     while (*++a1);

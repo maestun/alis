@@ -13,40 +13,12 @@
 #include "alis_private.h"
 #include "utils.h"
 
+extern u8 ferase;
 extern u8 fseq;
 
 extern u8 thepalet;
 extern u8 defpalet;
 extern u8 *ampalet;
-
-extern u8 numelem;
-
-extern u8 flaginvx;
-extern u8 fmuldes;
-extern u8 fadddes;
-
-extern s32 atent;
-extern s32 debent;
-extern s32 finent;
-extern s32 maxent;
-extern s16 nbent;
-extern s16 dernent;
-
-extern s32 basemain;
-extern s32 basesprite;
-extern u16 libsprit;
-extern s32 debsprit;
-extern s32 finsprit;
-extern s32 backsprite;
-extern s32 tvsprite;
-extern s32 texsprite;
-extern s32 atexsprite;
-extern s32 mousprite;
-extern s32 mousflag;
-
-extern u16 depx;
-extern u16 depy;
-extern u16 depz;
 
 extern u8 *sprit_mem;
 
@@ -80,6 +52,15 @@ void image(void);
 void ctopalette(u8 *paldata, s32 duration);
 void ctoblackpal(s16 duration);
 
+u16 moteur1(s16 offset);
 void moteur2(s16 offset);
+
+//void killent(u16 d0w, u32 d3, u16 d5w);
+u8 debprotf(u16 d2w, u16 *d0w);
+void shrinkprog(sAlisScript *script, s8 unload_script);
+
+void alis_putchar(s8 character);
+void alis_putstring(void);
+void sparam(void);
 
 #endif /* experimental_h */

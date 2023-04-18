@@ -110,6 +110,51 @@ typedef struct {
     // $224f0
     sScriptLoc *    script_vram_orgs;
     
+    u8              automode;
+    u8              numelem;
+            
+    u8              flaginvx;
+    u8              fmuldes;
+    u8              fadddes;
+            
+    u32             atprog;     // 0x22400
+    u32             debprog;    // 0x2edd8
+    u32             finprog;
+    u32             dernprog;
+    u16             maxprog;
+    u16             nbprog;
+    
+    s32             atent;      // 0x224f0
+    s32             debent;     // 0x2261c
+    s32             finent;
+    s32             maxent;
+    s16             nbent;
+    s16             dernent;
+            
+    u32             finmem;     // 0xf6e98
+            
+    s32             basemem;   // 0x22400
+    s32             basevar;   // 0x0
+    s32             basemain;   // 0x22690
+    s32             basesprite;
+    u16             libsprit;
+    s32             debsprit;   // 0x29f40
+    s32             finsprit;   // 0x2edd8
+    s32             backsprite;
+    s32             tvsprite;
+    s32             texsprite;
+    s32             atexsprite;
+    s32             mousprite;
+    s32             mousflag;
+            
+    u16             depx;
+    u16             depy;
+    u16             depz;
+    
+    u16             wcx;
+    u16             wcy;
+    u16             wcz;
+
     // true if disasm only
     u8              disasm;
     
@@ -122,6 +167,8 @@ typedef struct {
     
     // MEMORY
     u8 *            mem; // host: system memory (hardware)
+    
+    u8              flagmain;
     
     // in atari, located at $22400
     // contains the addresses of the loaded scripts' data
@@ -147,9 +194,21 @@ typedef struct {
     u16             varD5;
     
     // virtual array registers
-    u8 *           bssChunk1;
-    u8 *           bssChunk2;
-    u8 *           bssChunk3;
+    u8 *           bsd7;
+    u8 *           bsd6;
+    u8 *           bsd7bis;
+    
+    u8 *           sd7;
+    u8 *           sd6;
+    
+    u8 charmode;
+    
+    // font
+    u16 foasc;
+    u16 fonum;
+    u8 folarg;
+    u8 fohaut;
+    u16 fomax;
     
     // helper: executed instructions count
     u32            icount;
@@ -168,6 +227,23 @@ typedef struct {
     
     // system helpers
     FILE *      fp;
+    u16         openmode;
+    
+    // sound
+    u8 volson;
+    u8 typeson;
+    u8 pereson;
+    u8 priorson;
+    u16 freqson;
+    u16 longson;
+    u16 dfreqson;
+    u16 dvolson;
+    u8 volsam;
+    u8 speedsam;
+    u16 loopsam;
+    u32 startsam;
+    u32 longsam;
+    u16 freqsam;
     
     // unknown variables
     u8          _cstopret;
@@ -178,10 +254,6 @@ typedef struct {
 //    u16         _a6_minus_16;
     u16         _random_number;
 //    u8          _xinvon; // (-0x3,A6)
-    
-    u16         _DAT_000195fa;
-    u16         _DAT_000195fc;
-    u16         _DAT_000195fe;
     
     u8 *        spritemem;
     
