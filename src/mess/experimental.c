@@ -27,7 +27,7 @@
 
 #define FRAME_TICKS (1000000 / 10) // 10 fps looks about right in logo animation
 
-#define BASEMNMEM_PTR alis.spritemem + alis.basemain
+#define BASEMNMEM_PTR alis.mem + alis.basemain
 #define SPRITEMEM_PTR alis.spritemem + alis.basesprite
 
 #define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
@@ -95,8 +95,6 @@ u8 defpalet = 0;
 
 u16 *ptabfen = 0;
 u16 tabfen[640];
-u8 *ptrent = 0;
-u8 tablent = 0;
 
 s32 bufrvb;
 
@@ -140,8 +138,6 @@ u16 fonum = 0xffff;
 u8 sback = 0;
 
 u32 adaline = 0;
-
-u8 ferase = 0;
 
 u32 newad;
 s16 newx;
@@ -731,7 +727,7 @@ u8 verifyintegrity(void)
 
 void inisprit(void)
 {
-    alis.basemain = 0;
+    // alis.basemain = 0;
     alis.debsprit = 0;
     alis.finsprit = 0x7fff;
 
@@ -926,7 +922,7 @@ void killelem(u16 *curidx, u16 *previdx)
     ELEM_TRACE("  cursprite: 0x%.4x prevsprite: 0x%.4x numelem: 0x%.2x\n", ELEMIDX(*curidx), ELEMIDX(*previdx), alis.numelem);
 
     SpriteVariables *cursprvar = SPRITE_VAR(*curidx);
-    if (ferase == '\0' && -1 < (s8)cursprvar->state)
+    if (alis.ferase == '\0' && -1 < (s8)cursprvar->state)
     {
         cursprvar->state = 1;
         
@@ -1938,16 +1934,16 @@ void destofen(SpriteVariables *sprite)
         bmpx2 -= (xpos2 - blocx2);
     }
     
-    s16 index = -1;
-    for (s32 i = 0; i < 24; i++)
-    {
-        s32 addr = adresdes(i);
-        if (sprite->data == addr)
-        {
-            index = i;
-            break;
-        }
-    }
+//    s16 index = -1;
+//    for (s32 i = 0; i < 24; i++)
+//    {
+//        s32 addr = adresdes(i);
+//        if (sprite->data == addr)
+//        {
+//            index = i;
+//            break;
+//        }
+//    }
     
     DRAW_TRACE("%.2d %.2x %.2x (%.2x %.2x)\n", index, sprite->state, sprite->numelem, bitmap[0], bitmap[1]);
     DRAW_TRACE("%.3d %.3d %.3d %.3d\n", blocx1, blocy1, blocx2, blocy2);
@@ -1985,6 +1981,8 @@ void destofen(SpriteVariables *sprite)
         {
             // ST image
             
+            clear = bitmap[0] == 0 ? 0 : -1;
+            
             at = bitmap + 6;
             
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
@@ -1992,13 +1990,13 @@ void destofen(SpriteVariables *sprite)
                 u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
-                    u16 wh = ((flip ? (width - (w + 2)) : w)) / 2;
+                    u16 wh = (flip ? (width - (w + 1)) : w) / 2;
                     color = *(at + wh + h * (width / 2));
-                    color = 0 + w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                    color = 0 + w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
                     if (color != clear)
                     {
-//                        if ((posy1 + h) < 0 || (posy1 + h) >= 200)
-//                            continue;
+                        if ((posy1 + h) < 0 || (posy1 + h) >= 200)
+                            continue;
                         
                         tgt = logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
                         *tgt = color;
@@ -2024,9 +2022,12 @@ void destofen(SpriteVariables *sprite)
                 u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
-                    u16 wh = ((flip ? (width - (w + 2)) : w)) / 2;
+                    if ((posy1 + h) < 0 || (posy1 + h) >= 200)
+                        continue;
+                    
+                    u16 wh = (flip ? (width - (w + 1)) : w) / 2;
                     color = *(at + wh + h * (width / 2));
-                    color = 0 + w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                    color = 0 + w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
                     if (color != clear)
                         *tgt = palidx + color;
                 }
@@ -2050,6 +2051,9 @@ void destofen(SpriteVariables *sprite)
                 u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
+                    if ((posy1 + h) < 0 || (posy1 + h) >= 200)
+                        continue;
+                    
                     color = *(at + (flip ? width - (w + 1) : w) + h * width);
                     if (color != clear)
                         *tgt = palidx + color;
@@ -3600,8 +3604,8 @@ void FUN_STARTUP(s8 *script, size_t param_2, u32 param_3)
 
     atpalet = tpalet;         // 1024 bytes empty pal
     ampalet = mpalet;         // 1024 bytes empty pal
-    ptabfen = &tabfen;        // &tabfen == &tablent ?
-    ptrent = &tablent;
+    ptabfen = tabfen;        // &tabfen == &tablent ?
+    alis.ptrent = alis.tablent;
     fsound = 1;
     fmusic = 1;
     savsp = (void *)&sp;
@@ -3901,30 +3905,52 @@ s32 io_tomono(s32 param_1, s32 script_start)
     return param_1;
 }
 
-u8 fallent = 0;
-u8 fseq = 0;
-u16 saversp = 0;
+s16 tabint(s16 offset)
+{
+    s16 *a0 = (s16 *)vram_ptr(offset - 2);
+    s16 result = offset + alis.varD7 * 2;
+    s16 length = *(s8 *)vram_ptr(offset - 1);
+    
+    for (int i = 0; i < length; i++, alis.acc++, a0--)
+    {
+        result += *(alis.acc) * *a0;
+    }
+    
+    return result;
+}
 
 void moteur4(s16 offset)
 {
-    u32 index = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].vram_offset; // NOTE: repurposed vram_offset as a script index
+    alis.varD5 = offset;
+    
+    u32 index = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].vram_offset;
     sAlisScript *script = alis.scripts[index];
+    
+//    // HACK!!!
+//    if (strcmp(script->name, "preson.ao") == 0)
+//    {
+//        offset = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].offset;
+//        index = alis.script_vram_orgs[offset / sizeof(sScriptLoc)].vram_offset;
+//        script = alis.scripts[index];
+//    }
+    
     alis.script = script;
 
     u8 *vram_addr = alis.mem + alis.script->vram_org;
 
-    fallent = 0;
-    fseq = 0;
+    alis.fallent = 0;
+    alis.fseq = 0;
     
     if (alis.script->context._0x24_scan_inter.data < 0 && (alis.script->context._0x24_scan_inter.data & 2) == 0)
     {
         s32 script_offset = swap32((alis.mem + alis.script->context._0x14_script_org_offset + 10), alis.platform.is_little_endian);
         if (script_offset != 0)
         {
-            saversp = alis.script->context._0x10_script_id;
+            alis.saversp = alis.script->context._0x10_script_id;
             savecoord(vram_addr);
             alis.script->pc = alis.script->context._0x14_script_org_offset + 10 + script_offset;
             alis_loop();
+//            check(0x027a90 - 2);
             updtcoord(vram_addr);
         }
     }
@@ -3944,8 +3970,9 @@ void moteur3(s16 offset)
     // and than stored with new value
     // set to d4w and can be changed in OPCODE_CJSR24_0x07 and likely others
     u16 unknown0x10 = alis.script->context._0x10_script_id;
-    fseq ++;
+    alis.fseq ++;
     alis_loop();
+//    check(0x027a90 - 2);
     alis.script->context._0x10_script_id = unknown0x10;
     alis.script->context._0x8_script_ret_offset = alis.script->pc;
 
@@ -3954,10 +3981,11 @@ void moteur3(s16 offset)
     s32 script_offset = swap32(alis.mem + alis.script->context._0x14_script_org_offset + 6, alis.platform.is_little_endian);
     if (script_offset != 0)
     {
-        fseq = 0;
-        saversp = alis.script->context._0x10_script_id;
+        alis.fseq = 0;
+        alis.saversp = alis.script->context._0x10_script_id;
         alis.script->pc = alis.script->context._0x14_script_org_offset + 6 + script_offset;
         alis_loop();
+//        check(0x027a90 - 2);
     }
     
     updtcoord(vram_addr);
@@ -4040,128 +4068,16 @@ void moteur2(s16 offset)
     while (true);
 }
     
-u8 debprotf(u16 d2w, u16 *d0w)
+s16 debprotf(u16 script_id)
 {
-    u16 uVar1;
-    u16 total;
-  
-    u16 end = alis.nbprog - 1;
-    u16 start = 0;
-    
-    do
+    for (int i = 0; i < alis.nbprog; i ++)
     {
-        total = (u16)(start + end) >> 1;
-        *d0w = total << 2;
-        
-        u32 addr = 0x2edd8;//*(u32 *)(alis.mem + atprog);
-        u16 test = *(u16 *)(alis.mem + addr);
-        uVar1 = **(u16 **)(alis.mem + alis.atprog + *d0w);
-        if (uVar1 == d2w)
-        {
-            return 1;
-        }
-        
-        if (uVar1 < d2w)
-        {
-            start = total + 1;
-        }
-        else
-        {
-            end = total - 1;
-        }
+        if (alis.scripts[i]->header.id == script_id)
+            return i;
     }
-    while (start <= end);
-    
-    return 0;
+        
+    return -1;
 }
-
-//void cerasall(sAlisScript *script, u8 d0b)
-//{
-//    u16 elemidx1 = script->context._0x18_unknown;
-//    if (elemidx1 == 0)
-//    {
-//        ferase = 0;
-//        return;
-//    }
-//
-//    u16 tmpidx = 0;
-//    
-//    do
-//    {
-//        // d0b = killelem(d0b, elemidx1, tmpidx);
-//        killelem(&elemidx1, &tmpidx);
-//    }
-//    while (elemidx1);
-//  
-//    ferase = 0;
-//}
-
-//void killent(u16 d0w, u32 d3, u16 d5w)
-//{
-//    // script
-//    u32 uVar1 = *(u32 *)(alis.mem + alis.atent + (s16)d0w);
-//    if (uVar1 == 0)
-//    {
-//        ferase = 0;
-//        return;
-//    }
-//    
-//    cerasall();
-//
-//    s32 script_org = alis.script->context._0x14_script_org_offset;
-//    u32 uVar6 = (u32)(u16)(*(s16 *)(alis.mem + script_org + 0x12) + *(s16 *)(alis.mem + script_org + 0x16) + 0x34);
-//    script_org = uVar6 + *(u16 *)(alis.mem + script_org + 0x14);
-//
-//    u16 *puVar8 = (u16 *)(alis.mem + uVar1 - uVar6);
-//    u16 *puVar9 = (u16 *)(alis.mem + (s32)puVar8 + script_org);
-//
-//    do
-//    {
-//        *puVar8 = *puVar9;
-//        puVar8++;
-//        puVar9++;
-//    }
-//    while ((s32)puVar9 < alis.finent);
-//    
-//    alis.finent -= script_org;
-//    u16 previdx = 0;
-//    u16 nextidx;
-//
-//    while (true)
-//    {
-//        nextidx = *(u16 *)(alis.mem + alis.atent + 4 + previdx);
-//        if (d0w == nextidx)
-//        {
-//            d3 = (u32)previdx;
-//        }
-//        
-//        if (nextidx == 0)
-//        {
-//            break;
-//        }
-//        
-//        previdx = nextidx;
-//        if (uVar1 <= *(u32 *)(alis.mem + alis.atent + nextidx))
-//        {
-//            *(s32 *)(alis.mem + alis.atent + nextidx) = *(s32 *)(alis.mem + alis.atent + nextidx) - script_org;
-//        }
-//    }
-//    
-//    *(u16 *)(alis.mem + alis.atent + 4 + d3) = *(u16 *)(alis.mem + alis.atent + 4 + d0w);
-//    *(u32 *)(alis.mem + alis.atent + 0 + d0w) = 0;
-//    *(u16 *)(alis.mem + alis.atent + 4 + d0w) = alis.dernent;
-//    
-//    alis.dernent = d0w;
-//    alis.nbent--;
-//    
-//    if (d5w != d0w)
-//    {
-//        return;
-//    }
-//    
-//    moteur1((s16)d3);
-//    return;
-//}
 
 void shrinkprog(sAlisScript *script, s8 unload_script)
 {
@@ -4213,8 +4129,8 @@ void shrinkprog(sAlisScript *script, s8 unload_script)
 
     if (unload_script != 0)
     {
-//        dernprog -= 4;
-//        nbprog --;
+//        alis.dernprog -= 4;
+        alis.nbprog --;
         
 //        u32 a0 = 0x34ba8;
 //        u16 d5w = 0;
@@ -4366,40 +4282,6 @@ void shrinkprog(sAlisScript *script, s8 unload_script)
 //    alis.basesprite = iVar8;
 //    alis.basemain = iVar2;
 }
-
-//void OPCODE_CUNLOAD_0x3d(void)
-//{
-//    u16 index = script_read16();
-//    if ((index != 0xffff))
-//    {
-//        u8 bVar3 = index == alis.script->context._0x10_script_id;
-//        if (!bVar3)
-//        {
-//            u16 d0w;
-//            bVar3 = debprotf(index, &d0w);
-//            if (bVar3)
-//            {
-//                s16 *a2 = (s16 *)0xfffffff;
-//                s16 *a0 = *(s16 **)(d0w + atprog);
-//
-//                for (s16 **curprog = atprog; curprog != dernprog; curprog++)
-//                {
-//                    if (((s32)a0 < (s32)*curprog) && ((s32)*curprog < (s32)a2))
-//                    {
-//                        a2 = *curprog;
-//                    }
-//                }
-//
-//                if (a2 == (s16 *)0xfffffff)
-//                {
-//                    a2 = finprog;
-//                }
-//
-//                shrinkprog(a0, (s32)(s16 **)(d0w + (s32)atprog), a2, (s32)a2 - (s32)a0, index, '\x01') ;
-//            }
-//        }
-//    }
-//}
 
 void alis_putchar(s8 character)
 {

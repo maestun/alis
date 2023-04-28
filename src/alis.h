@@ -113,9 +113,12 @@ typedef struct {
     u8              automode;
     u8              numelem;
             
+    u8              fallent;
+    u8              fseq;
     u8              flaginvx;
     u8              fmuldes;
     u8              fadddes;
+    u8              ferase;
             
     u32             atprog;     // 0x22400
     u32             debprog;    // 0x2edd8
@@ -123,6 +126,10 @@ typedef struct {
     u32             dernprog;
     u16             maxprog;
     u16             nbprog;
+    
+    u16             saversp;
+    u32 *           ptrent;
+    u32             tablent[256];
     
     s32             atent;      // 0x224f0
     s32             debent;     // 0x2261c
@@ -147,13 +154,16 @@ typedef struct {
     s32             mousprite;
     s32             mousflag;
             
-    u16             depx;
-    u16             depy;
-    u16             depz;
+    s16             depx;
+    s16             depy;
+    s16             depz;
     
-    u16             wcx;
-    u16             wcy;
-    u16             wcz;
+    s16             wcx;
+    s16             wcy;
+    s16             wcz;
+    
+    s16             poldy;
+    s16             poldx;
 
     // true if disasm only
     u8              disasm;
@@ -200,6 +210,8 @@ typedef struct {
     
     u8 *           sd7;
     u8 *           sd6;
+    
+    u8             buffer[1024];
     
     u8 charmode;
     

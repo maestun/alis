@@ -13,9 +13,6 @@
 #include "alis_private.h"
 #include "utils.h"
 
-extern u8 ferase;
-extern u8 fseq;
-
 extern u8 thepalet;
 extern u8 defpalet;
 extern u8 *ampalet;
@@ -56,11 +53,13 @@ u16 moteur1(s16 offset);
 void moteur2(s16 offset);
 
 //void killent(u16 d0w, u32 d3, u16 d5w);
-u8 debprotf(u16 d2w, u16 *d0w);
+s16 debprotf(u16 d2w);
 void shrinkprog(sAlisScript *script, s8 unload_script);
 
 void alis_putchar(s8 character);
 void alis_putstring(void);
 void sparam(void);
+
+s16 tabint(s16 offset);
 
 #endif /* experimental_h */

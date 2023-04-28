@@ -172,6 +172,8 @@ typedef struct {
 sAlisScript *   script_load(const char * script_path);
 void            script_unload(sAlisScript * script);
 
+void            script_live(sAlisScript * script);
+
 // read data from script, these will increase the virtual program counter
 u8              script_read8(void);
 s16             script_read8ext16(void);

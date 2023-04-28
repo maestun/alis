@@ -93,63 +93,77 @@ static void sdirp() {
 }
 
 static void sdirtp() {
-    debug(EDebugInfo, "sdirtp STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void sdirtc() {
-    debug(EDebugInfo, "sdirtc STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void sdirti() {
-    debug(EDebugInfo, "sdirti STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void smainb() {
-    debug(EDebugInfo, "smainb STUBBED\n");
+    debug(EDebugInfo, " /* CHECK */");
+
+    s16 offset = script_read16();
+    *(u8 *)(alis.mem + alis.basemain + offset) = (u8)alis.varD7;
 }
 
 static void smainw() {
-    debug(EDebugInfo, "smainw STUBBED\n");
+    debug(EDebugInfo, " /* CHECK */");
+
+    s16 offset = script_read16();
+    *(u16 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
 }
 
 static void smainp() {
-    debug(EDebugInfo, "smainp STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void smaintp() {
-    debug(EDebugInfo, "smaintp STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void smaintc() {
-    debug(EDebugInfo, "smaintc STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void smainti() {
-    debug(EDebugInfo, "smainti STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void shimb() {
-    debug(EDebugInfo, "shimb STUBBED\n");
+    debug(EDebugInfo, " /* CHECK */");
+    
+    s16 offset = script_read16();
+    s16 ent = vram_read16(offset);
+
+    u32 index = *(u32 *)(alis.mem + alis.atent + ent);
+
+    s16 offset2 = script_read16();
+    alis.varD7 = *(u8 *)(alis.mem + alis.scripts[index]->vram_org + offset2);
 }
 
 static void shimw() {
-    debug(EDebugInfo, "shimw STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void shimp() {
-    debug(EDebugInfo, "shimp STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void shimtp() {
-    debug(EDebugInfo, "shimtp STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void shimtc() {
-    debug(EDebugInfo, "shimtc STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void shimti() {
-    debug(EDebugInfo, "shimti STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void spile() {

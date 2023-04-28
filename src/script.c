@@ -423,8 +423,18 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     
     // script data
     script->header.id = swap16((data + 0), alis.platform.is_little_endian);
-    script->header.w_0x1700 = swap16((data + 2), alis.platform.is_little_endian);
-    script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+    
+    if (alis.platform.kind == EPlatformPC)
+    {
+        script->header.w_0x1700 = swap16((data + 4), alis.platform.is_little_endian);
+        script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+    }
+    else
+    {
+        script->header.w_0x1700 = swap16((data + 2), alis.platform.is_little_endian);
+        script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+    }
+    
     script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
     script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
     script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
@@ -435,21 +445,11 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     // TODO: this is for debug / static allocs
     sScriptDebug debug_data = script_debug_data[script->header.id];
     
-
-    // tell where the script vram is located in host memory
-    // script->vram_org = debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
-    alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(script->context));
-
-    script->vram_org = alis.finent;
+    script->vram_org = 0;
     script->vacc_off = debug_data.vacc_off;
     script->data_org = alis.finprog;
-//    script->data_org = script->vram_org + 0xc760; //debug_data.data_org;
 
-    alis.finent += swap16((data + 0x14), alis.platform.is_little_endian);
     alis.finprog += data_sz;
-
-    printf("buffer at: 0x%.6x to: 0x%.6x\n", script->vram_org, alis.finent);
-    printf("script at: 0x%.6x to: 0x%.6x\n", script->data_org, alis.finprog);
     
     // init context
     memset(&(script->context), 0, sizeof(script->context));
@@ -474,14 +474,23 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->pc = script->pc_org = script->context._0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
     
     debug(EDebugVerbose,
-          "Initialized script '%s' (ID = 0x%02x)\nVRAM at address 0x%x\nDATA at address 0x%x\nCODE at address 0x%x\nVACC = 0x%04x\n",
+          "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\nCODE at address 0x%x\nVACC = 0x%04x\n",
           script->name, script->header.id,
-          script->vram_org,
-          script->data_org,
-          script->pc_org,
-          script->vacc_off);
+          script->data_org, alis.finprog,
+          script->pc_org, script->vacc_off);
     
     return script;
+}
+
+void script_live(sAlisScript * script) {
+    u8 *data = alis.mem + script->data_org;
+
+    // tell where the script vram is located in host memory
+    alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(script->context));
+    script->vram_org = alis.finent;
+    alis.finent += swap16((data + 0x14), alis.platform.is_little_endian);
+
+    debug(EDebugVerbose, " (NAME: %s, VRAM at address 0x%x - 0x%x) ", script->name, script->vram_org, alis.finent);
 }
 
 
@@ -532,50 +541,50 @@ sAlisScript * script_load(const char * script_path) {
         // TODO: check if this was already loaded, if so use cache
         
         // decrunch if needed
-        if(is_packedx(magic)) {
-            u32 pak_sz = input_sz - HEADER_MAGIC_SZ - HEADER_CHECK_SZ - HEADER_DIC_SZ;
-            if(is_main(check)) {
-                debug(EDebugVerbose, "Main script detected.\n");
-                
-                // skip vm specs
-                fseek(fp, HEADER_MAIN_SZ, SEEK_CUR);
-                pak_sz -= HEADER_MAIN_SZ;
-            }
+        u32 pak_sz = input_sz - HEADER_MAGIC_SZ - HEADER_CHECK_SZ - HEADER_DIC_SZ;
+        if(is_main(check)) {
+            debug(EDebugVerbose, "Main script detected.\n");
+            
+            // skip vm specs
+            fseek(fp, HEADER_MAIN_SZ, SEEK_CUR);
+            pak_sz -= HEADER_MAIN_SZ;
+        }
 
-            // read dictionary
-            u8 dic[HEADER_DIC_SZ];
-            fread(dic, sizeof(u8), HEADER_DIC_SZ, fp);
-            
-            // read file into buffer
-            u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
-            fread(pak_buf, sizeof(u8), pak_sz, fp);
-            
-            // alloc and depack
-            debug(EDebugVerbose, "Depacking...\n");
-            depak_sz = get_depacked_size(magic);
-            u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
-            
-            depak_sz = unpack_script(script_path, alis.platform.is_little_endian, &depak_buf);
-            debug(EDebugVerbose,
-                       "Depacking done in %ld bytes (~%d%% packing ratio)\n",
-                       depak_sz, 100 - (100 * pak_sz) / depak_sz);
-            
-            // depak_sz -= is_main(check) ? 0x16 : 0x6;
+        // read dictionary
+        u8 dic[HEADER_DIC_SZ];
+        fread(dic, sizeof(u8), HEADER_DIC_SZ, fp);
         
+        // read file into buffer
+        u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
+        fread(pak_buf, sizeof(u8), pak_sz, fp);
+        
+        // alloc and depack
+        debug(EDebugVerbose, "Depacking...\n");
+        depak_sz = get_depacked_size(magic);
+        u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
+        
+        depak_sz = unpack_script(script_path, alis.platform.is_little_endian, &depak_buf);
+        if (depak_sz > 0) {
+            // unpacked, continue
+            debug(EDebugVerbose,
+                  "Depacking done in %ld bytes (~%d%% packing ratio)\n",
+                  depak_sz, 100 - (100 * pak_sz) / depak_sz);
+            
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
-            
-            // cleanup
-            free(depak_buf);
-            free(pak_buf);
         }
         else {
+
             // not packed !!
             debug(EDebugFatal,
                   "Unpacked scripts are not supported: '%s'\n",
                   script_path);
-
         }
+
+        // cleanup
+        free(depak_buf);
+        free(pak_buf);
+
         fclose(fp);
     }
     else {

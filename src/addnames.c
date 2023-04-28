@@ -9,6 +9,8 @@
 #include "alis.h"
 #include "alis_private.h"
 
+#include "experimental.h"
+
 // ============================================================================
 #pragma mark - Addnames routines
 // ============================================================================
@@ -58,34 +60,19 @@ static void alocp() {
 
 
 static void aloctp() {
-    debug(EDebugInfo, "aloctp STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void aloctc() {
-    debug(EDebugInfo, "aloctc STUBBED\n");
-}
-
-short tabint(short d0w,short d7w,short *a4/*,short *a6*/)
-{
-    s16 *a0 = (s16 *)vram_ptr(d0w - 2); // (short *)(a6 + d0w - 2);
-    s16 result = d0w + d7w * 2;
-    s16 length = *(s8 *)vram_ptr(d0w - 1); // *(char *)(a6 + d0w - 1) - 1;
-    
-    for (int i = 0; i < length; i++, a4++, a0--)
-    {
-        result += *a4 * *a0;
-    }
-    
-    return result;
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 static void alocti() {
-    debug(EDebugInfo, "alocti STUBBED\n");
+    debug(EDebugInfo, " /* STUBBED */");
 
     u16 offset = script_read16();
 
     // TODO: finish
-//    short *a4;
-//    short result = tabint(offset, alis.varD7, a4);
+    short result = tabint(offset);
 //    vram_add16(result, *a4);
 }
 static void adirb() {
@@ -102,13 +89,13 @@ static void adirp() {
 
 }
 static void adirtp() {
-    debug(EDebugInfo, "adirtp STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void adirtc() {
-    debug(EDebugInfo, "adirtc STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void adirti() {
-    debug(EDebugInfo, "adirti STUBBED\n");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void amainb() {
 //    ADDNAME_AMAINB_0xf
@@ -131,37 +118,37 @@ static void amainw() {
 //000182aa 4e 75           rts
 }
 static void amainp() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void amaintp() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void amaintc() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void amainti() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void ahimb() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void ahimw() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void ahimp() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void ahimtp() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void ahimtc() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void ahimti() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void spile() {
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 static void aeval() {
 //    ADDNAME_AEVAL_0x1c
@@ -173,7 +160,7 @@ static void aeval() {
 //0001844a 48 80           ext.w      D0w
 //0001844c 30 30 00 00     move.w     (0x0,A0,D0w*offset JTAB_ADDNAMES),D0w            =
 //00018450 4e f0 00 00     jmp        (0x0,A0,D0w*0x1)
-    debug(EDebugInfo, "STUBBED");
+    debug(EDebugInfo, " /* MISSING */");
 }
 
 

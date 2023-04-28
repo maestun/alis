@@ -10,13 +10,15 @@
 #include "alis_private.h"
 #include "utils.h"
 
+#include "experimental.h"
+
 u16 loctp_common(u16 offset) {
-    debug(EDebugWarning, "\n%s STUBBED\n", __FUNCTION__);
+    debug(EDebugWarning, " /* STUBBED */");
     return offset;
 }
 
 u16 locti_common(u16 offset) {
-    debug(EDebugWarning, "\n%s STUBBED\n", __FUNCTION__);
+    debug(EDebugWarning, " /* STUBBED */");
     return offset;
 }
 
@@ -82,7 +84,9 @@ void oloctc() {
 }
 
 void olocti() {
-    debug(EDebugWarning, " /* STUBBED */");
+    u16 offset = script_read16();
+    s16 result = tabint(offset);
+    alis.varD7 = read16(vram_ptr(result), alis.platform.is_little_endian);
 }
 
 // reads a byte offset from script,
@@ -96,7 +100,7 @@ void odirb(/* u8 offset */) {
 // then reads a word from vram[offset] into r7
 void odirw(/* u8 offset */) {
     u8 offset = script_read8();
-    alis.varD7 = vram_read16(offset);;
+    alis.varD7 = vram_read16(offset);
     // printf("\nXXodirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
 }
 
@@ -108,90 +112,76 @@ void odirp(/* u8 offset */) {
 }
 
 void odirtp() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void odirtc() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
-//void tabint(s16 d0w, s16 d7w, s16 *a4, s16 *a6)
-//{
-//    s16 *psVar4 = (s16 *)(a6 + d0w + -2);
-//    s16 sVar1 = d7w * 2;
-//    s16 sVar2 = d0w + sVar1;
-//    s16 sVar3 = *(s8 *)(a6 + d0w + -1) + -1;
-//    if (sVar3 != -1)
-//    {
-//        do
-//        {
-//            psVar4 --;
-//            sVar2 = sVar2 + *a4 * *psVar4;
-//            sVar3 --;
-//            a4 ++;
-//        }
-//        while (sVar3 != -1);
-//    }
-//}
-
 void odirti() {
-    debug(EDebugWarning, " /* STUBBED */");
-    
     u8 offset = script_read8();
-    // tabint((u16)offset, unaff_A4);
+    s16 result = tabint(offset);
+    alis.varD7 = read16(vram_ptr(result), alis.platform.is_little_endian);
 }
 
 void omainb() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* CHECK */");
+    u16 offset = script_read16();
+    alis.varD7 = *(u8 *)(alis.mem + alis.basemain + offset);
 }
 
 void omainw() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* CHECK */");
+    u16 offset = script_read16();
+    alis.varD7 = *(u16 *)(alis.mem + alis.basemain + offset);
 }
 
 void omainp() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void omaintp() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void omaintc() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void omainti() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ohimb() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* CHECK */");
     u16 offset = script_read16(); // 51ce
-    u32 test = vram_read16(offset); // 6
+    u16 vram_idx = vram_read16(offset); // 6
+    u32 vram_offset = alis.script_vram_orgs[vram_idx / sizeof(sScriptLoc)].vram_offset;
+    u32 vram_addr = alis.scripts[vram_offset]->vram_org;
 
     u16 index = script_read16(); // 0d
-    alis.varD7 = alis.script_vram_orgs[index].vram_offset;
+    alis.varD7 = *(u8 *)(alis.mem + vram_addr + index);
 }
 
 void ohimw() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ohimp() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ohimtp() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ohimtc() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ohimti() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 // pop from accumulator into r6
@@ -381,7 +371,7 @@ void oinkey() {
 }
 
 void okeyon() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ojoy() {
@@ -392,7 +382,7 @@ void ojoy() {
 }
 
 void oprnd() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void oscan() {
@@ -425,19 +415,19 @@ void omodel() {
 }
 
 void ogetkey() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void oleft() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void oright() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void omid() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void olen() {
@@ -450,46 +440,75 @@ void oasc() {
 }
 
 void ostr() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void osadd() {
     // TODO: strcat ??
     debug(EDebugWarning, " /* STUBBED */");
+    
+    u8 cVar1;
+    u8 *pcVar3;
+    u8 *pcVar4;
+    
+    sparam();
+    
+    u8 *pcVar2 = alis.sd6;
+    
+    do
+    {
+        pcVar3 = pcVar2;
+        pcVar2 = pcVar3 + 1;
+        pcVar4 = alis.sd7;
+    }
+    while (*pcVar3 != '\0');
+    
+    do
+    {
+        cVar1 = *pcVar4;
+        *pcVar3 = cVar1;
+        pcVar2 = alis.sd6;
+        pcVar3 ++;
+        pcVar4 ++;
+    }
+    while (cVar1 != '\0');
+    
+    alis.sd6 = alis.sd7;
+    alis.sd7 = pcVar2;
 }
 
 void osegal() {
     // TODO: strcmp ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void osdiff() {
     // TODO: !strcmp ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void osinfeg() {
     // TODO: string equ or < ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ossupeg() {
     // TODO: string equ or > ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void osinf() {
     // TODO: string < ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ossup() {
     // TODO: string > ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ospushacc() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ospile() {
@@ -503,6 +522,62 @@ void ospile() {
 void oval() {
     // TODO: compute int value of bssChunk3 string -> d7 ??
     debug(EDebugWarning, " /* STUBBED */");
+    
+    s8 cVar1;
+    u8 bVar2;
+    
+    s16 sVar3 = 0;
+    u8 neg = 0;
+    if (alis.sd7[0] != 0)
+    {
+        u8 *string = alis.sd7;
+
+        neg = alis.sd7[0] == 0x2d;
+        if (neg)
+        {
+            string ++;
+        }
+        
+        if (*string == 0x24)
+        {
+            while (1)
+            {
+                string ++;
+                bVar2 = *string;
+                if ((bVar2 == 0) || ((s8)(bVar2 - 0x30) < 0))
+                    break;
+                
+                if (bVar2 < 0x3a)
+                {
+                    cVar1 = bVar2 - 0x30;
+                }
+                else
+                {
+                    bVar2 = bVar2 & 0xdf;
+                    if (((s8)(bVar2 + 0xbf) < '\0') || (0x46 < bVar2))
+                        break;
+                    
+                    cVar1 = bVar2 - 0x37;
+                }
+                
+                sVar3 = sVar3 * 0x10 + cVar1;
+            }
+        }
+        else
+        {
+            while (1)
+            {
+                bVar2 = *string;
+                if (((bVar2 == 0) || ((s8)(bVar2 - 0x30) < '\0')) || (0x39 < bVar2))
+                    break;
+                
+                sVar3 = sVar3 * 10 + (s8)(bVar2 - 0x30);
+                string ++;
+            }
+        }
+    }
+
+    alis.varD7 = neg ? -sVar3 : sVar3;
 }
 
 void oexistf() {
@@ -518,11 +593,11 @@ void ochr() {
 
 void ochange() {
     // TODO: change le drive courant ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void ocountry() {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, " /* MISSING */");
 }
 
 void omip() {

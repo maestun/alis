@@ -148,7 +148,7 @@ void alis_load_main() {
             alis.script_vram_orgs[idx] = (sScriptLoc){0, offset};
         }
         
-        alis.script_vram_orgs[0].vram_offset = (u32)((u8 *)alis.script_vram_orgs - alis.mem);
+        alis.script_vram_orgs[0].vram_offset = 0; // (u32)((u8 *)alis.script_vram_orgs - alis.mem);
         alis.nbent = 1;
         
         alis.specs.script_vram_max_addr = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1; // ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
@@ -171,6 +171,7 @@ void alis_load_main() {
         
         // load main scripts as an usual script...
         alis.main = script_load(alis.platform.main);
+        script_live(alis.main);
         alis.basemain = alis.main->vram_org;
     }
 }
@@ -196,14 +197,18 @@ void alis_init(sPlatform platform) {
     alis.flagmain = 0;
     alis.numelem = 0;
     
+    alis.fallent = 0;
+    alis.fseq = 0;
     alis.flaginvx = 0;
     alis.fmuldes = 0;
     alis.fadddes = 0;
+    alis.ferase = 0;
 
     alis.depx = 0;
     alis.depy = 0;
     alis.depz = 0;
 
+    alis.saversp = 0;
     alis.basemem = 0x22400;
     alis.basevar = 0;
     alis.finmem = 0x22000;
@@ -211,6 +216,8 @@ void alis_init(sPlatform platform) {
     alis.nbprog = 0;
     alis.maxprog = 0;
     alis.atprog = alis.basemem;
+    
+    alis.ptrent = alis.tablent;
 
 //    alis.atent = alis.atprog + 0xf0;
 //    alis.maxent = 0x32;
@@ -257,7 +264,7 @@ void alis_init(sPlatform platform) {
     // TODO: init virtual accumulator
 //    alis.acc_org = alis.script->vram_org;
 //    alis.acc = alis.script->vram_org + kVirtualRAMSize;
-    alis.acc = alis.acc_org = (alis.mem + 0x198e2);
+    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x198e2);
     //alis.script_count = 0;
     
     // init host system stuff
@@ -288,7 +295,7 @@ void alis_init(sPlatform platform) {
 
     sScriptLoc *prev_ent = &(alis.script_vram_orgs[0]);
     alis.dernent = prev_ent->offset;
-    prev_ent->vram_offset = alis.script->header.id;
+    prev_ent->vram_offset = 0; // alis.script->vram_org;
     prev_ent->offset = 0;
     
     gettimeofday(&alis.time, NULL);
@@ -320,8 +327,8 @@ void alis_loop() {
 }
 
 void alis_register_script(sAlisScript * script) {
-    u8 id = script->header.id;
-    alis.scripts[id] = script;
+    alis.scripts[alis.nbprog] = script;
+    // u8 id = script->header.id;
     // alis.script_id_stack[alis.script_count++] = id;
 
     alis.nbprog++;
