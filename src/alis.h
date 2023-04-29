@@ -110,6 +110,7 @@ typedef struct {
     // $224f0
     sScriptLoc *    script_vram_orgs;
     
+    u8              nmode;
     u8              automode;
     u8              numelem;
             
@@ -161,6 +162,8 @@ typedef struct {
     s16             wcx;
     s16             wcy;
     s16             wcz;
+    s16             wforme;
+    s16             matmask;
     
     s16             poldy;
     s16             poldx;
@@ -191,7 +194,8 @@ typedef struct {
     // SCRIPTS
     // global table containing all depacked scripts
     sAlisScript *   scripts[kMaxScripts];
-    
+    sAlisScript *   progs[kMaxScripts];
+
     // pointer to current script
     sAlisScript *       script;
     sAlisScript *       main;
@@ -292,7 +296,6 @@ void            alis_init(sPlatform platform);
 u8              alis_main(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
-void            alis_register_script(sAlisScript * script);
 void            alis_error(u8 errnum, ...);
 void            alis_debug(void);
 void            alis_debug_ram(void);

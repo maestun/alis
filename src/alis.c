@@ -42,7 +42,7 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
-        debug(EDebugVerbose, " %s", opcode.name);
+        debug(EDebugVerbose, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         return opcode.fptr();
     }
 }
@@ -149,8 +149,8 @@ void alis_load_main() {
         }
         
         alis.script_vram_orgs[0].vram_offset = 0; // (u32)((u8 *)alis.script_vram_orgs - alis.mem);
-        alis.nbent = 1;
-        
+        alis.nbent = 0;
+
         alis.specs.script_vram_max_addr = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1; // ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
 
         u32 main_script_data_addr = alis.specs.script_vram_max_addr + alis.specs.vram_to_data_offset;
@@ -173,6 +173,10 @@ void alis_load_main() {
         alis.main = script_load(alis.platform.main);
         script_live(alis.main);
         alis.basemain = alis.main->vram_org;
+        
+        alis.nmode = 0; // 0 = atari 16 colors
+                        // 3 = mono
+                        // 8 = falcon 256 colors
     }
 }
 
@@ -290,9 +294,6 @@ void alis_init(sPlatform platform) {
     alis_load_main();
     alis.script = alis.main;
     
-    // TODO: ...
-    alis_register_script(alis.script);
-
     sScriptLoc *prev_ent = &(alis.script_vram_orgs[0]);
     alis.dernent = prev_ent->offset;
     prev_ent->vram_offset = 0; // alis.script->vram_org;
@@ -324,14 +325,6 @@ void alis_loop() {
         readexec_opcode();
     }
     // alis loop was stopped by 'cexit', 'cstop', or user event
-}
-
-void alis_register_script(sAlisScript * script) {
-    alis.scripts[alis.nbprog] = script;
-    // u8 id = script->header.id;
-    // alis.script_id_stack[alis.script_count++] = id;
-
-    alis.nbprog++;
 }
 
 u8 alis_main() {

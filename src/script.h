@@ -161,7 +161,7 @@ typedef struct {
     u32             vram_org;
     u16             vacc_off;
     
-    sScriptContext  context;
+    sScriptContext *context;
     
     u8              running;
     u32             pc_org; // offset in memory

@@ -154,22 +154,46 @@ void omainti() {
 }
 
 void ohimb() {
-    debug(EDebugWarning, " /* CHECK */");
-    u16 offset = script_read16(); // 51ce
-    u16 vram_idx = vram_read16(offset); // 6
-    u32 vram_offset = alis.script_vram_orgs[vram_idx / sizeof(sScriptLoc)].vram_offset;
-    u32 vram_addr = alis.scripts[vram_offset]->vram_org;
+    u16 offset = script_read16();
+    u16 vram_offset = vram_read16(offset);
+    u32 vram_idx = alis.script_vram_orgs[vram_offset / sizeof(sScriptLoc)].vram_offset;
+    u32 vram_addr = alis.scripts[vram_idx]->vram_org;
 
-    u16 index = script_read16(); // 0d
+    u16 index = script_read16();
     alis.varD7 = *(u8 *)(alis.mem + vram_addr + index);
 }
 
 void ohimw() {
-    debug(EDebugWarning, " /* MISSING */");
+    u16 offset = script_read16();
+    u16 vram_offset = vram_read16(offset);
+    u32 vram_idx = alis.script_vram_orgs[vram_offset / sizeof(sScriptLoc)].vram_offset;
+    u32 vram_addr = alis.scripts[vram_idx]->vram_org;
+
+    u16 index = script_read16();
+    alis.varD7 = *(u16 *)(alis.mem + vram_addr + index);
 }
 
 void ohimp() {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* CHECK */");
+    u16 offset = script_read16();
+    u16 vram_offset = vram_read16(offset);
+    u32 vram_idx = alis.script_vram_orgs[vram_offset / sizeof(sScriptLoc)].vram_offset;
+    u32 vram_addr = alis.scripts[vram_idx]->vram_org;
+
+    u16 index = script_read16();
+    u8 *target = alis.mem + *(u16 *)(alis.mem + vram_addr + index);
+    u8 *source = alis.sd7;
+    
+    u8 c;
+    
+    do
+    {
+        c = *target;
+        *source = *target;
+        source++;
+        target++;
+    }
+    while (c != 0);
 }
 
 void ohimtp() {
@@ -386,16 +410,16 @@ void oprnd() {
 }
 
 void oscan() {
-    if (alis.script->context._0x1e_scan_clr == alis.script->context._0x1c_scan_clr)
+    if (alis.script->context->_0x1e_scan_clr == alis.script->context->_0x1c_scan_clr)
         return;
 
-    s16 scan_clr = alis.script->context._0x1e_scan_clr + 2;
+    s16 scan_clr = alis.script->context->_0x1e_scan_clr + 2;
     if (-0x35 < scan_clr)
-        scan_clr -= *(short *)(alis.mem + alis.script->context._0x14_script_org_offset + 0x16);
+        scan_clr -= *(short *)(alis.mem + alis.script->context->_0x14_script_org_offset + 0x16);
 
-    alis.script->context._0x1e_scan_clr = scan_clr;
-    if (scan_clr == alis.script->context._0x1c_scan_clr)
-        alis.script->context._0x24_scan_inter.scan_clr_bit_7 &= 0x7f;
+    alis.script->context->_0x1e_scan_clr = scan_clr;
+    if (scan_clr == alis.script->context->_0x1c_scan_clr)
+        alis.script->context->_0x24_scan_inter.scan_clr_bit_7 &= 0x7f;
 }
 
 void oshiftkey() {
@@ -405,9 +429,51 @@ void oshiftkey() {
     }
 }
 
+void io_dfree(void)
+{}
+
 void ofree() {
-    debug(EDebugWarning, "\n%s SIMULATED\n", __FUNCTION__);
-    alis.varD7 = 0x321;
+    debug(EDebugWarning, " /* STUBBED */");
+    
+    if (alis.varD7 == 0)
+        return;
+    
+    if (alis.varD7 == 1)
+        return;
+    
+    if (alis.varD7 == 2)
+        return;
+    
+    if (alis.varD7 != 3)
+    {
+        if (alis.varD7 == 4)
+        {
+            s16 spritidx = alis.libsprit;
+            if (alis.libsprit != 0)
+            {
+                do
+                {
+                    spritidx = *(s16 *)(alis.mem + alis.basesprite + 4 + spritidx);
+                }
+                while (spritidx != 0);
+            }
+            
+            return;
+        }
+        
+        if (0x40 < alis.varD7)
+        {
+            if (alis.varD7 < 0x49)
+            {
+                io_dfree();
+            }
+            
+            if ((0x60 < alis.varD7) && (alis.varD7 < 0x69))
+            {
+                io_dfree();
+            }
+        }
+    }
 }
 
 void omodel() {
