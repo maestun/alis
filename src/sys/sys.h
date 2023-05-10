@@ -58,7 +58,7 @@ void    sys_render(pixelbuf_t buffer);
 #pragma mark - FILE SYSTEM
 // =============================================================================
 int     sys_fclose(FILE * fp);
-FILE *  sys_fopen(char * path);
+FILE *  sys_fopen(char * path, u16 mode);
 u8      sys_fexists(char * path);
 
 

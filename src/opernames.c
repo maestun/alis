@@ -17,10 +17,11 @@ u16 loctp_common(u16 offset) {
     return offset;
 }
 
-u16 locti_common(u16 offset) {
-    debug(EDebugWarning, " /* STUBBED */");
-    return offset;
-}
+//u16 locti_common(u16 offset) {
+////     debug(EDebugWarning, " /* STUBBED */");
+////    return offset;
+//    return tabint(offset);
+//}
 
 u16 loctc_common(u16 offset) {
     
@@ -41,64 +42,62 @@ u16 loctc_common(u16 offset) {
 #pragma mark - TODO: opernames
 // =============================================================================
 
-void oimmb() {
+void oimmb(void) {
     // reads a byte, extends into r7
     alis.varD7 = script_read8ext16();
 }
 
-void oimmw() {
+void oimmw(void) {
     // reads a word into r7
     alis.varD7 = script_read16();
 }
 
-void oimmp() {
+void oimmp(void) {
     // reads null-terminated data into bssChunk3
-    script_read_until_zero(alis.bsd6);
+    script_read_until_zero(alis.sd7);
 }
 
-void olocb() {
+void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
     u16 offset = script_read16();
     alis.varD7 = vram_read8ext16(offset);
 }
 
-void olocw() {
+void olocw(void) {
     // read word offset, copy word from ram[offset] into r7
     u16 offset = script_read16();
     alis.varD7 = vram_read16(offset);
 }
 
-void olocp() {
+void olocp(void) {
     u16 offset = script_read16();
-    vram_writep(offset, alis.bsd7bis);
+    vram_readp(offset, alis.sd7);
 }
 
-void oloctp() {
+void oloctp(void) {
     debug(EDebugWarning, " /* STUBBED */");
 }
 
-void oloctc() {
-    u16 offset = script_read16();
-    u16 ret = loctc_common(offset);
-    alis.varD7 = vram_read8(ret);
+void oloctc(void) {
+    u16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    alis.varD7 = vram_read8(offset);
 }
 
-void olocti() {
-    u16 offset = script_read16();
-    s16 result = tabint(offset);
-    alis.varD7 = read16(vram_ptr(result), alis.platform.is_little_endian);
+void olocti(void) {
+    s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
+    alis.varD7 = read16(vram_ptr(offset), alis.platform.is_little_endian);
 }
 
 // reads a byte offset from script,
 // then reads an extended byte from vram[offset] into r7
-void odirb(/* u8 offset */) {
+void odirb(void) {
     u8 offset = script_read8();
     alis.varD7 = vram_read8ext16(offset);
 }
 
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
-void odirw(/* u8 offset */) {
+void odirw(void) {
     u8 offset = script_read8();
     alis.varD7 = vram_read16(offset);
     // printf("\nXXodirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
@@ -106,117 +105,109 @@ void odirw(/* u8 offset */) {
 
 // reads a byte offset from script,
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
-void odirp(/* u8 offset */) {
+void odirp(void) {
     u8 offset = script_read8();
-    vram_readp(offset, alis.bsd7bis);
+    vram_readp(offset, alis.sd7);
 }
 
-void odirtp() {
+void odirtp(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void odirtc() {
+void odirtc(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void odirti() {
+void odirti(void) {
     u8 offset = script_read8();
-    s16 result = tabint(offset);
+    s16 result = tabint(offset, alis.mem + alis.script->vram_org);
     alis.varD7 = read16(vram_ptr(result), alis.platform.is_little_endian);
 }
 
-void omainb() {
-    debug(EDebugWarning, " /* CHECK */");
+void omainb(void) {
     u16 offset = script_read16();
     alis.varD7 = *(u8 *)(alis.mem + alis.basemain + offset);
 }
 
-void omainw() {
-    debug(EDebugWarning, " /* CHECK */");
+void omainw(void) {
     u16 offset = script_read16();
     alis.varD7 = *(u16 *)(alis.mem + alis.basemain + offset);
 }
 
-void omainp() {
+void omainp(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void omaintp() {
-    debug(EDebugWarning, " /* MISSING */");
+void omaintp(void) {
+    s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
+    char *src = (char *)(alis.mem + alis.basemain + offset);
+    char *dst = (char *)alis.sd7;
+    strcpy(dst, src);
 }
 
-void omaintc() {
-    debug(EDebugWarning, " /* MISSING */");
+void omaintc(void) {
+    u16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    alis.varD7 = *(u8 *)(alis.mem + alis.basemain + offset);
 }
 
-void omainti() {
-    debug(EDebugWarning, " /* MISSING */");
+void omainti(void) {
+    debug(EDebugWarning, " /* CHECK */");
+    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    alis.varD7 = *(alis.acc++);
+    *(s16 *)(alis.mem + alis.basemain + offset) = alis.varD7;
 }
 
-void ohimb() {
-    u16 offset = script_read16();
-    u16 vram_offset = vram_read16(offset);
-    u32 vram_idx = alis.script_vram_orgs[vram_offset / sizeof(sScriptLoc)].vram_offset;
+void ohimb(void) {
+    u16 vram_offset = vram_read16(script_read16());
+    u32 vram_idx = alis.atent_ptr[vram_offset / sizeof(sScriptLoc)].vram_offset;
     u32 vram_addr = alis.scripts[vram_idx]->vram_org;
 
     u16 index = script_read16();
     alis.varD7 = *(u8 *)(alis.mem + vram_addr + index);
 }
 
-void ohimw() {
-    u16 offset = script_read16();
-    u16 vram_offset = vram_read16(offset);
-    u32 vram_idx = alis.script_vram_orgs[vram_offset / sizeof(sScriptLoc)].vram_offset;
+void ohimw(void) {
+    u16 vram_offset = vram_read16(script_read16());
+    u32 vram_idx = alis.atent_ptr[vram_offset / sizeof(sScriptLoc)].vram_offset;
     u32 vram_addr = alis.scripts[vram_idx]->vram_org;
 
     u16 index = script_read16();
     alis.varD7 = *(u16 *)(alis.mem + vram_addr + index);
 }
 
-void ohimp() {
+void ohimp(void) {
     debug(EDebugWarning, " /* CHECK */");
-    u16 offset = script_read16();
-    u16 vram_offset = vram_read16(offset);
-    u32 vram_idx = alis.script_vram_orgs[vram_offset / sizeof(sScriptLoc)].vram_offset;
+    u16 vram_offset = vram_read16(script_read16());
+    u32 vram_idx = alis.atent_ptr[vram_offset / sizeof(sScriptLoc)].vram_offset;
     u32 vram_addr = alis.scripts[vram_idx]->vram_org;
 
     u16 index = script_read16();
-    u8 *target = alis.mem + *(u16 *)(alis.mem + vram_addr + index);
-    u8 *source = alis.sd7;
-    
-    u8 c;
-    
-    do
-    {
-        c = *target;
-        *source = *target;
-        source++;
-        target++;
-    }
-    while (c != 0);
+    char *src = (char *)alis.mem + *(u16 *)(alis.mem + vram_addr + index);
+    char *dst = (char *)alis.sd7;
+    strcpy(dst, src);
 }
 
-void ohimtp() {
+void ohimtp(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ohimtc() {
+void ohimtc(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ohimti() {
+void ohimti(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
 // pop from accumulator into r6
-void opile() {
+void opile(void) {
     // save r6 into r7
     alis.varD7 = alis.varD6;
     alis.varD6 = *(alis.acc++);
 }
 
 // start eval loop, will stop after ofin() is called
-void oeval() {
+void oeval(void) {
     alis.oeval_loop = 1;
     while(alis.oeval_loop) {
         readexec_opername();
@@ -224,38 +215,38 @@ void oeval() {
 }
 
 // stop eval loop
-void ofin() {
+void ofin(void) {
     alis.oeval_loop = 0;
 }
 
 // push value from r7 register to accumulator
-void opushacc() {
+void opushacc(void) {
     *(--alis.acc) = alis.varD7;
 }
 
 // r7 = variable AND r7
-void oand() {
+void oand(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 &= alis.varD6;
 }
 
 // r7 = variable OR r7
-void oor() {
+void oor(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 |= alis.varD6;
 }
 
 // r7 = variable XOR r7
-void oxor() {
+void oxor(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 ^= alis.varD6;
 }
 
 // r7 = variable EQV r7
-void oeqv() {
+void oeqv(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 ^= alis.varD6;
@@ -263,49 +254,49 @@ void oeqv() {
 }
 
 // r6 == r7
-void oegal() {
+void oegal(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 == alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 != r7
-void odiff() {
+void odiff(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 != alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 <= r7
-void oinfeg() {
+void oinfeg(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 <= alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 >= r7
-void osupeg() {
+void osupeg(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 >= alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 < r7
-void oinf() {
+void oinf(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 < alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 > r7
-void osup() {
+void osup(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 = (alis.varD6 > alis.varD7) ? 0xff : 0x0;
 }
 
 // r7 += variable
-void oadd() {
+void oadd(void) {
 //00017932 61 00 fc 38     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017936 de 46           add.w      D6w,D7w
 //00017938 4e 75           rts
@@ -314,7 +305,7 @@ void oadd() {
 }
 
 // r7 -= variable
-void osub() {
+void osub(void) {
 //0001793a 61 00 fc 30     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //0001793e 9c 47           sub.w      D7w,D6w
 //00017940 3e 06           move.w     D6w,D7w
@@ -325,7 +316,7 @@ void osub() {
 }
 
 // r7 %= variable
-void omod() {
+void omod(void) {
 //00017944 61 00 fc 26     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017948 48 c6           ext.l      D6
 //0001794a 8d c7           divs.w     D7w,D6
@@ -338,7 +329,7 @@ void omod() {
 }
 
 // r7 /= variable
-void odiv() {
+void odiv(void) {
 //00017952 61 00 fc 18     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017956 48 c6           ext.l      D6
 //00017958 8d c7           divs.w     D7w,D6
@@ -350,7 +341,7 @@ void odiv() {
 }
 
 // r7 *= variable
-void omul() {
+void omul(void) {
 //0001795e 61 00 fc 0c     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
 //00017962 cf c6           muls.w     D6w,D7
 //00017964 4e 75           rts
@@ -359,22 +350,22 @@ void omul() {
 }
 
 
-void oneg() {
+void oneg(void) {
     alis.varD7 = -alis.varD7;
 }
 
 
-void oabs() {
+void oabs(void) {
     if(alis.varD7 < 0) {
         alis.varD7 = -alis.varD7;
     }
 }
 
-void ornd() {
+void ornd(void) {
     alis.varD7 = sys_random() % alis.varD7;
 }
 
-void osgn() {
+void osgn(void) {
     if(alis.varD7 > 0) {
         alis.varD7 = 1;
     }
@@ -383,33 +374,31 @@ void osgn() {
     }
 }
 
-void onot() {
+void onot(void) {
     alis.varD7 = ~alis.varD7;
 }
 
-void oinkey() {
-    if (alis.automode == 0)
-    {
-        alis.varD7 = io_inkey();
-    }
+void oinkey(void) {
+    // TODO: if automode is active use value stored in D0
+    alis.varD7 = alis.automode ? 0 : io_inkey();
 }
 
-void okeyon() {
+void okeyon(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ojoy() {
+void ojoy(void) {
     if (alis.automode == 0)
     {
         alis.varD7 = io_joy(alis.varD7);
     }
 }
 
-void oprnd() {
+void oprnd(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void oscan() {
+void oscan(void) {
     if (alis.script->context->_0x1e_scan_clr == alis.script->context->_0x1c_scan_clr)
         return;
 
@@ -422,17 +411,33 @@ void oscan() {
         alis.script->context->_0x24_scan_inter.scan_clr_bit_7 &= 0x7f;
 }
 
-void oshiftkey() {
-    if (alis.automode == 0)
-    {
-        alis.varD7 = io_shiftkey();
-    }
+void oshiftkey(void) {
+    // TODO: if automode is active use value stored in D1
+    alis.varD7 = alis.automode ? 0 : io_shiftkey();
 }
 
-void io_dfree(void)
-{}
+u32 io_dfree(void)
+{
+    u32 result;
+    
+//    __m68k_trap(1);
+    // I2 #fa00 = 0001965c
+    if (*(u32 *)(alis.mem + 0xfa00) < ((u32 *)(alis.buffer))[0])
+    {
+        result = 32000000;
+    }
+    else
+    {
+        result = ((((u32 *)(alis.buffer))[2] & 0xffff) * (((u32 *)(alis.buffer))[3] & 0xffff) & 0xffff) * (((u32 *)(alis.buffer))[0] & 0xffff);
+        if (32000000 < result)
+            result = 32000000;
+    }
+    
+    return ((result % 1000) << 0x10) | ((result / 1000) & 0xffff);
 
-void ofree() {
+}
+
+void ofree(void) {
     debug(EDebugWarning, " /* STUBBED */");
     
     if (alis.varD7 == 0)
@@ -448,144 +453,140 @@ void ofree() {
     {
         if (alis.varD7 == 4)
         {
-            s16 spritidx = alis.libsprit;
-            if (alis.libsprit != 0)
-            {
-                do
-                {
-                    spritidx = *(s16 *)(alis.mem + alis.basesprite + 4 + spritidx);
-                }
-                while (spritidx != 0);
-            }
+            alis.varD7 = 0;
             
-            return;
+            for (s16 spritidx = alis.libsprit; spritidx != 0; spritidx = SPRITE_VAR(spritidx)->to_next)
+            {
+                alis.varD7 ++;
+            }
         }
-        
-        if (0x40 < alis.varD7)
+        else if (0x40 < alis.varD7)
         {
             if (alis.varD7 < 0x49)
             {
-                io_dfree();
+                alis.varD7 = io_dfree();
             }
             
             if ((0x60 < alis.varD7) && (alis.varD7 < 0x69))
             {
-                io_dfree();
+                alis.varD7 = io_dfree();
             }
         }
     }
 }
 
-void omodel() {
+void omodel(void) {
     alis.varD7 = sys_get_model();
 }
 
-void ogetkey() {
+void ogetkey(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void oleft() {
+void oleft(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void oright() {
+void oright(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void omid() {
+void omid(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void olen() {
-    alis.varD7 = strlen((const char *)alis.bsd7bis);
+void olen(void) {
+    alis.varD7 = strlen((const char *)alis.sd7);
 }
 
-void oasc() {
+void oasc(void) {
     alis.varD7 = 0;
-    alis.varD7 = alis.bsd7bis[0];
+    alis.varD7 = alis.sd7[0];
 }
 
-void ostr() {
-    debug(EDebugWarning, " /* MISSING */");
+void ostr(void) {
+    debug(EDebugWarning, " /* CHECK */");
+    vald0(alis.sd7, alis.varD7);
 }
 
-void osadd() {
-    // TODO: strcat ??
-    debug(EDebugWarning, " /* STUBBED */");
+void osadd(void) {
+    debug(EDebugWarning, " /* CHECK */");
     
-    u8 cVar1;
-    u8 *pcVar3;
-    u8 *pcVar4;
+    readexec_opername_swap();
     
-    sparam();
-    
-    u8 *pcVar2 = alis.sd6;
-    
-    do
-    {
-        pcVar3 = pcVar2;
-        pcVar2 = pcVar3 + 1;
-        pcVar4 = alis.sd7;
-    }
-    while (*pcVar3 != '\0');
-    
-    do
-    {
-        cVar1 = *pcVar4;
-        *pcVar3 = cVar1;
-        pcVar2 = alis.sd6;
-        pcVar3 ++;
-        pcVar4 ++;
-    }
-    while (cVar1 != '\0');
-    
+    strcat((char *)alis.sd6, (char *)alis.sd7);
+
+    u8 *tmp = alis.sd6;
     alis.sd6 = alis.sd7;
-    alis.sd7 = pcVar2;
+    alis.sd7 = tmp;
+    
+//    s32 t0 = (s32)(alis.sd7 - alis.mem);
+//    s32 t1 = (s32)(alis.sd6 - alis.mem);
+//
+//    printf("osadd(void): Write to address $0195e8, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
+//    printf("osadd(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
 }
 
-void osegal() {
-    // TODO: strcmp ??
-    debug(EDebugWarning, " /* MISSING */");
+void osegal(void) {
+    debug(EDebugWarning, " /* CHECK */");
+    readexec_opername_swap();
+    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7);
 }
 
-void osdiff() {
+void osdiff(void) {
     // TODO: !strcmp ??
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void osinfeg() {
+void osinfeg(void) {
     // TODO: string equ or < ??
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ossupeg() {
+void ossupeg(void) {
     // TODO: string equ or > ??
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void osinf() {
+void osinf(void) {
     // TODO: string < ??
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ossup() {
+void ossup(void) {
     // TODO: string > ??
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ospushacc() {
+void ospushacc(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ospile() {
-    u8 * tmp = alis.bsd7bis;
-    alis.bsd7bis = alis.bsd6;
-    alis.bsd6 = tmp;
+void pop_sd6(void)
+{
+    u8 *src = (u8 *)alis.acc;
+    u8 *tgt = alis.sd6;
     
-    debug(EDebugWarning, " /* STUBBED */");
+    while((*tgt++ = *src++));
 }
 
-void oval() {
+void ospile(void) {
+    debug(EDebugWarning, " /* CHECK */");
+
+    u8 * tmp = alis.sd6;
+    alis.sd6 = alis.sd7;
+    alis.sd7 = tmp;
+    
+//    s32 t0 = (s32)(alis.sd7 - alis.mem);
+//    s32 t1 = (s32)(alis.sd6 - alis.mem);
+//
+//    printf("osadd(void): Write to address $0195e8, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
+//    printf("osadd(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
+
+    pop_sd6();
+}
+
+void oval(void) {
     // TODO: compute int value of bssChunk3 string -> d7 ??
     debug(EDebugWarning, " /* STUBBED */");
     
@@ -646,42 +647,49 @@ void oval() {
     alis.varD7 = neg ? -sVar3 : sVar3;
 }
 
-void oexistf() {
+void oexistf(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
-    strcat(path, (char *)alis.bsd7bis);
-    alis.varD7 = sys_fexists(path) ? 0xffff : 0x0;
+    strcat(path, (char *)alis.oldsd7);
+    char *dotptr = strrchr(path, '.');
+    if (dotptr)
+    {
+        strcpy(dotptr + 1, alis.platform.ext);
+    }
+    
+    alis.varD7 = sys_fexists(path) ? -1 : 0x0;
 }
 
-void ochr() {
-    alis.bsd7bis[0] = (u8)alis.varD7;
+void ochr(void) {
+    alis.sd7[0] = (u8)alis.varD7;
+    alis.sd7[1] = 0;
 }
 
-void ochange() {
+void ochange(void) {
     // TODO: change le drive courant ??
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void ocountry() {
+void ocountry(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-void omip() {
+void omip(void) {
     alis.varD7 = 0x64;
 }
 
-void ojoykey() {
+void ojoykey(void) {
     if (alis.automode == 0)
     {
         alis.varD7 = io_joykey(alis.varD7);
     }
 }
 
-void oconfig() {
+void oconfig(void) {
     alis.varD7 = 0;
 }
 
-void cnul() {
+void cnul(void) {
 }
 
 // =============================================================================

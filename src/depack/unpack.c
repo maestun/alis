@@ -286,7 +286,7 @@ int unpack_script(const char* packed_file_path,
             fclose(pfp);
 
             // alloc unpack buffer
-            *unpacked_buffer = (u8*)malloc(unpacked_size * sizeof(u8));
+            *unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
             
 // TODO: remove
 // u8 ref[25328];

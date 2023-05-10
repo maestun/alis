@@ -121,7 +121,7 @@ u8 sys_poll_event() {
             }
             else
             {
-                button = _event.key.keysym.scancode;
+                button = _event.key.keysym.sym;
             }
             break;
         }
@@ -131,7 +131,7 @@ u8 sys_poll_event() {
             {
                 shift = 0;
             }
-            else if (button == _event.key.keysym.scancode)
+            else if (button == _event.key.keysym.sym)
             {
                 button = 0;
             }
@@ -192,9 +192,46 @@ void sys_enable_mouse(u8 enable) {
 // =============================================================================
 #pragma mark - FILE SYSTEM
 // =============================================================================
-FILE * sys_fopen(char * path) {
+FILE * sys_fopen(char * path, u16 mode) {
+    // TODO: mode...
+    printf(" (%s) ", path);
     return fopen(path, "r");
 }
+
+//s16 FUN_OpenFile(char *path, short mode)
+//{
+//    char *_addr_file_name = path;
+//    u16 w_file_open_mode = mode;
+//    if ((mode & 0x100U) == 0 || sys_fexists(path))
+//    {
+//        if ((mode & 0x200) == 0)
+//        {
+//            u16 l_file_handle = SYS_FileOpen();
+//            if (-1 < (int)l_file_handle)
+//            {
+//                if ((w_file_open_mode & 0x400) == 0)
+//                {
+//                    return w_file_open_mode;
+//                }
+//
+//                SYS_SeekFile();
+//                if (l_file_handle >= 0)
+//                {
+//                    return uVar1;
+//                }
+//            }
+//
+//            return SYS_PrintError();
+//        }
+//
+//        if (sys_fexists(path))
+//        {
+//            return FUN_FileTruncate();
+//        }
+//    }
+//
+//    return FUN_CreateFile();
+//}
 
 int sys_fclose(FILE * fp) {
     return fclose(fp);
@@ -202,7 +239,7 @@ int sys_fclose(FILE * fp) {
 
 u8 sys_fexists(char * path) {
     u8 ret = 0;
-    FILE * fp = sys_fopen(path);
+    FILE * fp = sys_fopen(path, 0);
     if(fp) {
         ret = 1;
         sys_fclose(fp);
@@ -223,6 +260,7 @@ time_t sys_get_time(void) {
 }
 
 u16 sys_get_model(void) {
+    // TODO: make it configureable?
     debug(EDebugWarning, "/* %s SIMULATED */", __FUNCTION__);
     return 0x456; // Atari STe / 1MB / Lowrez
 }

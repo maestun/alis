@@ -10,18 +10,20 @@
 #include "alis_private.h"
 #include "utils.h"
 
+#include "experimental.h"
+
 // ============================================================================
 #pragma mark - Store Routines
 // ============================================================================
 
-static void cnul() {
+static void cnul(void) {
 }
 
 /**
  * @brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
  * 
  */
-static void slocb() {
+static void slocb(void) {
     vram_write8(script_read16(), (u8)alis.varD7);
 }
 
@@ -29,7 +31,7 @@ static void slocb() {
  * @brief reads a word (offset) from script, then stores d7 word at (vram + offset)
  * 
  */
-static void slocw() {
+static void slocw(void) {
     vram_write16(script_read16(), alis.varD7);
 }
 
@@ -37,29 +39,27 @@ static void slocw() {
  * @brief reads a word (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
  * 
  */
-static void slocp() {
-    vram_writep(script_read16(), alis.bsd7bis);
+static void slocp(void) {
+    vram_writep(script_read16(), alis.oldsd7);
 }
 
 // Store at LOCation with offseT: Pointer
-static void sloctp() {
+static void sloctp(void) {
     u16 offset = loctp_common(script_read16());
-    u8 * ptr = alis.bsd7bis;
-    while (*ptr) {
-        vram_write8(offset++, *ptr++);
-    }
+    u8 * ptr = alis.oldsd7;
+    while ((void)vram_write8(offset++, *ptr++), *ptr);
 }
 
 // Store at LOCation with offseT: Char
-static void sloctc() {
-    u16 offset = loctc_common(script_read16());
+static void sloctc(void) {
+    u16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc++);
     vram_write8(offset, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
-static void slocti() {
-    u16 offset = locti_common(script_read16());
+static void slocti(void) {
+    u16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc++);
     vram_write16(offset, alis.varD7);
 }
@@ -69,7 +69,7 @@ static void slocti() {
  * @brief reads a byte (offset) from script, then stores d7 byte at (vram + offset)
  * 
  */
-static void sdirb() {
+static void sdirb(void) {
     vram_write8(script_read8(), (u8)alis.varD7);
 }
 
@@ -77,7 +77,7 @@ static void sdirb() {
  * @brief reads a byte (offset) from script, then stores d7 word at (vram + offset)
  * 
  */
-static void sdirw() {
+static void sdirw(void) {
     
     u8 offset = script_read8();
 //    printf("\nXXX sdirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
@@ -88,89 +88,100 @@ static void sdirw() {
  * @brief reads a byte (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
  * 
  */
-static void sdirp() {
-    vram_writep(script_read8(), alis.bsd7bis);
+static void sdirp(void) {
+    vram_writep(script_read8(), alis.oldsd7);
 }
 
-static void sdirtp() {
+static void sdirtp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void sdirtc() {
+static void sdirtc(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void sdirti() {
+static void sdirti(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void smainb() {
-    debug(EDebugInfo, " /* CHECK */");
-
+static void smainb(void) {
     s16 offset = script_read16();
     *(u8 *)(alis.mem + alis.basemain + offset) = (u8)alis.varD7;
 }
 
-static void smainw() {
-    debug(EDebugInfo, " /* CHECK */");
-
+static void smainw(void) {
     s16 offset = script_read16();
     *(u16 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
 }
 
-static void smainp() {
-    debug(EDebugInfo, " /* MISSING */");
+static void smainp(void) {
+    s16 offset = script_read16();
+    u8 * ptr = alis.oldsd7;
+    while ((void)vram_write8(offset++, *ptr++), *ptr);
 }
 
-static void smaintp() {
-    debug(EDebugInfo, " /* MISSING */");
+static void smaintp(void) {
+    s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
+    char *src = (char *)alis.sd7;
+    char *dst = (char *)(alis.mem + alis.basemain + offset);
+    strcpy(dst, src);
 }
 
-static void smaintc() {
-    debug(EDebugInfo, " /* MISSING */");
+static void smaintc(void) {
+    u16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    alis.varD7 = *(alis.acc++);
+    *(u8 *)(alis.mem + alis.basemain + offset) = (u8)alis.varD7;
 }
 
-static void smainti() {
-    debug(EDebugInfo, " /* MISSING */");
+static void smainti(void) {
+    u16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    alis.varD7 = *(alis.acc++);
+    *(u8 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
 }
 
-static void shimb() {
-    debug(EDebugInfo, " /* CHECK */");
-    
+static void shimb(void) {
     s16 offset = script_read16();
     s16 ent = vram_read16(offset);
 
     u32 index = *(u32 *)(alis.mem + alis.atent + ent);
+    s32 vram = alis.scripts[index]->vram_org;
 
     s16 offset2 = script_read16();
-    alis.varD7 = *(u8 *)(alis.mem + alis.scripts[index]->vram_org + offset2);
+    *(u8 *)(alis.mem + vram + offset2) = (u8)alis.varD7;
 }
 
-static void shimw() {
+static void shimw(void) {
+    s16 offset = script_read16();
+    s16 ent = vram_read16(offset);
+
+    u32 index = *(u32 *)(alis.mem + alis.atent + ent);
+    s32 vram = alis.scripts[index]->vram_org;
+
+    s16 offset2 = script_read16();
+    *(u16 *)(alis.mem + vram + offset2) = (u16)alis.varD7;
+}
+
+static void shimp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void shimp() {
+static void shimtp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void shimtp() {
+static void shimtc(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void shimtc() {
+static void shimti(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void shimti() {
-    debug(EDebugInfo, " /* MISSING */");
-}
-
-static void spile() {
+static void spile(void) {
     *(--alis.acc) = alis.varD7;
 }
 
-static void seval() {
+static void seval(void) {
 //    00015d2c 39 07           move.w     D7w,-(A4)
 //    00015d2e 61 00 fd 86     bsr.w      FUN_READEXEC_OPNAME                              undefined FUN_READEXEC_OPNAME()
 //                         -- Flow Override: CALL_RETURN (CALL_TERMINATOR)

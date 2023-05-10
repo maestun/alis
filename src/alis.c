@@ -47,36 +47,43 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
     }
 }
 
-alisRet readexec_opcode() {
-    debug(EDebugVerbose, "\n%s: 0x%06x:", alis.script->name, alis.script->pc - alis.script->pc_org);
+alisRet readexec_opcode(void) {
+    debug(EDebugVerbose, "\n%s: 0x%06x:", alis.script->name, alis.script->pc/* - alis.script->pc_org*/);
     return readexec(opcodes, "opcode", 0);
 }
 
-alisRet readexec_opername() {
+alisRet readexec_opername(void) {
     return readexec(opernames, "opername", 1);
 }
 
-alisRet readexec_storename() {
+alisRet readexec_storename(void) {
     return readexec(storenames, "storename", 2);
 }
 
-alisRet readexec_addname() {
+alisRet readexec_addname(void) {
     return readexec(addnames, "addname", 2);
 }
 
-alisRet readexec_addname_swap() {
-    u8 * tmp = alis.bsd7;
-    alis.bsd7 = alis.bsd7bis;
-    alis.bsd7bis = tmp;
+alisRet readexec_addname_swap(void) {
+    u8 * tmp = alis.sd7;
+    alis.sd7 = alis.oldsd7;
+    alis.oldsd7 = tmp;
+    
+//    s32 t0 = (s32)(alis.sd7 - alis.mem);
+//    s32 t1 = (s32)(alis.oldsd7 - alis.mem);
+//
+//    printf("ReadExecAddName(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
+//    printf("ReadExecAddName(void): Write to address $0195ec, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
+
     return readexec_addname();
 }
 
-alisRet readexec_opername_saveD7() {
+alisRet readexec_opername_saveD7(void) {
     alis.varD6 = alis.varD7;
     return readexec_opername();
 }
 
-alisRet readexec_opername_saveD6() {
+alisRet readexec_opername_saveD6(void) {
     
     s16 d7 = alis.varD7;
     readexec_opername_saveD7();
@@ -84,15 +91,22 @@ alisRet readexec_opername_saveD6() {
     alis.varD7 = d7;
 }
 
-alisRet readexec_opername_swap() {
-    u8 * tmp = alis.bsd7;
-    alis.bsd7 = alis.bsd7bis;
-    alis.bsd7bis = tmp;
+alisRet readexec_opername_swap(void) {
+    u8 * tmp = alis.sd7;
+    alis.sd7 = alis.sd6;
+    alis.sd6 = tmp;
+    
+//    s32 t0 = (s32)(alis.sd7 - alis.mem);
+//    s32 t1 = (s32)(alis.sd6 - alis.mem);
+//
+//    printf("ReadExecAddName(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
+//    printf("ReadExecAddName(void): Write to address $0195e8, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
+
     return readexec_opername();
 }
 
 
-void alis_load_main() {
+void alis_load_main(void) {
     
     // 22400    = atprog > 2edd8 (22400 > 34ba8) ALIS_VM_RAM_ORG
     // 224f0    = atent
@@ -117,22 +131,24 @@ void alis_load_main() {
         alis.specs.vram_to_data_offset *= 0x28;
         
         // set the location of scripts' vrams table
-        alis.script_vram_orgs = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
-        alis.atent = (s32)((u8 *)alis.script_vram_orgs - alis.mem);
-//        alis.atent = alis.atprog + 0xf0;
+        alis.atprog = ALIS_VM_RAM_ORG;
+        alis.atprog_ptr = (sScriptLoc *)(alis.mem + alis.atprog);
+        alis.atent = alis.atprog + 0xf0;
+        alis.atent_ptr = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
+        // alis.atent = (s32)((u8 *)alis.atent_ptr - alis.mem);
         alis.maxent = alis.specs.script_vram_tab_len;
         alis.debent = alis.atent + alis.maxent * 6;
+        alis.finent = alis.debent;
+
         alis.debsprit = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1;
         alis.finsprit = alis.debsprit + alis.specs.vram_to_data_offset;
+
         // NOTE: not really sure why, but without + 0x18 to finsprit wrong parts of code are executed. Investigate!
         alis.finsprit += 0x18;
         alis.debprog = alis.finsprit;
         alis.finprog = alis.debprog;
         alis.dernprog = alis.atprog;
-        alis.finent = alis.debent;
-
-    //    alis.debsprit = 0;
-    //    alis.finsprit = 0x8000;
+        alis.maxprog = 0x3c;
         
         // TODO: ...
         alis.finmem = 0xf6e98;
@@ -140,15 +156,15 @@ void alis_load_main() {
         inisprit();
 
         // compute the end address of the scripts' vrams table
-        u32 script_vram_tab_end = (u32)((u8 *)alis.script_vram_orgs - alis.mem + (alis.specs.script_vram_tab_len * sizeof(sScriptLoc)));
+        u32 script_vram_tab_end = (u32)((u8 *)alis.atent_ptr - alis.mem + (alis.specs.script_vram_tab_len * sizeof(sScriptLoc)));
 
         // populate the script vrams table with the offsets (routine at $18cd8)
         for(int idx = 0; idx < alis.specs.script_vram_tab_len; idx++) {
             u16 offset = (1 + idx) * sizeof(sScriptLoc);
-            alis.script_vram_orgs[idx] = (sScriptLoc){0, offset};
+            alis.atent_ptr[idx] = (sScriptLoc){0, offset};
         }
         
-        alis.script_vram_orgs[0].vram_offset = 0; // (u32)((u8 *)alis.script_vram_orgs - alis.mem);
+        alis.atent_ptr[0].vram_offset = 0; // (u32)((u8 *)alis.atent_ptr - alis.mem);
         alis.nbent = 0;
 
         alis.specs.script_vram_max_addr = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1; // ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
@@ -162,7 +178,7 @@ void alis_load_main() {
 - vram allocatable up to 0x%x \n\
 - unused (?) dword from header: 0x%x\n",
               alis.specs.script_data_tab_len, alis.specs.script_data_tab_len, (u8 *)alis.script_data_orgs - alis.mem,
-              alis.specs.script_vram_tab_len, alis.specs.script_vram_tab_len, (u8 *)alis.script_vram_orgs - alis.mem,
+              alis.specs.script_vram_tab_len, alis.specs.script_vram_tab_len, (u8 *)alis.atent_ptr - alis.mem,
               script_vram_tab_end,
               main_script_data_addr,
               alis.specs.script_vram_max_addr,
@@ -250,6 +266,15 @@ void alis_init(sPlatform platform) {
     
     alis.sd7 = alis.bsd7;
     alis.sd6 = alis.bsd6;
+    alis.oldsd7 = alis.bsd7bis;
+    
+//    s32 t0 = (s32)(alis.sd7 - alis.mem);
+//    s32 t1 = (s32)(alis.sd6 - alis.mem);
+//    s32 t2 = (s32)(alis.oldsd7 - alis.mem);
+//
+//    printf("FUN_STARTUP: Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
+//    printf("FUN_STARTUP: Write to address $0195e8, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
+//    printf("FUN_STARTUP: Write to address $0195ec, new value is %d ($%x)\n", t2 & 0xffff, t2 & 0xffff);
     
     // init helpers
     if(alis.fp) {
@@ -293,8 +318,9 @@ void alis_init(sPlatform platform) {
     // load main script
     alis_load_main();
     alis.script = alis.main;
+    alis.basemain = alis.main->vram_org;
     
-    sScriptLoc *prev_ent = &(alis.script_vram_orgs[0]);
+    sScriptLoc *prev_ent = &(alis.atent_ptr[0]);
     alis.dernent = prev_ent->offset;
     prev_ent->vram_offset = 0; // alis.script->vram_org;
     prev_ent->offset = 0;
@@ -303,7 +329,7 @@ void alis_init(sPlatform platform) {
 }
 
 
-void alis_deinit() {
+void alis_deinit(void) {
     // free scripts
     // TODO: use real script table / cunload
     for(int i = 0; i < kMaxScripts; i++) {
@@ -318,16 +344,16 @@ void alis_deinit() {
     free(alis.mem);
 }
 
-
-void alis_loop() {
+void alis_loop(void) {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
         readexec_opcode();
     }
+    
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
 
-u8 alis_main() {
+u8 alis_main(void) {
     u8 ret = 0;
     
     // run !
@@ -352,7 +378,7 @@ void alis_error(u8 errnum, ...) {
 }
 
 
-void alis_debug() {
+void alis_debug(void) {
     printf("\n-- ALIS --\nCurrent script: '%s' (0x%02x)\n", alis.script->name, alis.script->header.id);
     printf("R6  0x%04x\n", alis.varD6);
     printf("R7  0x%04x\n", alis.varD7);
@@ -418,11 +444,8 @@ s32 vram_read16ext32(u16 offset) {
     return ret;
 }
 
-void vram_readp(u16 offset, u8 * dst_ptr) {
-    u8 * src_ptr = alis.mem + alis.script->vram_org + offset;
-    do {
-        *dst_ptr++ = *src_ptr++;
-    } while (*src_ptr);
+void vram_readp(u16 offset, u8 * dst) {
+    strcpy((char *)dst, (char *)(alis.mem + alis.script->vram_org + offset));
 }
 
 void vram_write8(s32 offset, u8 value) {
@@ -433,11 +456,8 @@ void vram_write16(s32 offset, u16 value) {
     *(u16 *)(alis.mem + alis.script->vram_org + offset) = value;
 }
 
-void vram_writep(u16 offset, u8 * src_ptr) {
-    u8 * dst_ptr = alis.mem + alis.script->vram_org + offset;
-    do {
-        *dst_ptr++ = *src_ptr++;
-    } while (*src_ptr);
+void vram_writep(u16 offset, u8 * src) {
+    strcpy((char *)(alis.mem + alis.script->vram_org + offset), (char *)src);
 }
 
 void vram_setbit(u16 offset, u8 bit) {
@@ -465,13 +485,13 @@ void vram_push32(u32 value) {
     memcpy(alis.mem + alis.script->vram_org + alis.script->vacc_off, (u8 *)&value, sizeof(u32));
 }
 
-u32 vram_peek32() {
+u32 vram_peek32(void) {
     u32 result;
     memcpy((u8 *)&result, alis.mem + alis.script->vram_org + alis.script->vacc_off, sizeof(u32));
     return result;
 }
 
-u32 vram_pop32() {
+u32 vram_pop32(void) {
     u32 ret = vram_peek32();
     alis.script->vacc_off += sizeof(u32);
     return ret;
@@ -485,7 +505,7 @@ void vram_save_script_state(sAlisScript * script) {
 // =============================================================================
 // MARK: - Virtual RAM debug
 // =============================================================================
-void vram_debug() {
+void vram_debug(void) {
     u8 width = 16;
     
     printf("Stack Offset=0x%04x (word=0x%04x) (dword=0x%08x)\n",

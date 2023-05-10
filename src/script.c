@@ -442,44 +442,20 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
     script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
     
-    // TODO: this is for debug / static allocs
-    sScriptDebug debug_data = script_debug_data[script->header.id];
-    
     script->vram_org = 0;
-    script->vacc_off = debug_data.vacc_off;
+    script->vacc_off = 0;
     script->data_org = alis.finprog;
 
     alis.finprog += data_sz;
-    
-//    // init context
-//    memset(&(script->context), 0, sizeof(sScriptContext));
-//    script->context->_0x10_script_id = script->header.id;
-//    script->context->_0x18_unknown = 0;      // sprite adress
-//    script->context->_0x16_screen_id = 0;
-//    script->context->_0x14_script_org_offset = script->data_org;
-//    script->context->_0x8_script_ret_offset = script->data_org + script->header.code_loc_offset + 2; // 0x2edf0
-//    script->context->_0x2e_script_header_word_2 = script->header.w_0x1700;
-//    script->context->_0x2_unknown = 1;
-//    script->context->_0x1_cstart = 1;
-//    script->context->_0x4_cstart_csleep = 0xff;
-//    script->context->_0x1a_cforme = 0xff;
-//    script->context->_0x24_scan_inter.data = 2;
-//    script->context->_0x26_creducing = 0xff;
-//    script->context->_0x2a_clinking = 0xffac;
     
     // copy script data to static host memory
     memcpy(alis.mem + script->data_org, data, data_sz);
     
 //    // script program counter starts kScriptHeaderLen after data
-//    script->pc = script->pc_org = script->context->_0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
     script->context = NULL;
     script->pc = script->pc_org = 0;
     
-    debug(EDebugVerbose,
-          "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\nCODE at address 0x%x\nVACC = 0x%04x\n",
-          script->name, script->header.id,
-          script->data_org, alis.finprog,
-          script->pc_org, script->vacc_off);
+    debug(EDebugVerbose, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
     return script;
 }
@@ -488,49 +464,51 @@ void script_live(sAlisScript * script) {
     u8 *data = alis.mem + script->data_org;
 
     // tell where the script vram is located in host memory
+    s32 test = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
+
     alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(sScriptContext));
+    
+    script->vacc_off = (test - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
 
     script->context = (sScriptContext *)(alis.mem + script->vram_org - sizeof(sScriptContext));
-    script->context->_0x10_script_id = script->header.id;
-    script->context->_0x18_unknown = 0;      // sprite adress
-    script->context->_0x16_screen_id = 0;
-    script->context->_0x14_script_org_offset = script->data_org;
-    script->context->_0x8_script_ret_offset = script->data_org + script->header.code_loc_offset + 2; // 0x2edf0
+    script->context->_0x0a_vacc_offset          = script->vacc_off;
+    script->context->_0x1c_scan_clr             = script->vacc_off;
+    script->context->_0x1e_scan_clr             = script->vacc_off;
+    script->context->_0x08_script_ret_offset    = script->data_org + script->header.code_loc_offset + 2;
+    script->context->_0x10_script_id            = script->header.id;
+    script->context->_0x14_script_org_offset    = script->data_org;
     script->context->_0x2e_script_header_word_2 = script->header.w_0x1700;
-    script->context->_0x2_unknown = 1;
-    script->context->_0x1_cstart = 1;
-    script->context->_0x4_cstart_csleep = 0xff;
-    script->context->_0x1a_cforme = 0xff;
-    script->context->_0x24_scan_inter.data = 2;
-    script->context->_0x26_creducing = 0xff;
-    script->context->_0x2a_clinking = 0xffac;
+    script->context->_0x02_unknown              = 1;
+    script->context->_0x01_cstart               = 1;
+    script->context->_0x04_cstart_csleep        = 0xff;
+    script->context->_0x1a_cforme               = 0xffff;
+    script->context->_0x0e_script_ent           = alis.dernent;
+    script->context->_0x24_scan_inter.data      = 2;
+    script->context->_0x18_unknown              = 0;
+    script->context->_0x0c_vacc_offset          = 0;
+    script->context->_0x22_cworld               = 0;
+    script->context->_0x20_set_vect             = 0;
+    script->context->_0x03_xinv                 = 0;
+    script->context->_0x25_credon_credoff       = 0;
+    script->context->_0x26_creducing            = 0xff;
+    script->context->_0x2a_clinking             = 0;
+    script->context->_0x2c_calign               = 0;
+    script->context->_0x2d_calign               = 0;
+    script->context->_0x28_unknown              = 0;
+    script->context->_0x2f_chsprite             = 0;
+    script->context->_0x30_unknown              = 0;
+    script->context->_0x16_screen_id            = 0;
     
-//    u8 *test = (u8 *)script->context; // (alis.mem + script->vram_org - 0x34);
-//
-//    for (int i = 0; i < 0x34; i++)
-//    {
-//        printf("%.2x", test[i]);
-//    }
-//
-//    u32 test2 = sizeof(sScriptContext);
-//
-//    u8 teststart = *(u8 *)(alis.mem + script->vram_org - 0x1);
-//    u8 testguess = *(u8 *)(alis.mem + script->vram_org - 0x2);
-//    u8 testsleep = *(u8 *)(alis.mem + script->vram_org - 0x4);
-//    u32 testoffset = *(u32 *)(alis.mem + script->vram_org - 0x8);
-//    u16 testscriptid = *(u16 *)(alis.mem + script->vram_org - 0x10);
-//    u32 testdataorg = *(u32 *)(alis.mem + script->vram_org - 0x14);
-//    u16 testscreen = *(u16 *)(alis.mem + script->vram_org - 0x16);
-//    u16 testlinking = *(u16 *)(alis.mem + script->vram_org - 0x2a);
+    *(u16 *)(script->context) = 0; // -0x34
 
-    script->pc = script->pc_org = script->context->_0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
+    script->pc = script->pc_org = script->context->_0x08_script_ret_offset;
 
     alis.finent += swap16((data + 0x14), alis.platform.is_little_endian);
     alis.scripts[alis.nbent] = script;
     alis.nbent ++;
 
-    debug(EDebugVerbose, " (NAME: %s, VRAM at address 0x%x - 0x%x) ", script->name, script->vram_org, alis.finent);
+    debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off);
 }
 
 
@@ -613,6 +591,7 @@ sAlisScript * script_load(const char * script_path) {
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
             alis.progs[alis.nbprog] = script;
+            alis.dernprog += 4;
             alis.nbprog ++;
         }
         else {
@@ -724,10 +703,7 @@ void script_read_bytes(u32 len, u8 * dest) {
 }
 
 void script_read_until_zero(u8 * dest) {
-    while(alis.mem[alis.script->pc]) {
-        *dest++ = alis.mem[alis.script->pc++];
-    }
-    alis.script->pc++;
+    while((*dest++ = alis.mem[alis.script->pc++]));
 }
 
 void script_jump(s32 offset) {

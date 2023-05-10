@@ -12,7 +12,8 @@
 #include "config.h"
 #include "script.h"
 
-#define kHostRAMSize            (0x100000 * sizeof(u8))
+// #define kHostRAMSize            (0x100000 * sizeof(u8))
+#define kHostRAMSize            (1024 * 1024)
 #define kVirtualRAMSize         (0xffff * sizeof(u8))
 
 // =============================================================================

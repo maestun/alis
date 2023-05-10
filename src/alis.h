@@ -108,8 +108,9 @@ typedef struct {
     // Located at VRAM_ORG + (max_script_addrs * sizeof(u32))
     // On atari it's ($22400 + ($3c * 4)) ==> $224f0
     // $224f0
-    sScriptLoc *    script_vram_orgs;
-    
+    sScriptLoc *    atent_ptr;
+    sScriptLoc *    atprog_ptr;
+
     u8              nmode;
     u8              automode;
     u8              numelem;
@@ -129,9 +130,14 @@ typedef struct {
     u16             nbprog;
     
     u16             saversp;
-    u32 *           ptrent;
-    u32             tablent[256];
     
+    u16             fview;
+    u32             valnorme;
+    s16             valchamp;
+    s16 *           ptrent;
+    s16             tablent[128];
+    s16             matent[128];
+
     s32             atent;      // 0x224f0
     s32             debent;     // 0x2261c
     s32             finent;
@@ -152,9 +158,17 @@ typedef struct {
     s32             tvsprite;
     s32             texsprite;
     s32             atexsprite;
-    s32             mousprite;
-    s32             mousflag;
-            
+
+    // mouse
+    u8              mousflag;
+    u8              fmouse;
+    u8              fremouse;
+    u8              fremouse2;
+    u8              butmouse;
+    u32             cbutmouse;
+    u16             oldmouse;
+    u8 *            desmouse;
+
     s16             depx;
     s16             depy;
     s16             depz;
@@ -214,7 +228,8 @@ typedef struct {
     
     u8 *           sd7;
     u8 *           sd6;
-    
+    u8 *           oldsd7;
+
     u8             buffer[1024];
     
     u8 charmode;
@@ -260,6 +275,7 @@ typedef struct {
     u32 startsam;
     u32 longsam;
     u16 freqsam;
+    u16 vquality;
     
     // unknown variables
     u8          _cstopret;

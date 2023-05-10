@@ -14,7 +14,7 @@
 // ============================================================================
 #pragma mark - Addnames routines
 // ============================================================================
-static void cnul() {
+static void cnul(void) {
 }
 
 /**
@@ -22,7 +22,7 @@ static void cnul() {
  *          adds byte from d7 to byte at (vram+offset)
  * 
  */
-static void alocb() {
+static void alocb(void) {
     u16 offset = script_read16();
     vram_add8(offset, (u8)alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
@@ -33,7 +33,7 @@ static void alocb() {
  *          adds word from d7 to word at (vram+offset)
  * 
  */
-static void alocw() {
+static void alocw(void) {
     u16 offset = script_read16();
     vram_add16(offset, alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
@@ -44,60 +44,57 @@ static void alocw() {
  *          concatenate null-terminated string at ARRAY_A
  *          to null-terminated string located at (vram+offset)
  */
-static void alocp() {
+static void alocp(void) {
     u16 offset = script_read16();
-    u8 * a1 = vram_ptr(offset);
-    u8 * a0 = alis.bsd7bis;
-    
-    // set (vram+offset) pointer to first zero byte
-    while (*++a1);
-
-    // concatenate string to vram
-    while (*a0) {
-        *a1++ = *a0++;
-    }
+    char *dst = (char *)vram_ptr(offset);
+    char *src = (char *)alis.oldsd7;
+    strcat(dst, src);
 }
 
 
-static void aloctp() {
+static void aloctp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void aloctc() {
+static void aloctc(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 
-static void alocti() {
+static void alocti(void) {
     debug(EDebugInfo, " /* STUBBED */");
 
     u16 offset = script_read16();
 
     // TODO: finish
-    short result = tabint(offset);
+    // short result = tabint(offset, alis.mem + );
 //    vram_add16(result, *a4);
 }
-static void adirb() {
+static void adirb(void) {
     u8 offset = script_read8();
     vram_add8(offset, (u8)alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
 }
-static void adirw() {
+static void adirw(void) {
     u8 offset = script_read8();
     vram_add16(offset, alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
 }
-static void adirp() {
+static void adirp(void) {
+    u8 offset = script_read8();
+    char *dst = (char *)vram_ptr(offset);
+    char *src = (char *)alis.oldsd7;
+    strcat(dst, src);
+}
 
-}
-static void adirtp() {
+static void adirtp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void adirtc() {
+static void adirtc(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void adirti() {
+static void adirti(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void amainb() {
+static void amainb(void) {
 //    ADDNAME_AMAINB_0xf
 //00018288 10 1b           move.b     (A3)+,D0b
 //0001828a e1 40           asl.w      #0x8,D0w
@@ -107,7 +104,7 @@ static void amainb() {
 //00018294 df 31 00 00     add.b      D7b,(0x0,A1,D0w*0x1)
 //00018298 4e 75           rts
 }
-static void amainw() {
+static void amainw(void) {
 //    ADDNAME_AMAINW_0x10
 //0001829a 10 1b           move.b     (A3)+,D0b
 //0001829c e1 40           asl.w      #0x8,D0w
@@ -117,40 +114,40 @@ static void amainw() {
 //000182a6 df 71 00 00     add.w      D7w,(0x0,A1,D0w*0x1)
 //000182aa 4e 75           rts
 }
-static void amainp() {
+static void amainp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void amaintp() {
+static void amaintp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void amaintc() {
+static void amaintc(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void amainti() {
+static void amainti(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimb() {
+static void ahimb(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimw() {
+static void ahimw(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimp() {
+static void ahimp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimtp() {
+static void ahimtp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimtc() {
+static void ahimtc(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimti() {
+static void ahimti(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void spile() {
+static void spile(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
-static void aeval() {
+static void aeval(void) {
 //    ADDNAME_AEVAL_0x1c
 //0001843c 39 07           move.w     D7w,-(A4)
 //0001843e 61 00 fa c6     bsr.w      OPERNAME_OEVAL_0x1c                              undefined OPERNAME_OEVAL_0x1c()

@@ -106,28 +106,28 @@ typedef struct {
     u16 _0x10_script_id;
     
     // vram - 0xe: czap / cexplode / cnoise
-    u16 _0xe_czap_cexplode_cnoise;
+    u16 _0x0e_script_ent;
     
     // vram - 0xc: vacc offset
-    u16 _0xc_vacc_offset;
+    u16 _0x0c_vacc_offset;
     
     // vram - 0xa: vacc offset
-    u16 _0xa_vacc_offset;
+    u16 _0x0a_vacc_offset;
     
     // vram - 0x8: script return offset
-    u32 _0x8_script_ret_offset;
+    u32 _0x08_script_ret_offset;
     
     // vram - 0x4: cstart / csleep
-    u8 _0x4_cstart_csleep;
+    u8 _0x04_cstart_csleep;
     
     // vram - 0x3: xinv
-    u8 _0x3_xinv;
+    u8 _0x03_xinv;
     
     // vram - 0x2: ??
-    u8 _0x2_unknown;
+    u8 _0x02_unknown;
     
     // vram - 0x1: cstart
-    u8 _0x1_cstart;
+    u8 _0x01_cstart;
 } sScriptContext;
 
 // HEADER: read from depacked script 24 BYTES
@@ -159,7 +159,7 @@ typedef struct {
     
     // each script has its own virtual context and memory
     u32             vram_org;
-    u16             vacc_off;
+    s16             vacc_off;
     
     sScriptContext *context;
     
