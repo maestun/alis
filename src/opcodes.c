@@ -577,40 +577,37 @@ static void cloop24(void) {
 }
 
 static void cswitch1(void) {
-    debug(EDebugWarning, " /* CHECK */");
-    
     readexec_opername();
-    
-    u16 addition = script_read8();
-    s32 new_pc = alis.script->pc + 1;
+    s16 addition = script_read8();
+    s32 new_pc = alis.script->pc;
     if ((new_pc & 1) != 0)
     {
-        new_pc = alis.script->pc + 2;
+        alis.script->pc ++;
     }
 
     s16 test;
 
     do
     {
-        test = read16(alis.mem + new_pc, alis.platform.is_little_endian);
+        test = script_read16();
         if (alis.varD7 == test)
         {
-            alis.script->pc = new_pc + script_read16() + 4;
+            addition = script_read16();
+            alis.script->pc += addition;
             return;
         }
         
-        new_pc += 2;
+        alis.script->pc += 2;
     }
-    while (test <= alis.varD7 && (addition --) != 0xffff);
+    while (test <= alis.varD7 && (addition --) != -1);
     
-    if ((s16)addition < 0)
+    if (addition < 0)
     {
-        alis.script->pc = new_pc;
+        // alis.script->pc = new_pc;
         return;
     }
     
-    alis.script->pc = (s16)(addition * 4) + new_pc;
-    return;
+    alis.script->pc += (addition * 4);
 }
 
 static void cswitch2(void) {
@@ -2590,7 +2587,8 @@ static void cmatent(void) {
 }
 
 static void cshrink(void) {
-    debug(EDebugWarning, " /* STUBBED */");
+    
+    // Delete bitmap and shift following data
     
     readexec_opername();
     readexec_opername_saveD6();
@@ -2627,37 +2625,30 @@ static void cshrink(void) {
         s16 height = swap16(data + 4, alis.platform.is_little_endian) + 1;
         s32 bits = width * height;
         
-        s32 script_org = alis.script->context->_0x14_script_org_offset;
-        s32 t2 = swap32(alis.mem + script_org + 0xe, alis.platform.is_little_endian) + script_org;
-        u16 length = swap16(alis.mem + t2 + 4, alis.platform.is_little_endian);
-        
-        s32 tt0 = swap32(alis.mem + t2, alis.platform.is_little_endian);
-        s32 testik = t2 + tt0;
+        u8 *ptr = alis.mem + alis.script->context->_0x14_script_org_offset;
+        s32 l = read32(ptr + 0xe, alis.platform.is_little_endian);
+        s16 e = read16(ptr + l + 4, alis.platform.is_little_endian);
+        s32 a = read32(ptr + l, alis.platform.is_little_endian) + l;
 
-        u32 addr2 = 0;
-
-        for (s32 i = 0; i < length; i++, testik+=4)
+        for (s32 i = 0; i < e; i++, a += 4)
         {
-            s32 tt3 = swap32(alis.mem + testik, alis.platform.is_little_endian);
-            addr2 = (testik - alis.script->data_org) + tt3;
-            if (addr < addr2)
+            s32 t = read32(ptr + a, alis.platform.is_little_endian);
+            if (addr < a + t)
             {
-                s32 tt4 = swap32(alis.mem + testik, alis.platform.is_little_endian) - bits;
-                *(s32 *)(alis.mem + testik) = swap32((u8 *)&tt4, alis.platform.is_little_endian);
+                t -= bits;
+                *(s32 *)(ptr + a) = swap32((u8 *)&t, alis.platform.is_little_endian);
             }
         }
-
-        s32 a1 = swap32(alis.mem + script_org + 0xe, alis.platform.is_little_endian) + script_org;
-        s32 val6 = swap32(alis.mem + a1 + 0x6, alis.platform.is_little_endian) - bits;
-        s32 valC = swap32(alis.mem + a1 + 0xc, alis.platform.is_little_endian) - bits;
-        *(s32 *)(alis.mem + a1 + 0x6) = val6;
-        *(s32 *)(alis.mem + a1 + 0xc) = valC;
+        
+        s32 val6 = swap32(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0x6, alis.platform.is_little_endian) - bits;
+        s32 valC = swap32(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0xc, alis.platform.is_little_endian) - bits;
+        *(s32 *)(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0x6) = val6;
+        *(s32 *)(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0xc) = valC;
 
         u16 w = 0xf;
         *(u16 *)(data + 2) = swap16((u8 *)&w, alis.platform.is_little_endian);
         *(u16 *)(data + 4) = 0;
         
-//        shrinkprog(00080a72, 0008098c, 00080e1a, 000003a8, 000809e4, 00000006, 0)
         shrinkprog(alis.script->data_org + addr + 6, bits, 0);
     }
 }
@@ -3046,10 +3037,15 @@ static void cstart(s32 offset) {
         alis.script->context->_0x04_cstart_csleep = 1;
         alis.script->context->_0x01_cstart = 1;
     }
-    else if (alis.script->context->_0x0c_vacc_offset == 0)
+    else
     {
-        alis.script->context->_0x0c_vacc_offset = alis.script->vacc_off - 4;
-        *(u32 *)(alis.mem + alis.script->vram_org + alis.script->vacc_off - 4) = alis.script->pc;
+        if (alis.script->context->_0x0c_vacc_offset == 0)
+        {
+            alis.script->context->_0x0c_vacc_offset = alis.script->vacc_off - 4;
+            *(u32 *)(alis.mem + alis.script->vram_org + alis.script->vacc_off - 4) = alis.script->pc;
+        }
+
+        alis.script->pc += offset;
     }
 }
 
@@ -3297,7 +3293,7 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0xdf, cscback, "TODO: add desc"),
     DECL_OPCODE(0xe0, cscrolpage, "TODO: add desc"),
     DECL_OPCODE(0xe1, cmatent, "TODO: add desc"),
-    DECL_OPCODE(0xe2, cshrink, "TODO: add desc"),
+    DECL_OPCODE(0xe2, cshrink, "Delete bitmap and shift following data"),
     DECL_OPCODE(0xe3, cdefmap, "TODO: add desc"),
     DECL_OPCODE(0xe4, csetmap, "TODO: add desc"),
     DECL_OPCODE(0xe5, cputmap, "TODO: add desc"),
@@ -3413,8 +3409,8 @@ void killent(u16 killent, u16 curent, u16 testent)
 
 void shrinkprog(s32 start, s32 length, char script_id)
 {
-    s16 *target = (s16 *)(alis.mem + start);
-    s16 *source = target + length;
+    u8 *target = alis.mem;
+    u8 *source = alis.mem + length;
 
     // copy scripts to freed space
     for (s32 i = start; i < alis.finprog - length; i++)

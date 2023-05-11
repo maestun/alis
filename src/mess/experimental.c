@@ -25,7 +25,7 @@
 # define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
 
-#define FRAME_TICKS (1000000 / 25) // 25 fps looks about right in logo animation
+#define FRAME_TICKS (1000000 / 50) // 25 fps looks about right in logo animation
 
 #define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
 

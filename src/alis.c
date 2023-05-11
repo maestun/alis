@@ -238,6 +238,8 @@ void alis_init(sPlatform platform) {
     alis.atprog = alis.basemem;
     
     alis.ptrent = alis.tablent;
+    
+    alis._ctiming = 0;
 
 //    alis.atent = alis.atprog + 0xf0;
 //    alis.maxent = 0x32;
