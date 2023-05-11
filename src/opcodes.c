@@ -577,7 +577,9 @@ static void cloop24(void) {
 }
 
 static void cswitch1(void) {
+//    printf("\n start: 0x%.6x \n", alis.script->pc - 0x18);
     readexec_opername();
+    
     s16 addition = script_read8();
     s32 new_pc = alis.script->pc;
     if ((new_pc & 1) != 0)
@@ -608,30 +610,34 @@ static void cswitch1(void) {
     }
     
     alis.script->pc += (addition * 4);
+//    printf("\n end:   0x%.6x \n", alis.script->pc - 0x18);
 }
 
 static void cswitch2(void) {
+    
+//    printf("\n start: 0x%.6x \n", alis.script->pc - 0x18);
     readexec_opername();
     
     s16 addition = script_read8();
-    s32 new_pc = alis.script->pc + 0;
+    s32 new_pc = alis.script->pc;
     if ((new_pc & 1) != 0)
     {
-        new_pc = alis.script->pc + 1;
+        alis.script->pc ++;
     }
 
-    s16 val = alis.varD7 + read16(alis.mem + new_pc, alis.platform.is_little_endian);
+    s16 test = script_read16();
+    s16 val = alis.varD7 + test;
     if (val >= 0 && val <= addition)
     {
-        new_pc += (val * 2) + 2;
-        new_pc += read16(alis.mem + new_pc, alis.platform.is_little_endian) + 2;
+        alis.script->pc += (val * 2);
+        s16 test2 = script_read16();
+        alis.script->pc += test2;
     }
     else
     {
-        new_pc = alis.script->pc + (addition * 2 + 2) + 2;
+        alis.script->pc += (addition * 2 + 2);
     }
-
-    alis.script->pc = new_pc;
+//    printf("\n end:   0x%.6x \n", alis.script->pc - 0x18);
 }
 
 static void cleave(void) {
@@ -833,7 +839,7 @@ static void ckill(void) {
 static void cstop(void) {
     // in real program, adds 4 to real stack pointer
     alis.script->running = 0;
-    printf("\n-- CSTOP --");
+    debug(EDebugWarning, "\n-- CSTOP --");
 }
 
 static void cstopret(void) {
@@ -853,6 +859,8 @@ static void cexit(void) {
 }
 
 static void cload(void) {
+//    printf("CLOAD\nA3 %.6x  A6 %.6x\n", alis.script->pc - 0x18, alis.script->vram_org);
+
     // get script ID
     u16 id = script_read16();
     if(id == 0) {
@@ -2512,7 +2520,8 @@ static void cselpalet(void) {
 }
 
 static void clinepalet(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    readexec_opername();
+    readexec_opername_saveD6();
 }
 
 static void cautomode(void) {
@@ -3417,7 +3426,7 @@ void shrinkprog(s32 start, s32 length, char script_id)
     {
         target[i] = source[i];
     }
-    
+
     alis.finprog -= length;
     
     if (script_id != '\0')
@@ -3440,7 +3449,7 @@ void shrinkprog(s32 start, s32 length, char script_id)
         alis.dernprog -= 4;
         alis.nbprog --;
     }
-    
+
     for (s32 i = alis.atprog; i < alis.dernprog; i++)
     {
         s32 location = *(s32 *)(alis.mem + i);
@@ -3479,17 +3488,20 @@ void shrinkprog(s32 start, s32 length, char script_id)
                 script->context->_0x14_script_org_offset -= length;
                 script->context->_0x08_script_ret_offset -= length;
                 
-                vacc = -0x34 - swap16(alis.mem + script->context->_0x14_script_org_offset + 0x16, alis.platform.is_little_endian);
+                u32 org_offset = script->context->_0x14_script_org_offset;
+                vacc = swap16(alis.mem + org_offset + 0x16, alis.platform.is_little_endian);
+                vacc *= -1;
+                vacc = -0x34;
+                
                 while (script->context->_0x0a_vacc_offset < vacc)
                 {
                     vacc -= 4;
-                    s32 test = *(s32 *)(alis.mem + script->vram_org + vacc);
                     *(s32 *)(alis.mem + script->vram_org + vacc) -= length;
                 }
             }
         }
     }
-    
+
     // move addresses to sprite data to match actual new locations
     
     for (s16 scidx = ptscreen; scidx != 0; scidx = SCENE_VAR(scidx)->to_next)

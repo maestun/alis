@@ -121,10 +121,12 @@ static void amaintp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void amaintc(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    *(u8 *)(alis.mem + alis.basemain + offset) += *(alis.acc++);
 }
 static void amainti(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    *(s16 *)(alis.mem + alis.basemain + offset) += *(alis.acc++);
 }
 static void ahimb(void) {
     debug(EDebugInfo, " /* MISSING */");
@@ -148,16 +150,9 @@ static void spile(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void aeval(void) {
-//    ADDNAME_AEVAL_0x1c
-//0001843c 39 07           move.w     D7w,-(A4)
-//0001843e 61 00 fa c6     bsr.w      OPERNAME_OEVAL_0x1c                              undefined OPERNAME_OEVAL_0x1c()
-//00018442 41 f9 00        lea        (JTAB_ADDNAMES).l,A0                             =
-//01 2f 6a
-//00018448 10 1b           move.b     (A3)+,D0b
-//0001844a 48 80           ext.w      D0w
-//0001844c 30 30 00 00     move.w     (0x0,A0,D0w*offset JTAB_ADDNAMES),D0w            =
-//00018450 4e f0 00 00     jmp        (0x0,A0,D0w*0x1)
-    debug(EDebugInfo, " /* MISSING */");
+    *(--alis.acc) = alis.varD7;
+    oeval();
+    readexec_addname();
 }
 
 

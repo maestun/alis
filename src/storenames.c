@@ -97,7 +97,9 @@ static void sdirtp(void) {
 }
 
 static void sdirtc(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    alis.varD7 = *(alis.acc++);
+    vram_write8(offset, alis.varD7);
 }
 
 static void sdirti(void) {
@@ -111,7 +113,7 @@ static void smainb(void) {
 
 static void smainw(void) {
     s16 offset = script_read16();
-    *(u16 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
+    *(s16 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
 }
 
 static void smainp(void) {
@@ -128,13 +130,13 @@ static void smaintp(void) {
 }
 
 static void smaintc(void) {
-    u16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
     alis.varD7 = *(alis.acc++);
     *(u8 *)(alis.mem + alis.basemain + offset) = (u8)alis.varD7;
 }
 
 static void smainti(void) {
-    u16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
     alis.varD7 = *(alis.acc++);
     *(u8 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
 }
