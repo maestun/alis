@@ -59,18 +59,18 @@ void oimmp(void) {
 
 void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     alis.varD7 = vram_read8ext16(offset);
 }
 
 void olocw(void) {
     // read word offset, copy word from ram[offset] into r7
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     alis.varD7 = vram_read16(offset);
 }
 
 void olocp(void) {
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     vram_readp(offset, alis.sd7);
 }
 
@@ -79,7 +79,7 @@ void oloctp(void) {
 }
 
 void oloctc(void) {
-    u16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
     alis.varD7 = vram_read8(offset);
 }
 
@@ -119,18 +119,17 @@ void odirtc(void) {
 }
 
 void odirti(void) {
-    u8 offset = script_read8();
-    s16 result = tabint(offset, alis.mem + alis.script->vram_org);
-    alis.varD7 = read16(vram_ptr(result), alis.platform.is_little_endian);
+    s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    alis.varD7 = read16(vram_ptr(offset), alis.platform.is_little_endian);
 }
 
 void omainb(void) {
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     alis.varD7 = *(u8 *)(alis.mem + alis.basemain + offset);
 }
 
 void omainw(void) {
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     alis.varD7 = *(u16 *)(alis.mem + alis.basemain + offset);
 }
 
@@ -146,42 +145,36 @@ void omaintp(void) {
 }
 
 void omaintc(void) {
-    u16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
     alis.varD7 = *(u8 *)(alis.mem + alis.basemain + offset);
 }
 
 void omainti(void) {
-    debug(EDebugWarning, " /* CHECK */");
     s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = *(alis.acc++);
-    *(s16 *)(alis.mem + alis.basemain + offset) = alis.varD7;
+    alis.varD7 = *(s16 *)(alis.mem + alis.basemain + offset);
 }
 
 void ohimb(void) {
-    u16 vram_offset = vram_read16(script_read16());
-    u32 vram_idx = alis.atent_ptr[vram_offset / sizeof(sScriptLoc)].vram_offset;
-    u32 vram_addr = alis.scripts[vram_idx]->vram_org;
+    u16 entry = vram_read16(script_read16());
+    u32 vram_addr = alis.scripts[*(s32 *)(alis.mem + alis.atent + entry)]->vram_org;
 
-    u16 index = script_read16();
+    s16 index = script_read16();
     alis.varD7 = *(u8 *)(alis.mem + vram_addr + index);
 }
 
 void ohimw(void) {
-    u16 vram_offset = vram_read16(script_read16());
-    u32 vram_idx = alis.atent_ptr[vram_offset / sizeof(sScriptLoc)].vram_offset;
-    u32 vram_addr = alis.scripts[vram_idx]->vram_org;
+    u16 entry = vram_read16(script_read16());
+    u32 vram_addr = alis.scripts[*(s32 *)(alis.mem + alis.atent + entry)]->vram_org;
 
-    u16 index = script_read16();
+    s16 index = script_read16();
     alis.varD7 = *(u16 *)(alis.mem + vram_addr + index);
 }
 
 void ohimp(void) {
-    debug(EDebugWarning, " /* CHECK */");
-    u16 vram_offset = vram_read16(script_read16());
-    u32 vram_idx = alis.atent_ptr[vram_offset / sizeof(sScriptLoc)].vram_offset;
-    u32 vram_addr = alis.scripts[vram_idx]->vram_org;
+    u16 entry = vram_read16(script_read16());
+    u32 vram_addr = alis.scripts[*(s32 *)(alis.mem + alis.atent + entry)]->vram_org;
 
-    u16 index = script_read16();
+    s16 index = script_read16();
     char *src = (char *)alis.mem + *(u16 *)(alis.mem + vram_addr + index);
     char *dst = (char *)alis.sd7;
     strcpy(dst, src);
@@ -240,76 +233,61 @@ void oor(void) {
 
 // r7 = variable XOR r7
 void oxor(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 ^= alis.varD6;
 }
 
 // r7 = variable EQV r7
 void oeqv(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 ^= alis.varD6;
     alis.varD7 = ~alis.varD7;
 }
 
 // r6 == r7
 void oegal(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 == alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 != r7
 void odiff(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 != alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 <= r7
 void oinfeg(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 <= alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 >= r7
 void osupeg(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 >= alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 < r7
 void oinf(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 < alis.varD7) ? 0xff : 0x0;
 }
 
 // r6 > r7
 void osup(void) {
-    alis.varD6 = alis.varD7;
-    readexec_opername();
+    readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 > alis.varD7) ? 0xff : 0x0;
 }
 
 // r7 += variable
 void oadd(void) {
-//00017932 61 00 fc 38     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00017936 de 46           add.w      D6w,D7w
-//00017938 4e 75           rts
     readexec_opername_saveD7();
     alis.varD7 += alis.varD6;
 }
 
 // r7 -= variable
 void osub(void) {
-//0001793a 61 00 fc 30     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//0001793e 9c 47           sub.w      D7w,D6w
-//00017940 3e 06           move.w     D6w,D7w
-//00017942 4e 75           rts
     readexec_opername_saveD7();
     alis.varD6 -= alis.varD7;
     alis.varD7 = alis.varD6;
@@ -317,12 +295,6 @@ void osub(void) {
 
 // r7 %= variable
 void omod(void) {
-//00017944 61 00 fc 26     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00017948 48 c6           ext.l      D6
-//0001794a 8d c7           divs.w     D7w,D6
-//0001794c 2e 06           move.l     D6,D7
-//0001794e 48 47           swap       D7
-//00017950 4e 75           rts
     readexec_opername_saveD7();
     alis.varD6 %= alis.varD7;
     alis.varD7 = alis.varD6;
@@ -330,11 +302,6 @@ void omod(void) {
 
 // r7 /= variable
 void odiv(void) {
-//00017952 61 00 fc 18     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00017956 48 c6           ext.l      D6
-//00017958 8d c7           divs.w     D7w,D6
-//0001795a 3e 06           move.w     D6w,D7w
-//0001795c 4e 75           rts
     readexec_opername_saveD7();
     alis.varD6 /= alis.varD7;
     alis.varD7 = alis.varD6;
@@ -342,9 +309,6 @@ void odiv(void) {
 
 // r7 *= variable
 void omul(void) {
-//0001795e 61 00 fc 0c     bsr.w      FUN_READEXEC_OPERNAME_SAVE_D7                    undefined FUN_READEXEC_OPERNAME_
-//00017962 cf c6           muls.w     D6w,D7
-//00017964 4e 75           rts
     readexec_opername_saveD7();
     alis.varD7 *= alis.varD6;
 }
@@ -370,7 +334,7 @@ void osgn(void) {
         alis.varD7 = 1;
     }
     else if(alis.varD7 < 0) {
-        alis.varD7 = 0xffff;
+        alis.varD7 = -1;
     }
 }
 
@@ -379,8 +343,7 @@ void onot(void) {
 }
 
 void oinkey(void) {
-    // TODO: if automode is active use value stored in D0
-    alis.varD7 = alis.automode ? 0 : io_inkey();
+    alis.varD7 = alis.automode ? alis.prevkey : (alis.prevkey = io_inkey());
 }
 
 void okeyon(void) {
@@ -416,12 +379,13 @@ void oshiftkey(void) {
     alis.varD7 = alis.automode ? 0 : io_shiftkey();
 }
 
-u32 io_dfree(void)
+s16 io_dfree(void)
 {
     u32 result;
     
 //    __m68k_trap(1);
     // I2 #fa00 = 0001965c
+    
     if (*(u32 *)(alis.mem + 0xfa00) < ((u32 *)(alis.buffer))[0])
     {
         result = 32000000;
@@ -433,23 +397,99 @@ u32 io_dfree(void)
             result = 32000000;
     }
     
-    return ((result % 1000) << 0x10) | ((result / 1000) & 0xffff);
+    return result / 1000;
 
 }
 
 void ofree(void) {
-    debug(EDebugWarning, " /* STUBBED */");
-    
+//    // i1 implementation
+//    if (alis.varD7 == 0)
+//    {
+//        alis.varD7 = ((uint)(alis.finmem - alis.finprog) / 1000);
+//        return;
+//    }
+//    if (alis.varD7 == 1)
+//    {
+//        alis.varD7 =((uint)(alis.debsprit - alis.finent) / 1000);
+//        return;
+//    }
+//    if (alis.varD7 == 2)
+//    {
+//        alis.varD7 = alis.maxprog - alis.nbprog;
+//        return;
+//    }
+//    if (alis.varD7 == 3)
+//    {
+//        alis.varD7 = alis.maxent - alis.nbent;
+//        return;
+//    }
+//    if (alis.varD7 == 4)
+//    {
+//        s16 count = 0;
+//        s16 spridx = alis.libsprit;
+//        if (alis.libsprit != 0)
+//        {
+//            do
+//            {
+//                count ++;
+//                spridx = *(short *)(alis.mem + alis.basesprite + 4 + (int)spridx);
+//            }
+//            while (spridx != 0);
+//        }
+//
+//        alis.varD7 = count;
+//        return;
+//    }
+//    if (alis.varD7 != 0x61)
+//    {
+//        if (alis.varD7 != 0x41)
+//        {
+//            if (alis.varD7 == 0x62)
+//                goto LAB_0001550e;
+//
+//            if (alis.varD7 != 0x42)
+//            {
+//                if (alis.varD7 == 99)
+//                    goto LAB_0001550e;
+//
+//                if (alis.varD7 != 0x43)
+//                {
+//                    if (alis.varD7 == 100)
+//                        goto LAB_0001550e;
+//
+//                    if (alis.varD7 != 0x44)
+//                    {
+//                        alis.varD7 = -1;
+//                        return;
+//                    }
+//                }
+//            }
+//        }
+//
+//        alis.varD7 = io_dfree();
+//        return;
+//    }
+//
+//LAB_0001550e:
+//
+//    alis.varD7 = io_dfree();
+//    return;
+
+    // i2 implementation
+    debug(EDebugWarning, " /* CHECK */");
     if (alis.varD7 == 0)
-        return;
-    
-    if (alis.varD7 == 1)
-        return;
-    
-    if (alis.varD7 == 2)
-        return;
-    
-    if (alis.varD7 != 3)
+    {
+        alis.varD7 = (alis.finmem - alis.finprog) / 1000;
+    }
+    else if (alis.varD7 == 1)
+    {
+        alis.varD7 = (alis.debsprit - alis.finent) / 1000;
+    }
+    else if (alis.varD7 == 2)
+    {
+        alis.varD7 = alis.maxprog - alis.nbprog;
+    }
+    else if (alis.varD7 != 3)
     {
         if (alis.varD7 == 4)
         {
@@ -459,19 +499,29 @@ void ofree(void) {
             {
                 alis.varD7 ++;
             }
+            
+            return;
         }
         else if (0x40 < alis.varD7)
         {
             if (alis.varD7 < 0x49)
             {
                 alis.varD7 = io_dfree();
+                return;
             }
             
             if ((0x60 < alis.varD7) && (alis.varD7 < 0x69))
             {
                 alis.varD7 = io_dfree();
+                return;
             }
         }
+        
+        alis.varD7 =  -1;
+    }
+    else
+    {
+        alis.varD7 = alis.maxent - alis.nbent;
     }
 }
 
@@ -657,7 +707,7 @@ void oexistf(void) {
         strcpy(dotptr + 1, alis.platform.ext);
     }
     
-    alis.varD7 = sys_fexists(path) ? -1 : 0x0;
+    alis.varD7 = sys_fexists(path) ? 0xff : 0;
 }
 
 void ochr(void) {
@@ -667,7 +717,8 @@ void ochr(void) {
 
 void ochange(void) {
     // TODO: change le drive courant ??
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
+    alis.varD7 = -1;
 }
 
 void ocountry(void) {

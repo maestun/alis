@@ -168,6 +168,8 @@ typedef struct {
     u32             cbutmouse;
     u16             oldmouse;
     u8 *            desmouse;
+    
+    s16             prevkey;
 
     s16             depx;
     s16             depy;
@@ -318,5 +320,13 @@ void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
 
 void            alis_loop(void);
+
+//u8              read8(s16 offset);
+//s16             read16(s16 offset);
+//s32             read32(s16 offset);
+//
+//void            write8(s16 offset, u8 value);
+//void            write16(s16 offset, s16 value);
+//void            write32(s16 offset, s32 value);
 
 #endif /* alis_vm_h */

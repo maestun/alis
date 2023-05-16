@@ -24,7 +24,7 @@ static void cnul(void) {
  * 
  */
 static void slocb(void) {
-    vram_write8(script_read16(), (u8)alis.varD7);
+    vram_write8(script_read16(), (s8)alis.varD7);
 }
 
 /**
@@ -45,21 +45,21 @@ static void slocp(void) {
 
 // Store at LOCation with offseT: Pointer
 static void sloctp(void) {
-    u16 offset = loctp_common(script_read16());
+    s16 offset = loctp_common(script_read16());
     u8 * ptr = alis.oldsd7;
     while ((void)vram_write8(offset++, *ptr++), *ptr);
 }
 
 // Store at LOCation with offseT: Char
 static void sloctc(void) {
-    u16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc++);
     vram_write8(offset, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
 static void slocti(void) {
-    u16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc++);
     vram_write16(offset, alis.varD7);
 }
@@ -80,7 +80,6 @@ static void sdirb(void) {
 static void sdirw(void) {
     
     u8 offset = script_read8();
-//    printf("\nXXX sdirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
     vram_write16(offset, (u16)alis.varD7);
 }
 
@@ -97,13 +96,14 @@ static void sdirtp(void) {
 }
 
 static void sdirtc(void) {
-    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc++);
     vram_write8(offset, alis.varD7);
 }
 
 static void sdirti(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    vram_write16(offset, alis.varD7);
 }
 
 static void smainb(void) {
@@ -124,9 +124,7 @@ static void smainp(void) {
 
 static void smaintp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
-    char *src = (char *)alis.sd7;
-    char *dst = (char *)(alis.mem + alis.basemain + offset);
-    strcpy(dst, src);
+    strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.sd7);
 }
 
 static void smaintc(void) {

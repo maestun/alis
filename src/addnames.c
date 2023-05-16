@@ -23,7 +23,7 @@ static void cnul(void) {
  * 
  */
 static void alocb(void) {
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     vram_add8(offset, (u8)alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
 }
@@ -34,7 +34,7 @@ static void alocb(void) {
  * 
  */
 static void alocw(void) {
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     vram_add16(offset, alis.varD7);
     alis.sr.zero = (vram_read8(offset) == 0);
 }
@@ -45,7 +45,7 @@ static void alocw(void) {
  *          to null-terminated string located at (vram+offset)
  */
 static void alocp(void) {
-    u16 offset = script_read16();
+    s16 offset = script_read16();
     char *dst = (char *)vram_ptr(offset);
     char *src = (char *)alis.oldsd7;
     strcat(dst, src);
@@ -62,7 +62,7 @@ static void aloctc(void) {
 static void alocti(void) {
     debug(EDebugInfo, " /* STUBBED */");
 
-    u16 offset = script_read16();
+    s16 offset = script_read16();
 
     // TODO: finish
     // short result = tabint(offset, alis.mem + );
@@ -80,9 +80,7 @@ static void adirw(void) {
 }
 static void adirp(void) {
     u8 offset = script_read8();
-    char *dst = (char *)vram_ptr(offset);
-    char *src = (char *)alis.oldsd7;
-    strcat(dst, src);
+    strcat((char *)vram_ptr(offset), (char *)alis.oldsd7);
 }
 
 static void adirtp(void) {
@@ -95,38 +93,27 @@ static void adirti(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void amainb(void) {
-//    ADDNAME_AMAINB_0xf
-//00018288 10 1b           move.b     (A3)+,D0b
-//0001828a e1 40           asl.w      #0x8,D0w
-//0001828c 10 1b           move.b     (A3)+,D0b
-//0001828e 22 79 00        movea.l    (ADDR_VSTACK).l,A1
-//01 95 7c
-//00018294 df 31 00 00     add.b      D7b,(0x0,A1,D0w*0x1)
-//00018298 4e 75           rts
+    s16 offset = script_read16();
+    *(u8 *)(BASEMNMEM_PTR + offset) += (u8)alis.varD7;
 }
 static void amainw(void) {
-//    ADDNAME_AMAINW_0x10
-//0001829a 10 1b           move.b     (A3)+,D0b
-//0001829c e1 40           asl.w      #0x8,D0w
-//0001829e 10 1b           move.b     (A3)+,D0b
-//000182a0 22 79 00        movea.l    (ADDR_VSTACK).l,A1
-//01 95 7c
-//000182a6 df 71 00 00     add.w      D7w,(0x0,A1,D0w*0x1)
-//000182aa 4e 75           rts
+    s16 offset = script_read16();
+    *(s16 *)(BASEMNMEM_PTR + offset) += (u16)alis.varD7;
 }
 static void amainp(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = script_read16();
+    strcat((char *)(BASEMNMEM_PTR + offset), (char *)alis.oldsd7);
 }
 static void amaintp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void amaintc(void) {
-    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
-    *(u8 *)(alis.mem + alis.basemain + offset) += *(alis.acc++);
+    s16 offset = tabchar(script_read16(), BASEMNMEM_PTR);
+    *(u8 *)(BASEMNMEM_PTR + offset) += *(alis.acc++);
 }
 static void amainti(void) {
-    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
-    *(s16 *)(alis.mem + alis.basemain + offset) += *(alis.acc++);
+    s16 offset = tabint(script_read16(), BASEMNMEM_PTR);
+    *(s16 *)(BASEMNMEM_PTR + offset) += *(alis.acc++);
 }
 static void ahimb(void) {
     debug(EDebugInfo, " /* MISSING */");

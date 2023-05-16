@@ -142,9 +142,6 @@ void alis_load_main(void) {
 
         alis.debsprit = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1;
         alis.finsprit = alis.debsprit + alis.specs.vram_to_data_offset;
-
-        // NOTE: not really sure why, but without + 0x18 to finsprit wrong parts of code are executed. Investigate!
-        alis.finsprit += 0x18;
         alis.debprog = alis.finsprit;
         alis.finprog = alis.debprog;
         alis.dernprog = alis.atprog;
@@ -240,6 +237,8 @@ void alis_init(sPlatform platform) {
     alis.ptrent = alis.tablent;
     
     alis._ctiming = 0;
+    
+    alis.prevkey = 0;
 
 //    alis.atent = alis.atprog + 0xf0;
 //    alis.maxent = 0x32;
@@ -350,6 +349,31 @@ void alis_loop(void) {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
         readexec_opcode();
+
+//        for (int i = 0; i < alis.nbprog; i ++)
+//        {
+//            u32 script_id = alis.progs[i]->header.id;
+//            u8 *script_data = alis.mem + alis.progs[i]->data_org;
+//            for (int v = 0; v < 256; v++)
+//            {
+//                if (alis.verify[v] == 0)
+//                {
+//                    break;
+//                }
+//                
+//                sVerifyData *vd = alis.verify[v];
+//                if (script_id == vd->script_id)
+//                {
+//                    for (int d = 0; d < vd->script_length; d++)
+//                    {
+//                        if (vd->script_data[d] != script_data[d])
+//                        {
+//                            sleep(0);
+//                        }
+//                    }
+//                }
+//            }
+//        }
     }
     
     // alis loop was stopped by 'cexit', 'cstop', or user event
@@ -364,7 +388,8 @@ u8 alis_main(void) {
         
         alis._cstopret = 0;
         alis._callentity = 0;
-        moteur2(0);
+        alis.varD5 = 0;
+        moteur2();
     }
     
     // alis was stopped by 'cexit' opcode
@@ -410,15 +435,40 @@ void alis_debug(void) {
  * @param offset 
  * @return u8* 
  */
-u8 * vram_ptr(u16 offset) {
+
+//u8 read8(s16 offset) {
+//    return *(u8 *)(alis.mem + offset);
+//}
+//
+//s16 read16(s16 offset) {
+//    return *(s16 *)(alis.mem + offset);
+//}
+//
+//s32 read32(s16 offset) {
+//    return *(s32 *)(alis.mem + offset);
+//}
+//
+//void write8(s16 offset, u8 value) {
+//    *(u8 *)(alis.mem + offset) = value;
+//}
+//
+//void write16(s16 offset, s16 value) {
+//    *(s16 *)(alis.mem + offset) = value;
+//}
+//
+//void write32(s16 offset, s32 value) {
+//    *(s32 *)(alis.mem + offset) = value;
+//}
+
+u8 * vram_ptr(s16 offset) {
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
-u8 vram_read8(s32 offset) {
+u8 vram_read8(s16 offset) {
     return *(u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
-s16 vram_read8ext16(u16 offset) {
+s16 vram_read8ext16(s16 offset) {
     s16 ret = *(u8 *)(alis.mem + alis.script->vram_org + offset);
     if(BIT_CHK(ret, 7)) {
         ret |= 0xff00;
@@ -426,7 +476,7 @@ s16 vram_read8ext16(u16 offset) {
     return ret;
 }
 
-s32 vram_read8ext32(u16 offset) {
+s32 vram_read8ext32(s16 offset) {
     s32 ret = *(u8 *)(alis.mem + alis.script->vram_org + offset);
     if(BIT_CHK(ret, 7)) {
         ret |= 0xffffff00;
@@ -434,48 +484,62 @@ s32 vram_read8ext32(u16 offset) {
     return ret;
 }
 
-u16 vram_read16(s32 offset) {
-    return *(u16 *)(alis.mem + alis.script->vram_org + offset);
+s16 vram_read16(s16 offset) {
+     return *(s16 *)(alis.mem + alis.script->vram_org + offset);
+//    return swap16(alis.mem + alis.script->vram_org + offset, alis.platform.is_little_endian);
 }
 
-s32 vram_read16ext32(u16 offset) {
-    s32 ret = *(u16 *)(alis.mem + alis.script->vram_org + offset);
+s32 vram_read32(s16 offset) {
+     return *(s32 *)(alis.mem + alis.script->vram_org + offset);
+//    return swap32(alis.mem + alis.script->vram_org + offset, alis.platform.is_little_endian);
+}
+
+s32 vram_read16ext32(s16 offset) {
+    // s32 ret = *(u16 *)(alis.mem + alis.script->vram_org + offset);
+    s32 ret = vram_read16(offset);
     if(BIT_CHK(ret, 15)) {
         ret |= 0xffffff00;
     }
     return ret;
 }
 
-void vram_readp(u16 offset, u8 * dst) {
+void vram_readp(s16 offset, u8 * dst) {
     strcpy((char *)dst, (char *)(alis.mem + alis.script->vram_org + offset));
 }
 
-void vram_write8(s32 offset, u8 value) {
+void vram_write8(s16 offset, s8 value) {
     *(u8 *)(alis.mem + alis.script->vram_org + offset) = value;
 }
 
-void vram_write16(s32 offset, u16 value) {
-    *(u16 *)(alis.mem + alis.script->vram_org + offset) = value;
+void vram_write16(s16 offset, s16 value) {
+     *(s16 *)(alis.mem + alis.script->vram_org + offset) = value;
+//    *(s16 *)(alis.mem + alis.script->vram_org + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
 }
 
-void vram_writep(u16 offset, u8 * src) {
+void vram_write32(s16 offset, s32 value) {
+     *(s32 *)(alis.mem + alis.script->vram_org + offset) = value;
+//    *(s32 *)(alis.mem + alis.script->vram_org + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
+}
+
+void vram_writep(s16 offset, u8 * src) {
     strcpy((char *)(alis.mem + alis.script->vram_org + offset), (char *)src);
 }
 
-void vram_setbit(u16 offset, u8 bit) {
+void vram_setbit(s16 offset, u8 bit) {
     BIT_SET(*(u8 *)(alis.mem + alis.script->vram_org + offset), bit);
 }
 
-void vram_clrbit(u16 offset, u8 bit) {
+void vram_clrbit(s16 offset, u8 bit) {
     BIT_CLR(*(u8 *)(alis.mem + alis.script->vram_org + offset), bit);
 }
 
-void vram_add8(u16 offset, u8 value) {
+void vram_add8(s16 offset, u8 value) {
     *(u8 *)(alis.mem + alis.script->vram_org + offset) += value;
 }
 
-void vram_add16(u16 offset, u16 value) {
-    *(u16 *)(alis.mem + alis.script->vram_org + offset) += value;
+void vram_add16(s16 offset, u16 value) {
+     *(u16 *)(alis.mem + alis.script->vram_org + offset) += value;
+//    vram_write16(offset, vram_read16(offset) + value);
 }
 
 
@@ -484,18 +548,21 @@ void vram_add16(u16 offset, u16 value) {
 // =============================================================================
 void vram_push32(u32 value) {
     alis.script->vacc_off -= sizeof(u32);
-    memcpy(alis.mem + alis.script->vram_org + alis.script->vacc_off, (u8 *)&value, sizeof(u32));
+    vram_write32(alis.script->vacc_off, value);
+    // memcpy(alis.mem + alis.script->vram_org + alis.script->vacc_off, (u8 *)&value, sizeof(u32));
 }
 
-u32 vram_peek32(void) {
-    u32 result;
-    memcpy((u8 *)&result, alis.mem + alis.script->vram_org + alis.script->vacc_off, sizeof(u32));
-    return result;
+s32 vram_peek32(void) {
+    
+    return vram_read32(alis.script->vacc_off);
+//    s32 result;
+//    memcpy((u8 *)&result, alis.mem + alis.script->vram_org + alis.script->vacc_off, sizeof(s32));
+//    return result;
 }
 
-u32 vram_pop32(void) {
-    u32 ret = vram_peek32();
-    alis.script->vacc_off += sizeof(u32);
+s32 vram_pop32(void) {
+    s32 ret = vram_peek32();
+    alis.script->vacc_off += sizeof(s32);
     return ret;
 }
 

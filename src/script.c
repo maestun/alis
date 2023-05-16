@@ -460,6 +460,76 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     return script;
 }
 
+//void FUN_LiveScript(ushort *a1,short d5w)
+//{
+//    uint uVar4;
+//    short sVar5;
+//    int iVar6;
+//
+//    s16 olddernent = alis.dernent;
+//    s16 uVar2 = *(s16 *)(alis.mem + alis.atent + 4 + d5w);
+//    *(s16 *)(alis.mem + alis.atent + 4 + d5w) = alis.dernent;
+//    alis.dernent = *(s16 *)(alis.mem + alis.atent + 4 + alis.dernent);
+//    *(s16 *)(alis.mem + alis.atent + 4 + olddernent) = uVar2;
+//    alis.nbent ++;
+//    if (alis.maxent < alis.nbent)
+//    {
+////        SYS_PrintError();
+//        return;
+//    }
+//
+//    iVar6 = (s16)a1[9] + alis.finent;
+//    s16 *puVar7 = (s16 *)(alis.mem + (s16)a1[0xb] + iVar6);
+//    s16 *puVar8 = puVar7 + 0x1a;
+//    *(s16 **)(alis.mem + alis.atent + olddernent) = puVar8;
+//    uVar4 = (uint)a1[10];
+//    s32 iVar1 = uVar4 + (int)((u8 *)puVar8 - alis.mem);
+//    if (alis.debsprit <= (int)(uVar4 + (int)((u8 *)puVar8 - alis.mem)))
+//    {
+////        SYS_PrintError();
+//        return;
+//    }
+//
+//    do
+//    {
+//        alis.finent = iVar1;
+//        *(s16 *)(puVar7 + uVar4 + 0x32) = 0;
+//        uVar4 = uVar4 - 2;
+//        iVar1 = alis.finent;
+//    }
+//    while (uVar4 != 0);
+//
+//    sVar5 = (s16)iVar6 - (s16)puVar8;
+//    puVar7[0x15] = sVar5;
+//    puVar7[0xc] = sVar5;
+//    puVar7[0xb] = sVar5;
+//    *(uint *)(puVar7 + 0x16) = a1[2] + 2 + (int)a1;
+//    puVar7[0x12] = *a1;
+//    *(us16 **)(puVar7 + 0x10) = a1;
+//    *(u8 *)(puVar7 + 3) = *(u8 *)(a1 + 1);
+//    *(u8 *)(puVar7 + 0x19) = 1;
+//    *(u8 *)((int)puVar7 + 0x33) = 1;
+//    *(u8 *)(puVar7 + 0x18) = 0xff;
+//    puVar7[0xd] = 0xffff;
+//    puVar7[0x13] = olddernent;
+//    *(u8 *)(puVar7 + 8) = 2;
+//    puVar7[0xe] = 0;
+//    puVar7[0x14] = 0;
+//    puVar7[9] = 0;
+//    puVar7[10] = 0;
+//    *(u8 *)((int)puVar7 + 0x31) = 0;
+//    *(u8 *)((int)puVar7 + 0xf) = 0;
+//    *(u8 *)(puVar7 + 7) = 0xff;
+//    *(u8 *)(puVar7 + 5) = 0;
+//    *(u8 *)(puVar7 + 4) = 0;
+//    *(u8 *)((int)puVar7 + 7) = 0;
+//    puVar7[6] = 0;
+//    *(u8 *)((int)puVar7 + 5) = 0;
+//    puVar7[1] = 0;
+//    *puVar7 = 0;
+//    *(u8 *)(puVar7 + 2) = 0;
+//}
+
 void script_live(sAlisScript * script) {
     u8 *data = alis.mem + script->data_org;
 
@@ -470,6 +540,9 @@ void script_live(sAlisScript * script) {
     
     script->vacc_off = (test - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
+    
+    u16 vram_length = swap16((data + 0x14), alis.platform.is_little_endian);
+    memset(alis.mem + script->vram_org, 0, vram_length);
 
     script->context = (sScriptContext *)(alis.mem + script->vram_org - sizeof(sScriptContext));
     script->context->_0x0a_vacc_offset          = script->vacc_off;
@@ -497,14 +570,17 @@ void script_live(sAlisScript * script) {
     script->context->_0x2d_calign               = 0;
     script->context->_0x28_unknown              = 0;
     script->context->_0x2f_chsprite             = 0;
+    script->context->_0x32_unknown              = 0;
+//    script->context->_0x34_unknown              = 0;
     script->context->_0x30_unknown              = 0;
+    
     script->context->_0x16_screen_id            = 0;
     
     *(u16 *)(script->context) = 0; // -0x34
 
     script->pc = script->pc_org = script->context->_0x08_script_ret_offset;
 
-    alis.finent += swap16((data + 0x14), alis.platform.is_little_endian);
+    alis.finent += vram_length;
     alis.scripts[alis.nbent] = script;
     alis.nbent ++;
 

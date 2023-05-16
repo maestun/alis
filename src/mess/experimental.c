@@ -1861,7 +1861,7 @@ void destofen(SpriteVariables *sprite)
         bmpx2 -= (xpos2 - blocx2);
     }
     
-//    s16 index = -1;
+    s16 index = -1;
 //    for (s32 i = 0; i < 24; i++)
 //    {
 //        s32 addr = adresdes(i);
@@ -3081,12 +3081,12 @@ void livemain(u16 *param_1, s16 param_2, s8 *param_3)
 
 void liveprog(s8 *param_1,u16 *param_2,s8 *param_3)
 {
-//    s16 unaff_D5w;
+//    s16 alis.varD5;
 //
 //    s16 sVar3 = alis.dernent;
 //    s32 iVar6 = alis.atent;
-//    u16 uVar2 = *(u16 *)(alis.atent + 4 + (s32)unaff_D5w);
-//    *(s16 *)(alis.atent + 4 + (s32)unaff_D5w) = alis.dernent;
+//    u16 uVar2 = *(u16 *)(alis.atent + 4 + (s32)alis.varD5);
+//    *(s16 *)(alis.atent + 4 + (s32)alis.varD5) = alis.dernent;
 //    s32 iVar1 = (s32)alis.dernent;
 //    alis.dernent = *(u16 *)(iVar6 + 4 + (s32)alis.dernent);
 //    *(u16 *)(iVar6 + 4 + iVar1) = uVar2;
@@ -3853,140 +3853,85 @@ s16 tabint(s16 offset, u8 *address)
     return result;
 }
 
-void moteur4(s16 offset)
+void moteur2(void)
 {
-    alis.varD5 = offset;
-    
-    u32 index = alis.atent_ptr[offset / sizeof(sScriptLoc)].vram_offset;
-    sAlisScript *script = alis.scripts[index];
-    
-    alis.script = script;
+  do
+  {
+      itroutine();
+      
+      u32 index = *(s16 *)(alis.mem + alis.atent + alis.varD5);
+      alis.script = alis.scripts[index];
+      u8 *vram_addr = alis.mem + alis.script->vram_org;
 
-    u8 *vram_addr = alis.mem + alis.script->vram_org;
+      alis.fallent = 0;
+      alis.fseq = 0;
+      
+      if (alis.script->context->_0x24_scan_inter.data < 0 && (alis.script->context->_0x24_scan_inter.data & 2) == 0)
+      {
+          s32 script_offset = swap32((alis.mem + alis.script->context->_0x14_script_org_offset + 10), alis.platform.is_little_endian);
+          if (script_offset != 0)
+          {
+              alis.saversp = alis.script->context->_0x0a_vacc_offset;
+              savecoord(vram_addr);
+              alis.script->pc = alis.script->context->_0x14_script_org_offset + 10 + script_offset;
+              alis_loop();
+              updtcoord(vram_addr);
+          }
+      }
 
-    alis.fallent = 0;
-    alis.fseq = 0;
-    
-    if (alis.script->context->_0x24_scan_inter.data < 0 && (alis.script->context->_0x24_scan_inter.data & 2) == 0)
-    {
-        s32 script_offset = swap32((alis.mem + alis.script->context->_0x14_script_org_offset + 10), alis.platform.is_little_endian);
-        if (script_offset != 0)
-        {
-            alis.saversp = alis.script->context->_0x10_script_id;
-            savecoord(vram_addr);
-            alis.script->pc = alis.script->context->_0x14_script_org_offset + 10 + script_offset;
-            alis_loop();
-            updtcoord(vram_addr);
-        }
-    }
+      if (alis.script->context->_0x04_cstart_csleep != 0)
+      {
+          if ((s8)alis.script->context->_0x04_cstart_csleep < 0)
+          {
+              alis.script->context->_0x04_cstart_csleep = 1;
+          }
+          
+          alis.script->context->_0x01_cstart --;
+          printf("\n [%.2x, %.2x] ", alis.script->context->_0x01_cstart, alis.script->context->_0x02_unknown);
+          if (alis.script->context->_0x01_cstart == 0)
+          {
+              savecoord(vram_addr);
+              
+              alis.script->pc = alis.script->context->_0x08_script_ret_offset;
+              alis.script->vacc_off = alis.script->context->_0x0a_vacc_offset;
+              alis.fseq ++;
+              printf("\n [%.6x, a3=%.6x, %.4x] ",alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
+              alis_loop();
+              alis.script->context->_0x0a_vacc_offset = alis.script->vacc_off;
+              alis.script->context->_0x08_script_ret_offset = alis.script->pc;
+
+              s32 script_offset = swap32(alis.mem + alis.script->context->_0x14_script_org_offset + 6, alis.platform.is_little_endian);
+              if (script_offset != 0)
+              {
+                  alis.fseq = 0;
+                  alis.saversp = alis.script->context->_0x0a_vacc_offset;
+                  alis.script->pc = alis.script->context->_0x14_script_org_offset + 6 + script_offset;
+                  alis_loop();
+              }
+              
+              updtcoord(vram_addr);
+
+              alis.script->context->_0x01_cstart = alis.script->context->_0x02_unknown;
+              
+//              alis.varD5 = *(s16 *)(alis.mem + alis.atent + 4 + alis.varD5);
+//              if (alis.varD5 == 0)
+//              {
+//                  image();
+//              }
+//
+//              continue;
+          }
+      }
+      
+      alis.varD5 = *(s16 *)(alis.mem + alis.atent + 4 + alis.varD5);
+      if (alis.varD5 == 0)
+      {
+          image();
+      }
+  }
+    while( true );
 }
 
-void moteur3(s16 offset)
-{
-    u8 *vram_addr = alis.mem + alis.script->vram_org;
-    
-    savecoord(vram_addr);
-    
-    alis.script->pc = alis.script->context->_0x08_script_ret_offset;
-    
-    // on real HW its assigned to d4w and later modified while doing reeadexec
-    // and than stored with new value
-    // set to d4w and can be changed in OPCODE_CJSR24_0x07 and likely others
-    u16 unknown0x10 = alis.script->context->_0x10_script_id;
-    alis.fseq ++;
-    alis_loop();
-    alis.script->context->_0x10_script_id = unknown0x10;
-    alis.script->context->_0x08_script_ret_offset = alis.script->pc;
-
-    s32 script_offset = swap32(alis.mem + alis.script->context->_0x14_script_org_offset + 6, alis.platform.is_little_endian);
-    if (script_offset != 0)
-    {
-        alis.fseq = 0;
-        alis.saversp = alis.script->context->_0x10_script_id;
-        alis.script->pc = alis.script->context->_0x14_script_org_offset + 6 + script_offset;
-        alis_loop();
-    }
-    
-    updtcoord(vram_addr);
-}
-
-u16 moteur1(s16 offset)
-{
-    do
-    {
-        do
-        {
-            do
-            {
-                // TODO: call it from a timer?
-                itroutine();
-                
-                offset = alis.atent_ptr[offset / sizeof(sScriptLoc)].offset;
-                if (offset == 0)
-                {
-                    image();
-                    return 0;
-                }
-                
-                moteur4(offset);
-            }
-            while (alis.script->context->_0x04_cstart_csleep == 0);
-            
-            if ((s8)alis.script->context->_0x04_cstart_csleep < 0)
-            {
-                alis.script->context->_0x04_cstart_csleep = 1;
-            }
-            
-            alis.script->context->_0x01_cstart --;
-        }
-        while (alis.script->context->_0x01_cstart != 0);
-        
-        moteur3(offset);
-        
-        alis.script->context->_0x01_cstart = alis.script->context->_0x02_unknown;
-    }
-    while (true);
-    
-    return 0;
-}
-
-void moteur2(s16 offset)
-{
-    do
-    {
-        // TODO: call it from a timer?
-        itroutine();
-        
-        moteur4(offset);
-        
-        if (alis.script->context->_0x04_cstart_csleep != 0)
-        {
-            if ((s8)alis.script->context->_0x04_cstart_csleep < 0)
-            {
-                alis.script->context->_0x04_cstart_csleep = 1;
-            }
-            
-            alis.script->context->_0x01_cstart --;
-            if (alis.script->context->_0x01_cstart == 0)
-            {
-                moteur3(offset);
-
-                alis.script->context->_0x01_cstart = alis.script->context->_0x02_unknown;
-
-                offset = moteur1(offset);
-                continue;
-            }
-        }
-        
-        offset = alis.atent_ptr[offset / sizeof(sScriptLoc)].offset;
-        if (offset == 0)
-        {
-            image();
-        }
-    }
-    while (true);
-}
-    
 s16 debprotf(u16 script_id)
 {
     for (int i = 0; i < alis.nbprog; i ++)
@@ -4047,65 +3992,80 @@ void alis_putchar(s8 character)
 
 void alis_putstring(void)
 {
-        for (u8 *strptr = alis.sd7; *strptr; strptr++)
+    for (u8 *strptr = alis.sd7; *strptr; strptr++)
     {
         alis_putchar(*strptr);
     }
 }
 
-u8 tprintd0[] = { 0x3b, 0x9a, 0xca, 0x00, 0x05, 0xf5, 0xe1, 0x00, 0x00, 0x98, 0x96, 0x80, 0x00, 0x0f, 0x42, 0x40, 0x00, 0x01, 0x86, 0xa0, 0x00, 0x00, 0x27, 0x10, 0x00, 0x00, 0x03, 0xe8, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x01 };
+u32 tprintd0[] = { 0x3b9aca00, 0x05f5e100, 0x00989680, 0x000f4240, 0x000186a0, 0x00002710, 0x000003e8, 0x00000064, 0x0000000a, 0x00000001 };
 
 void vald0(u8 *string, s16 value)
 {
     u8 *strptr = string;
+    u8 *tmpptr;
 
-    s32 iVar4 = value;
-    if (iVar4 < 0)
+    s32 tmpval = value;
+    if (tmpval < 0)
     {
-        *strptr = 0x2d;
-        strptr ++;
-        
-        iVar4 = -iVar4;
+        strptr = string + 1;
+        *string = 0x2d;
+        tmpval = -tmpval;
     }
     
-    u8 c = 0;
-    s8 added = 0;
-    s32 *tprint = (s32 *)&tprintd0;
-    
-    for (int i = 0; i < 10; i++)
+    s32 *tabptr = (int *)&tprintd0;
+    s32 tprintv;
+    s16 length = 9;
+    s16 cw;
+    char c;
+    u8 res = 0;
+
+    do
     {
-        s32 iVar1 = *tprint;
-        s16 sVar5 = -0x30;
+        tprintv = *tabptr++;
+        cw = -0x30;
         
         do
         {
-            iVar4 -= iVar1;
-            if (iVar4 < 0)
-            {
+            tmpval -= tprintv;
+            if (tmpval < 0)
                 break;
-            }
             
-            sVar5 --;
+            cw --;
         }
-        while (sVar5 != -1);
-
-        c = -(char)sVar5;
-        if (c != 0x30 || added)
-        {
-            added = 1;
-            *strptr = c;
-            strptr ++;
-        }
+        while (cw != -1);
         
-        iVar4 += iVar1;
-        tprint ++;
+        c = -(char)cw;
+        if (c != 0x30)
+        {
+            res = 1;
+            tmpptr = strptr + 1;
+            *strptr = c;
+        }
+        else if (res)
+        {
+            tmpptr = strptr + 1;
+            *strptr = c;
+        }
+        else
+        {
+            tmpptr = strptr;
+        }
+ 
+        tmpval += tprintv;
+        length --;
+        strptr = tmpptr;
+        
+        if (length == -1)
+        {
+            if (!res)
+            {
+                *strptr++ = c;
+            }
+
+            *strptr = 0;
+            return;
+        }
     }
-    
-    if (!added)
-    {
-        *strptr = c;
-        strptr ++;
-    }
-    
-    *strptr = 0;
+    while (1);
 }

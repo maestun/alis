@@ -137,8 +137,9 @@ void image(void);
 void ctopalette(u8 *paldata, s32 duration);
 void ctoblackpal(s16 duration);
 
-u16 moteur1(s16 offset);
-void moteur2(s16 offset);
+void moteur1(void);
+void moteur2(void);
+//void moteur12(void);
 
 //void killent(u16 d0w, u32 d3, u16 d5w);
 s16 debprotf(u16 d2w);
