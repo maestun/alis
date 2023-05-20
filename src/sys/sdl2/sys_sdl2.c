@@ -19,6 +19,7 @@ SDL_Window *    _window;
 SDL_Event       _event;
 Uint32 *        _pixels;
 SDL_Texture *   _texture;
+u32             _scale = 2;
 
 int width = 320;
 int height = 200;
@@ -85,10 +86,10 @@ void sys_init() {
     SDL_Init(SDL_INIT_VIDEO);
     _window = SDL_CreateWindow(kProgName,
                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                               640, 480, 0);
+                               320 * _scale, 240 * _scale, 0);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
-    SDL_RenderSetScale(_renderer, 2, 2);
+    SDL_RenderSetScale(_renderer, _scale, _scale);
     
     _pixels = malloc(width * height * sizeof(*_pixels));
     memset(_pixels, 0, width * height * sizeof(*_pixels));
@@ -104,6 +105,8 @@ u8 sys_poll_event() {
     
     // update mouse
     u32 bt = SDL_GetMouseState(&_mouse.x, &_mouse.y);
+    _mouse.x /= _scale;
+    _mouse.y /= _scale;
     _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
     _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
     
@@ -266,7 +269,7 @@ u16 sys_get_model(void) {
     // 0x3f2 = Atari ST / 1MB / Lowrez
     
     
-    return 0x3f2;
+    return 0x456;
 }
 
 

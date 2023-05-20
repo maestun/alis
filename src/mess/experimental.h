@@ -14,11 +14,10 @@
 #include "utils.h"
 
 // to be consistent with old code
-#pragma pack(1)
 
 typedef union {
     
-    struct {
+    struct __attribute__((packed)) {
         
         u8 state;               // 0x00
         u8 numelem;             // 0x01
@@ -54,7 +53,7 @@ typedef union {
 
 typedef union {
     
-    struct {
+    struct __attribute__((packed)) {
         
         u8 state;               // 0x0
         u8 numelem;             // 0x1
@@ -97,7 +96,9 @@ typedef union {
     
 } SceneVariables;
 
-#pragma pack(0)
+
+//extern int checkA3[];
+//extern int checkA3Idx;
 
 extern u8 thepalet;
 extern u8 defpalet;
@@ -137,11 +138,8 @@ void image(void);
 void ctopalette(u8 *paldata, s32 duration);
 void ctoblackpal(s16 duration);
 
-void moteur1(void);
-void moteur2(void);
-//void moteur12(void);
+void moteur(void);
 
-//void killent(u16 d0w, u32 d3, u16 d5w);
 s16 debprotf(u16 d2w);
 
 void alis_putchar(s8 character);

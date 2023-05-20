@@ -90,7 +90,8 @@ static void adirtc(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void adirti(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    vram_add16(offset, vram_pop32());
 }
 static void amainb(void) {
     s16 offset = script_read16();

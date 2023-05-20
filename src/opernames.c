@@ -367,7 +367,7 @@ void oscan(void) {
 
     s16 scan_clr = alis.script->context->_0x1e_scan_clr + 2;
     if (-0x35 < scan_clr)
-        scan_clr -= *(short *)(alis.mem + alis.script->context->_0x14_script_org_offset + 0x16);
+        scan_clr -= swap16((alis.mem + alis.script->context->_0x14_script_org_offset + 0x16), alis.platform.is_little_endian);
 
     alis.script->context->_0x1e_scan_clr = scan_clr;
     if (scan_clr == alis.script->context->_0x1c_scan_clr)
@@ -402,81 +402,6 @@ s16 io_dfree(void)
 }
 
 void ofree(void) {
-//    // i1 implementation
-//    if (alis.varD7 == 0)
-//    {
-//        alis.varD7 = ((uint)(alis.finmem - alis.finprog) / 1000);
-//        return;
-//    }
-//    if (alis.varD7 == 1)
-//    {
-//        alis.varD7 =((uint)(alis.debsprit - alis.finent) / 1000);
-//        return;
-//    }
-//    if (alis.varD7 == 2)
-//    {
-//        alis.varD7 = alis.maxprog - alis.nbprog;
-//        return;
-//    }
-//    if (alis.varD7 == 3)
-//    {
-//        alis.varD7 = alis.maxent - alis.nbent;
-//        return;
-//    }
-//    if (alis.varD7 == 4)
-//    {
-//        s16 count = 0;
-//        s16 spridx = alis.libsprit;
-//        if (alis.libsprit != 0)
-//        {
-//            do
-//            {
-//                count ++;
-//                spridx = *(short *)(alis.mem + alis.basesprite + 4 + (int)spridx);
-//            }
-//            while (spridx != 0);
-//        }
-//
-//        alis.varD7 = count;
-//        return;
-//    }
-//    if (alis.varD7 != 0x61)
-//    {
-//        if (alis.varD7 != 0x41)
-//        {
-//            if (alis.varD7 == 0x62)
-//                goto LAB_0001550e;
-//
-//            if (alis.varD7 != 0x42)
-//            {
-//                if (alis.varD7 == 99)
-//                    goto LAB_0001550e;
-//
-//                if (alis.varD7 != 0x43)
-//                {
-//                    if (alis.varD7 == 100)
-//                        goto LAB_0001550e;
-//
-//                    if (alis.varD7 != 0x44)
-//                    {
-//                        alis.varD7 = -1;
-//                        return;
-//                    }
-//                }
-//            }
-//        }
-//
-//        alis.varD7 = io_dfree();
-//        return;
-//    }
-//
-//LAB_0001550e:
-//
-//    alis.varD7 = io_dfree();
-//    return;
-
-    // i2 implementation
-    debug(EDebugWarning, " /* CHECK */");
     if (alis.varD7 == 0)
     {
         alis.varD7 = (alis.finmem - alis.finprog) / 1000;

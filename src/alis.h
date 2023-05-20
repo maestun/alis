@@ -244,7 +244,8 @@ typedef struct {
     u16 fomax;
     
     // helper: executed instructions count
-    u32            icount;
+    u32             icount;
+    u8              restart_loop;
         
     // unknown vars
     u32 DAT_000194fe;
@@ -321,12 +322,16 @@ void            alis_debug_addr(u16 addr);
 
 void            alis_loop(void);
 
-//u8              read8(s16 offset);
-//s16             read16(s16 offset);
-//s32             read32(s16 offset);
-//
-//void            write8(s16 offset, u8 value);
-//void            write16(s16 offset, s16 value);
-//void            write32(s16 offset, s32 value);
+u16             xswap16(u16 value);
+u32             xswap24(u32 value);
+u32             xswap32(u32 value);
+
+u8              xread8(u8 *addr);
+s16             xread16(u8 *addr);
+s32             xread32(u8 *addr);
+
+void            xwrite8(u8 *addr, u8 value);
+void            xwrite16(u8 *addr, s16 value);
+void            xwrite32(u8 *addr, s32 value);
 
 #endif /* alis_vm_h */
