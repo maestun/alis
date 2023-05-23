@@ -1946,7 +1946,7 @@ void destofen(SpriteVariables *sprite)
                     if ((posy1 + h) < 0 || (posy1 + h) >= 200)
                         continue;
                     
-                    *tgt = color;
+                    // *tgt = color;
                 }
             }
             break;
@@ -2513,7 +2513,8 @@ affiscin:
                             sleep(0);
                         }
                         
-                        if (1)//tmpidx3 == SPRITE_VAR(tmpidx1)->clinking)
+                        // if (1) // draw everything
+                        if (tmpidx3 == SPRITE_VAR(tmpidx1)->clinking)
                         {
                             state = SPRITE_VAR(tmpidx1)->state;
                             if (state != 0)
@@ -3568,12 +3569,13 @@ u16 tabchar(u16 offset, u8 *address)
 {
     s16 *a0 = (s16 *)(address + offset - 2);
     s16 result = offset + alis.varD7;
-    s16 length = *(s8 *)(address + offset - 1) - 1;
+    s16 length = *(s8 *)(address + offset - 1);
     for (int i = 0; i < length; i++)
     {
-        result += *(alis.acc++) * *--a0;
+        result += *(alis.acc) * *(--a0);
+        alis.acc++;
     }
-    
+
     return result;
 }
 
@@ -3581,10 +3583,11 @@ s16 tabstring(s16 offset, u8 *address)
 {
     s16 *a0 = (s16 *)(address + offset - 2);
     s16 result = offset + alis.varD7 * (ushort)*(u8 *)a0;
-    s16 length = *(s8 *)(address + offset - 1) - 1;
+    s16 length = *(s8 *)(address + offset - 1);
     for (int i = 0; i < length; i++)
     {
-        result += *(alis.acc++) * *--a0;
+        result += *(alis.acc) * *(--a0);
+        alis.acc++;
     }
     
     return result;
@@ -3594,14 +3597,29 @@ s16 tabint(s16 offset, u8 *address)
 {
     s16 *a0 = (s16 *)(address + offset - 2);
     s16 result = offset + alis.varD7 * 2;
-    s16 length = *(s8 *)vram_ptr(offset - 1) - 1;
+    s16 length = *(s8 *)vram_ptr(offset - 1);
     
     for (int i = 0; i < length; i++)
     {
-        result += *(alis.acc++) * *--a0;
+        result += *(alis.acc) * *(--a0);
+        alis.acc++;
     }
     
     return result;
+}
+
+void check_a3(void)
+{
+//    if (checkA3[checkA3Idx] != -1)
+//    {
+//        if (checkA3[checkA3Idx] != alis.script->pc)
+//        {
+//            printf("\nA3 mismatch! We are at: 0x%.6x and should be at: 0x%.6x!\nLine: %d.", alis.script->pc, checkA3[checkA3Idx], checkA3Idx);
+//            sleep(0);
+//        }
+//
+//        checkA3Idx+=2;
+//    }
 }
 
 void moteur(void)
@@ -3619,6 +3637,8 @@ void moteur(void)
         alis.fallent = 0;
         alis.fseq = 0;
         
+        alis.acc = alis.acc_org;
+        
         if (alis.script->context->_0x24_scan_inter.data < 0 && (alis.script->context->_0x24_scan_inter.data & 2) == 0)
         {
             s32 script_offset = swap32((alis.mem + alis.script->context->_0x14_script_org_offset + 10), alis.platform.is_little_endian);
@@ -3627,6 +3647,9 @@ void moteur(void)
                 alis.saversp = alis.script->context->_0x0a_vacc_offset;
                 savecoord(vram_addr);
                 alis.script->pc = alis.script->context->_0x14_script_org_offset + 10 + script_offset;
+                printf("\n 0x14 + 10 [%.6x, a3=%.6x, %.4x] ", alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
+
+                check_a3();
                 alis_loop();
                 updtcoord(vram_addr);
             }
@@ -3648,8 +3671,9 @@ void moteur(void)
                 alis.script->pc = alis.script->context->_0x08_script_ret_offset;
                 alis.script->vacc_off = alis.script->context->_0x0a_vacc_offset;
                 alis.fseq ++;
-                printf("\n [%.6x, a3=%.6x, %.4x] ", alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
+                printf("\n 0x08 [%.6x, a3=%.6x, %.4x] ", alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
                 
+                check_a3();
                 alis_loop();
                 
                 if (alis.restart_loop != 0)
@@ -3672,6 +3696,9 @@ void moteur(void)
                     alis.fseq = 0;
                     alis.saversp = alis.script->context->_0x0a_vacc_offset;
                     alis.script->pc = alis.script->context->_0x14_script_org_offset + 6 + script_offset;
+                    printf("\n 0x14 + 6 [%.6x, a3=%.6x, %.4x] ", alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
+ 
+                    check_a3();
                     alis_loop();
                 }
                 
@@ -3690,15 +3717,54 @@ void moteur(void)
     while( true );
 }
 
-s16 debprotf(u16 script_id)
+s16 debprotf(u16 target_id)
 {
-    for (int i = 0; i < alis.nbprog; i ++)
+    u16 current_id;
+    
+    int start = 0;
+    int mid;
+    int end = alis.nbprog - 1;
+    
+//    while(start <= end)
+//    {
+//        mid = start + (end - start) / 2;
+//        current_id = read16(alis.mem + alis.atprog_ptr[mid], alis.platform.is_little_endian);
+//        if (current_id == target_id)
+//        {
+//            return mid;
+//        }
+//
+//        if (current_id < target_id)
+//        {
+//            start = mid + 1;
+//        }
+//        else
+//        {
+//            end = mid - 1;
+//        }
+//    }
+
+    do
     {
-        if (alis.progs[i]->header.id == script_id)
-            return i;
+        mid = (end + start) >> 1;
+        current_id = read16((alis.mem + alis.atprog_ptr[mid]), alis.platform.is_little_endian);
+        if (current_id == target_id)
+        {
+            break;
+        }
+
+        if (current_id < target_id)
+        {
+            start = mid + 1;
+        }
+        else
+        {
+            end = mid - 1;
+        }
     }
-        
-    return -1;
+    while (start <= end);
+    
+    return mid;
 }
 
 void alis_putchar(s8 character)

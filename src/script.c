@@ -414,7 +414,74 @@ int is_main(u16 check) {
 // 000224f0 0002edd8 0002263c
 // 000224f0 00034ba8 0002788c // 392b
 
+int search_insert(u32 *nums, u32 size, int target_id) {
+    int start = 0;
+    int end = size - 1;
+        
+    while(start <= end) {
+        int mid = start + (end - start) / 2;
+        int current_id = read16(alis.mem + nums[mid], alis.platform.is_little_endian);
+        if (current_id == target_id)
+            return mid;
+        
+        if (current_id < target_id)
+            start = mid + 1;
+        else
+            end = mid - 1;
+    }
+    
+    return start;
+}
+
 sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
+    
+    s16 id = swap16((data + 0), alis.platform.is_little_endian);
+    s16 insert = debprotf(id);
+    if (insert > 0 && insert < alis.nbprog)
+    {
+        sAlisScript *script = alis.progs[insert];
+        if (script->header.id == id)
+        {
+            script->sz = data_sz;
+            
+            // script data
+            script->header.id = swap16((data + 0), alis.platform.is_little_endian);
+            
+            if (alis.platform.kind == EPlatformPC)
+            {
+                script->header.w_0x1700 = swap16((data + 4), alis.platform.is_little_endian);
+                script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+            }
+            else
+            {
+                script->header.w_0x1700 = swap16((data + 2), alis.platform.is_little_endian);
+                script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+            }
+            
+            script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
+            script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
+            script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
+            script->header.w_unknown5 = swap16((data + 18), alis.platform.is_little_endian);
+            script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
+            script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
+            memcpy(alis.mem + script->data_org, data, data_sz);
+            
+            for (int i = 0; i < alis.nbprog; i++)
+            {
+                printf("\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.progs[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+            }
+            
+            printf("\n");
+
+        //    // script program counter starts kScriptHeaderLen after data
+            script->context = NULL;
+            script->pc = script->pc_org = 0;
+            
+            debug(EDebugVerbose, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
+            return script;
+        }
+    }
+    
     // init script
     sAlisScript * script = (sAlisScript *)malloc(sizeof(sAlisScript));
     memset(script, 0, sizeof(sAlisScript));
@@ -446,11 +513,44 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->vacc_off = 0;
     script->data_org = alis.finprog;
 
-    alis.finprog += data_sz;
-    
-    // copy script data to static host memory
     memcpy(alis.mem + script->data_org, data, data_sz);
-    *(s32 *)(alis.mem + alis.dernprog) = script->data_org;
+
+    // get insert point
+    insert = search_insert(alis.atprog_ptr, alis.nbprog, script->header.id);
+//    int insert2 = search_insert(alis.atprog_ptr, alis.nbprog, script->header.id);
+//    if (insert != debprotf(script->header.id))
+//    {
+//        sleep(0);
+//    }
+//
+//    if (insert == -1)
+//        insert = alis.nbprog;
+//
+//    if (insert != insert2)
+//    {
+//        insert = insert2;
+//        sleep(0);
+//    }
+
+    alis.finprog += data_sz;
+    alis.dernprog += 4;
+    alis.nbprog ++;
+
+    for (int i = alis.nbprog - 2; i >= insert; i--)
+    {
+        alis.atprog_ptr[i + 1] = alis.atprog_ptr[i];
+        alis.progs[i + 1] = alis.progs[i];
+    }
+
+    alis.atprog_ptr[insert] = script->data_org;
+    alis.progs[insert] = script;
+
+    for (int i = 0; i < alis.nbprog; i++)
+    {
+        printf("\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.progs[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+    }
+    
+    printf("\n");
 
 //    // script program counter starts kScriptHeaderLen after data
     script->context = NULL;
@@ -602,9 +702,6 @@ sAlisScript * script_load(const char * script_path) {
             
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
-            alis.progs[alis.nbprog] = script;
-            alis.dernprog += 4;
-            alis.nbprog ++;
         }
         else {
 

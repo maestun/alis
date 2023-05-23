@@ -109,7 +109,7 @@ typedef struct {
     // On atari it's ($22400 + ($3c * 4)) ==> $224f0
     // $224f0
     sScriptLoc *    atent_ptr;
-    sScriptLoc *    atprog_ptr;
+    u32 *           atprog_ptr;
 
     u8              nmode;
     u8              automode;

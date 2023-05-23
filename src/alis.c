@@ -132,7 +132,7 @@ void alis_load_main(void) {
         
         // set the location of scripts' vrams table
         alis.atprog = ALIS_VM_RAM_ORG;
-        alis.atprog_ptr = (sScriptLoc *)(alis.mem + alis.atprog);
+        alis.atprog_ptr = (u32 *)(alis.mem + alis.atprog);
         alis.atent = alis.atprog + 0xf0;
         alis.atent_ptr = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
         // alis.atent = (s32)((u8 *)alis.atent_ptr - alis.mem);
@@ -236,7 +236,11 @@ void alis_init(sPlatform platform) {
     alis.atprog = alis.basemem;
     
     alis.ptrent = alis.tablent;
-    
+
+    memset(alis.tablent, 0, sizeof(alis.tablent));
+    memset(alis.matent, 0, sizeof(alis.matent));
+    memset(alis.buffer, 0, sizeof(alis.buffer));
+
     alis._ctiming = 0;
     
     alis.prevkey = 0;
@@ -503,16 +507,13 @@ s32 vram_read8ext32(s16 offset) {
 
 s16 vram_read16(s16 offset) {
     return *(s16 *)(alis.mem + alis.script->vram_org + offset);
-//    return swap16(alis.mem + alis.script->vram_org + offset, alis.platform.is_little_endian);
 }
 
 s32 vram_read32(s16 offset) {
     return *(s32 *)(alis.mem + alis.script->vram_org + offset);
-//    return swap32(alis.mem + alis.script->vram_org + offset, alis.platform.is_little_endian);
 }
 
 s32 vram_read16ext32(s16 offset) {
-    // s32 ret = *(u16 *)(alis.mem + alis.script->vram_org + offset);
     s32 ret = vram_read16(offset);
     if(BIT_CHK(ret, 15)) {
         ret |= 0xffffff00;
@@ -530,12 +531,10 @@ void vram_write8(s16 offset, s8 value) {
 
 void vram_write16(s16 offset, s16 value) {
     *(s16 *)(alis.mem + alis.script->vram_org + offset) = value;
-//    *(s16 *)(alis.mem + alis.script->vram_org + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
 }
 
 void vram_write32(s16 offset, s32 value) {
     *(s32 *)(alis.mem + alis.script->vram_org + offset) = value;
-//    *(s32 *)(alis.mem + alis.script->vram_org + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
 }
 
 void vram_writep(s16 offset, u8 * src) {
@@ -556,7 +555,6 @@ void vram_add8(s16 offset, u8 value) {
 
 void vram_add16(s16 offset, u16 value) {
      *(u16 *)(alis.mem + alis.script->vram_org + offset) += value;
-//    vram_write16(offset, vram_read16(offset) + value);
 }
 
 
@@ -566,7 +564,6 @@ void vram_add16(s16 offset, u16 value) {
 void vram_push32(u32 value) {
     alis.script->vacc_off -= sizeof(u32);
     vram_write32(alis.script->vacc_off, value);
-    // memcpy(alis.mem + alis.script->vram_org + alis.script->vacc_off, (u8 *)&value, sizeof(u32));
 }
 
 s32 vram_peek32(void) {

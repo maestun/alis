@@ -10,7 +10,7 @@
 u8 joystick0 = 0;
 u8 joystick1 = 0;
 u8 shift = 0;
-u16 button = 0;
+SDL_Keysym button = { 0, 0, 0, 0 };
 
 mouse_t _mouse;
 
@@ -26,11 +26,26 @@ int height = 200;
 
 u8 io_inkey(void)
 {
-    return button;
+    SDL_PumpEvents();
+    
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (!currentKeyStates[button.scancode])
+    {
+        button.scancode = 0;
+        button.sym = 0;
+    }
+
+    return button.sym;
 }
 
 u8 io_shiftkey(void)
 {
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
+    {
+        shift = 0;
+    }
+    
     return shift;
 }
 
@@ -75,7 +90,7 @@ u8 io_joykey(u8 test)
         if ((shift & 8) != 0)
             result = result | 4;
 
-        if (button == -0x1f)
+        if (button.sym == -0x1f)
             result = result | 0x80;
     }
     
@@ -124,24 +139,12 @@ u8 sys_poll_event() {
             }
             else
             {
-                button = _event.key.keysym.sym;
-            }
-            break;
-        }
-        case SDL_KEYUP:
-        {
-            if (_event.key.keysym.mod == KMOD_RSHIFT || _event.key.keysym.mod == KMOD_LSHIFT)
-            {
-                shift = 0;
-            }
-            else if (button == _event.key.keysym.sym)
-            {
-                button = 0;
+                button = _event.key.keysym;
             }
             break;
         }
     };
-    
+
     return running;
 }
 

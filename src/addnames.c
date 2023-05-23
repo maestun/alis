@@ -51,7 +51,6 @@ static void alocp(void) {
     strcat(dst, src);
 }
 
-
 static void aloctp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
@@ -87,7 +86,9 @@ static void adirtp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void adirtc(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    debug(EDebugInfo, " /* CHECK */");
+    s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
+    *(char *)(alis.mem + alis.script->vram_org + offset) = (char)*(alis.acc++);
 }
 static void adirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);

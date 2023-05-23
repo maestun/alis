@@ -8,8 +8,9 @@
 
 #include "../config.h"
 #include "../debug.h"
+#include <SDL2/SDL.h>
 
-extern u16 button;
+extern SDL_Keysym button;
 extern u8 shift;
 extern u8 joystick0;
 extern u8 joystick1;

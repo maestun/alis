@@ -766,8 +766,37 @@ static void cunload(void) {
     {
         s16 index = debprotf(id);
         if (index != -1)
+        // while (index != -1)
         {
+            u32 data_org = alis.atprog_ptr[index];
+            u32 data_end = 0xfffffff;
+            
+            for (int i = 0; i < alis.nbprog; i++)
+            {
+                if (data_org < alis.atprog_ptr[i] && alis.atprog_ptr[i] < data_end)
+                {
+                    data_end = alis.atprog_ptr[i];
+                }
+            }
+            
+            if (data_end == 0xfffffff)
+            {
+                data_end = alis.finprog;
+            }
+            
+//            shrinkprog(data_org, data_end - data_org, id);
             sAlisScript *script = alis.progs[index];
+            if (script->data_org != data_org)
+            {
+                sleep(0);
+            }
+            
+            s32 sz = data_end - data_org;
+            if (script->sz != sz)
+            {
+                sleep(0);
+            }
+
             debug(EDebugVerbose, " (NAME: %s, ID: 0x%x) ", script->name, script->header.id);
             shrinkprog(script->data_org, script->sz, script->header.id);
         }
@@ -838,6 +867,13 @@ static void clive(void) {
             alis.dernent = *(s16 *)(alis.mem + alis.atent + 4 + alis.dernent);
             *(s16 *)(alis.mem + alis.atent + 4 + olddernent) = uVar2;
             *(s16 *)(alis.mem + alis.atent + olddernent) = index;
+            
+            for (int i = 0; i < alis.nbent; i++)
+            {
+                printf("\nID %.2x AT %.6x", alis.scripts[i]->context->_0x10_script_id, alis.scripts[i]->vram_org); // read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+            }
+
+            sleep(0);
  
 //            printf(" [%.2x (%.2x), %.6x] ", olddernent, curent, script->vram_org);
  
@@ -932,10 +968,11 @@ static void cload(void) {
     }
     else
     {
+        // NOTE: load main script and start game loop
+        // we are dooing it elsewhere, shouldnt ever be reached;
         debug(EDebugWarning, " /* STUBBED */");
 
         readexec_opername_swap();
-        // load main script and start game loop
     }
     
     checkA3Idx += 2;
@@ -1222,6 +1259,7 @@ static void cdelforme(void) {
 
 void clipform(void) {
     
+    debug(EDebugWarning, " /* MISSING */");
 //    s32 iVar1;
 //    s16 *psVar3;
 //    s32 iVar4;
@@ -1276,24 +1314,21 @@ void clipform(void) {
 //    if (alis.witmov == '\0')
 //    {
 //        // NOTE: matent!!!
-//        *(s16 *)((s32)alis.ptrent + 0x100) = 0;
-//        *alis.ptrent = -1;
-//        alis.ptrent = (u8 *)((s32)alis.ptrent + 2);
+//        int index = (alis.ptrent - alis.tablent) / 2;
+//        alis.matent[index] = 0;
+//        alis.tablent[index] = -1;
+//        alis.ptrent++;
 //    }
 }
 
 static void ctstmov(void) {
-    debug(EDebugWarning, " /* STUBBED */");
-    
+    debug(EDebugWarning, " /* CHECK */");
     readexec_opername();
-    s16 tmp = alis.varD7;
-    alis.wcx = ((s16 *)(alis.mem + alis.script->vram_org))[0] + tmp;
+    alis.wcx = ((s16 *)(alis.mem + alis.script->vram_org))[0] + alis.varD7;
     readexec_opername();
-    tmp = alis.varD7;
-    alis.wcy = ((s16 *)(alis.mem + alis.script->vram_org))[1] + tmp;
+    alis.wcy = ((s16 *)(alis.mem + alis.script->vram_org))[1] + alis.varD7;
     readexec_opername();
-    tmp = alis.varD7;
-    alis.wcz = ((s16 *)(alis.mem + alis.script->vram_org))[2] + tmp;
+    alis.wcz = ((s16 *)(alis.mem + alis.script->vram_org))[2] + alis.varD7;
     readexec_opername();
     alis.wforme = ((s16 *)(alis.mem + alis.script->vram_org))[-0xd];
     alis.matmask = alis.varD7;
@@ -1306,7 +1341,19 @@ static void ctstset(void) {
 }
 
 static void cftstmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* CHECK */");
+    readexec_opername();
+    alis.wcx = ((s16 *)(alis.mem + alis.script->vram_org))[0] + alis.varD7;
+    readexec_opername();
+    alis.wcy = ((s16 *)(alis.mem + alis.script->vram_org))[1] + alis.varD7;
+    readexec_opername();
+    alis.wcz = ((s16 *)(alis.mem + alis.script->vram_org))[2] + alis.varD7;
+    readexec_opername();
+    alis.matmask = alis.varD7;
+    readexec_opername();
+    alis.wforme = alis.varD7;
+    clipform();
+    crstent();
 }
 
 static void cftstset(void) {
@@ -1708,6 +1755,7 @@ static void cfreadb(void) {
 
     u16 length = script_read16();
 
+    // NOTE: *.fic files in all platforms are identical, some byteswaping should be needed
     fread(alis.mem + addr, length, 1, alis.fp);
 }
 
@@ -1886,8 +1934,6 @@ static void cfindmat(void) {
 }
 
 static void cfindtyp(void) {
-    debug(EDebugWarning, " /* CHECK */");
-    
     readexec_opername();
     
     if (alis.varD7 < 0)
@@ -1913,12 +1959,12 @@ static void cfindtyp(void) {
         {
             alis.matent[tabidx] = 0;
             alis.tablent[tabidx] = offset;
+            tabidx ++;
+            
             if (alis.fallent == 0)
             {
                 break;
             }
-
-            tabidx ++;
         }
         
         offset = location->offset;
@@ -2519,7 +2565,41 @@ static void cscdump(void) {
 }
 
 static void cfindcla(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* CHECK */");
+    readexec_opername();
+    s16 vacc_offset = alis.varD7;
+    s16 offset = 0;
+    
+    sScriptLoc *location;
+    sAlisScript *script;
+    
+    s32 tabidx = 0;
+
+    do
+    {
+        location = (sScriptLoc *)(alis.mem + alis.atent + offset);
+        script = alis.scripts[location->vram_offset];
+        
+        if ((char)vacc_offset == script->context->_0x0c_vacc_offset && alis.script->vram_org != script->vram_org)
+        {
+            alis.matent[tabidx] = 0;
+            alis.tablent[tabidx] = offset;
+            tabidx ++;
+            
+            if (alis.fallent == 0)
+            {
+                break;
+            }
+        }
+        
+        offset = location->offset;
+    }
+    while (offset != 0);
+    
+    alis.tablent[tabidx] = -1;
+    alis.fallent = 0;
+    
+    crstent();
 }
 
 static void cnearcla(void) {
@@ -3579,10 +3659,25 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
             {
                 printf("\nSkipped prog: %s at: %.6x ", scr->name, scr->data_org);
             }
-            
+
             if (idx > 0)
             {
                 alis.progs[i] = i < alis.maxprog ? alis.progs[i + 1] : 0;
+            }
+        }
+
+        u8 found = 0;
+        for (s32 i = 0; i < alis.nbprog; i++)
+        {
+            s32 location = alis.atprog_ptr[i];
+            if (start == location)
+            {
+                found = 1;
+            }
+            
+            if (found)
+            {
+                alis.atprog_ptr[i] = i < alis.maxprog ? alis.atprog_ptr[i + 1] : 0;
             }
         }
 
@@ -3592,27 +3687,40 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
 
     printf("\nShifting range %.6x - %.6x", alis.atprog, alis.dernprog);
 
-    for (s32 i = alis.atprog; i < alis.dernprog; i+=4)
-    {
-        s32 location = *(s32 *)(alis.mem + i);
-        if (start <= location)
-        {
-            //*(s32 *)(alis.mem + i) -= length;
-            printf("\n   %.6x Shifted to: %.6x", i, *(s32 *)(alis.mem + i));
-        }
-        else
-        {
-            printf("\n   %.6x OK at: %.6x", i, *(s32 *)(alis.mem + i));
-        }
-    }
+//    for (s32 i = alis.atprog; i < alis.dernprog; i+=4)
+//    {
+//        s32 location = *(s32 *)(alis.mem + i);
+//        if (start <= location)
+//        {
+//            //*(s32 *)(alis.mem + i) -= length;
+//            printf("\n   %.6x Shifted to: %.6x", i, *(s32 *)(alis.mem + i));
+//        }
+//        else
+//        {
+//            printf("\n   %.6x OK at: %.6x", i, *(s32 *)(alis.mem + i));
+//        }
+//    }
 
     for (int i = 0; i < alis.nbprog; i++)
     {
         sAlisScript *script = alis.progs[i];
         printf("\nChecking prog: %s at: %.6x ", script->name, script->data_org);
+
+        if (script->data_org != alis.atprog_ptr[i])
+        {
+            sleep(0);
+        }
+            
         if (start <= script->data_org)
         {
             script->data_org -= length;
+            alis.atprog_ptr[i] -= length;
+
+            if (script->data_org != alis.atprog_ptr[i])
+            {
+                sleep(0);
+            }
+
             printf("shrinked to: %.6x", script->data_org);
         }
         else

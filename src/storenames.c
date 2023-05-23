@@ -45,9 +45,8 @@ static void slocp(void) {
 
 // Store at LOCation with offseT: Pointer
 static void sloctp(void) {
-    s16 offset = loctp_common(script_read16());
-    u8 * ptr = alis.oldsd7;
-    while ((void)vram_write8(offset++, *ptr++), *ptr);
+    s16 offset = tabstring(script_read16(), alis.mem + alis.script->vram_org);
+    strcpy((char *)alis.mem + alis.script->vram_org + offset, (char *)alis.oldsd7);
 }
 
 // Store at LOCation with offseT: Char
@@ -92,7 +91,8 @@ static void sdirp(void) {
 }
 
 static void sdirtp(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
+    strcpy((char *)(alis.mem + alis.script->vram_org + offset), (char *)alis.oldsd7);
 }
 
 static void sdirtc(void) {
@@ -103,6 +103,7 @@ static void sdirtc(void) {
 
 static void sdirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    alis.varD7 = *(alis.acc++);
     vram_write16(offset, alis.varD7);
 }
 
@@ -118,8 +119,7 @@ static void smainw(void) {
 
 static void smainp(void) {
     s16 offset = script_read16();
-    u8 * ptr = alis.oldsd7;
-    while ((void)vram_write8(offset++, *ptr++), *ptr);
+    strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
 static void smaintp(void) {

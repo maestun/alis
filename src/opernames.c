@@ -111,11 +111,15 @@ void odirp(void) {
 }
 
 void odirtp(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* CHECK */");
+    s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
+    strcpy((char *)alis.sd7, (char *)(alis.mem + alis.script->vram_org + offset));
 }
 
 void odirtc(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* CHECK */");
+    s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
+    alis.varD7 = (char *)(alis.mem + alis.script->vram_org + offset);
 }
 
 void odirti(void) {
@@ -134,14 +138,13 @@ void omainw(void) {
 }
 
 void omainp(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    s16 offset = script_read16();
+    strcpy((char *)alis.sd7, (char *)(BASEMNMEM_PTR + offset));
 }
 
 void omaintp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
-    char *src = (char *)(alis.mem + alis.basemain + offset);
-    char *dst = (char *)alis.sd7;
-    strcpy(dst, src);
+    strcpy((char *)alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 void omaintc(void) {
@@ -344,6 +347,11 @@ void onot(void) {
 
 void oinkey(void) {
     alis.varD7 = alis.automode ? alis.prevkey : (alis.prevkey = io_inkey());
+    
+    if (alis.varD7)
+    {
+        printf(" [ON] ");
+    }
 }
 
 void okeyon(void) {
@@ -629,7 +637,10 @@ void oexistf(void) {
     char *dotptr = strrchr(path, '.');
     if (dotptr)
     {
-        strcpy(dotptr + 1, alis.platform.ext);
+        if (strcasecmp(dotptr + 1, "fic"))
+        {
+            strcpy(dotptr + 1, alis.platform.ext);
+        }
     }
     
     alis.varD7 = sys_fexists(path) ? 0xff : 0;
