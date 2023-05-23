@@ -97,8 +97,8 @@ typedef union {
 } SceneVariables;
 
 
-extern int checkA3[];
-extern int checkA3Idx;
+//extern int checkA3[];
+//extern int checkA3Idx;
 
 extern u8 thepalet;
 extern u8 defpalet;
