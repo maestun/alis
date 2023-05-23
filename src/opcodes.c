@@ -975,7 +975,7 @@ static void cload(void) {
         readexec_opername_swap();
     }
     
-    checkA3Idx += 2;
+ //   checkA3Idx += 2;
 }
 
 // =============================================================================
