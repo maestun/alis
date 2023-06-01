@@ -52,14 +52,16 @@ static void sloctp(void) {
 // Store at LOCation with offseT: Char
 static void sloctc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = *(alis.acc++);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
     vram_write8(offset, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
 static void slocti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = *(alis.acc++);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
     vram_write16(offset, alis.varD7);
 }
 
@@ -97,56 +99,69 @@ static void sdirtp(void) {
 
 static void sdirtc(void) {
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = *(alis.acc++);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
     vram_write8(offset, alis.varD7);
 }
 
 static void sdirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = *(alis.acc++);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
     vram_write16(offset, alis.varD7);
 }
 
 static void smainb(void) {
     s16 offset = script_read16();
+    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
     *(u8 *)(alis.mem + alis.basemain + offset) = (u8)alis.varD7;
 }
 
 static void smainw(void) {
     s16 offset = script_read16();
-    *(s16 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
+    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
+    *(s16 *)(alis.mem + alis.basemain + offset) = (s16)alis.varD7;
 }
 
 static void smainp(void) {
     s16 offset = script_read16();
+    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
     strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
 static void smaintp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
+    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.sd7, alis.basemain + offset);
     strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.sd7);
 }
 
 static void smaintc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = *(alis.acc++);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+
+    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
     *(u8 *)(alis.mem + alis.basemain + offset) = (u8)alis.varD7;
 }
 
 static void smainti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = *(alis.acc++);
-    *(u8 *)(alis.mem + alis.basemain + offset) = (u16)alis.varD7;
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+
+    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
+    *(s16 *)(alis.mem + alis.basemain + offset) = (s16)alis.varD7;
 }
 
 static void shimb(void) {
     s16 offset = script_read16();
     s16 ent = vram_read16(offset);
 
-    u32 index = *(u32 *)(alis.mem + alis.atent + ent);
-    s32 vram = alis.scripts[index]->vram_org;
+    s32 vram = ENTVRAM(ent);
 
     s16 offset2 = script_read16();
+
+    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, vram + offset2);
     *(u8 *)(alis.mem + vram + offset2) = (u8)alis.varD7;
 }
 
@@ -154,11 +169,11 @@ static void shimw(void) {
     s16 offset = script_read16();
     s16 ent = vram_read16(offset);
 
-    u32 index = *(u32 *)(alis.mem + alis.atent + ent);
-    s32 vram = alis.scripts[index]->vram_org;
+    s32 vram = ENTVRAM(ent);
 
     s16 offset2 = script_read16();
-    *(u16 *)(alis.mem + vram + offset2) = (u16)alis.varD7;
+    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, vram + offset2);
+    *(s16 *)(alis.mem + vram + offset2) = (s16)alis.varD7;
 }
 
 static void shimp(void) {
@@ -182,18 +197,6 @@ static void spile(void) {
 }
 
 static void seval(void) {
-//    00015d2c 39 07           move.w     D7w,-(A4)
-//    00015d2e 61 00 fd 86     bsr.w      FUN_READEXEC_OPNAME                              undefined FUN_READEXEC_OPNAME()
-//                         -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
-//    00015d32 41 f9 00        lea        (JTAB_STORENAME).l,A0
-//             01 0f 92
-//    00015d38 10 1b           move.b     (A3)+,D0b
-//    00015d3a 48 80           ext.w      D0w
-//    00015d3c 30 30 00 00     move.w     (0x0,A0,D0w*offset JTAB_STORENAME),D0w
-//    00015d40 4e f0 00 00     jmp        (0x0,A0,D0w*0x1)
-
-    
-    // save r7 to virtual accumulator
     *(--alis.acc) = alis.varD7;
     oeval();
     readexec_storename();

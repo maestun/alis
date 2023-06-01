@@ -68,7 +68,7 @@ char * strupper(char * str) {
 //}
 
 
-int is_host_little_endian() {
+int is_host_little_endian(void) {
     unsigned int x = 1;
     char * c = (char *)&x;
     return (int)*c;
@@ -117,7 +117,7 @@ u16 read16(const u8 *ptr, u8 is_le) {
 
 
 u32 read24(const u8 *ptr, u8 is_le) {
-    
+
     return swap24(ptr, is_le);
 }
 
@@ -126,10 +126,20 @@ u32 swap24(const u8 *value, u8 is_le) {
     
     u32 result = 0;
     memcpy((u8 *)&result, value, 3);
+
+    // byteswap
+    if (is_le != is_host_le())
+    {
+        result = (((result >> 24) & 0xff) | ((result <<  8) & 0xff0000) | ((result >>  8) & 0xff00)) >> 8;
+    }
     
-    return is_le == is_host_le() ? result : (((result >> 24) & 0xff) |
-                                            ((result <<  8) & 0xff0000) |
-                                            ((result >>  8) & 0xff00)) >> 8;
+    // extend
+    if (result > 0x7FFFFF)
+    {
+        result = (result << 8) & 0xff;
+    }
+
+    return result;
 }
 
 
@@ -138,7 +148,7 @@ u32 read32(const u8 *ptr, u8 is_le) {
     return swap32(ptr, is_le);
 }
 
-int is_host_le() {
+int is_host_le(void) {
     static unsigned int x = 1;
     char* c = (char*)&x;
     return (int)*c;

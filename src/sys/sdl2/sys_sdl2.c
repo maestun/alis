@@ -19,10 +19,12 @@ SDL_Window *    _window;
 SDL_Event       _event;
 Uint32 *        _pixels;
 SDL_Texture *   _texture;
-u32             _scale = 2;
-
-int width = 320;
-int height = 200;
+float           _scale = 2;
+float           _aspect_ratio = 1.2;
+float           _scaleX;
+float           _scaleY;
+u32             _width = 320;
+u32             _height = 200;
 
 u8 io_inkey(void)
 {
@@ -97,33 +99,40 @@ u8 io_joykey(u8 test)
     return result;
 }
 
-void sys_init() {
+void sys_init(void) {
+    _scaleX = _scale;
+    _scaleY = _scale * _aspect_ratio;
+    
     SDL_Init(SDL_INIT_VIDEO);
-    _window = SDL_CreateWindow(kProgName,
-                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                               320 * _scale, 240 * _scale, 0);
+    _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, 0);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
     
-    _pixels = malloc(width * height * sizeof(*_pixels));
-    memset(_pixels, 0, width * height * sizeof(*_pixels));
+    _pixels = malloc(_width * _height * sizeof(*_pixels));
+    memset(_pixels, 0, _width * _height * sizeof(*_pixels));
     
-    _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, _width, _height);
     SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
 }
 
 
-u8 sys_poll_event() {
+u8 sys_poll_event(void) {
     u8 running = 1;
     SDL_PollEvent(&_event);
-    
+
     // update mouse
     u32 bt = SDL_GetMouseState(&_mouse.x, &_mouse.y);
-    _mouse.x /= _scale;
-    _mouse.y /= _scale;
+    _mouse.x /= _scaleX;
+    _mouse.y /= _scaleY;
     _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
     _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
+    
+    if (_mouse.lb)
+    {
+        printf("\nx: %d, y: %d \n", _mouse.x, _mouse.y);
+        sleep(0);
+    }
     
     switch (_event.type) {
         case SDL_QUIT:
@@ -157,7 +166,7 @@ void sys_render(pixelbuf_t buffer) {
         _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
     }
     
-    SDL_UpdateTexture(_texture, NULL, _pixels, width * sizeof(*_pixels));
+    SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
 
     // render
     SDL_RenderClear(_renderer);
@@ -169,7 +178,7 @@ void sys_render(pixelbuf_t buffer) {
 
 
 
-void sys_deinit() {
+void sys_deinit(void) {
  //   SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(_renderer);
     SDL_DestroyWindow(_window);
@@ -180,7 +189,7 @@ void sys_deinit() {
 // =============================================================================
 #pragma mark - I/O
 // =============================================================================
-mouse_t sys_get_mouse() {
+mouse_t sys_get_mouse(void) {
     return _mouse;
 }
 

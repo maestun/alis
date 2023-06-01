@@ -162,12 +162,12 @@ void count(u8** ptr_packed, u8 start, u8 stop, s16* counter) {
     } while (word(d5) == stop);
 }
 
-/// @brief 
+/// @brief Unpack ALIS script
 /// @param ptr_packed   pointer to raw packed data (w/o header, specs, dictionary)
 /// @param ptr_unpacked pointer to allocated buffer for unpacked data
 /// @param unpacked_sz  unpacked data size (read from packed header)
 /// @param dictionary   dictionary (8-byte buffer read from packed header)
-/// @return 
+/// @return length of unpacked data
 u32 unpack_new(u8* ptr_packed,
                u8* ptr_unpacked, 
                const u32 unpacked_sz,
@@ -254,7 +254,7 @@ int unpack_script(const char* packed_file_path,
     if(pfp) {
         // get packed sz
         fseek(pfp, 0, SEEK_END);
-        u32 packed_size = ftell(pfp);
+        u32 packed_size = (u32)ftell(pfp);
         rewind(pfp);
 
         u32 magic = fread32(pfp, is_le);

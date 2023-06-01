@@ -74,16 +74,16 @@ typedef union {
         u8 creducing;           // 0x1d
         u16 clinking;           // 0x1e
 
-        u8 unknown0x20;
-        u8 unknown0x21;
-        u8 unknown0x22;
-        u8 unknown0x23;
-        u8 unknown0x24;
-        u8 unknown0x25;
+        s8 unknown0x20;
+        s8 unknown0x21;
+        s8 unknown0x22;
+        s8 unknown0x23;
+        s8 unknown0x24;
+        s8 unknown0x25;
         
-        u8 unknown0x26;
-        u8 unknown0x27;
-        u8 unknown0x28;
+        s8 unknown0x26;
+        s8 unknown0x27;
+        s8 unknown0x28;
 
         u8 unknown0x29;
 
@@ -97,8 +97,13 @@ typedef union {
 } SceneVariables;
 
 
-//extern int checkA3[];
-//extern int checkA3Idx;
+extern int checkA3[];
+extern int checkA6[];
+extern int checkA3Idx;
+extern int checkA6Idx;
+
+extern int checkD5[];
+extern int checkD5Idx;
 
 extern u8 thepalet;
 extern u8 defpalet;
@@ -123,15 +128,10 @@ void putin(u8 idx);
 
 // void put(int depx, int depy, int depz, int numelem);
 
-void FUN_STARTUP(s8 *param_1, size_t param_2, uint param_3);
-s32 io_tomono(s32 param_1, s32 script_start);
-
 void scadd(s16 screen);
 void scbreak(s16 screen);
 void scdosprite(s16 screen);
 void vectoriel(u16 screen);
-
-void OPCODE_CDEFSC_0x46(u8 *ptr, u16 offset);
 
 void itroutine(void);
 void image(void);
@@ -150,11 +150,5 @@ u16 tabchar(u16 offset, u8 *address);
 s16 tabstring(s16 offset, u8 *address);
 
 void vald0(u8 *string, s16 value);
-
-#define BASEMNMEM_PTR alis.mem + alis.basemain
-#define SPRITEMEM_PTR alis.spritemem + alis.basesprite
-
-#define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
-#define SCENE_VAR(x) ((SceneVariables *)(BASEMNMEM_PTR + x))
 
 #endif /* experimental_h */

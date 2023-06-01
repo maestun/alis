@@ -15,6 +15,8 @@
 		6803AFC429C5172E00C42135 /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745029B972E200F51FAE /* platform.c */; };
 		6808EE05297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
 		6808EE06297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
+		6820CAB72A26C3240084CE08 /* d5.c in Sources */ = {isa = PBXBuildFile; fileRef = 6820CAB62A26C3240084CE08 /* d5.c */; };
+		6896C7E62A1EA4B9009D6395 /* a3.c in Sources */ = {isa = PBXBuildFile; fileRef = 6896C7E52A1EA4B9009D6395 /* a3.c */; };
 		68B9745A29B972E200F51FAE /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745029B972E200F51FAE /* platform.c */; };
 		68B9745E29B972E200F51FAE /* unpack.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745929B972E200F51FAE /* unpack.c */; };
 		8B20A3D9256913C40045BF66 /* storenames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCD250B46970097F862 /* storenames.c */; };
@@ -78,6 +80,8 @@
 		0981CBD5250B470E0097F862 /* alis_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = alis_private.h; sourceTree = "<group>"; };
 		6808EE03297069760045BA8A /* experimental.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = experimental.h; sourceTree = "<group>"; };
 		6808EE04297069760045BA8A /* experimental.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = experimental.c; sourceTree = "<group>"; };
+		6820CAB62A26C3240084CE08 /* d5.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = d5.c; sourceTree = "<group>"; };
+		6896C7E52A1EA4B9009D6395 /* a3.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = a3.c; sourceTree = "<group>"; };
 		68B9745029B972E200F51FAE /* platform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = platform.c; sourceTree = "<group>"; };
 		68B9745329B972E200F51FAE /* unpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unpack.h; sourceTree = "<group>"; };
 		68B9745529B972E200F51FAE /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
@@ -237,6 +241,8 @@
 				6808EE02297069420045BA8A /* mess */,
 				8B9C4034250A39FD00C947F9 /* depack */,
 				8B7D7B13256D3ECA00DAA932 /* sys */,
+				6896C7E52A1EA4B9009D6395 /* a3.c */,
+				6820CAB62A26C3240084CE08 /* d5.c */,
 				0981CBCE250B46970097F862 /* addnames.c */,
 				8B9C400E250921E900C947F9 /* alis.h */,
 				0981CBD5250B470E0097F862 /* alis_private.h */,
@@ -365,6 +371,7 @@
 			files = (
 				68B9745A29B972E200F51FAE /* platform.c in Sources */,
 				0981CBD1250B46970097F862 /* storenames.c in Sources */,
+				6896C7E62A1EA4B9009D6395 /* a3.c in Sources */,
 				0981CBD2250B46970097F862 /* addnames.c in Sources */,
 				8B9C4047250A721D00C947F9 /* sys_sdl2.c in Sources */,
 				8B9C4030250A2F9300C947F9 /* utils.c in Sources */,
@@ -376,6 +383,7 @@
 				8B9C403B250A3E5200C947F9 /* script.c in Sources */,
 				8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */,
 				0981CBD3250B46970097F862 /* escnames.c in Sources */,
+				6820CAB72A26C3240084CE08 /* d5.c in Sources */,
 				8B9C4044250A6AC200C947F9 /* debug.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -519,6 +527,7 @@
 		8B9C4028250A2A5B00C947F9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -538,6 +547,7 @@
 		8B9C4029250A2A5B00C947F9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",

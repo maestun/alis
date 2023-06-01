@@ -6,7 +6,7 @@
 #include "config.h"
 #include "sys/sys.h"
 
-void usage() {
+void usage(void) {
     printf("%s v%s\nUsage:\n\t%s <data_path>\n\n\t%s <script_path>\n",
            kProgName, kProgVersion, kProgName, kProgName);
 }

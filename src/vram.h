@@ -65,10 +65,7 @@ typedef struct {
 u8 *    vram_ptr(s16 offset);
 
 u8      vram_read8(s16 offset);
-s16     vram_read8ext16(s16 offset);
-s32     vram_read8ext32(s16 offset);
 s16     vram_read16(s16 offset);
-s32     vram_read16ext32(s16 offset);
 s32     vram_read32(s16 offset);
 void    vram_readp(s16 offset, u8 * dst_ptr);
 

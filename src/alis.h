@@ -23,6 +23,20 @@
 #define kBSSChunkLen            (256)
 
 
+#define BASEMNMEM_PTR alis.mem + alis.basemain
+#define SPRITEMEM_PTR alis.spritemem + alis.basesprite
+
+#define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
+#define SCENE_VAR(x) ((SceneVariables *)(BASEMNMEM_PTR + x))
+
+#define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
+
+#define ENTIDX(x) (x / sizeof(sScriptLoc))
+#define ENTLOC(x) (*(sScriptLoc *)(alis.mem + alis.atent + x)) /* alis.atent_ptr[ENTIDX(x)] */
+#define ENTSCR(x) alis.scripts[ENTIDX(x)]
+#define ENTNEXT(x) (*(s16 *)(alis.mem + alis.atent + x + 4))
+#define ENTVRAM(x) (*(s32 *)(alis.mem + alis.atent + x))
+
 
 // =============================================================================
 // MARK: - ERROR CODES
@@ -81,6 +95,13 @@ typedef struct {
     // computed values
     u32     script_vram_max_addr;
 } sAlisSpecs;
+
+typedef struct {
+    
+    u32 address;
+    u32 length;
+    
+} sRawBlock;
 
 typedef struct {
     // platform
@@ -233,6 +254,7 @@ typedef struct {
     u8 *           oldsd7;
 
     u8             buffer[1024];
+    sRawBlock      blocks[1024];
     
     u8 charmode;
     
@@ -283,7 +305,7 @@ typedef struct {
     // unknown variables
     u8          _cstopret;
     u8          _callentity;
-    u8          _cclipping;
+    u8          fswitch;
     u8          _ctiming;
 //    s16         _a6_minus_1a; // used by cforme
 //    u16         _a6_minus_16;

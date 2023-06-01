@@ -48,7 +48,7 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
 }
 
 alisRet readexec_opcode(void) {
-    debug(EDebugVerbose, "\n%s: 0x%06x:", alis.script->name, alis.script->pc/* - alis.script->pc_org*/);
+    debug(EDebugVerbose, "\n%s [%.6x]: 0x%06x:", alis.script->name, alis.script->vram_org, alis.script->pc/* - alis.script->pc_org*/);
     return readexec(opcodes, "opcode", 0);
 }
 
@@ -160,9 +160,6 @@ void alis_load_main(void) {
             u16 offset = (1 + idx) * sizeof(sScriptLoc);
             alis.atent_ptr[idx] = (sScriptLoc){0, offset};
         }
-        
-        alis.atent_ptr[0].vram_offset = 0; // (u32)((u8 *)alis.atent_ptr - alis.mem);
-        alis.nbent = 0;
 
         alis.specs.script_vram_max_addr = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1; // ((script_vram_tab_end + alis.specs.max_allocatable_vram) | 0b111) + 1;
 
@@ -181,15 +178,14 @@ void alis_load_main(void) {
               alis.specs.script_vram_max_addr,
               alis.specs.unused);
         fclose(fp);
-        
+
         // load main scripts as an usual script...
         alis.main = script_load(alis.platform.main);
         script_live(alis.main);
         alis.basemain = alis.main->vram_org;
-        
-        alis.nmode = 0; // 0 = atari 16 colors
-                        // 3 = mono
-                        // 8 = falcon 256 colors
+
+        alis.dernent = alis.atent_ptr[0].offset;
+        alis.atent_ptr[0].offset = 0;
     }
 }
 
@@ -199,9 +195,12 @@ void alis_load_main(void) {
 // =============================================================================
 
 void alis_init(sPlatform platform) {
-    
     debug(EDebugVerbose, "ALIS: Init.\n");
-    
+
+    alis.nmode = 0; // 0 = atari 16 colors
+                    // 3 = mono
+                    // 8 = falcon 256 colors
+
     alis.restart_loop = 0;
     alis.automode = 0;
 
@@ -235,6 +234,7 @@ void alis_init(sPlatform platform) {
     alis.maxprog = 0;
     alis.atprog = alis.basemem;
     
+    alis.nbent = 0;
     alis.ptrent = alis.tablent;
 
     memset(alis.tablent, 0, sizeof(alis.tablent));
@@ -326,11 +326,6 @@ void alis_init(sPlatform platform) {
     alis.script = alis.main;
     alis.basemain = alis.main->vram_org;
     
-    sScriptLoc *prev_ent = &(alis.atent_ptr[0]);
-    alis.dernent = prev_ent->offset;
-    prev_ent->vram_offset = 0; // alis.script->vram_org;
-    prev_ent->offset = 0;
-    
     gettimeofday(&alis.time, NULL);
 }
 
@@ -354,6 +349,23 @@ void alis_loop(void) {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
         
+//        if (checkD5[checkD5Idx] != -1)
+//        {
+//            if (checkD5[checkD5Idx] != alis.varD5)
+//            {
+//                printf("\nD5 mismatch! We are at: 0x%.6x and should be at: 0x%.6x!", alis.varD5, checkD5[checkD5Idx]);
+//                sleep(0);
+//            }
+//            else
+//            {
+//                printf("\nD5 OK! We are at: 0x%.6x", alis.varD5);
+//            }
+//
+//            printf("\nLine: %d.", checkD5Idx);
+//            checkD5Idx+=1;
+//        }
+
+        
 //        if (checkA3[checkA3Idx] != -1)
 //        {
 //            if (checkA3[checkA3Idx] != alis.script->pc)
@@ -365,15 +377,10 @@ void alis_loop(void) {
 //            checkA3Idx+=2;
 //        }
 //
-//        if (alis.script->pc == 0x034c6c)
-//        {
-//            sleep(0);
-//        }
-//
-//        if (alis.script->pc == 0x034c74)
-//        {
-//            sleep(0);
-//        }
+        if (alis.script->pc == 0x057138)
+        {
+            sleep(0);
+        }
         
         readexec_opcode();
     }
@@ -431,13 +438,6 @@ void alis_debug(void) {
 // MARK: - MEMORY ACCESS
 // =============================================================================
 
-/**
- * @brief Returns a byte pointer on (vram+offset)
- * 
- * @param offset 
- * @return u8* 
- */
-
 u16 xswap16(u16 value) {
     u16 result = value;
     return alis.platform.is_little_endian == is_host_le() ? result : (result <<  8) | (result >>  8);
@@ -481,63 +481,55 @@ void xwrite32(u8 *addr, s32 value) {
     *(s32 *)(addr) = swap32((u8 *)&value, alis.platform.is_little_endian);
 }
 
+/**
+ * @brief Returns a byte pointer on (vram+offset)
+ *
+ * @param offset position in vram
+ * @return u8*
+ */
+
 u8 * vram_ptr(s16 offset) {
+    debug(EDebugWarning, " [%s <= %.6x]", (char *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
 u8 vram_read8(s16 offset) {
+    debug(EDebugWarning, " [%.2x <= %.6x]", *(u8 *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return *(u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
-s16 vram_read8ext16(s16 offset) {
-    s16 ret = *(u8 *)(alis.mem + alis.script->vram_org + offset);
-    if(BIT_CHK(ret, 7)) {
-        ret |= 0xff00;
-    }
-    return ret;
-}
-
-s32 vram_read8ext32(s16 offset) {
-    s32 ret = *(u8 *)(alis.mem + alis.script->vram_org + offset);
-    if(BIT_CHK(ret, 7)) {
-        ret |= 0xffffff00;
-    }
-    return ret;
-}
-
 s16 vram_read16(s16 offset) {
+    debug(EDebugWarning, " [%.4x <= %.6x]", *(s16 *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return *(s16 *)(alis.mem + alis.script->vram_org + offset);
 }
 
 s32 vram_read32(s16 offset) {
+    debug(EDebugWarning, " [%.4x <= %.6x]", *(s32 *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return *(s32 *)(alis.mem + alis.script->vram_org + offset);
 }
 
-s32 vram_read16ext32(s16 offset) {
-    s32 ret = vram_read16(offset);
-    if(BIT_CHK(ret, 15)) {
-        ret |= 0xffffff00;
-    }
-    return ret;
-}
-
 void vram_readp(s16 offset, u8 * dst) {
+    debug(EDebugWarning, " [%s <= %.6x]", (char *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     strcpy((char *)dst, (char *)(alis.mem + alis.script->vram_org + offset));
 }
 
 void vram_write8(s16 offset, s8 value) {
+    debug(EDebugWarning, " [%.2x => %.6x]", value, alis.script->vram_org + offset);
     *(u8 *)(alis.mem + alis.script->vram_org + offset) = value;
 }
 
 void vram_write16(s16 offset, s16 value) {
+    debug(EDebugWarning, " [%.4x => %.6x]", value, alis.script->vram_org + offset);
     *(s16 *)(alis.mem + alis.script->vram_org + offset) = value;
 }
 
 void vram_write32(s16 offset, s32 value) {
+    debug(EDebugWarning, " [%.6x => %.6x]", value, alis.script->vram_org + offset);
     *(s32 *)(alis.mem + alis.script->vram_org + offset) = value;
 }
 
 void vram_writep(s16 offset, u8 * src) {
+    debug(EDebugWarning, " [%s => %.6x]", (char *)src, alis.script->vram_org + offset);
     strcpy((char *)(alis.mem + alis.script->vram_org + offset), (char *)src);
 }
 
@@ -550,11 +542,13 @@ void vram_clrbit(s16 offset, u8 bit) {
 }
 
 void vram_add8(s16 offset, u8 value) {
+    printf(" [%.2x + %.2x => %.6x]", value, *(u8 *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     *(u8 *)(alis.mem + alis.script->vram_org + offset) += value;
 }
 
 void vram_add16(s16 offset, u16 value) {
-     *(u16 *)(alis.mem + alis.script->vram_org + offset) += value;
+    printf(" [%.4x + %.4x => %.6x]", value, *(s16 *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
+    *(s16 *)(alis.mem + alis.script->vram_org + offset) += value;
 }
 
 
