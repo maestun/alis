@@ -612,25 +612,14 @@ void  script_live(sAlisScript * script) {
     script->context->_0x26_creducing            = 0xff;
     script->context->_0x2a_clinking             = 0;
     script->context->_0x2c_calign               = 0;
-    //script->context->_0x2d_calign               = 0;
     script->context->_0x28_unknown              = 0;
     script->context->_0x2f_chsprite             = 0;
     script->context->_0x32_unknown              = 0;
-//    script->context->_0x34_unknown              = 0;
-    script->context->_0x30_unknown              = 0;
-    
-    script->context->_0x16_screen_id            = 0;
     script->context->_0x34_unknown              = 0;
-    
-//    *(u16 *)(script->context) = 0; // -0x34
-//    *(u8 *)(alis.mem + script->vram_org - 0x2d) = 0x44;
-//    *(u8 *)(alis.mem + script->vram_org - 0x2c) = 0x55;
-//    *(u8 *)(alis.mem + script->vram_org - 0x2b) = 0x66;
-//    *(u8 *)(alis.mem + script->vram_org - 0x2a) = 0x77;
-//    *(u8 *)(alis.mem + script->vram_org - 0x29) = 0x88;
+    script->context->_0x30_unknown              = 0;
+    script->context->_0x16_screen_id            = 0;
 
     script->pc = script->pc_org = script->context->_0x08_script_ret_offset;
-
     
     s16 nextent = alis.atent_ptr[caller_idx].offset;
     alis.atent_ptr[caller_idx].offset = alis.dernent;
@@ -642,55 +631,6 @@ void  script_live(sAlisScript * script) {
     alis.nbent ++;
 
     debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off);
-    
-//    {
-//        u8 *ptr = (u8 *)(alis.mem + script->vram_org - sizeof(sScriptContext));
-//        u32 len = sizeof(sScriptContext) + 4; // (u32)(alis.finent - (script->vram_org - sizeof(sScriptContext)));
-//
-//        printf("\n");
-//        for (int i = 0; i < len; i++)
-//        {
-//            printf("%.2x", *ptr);//xswap16(*ptr));
-//            ptr++;
-//            if ((i + 1) % 4 == 0)
-//                printf("\n");
-//            //                (sScriptContext *)(alis.mem + script->vram_org - sizeof(sScriptContext));
-//        }
-//    }
-    
-    printf("\n");
-    u8 *ptr = (u8 *)(alis.mem + script->vram_org);
-    printf("%.4x %.2x%.2x\n", (u16)*(u16 *)(ptr - 0x35), (u8)*(ptr - 0x33), (u8)*(ptr - 0x32));
-    printf("%.2x%.2x %.2x%.2x\n", (u8)*(ptr - 0x31), (u8)*(ptr - 0x30), (u8)*(ptr - 0x2f), (u8)*(ptr - 0x2e));
-    printf("%.2x%.2x %.2x%.4x\n", (u8)*(ptr - 0x2d), (u8)*(ptr - 0x2c), (u8)*(ptr - 0x2b), *(u16 *)(ptr - 0x2a));
-    printf("  %.2x %.2x%.2x\n", (u8)*(ptr - 0x28), (u8)*(ptr - 0x27), (u8)*(ptr - 0x26));
-    printf("%.2x%.2x %.2x%.2x\n", (u8)*(ptr - 0x25), (u8)*(ptr - 0x24), (u8)*(ptr - 0x23), (u8)*(ptr - 0x22));
-    printf("%.2x%.2x %.4x\n", (u8)*(ptr - 0x21), (u8)*(ptr - 0x20), *(u16 *)(ptr - 0x1e));
-    printf("%.4x %.4x\n", *(u16 *)(ptr - 0x1c), *(u16 *)(ptr - 0x1a));
-    printf("%.4x %.4x\n", *(u16 *)(ptr - 0x18), *(u16 *)(ptr - 0x16));
-    printf("%.8x\n", *(u32 *)(ptr - 0x14));
-    printf("%.4x %.4x\n", *(u16 *)(ptr - 0x10), *(u16 *)(ptr - 0xe));
-    printf("%.4x %.4x\n", *(u16 *)(ptr - 0xc), *(u16 *)(ptr - 0xa));
-    printf("%.8x\n", *(u32 *)(ptr - 0x8));
-    printf("%.2x%.2x %.2x%.2x\n", (u8)*(ptr - 0x4), (u8)*(ptr - 0x3), (u8)*(ptr - 0x2), (u8)*(ptr - 0x1));
-
-//    printf("\n");
-//
-//    printf("%.4x %.2x%.2x\n", *(u16 *)(ptr - 0x35), script->context->_0x34_unknown, script->context->_0x32_unknown);
-//    printf("%.2x%.2x %.2x%.2x\n", script->context->_0x31_unknown, script->context->_0x30_unknown, script->context->_0x2f_chsprite, script->context->_0x2e_script_header_word_2);
-//    printf("%.2x%.2x %.2x%.4x\n", script->context->_0x2d_calign, script->context->_0x2c_calign, script->context->_0x2b_cordspr, script->context->_0x2a_clinking);
-//    printf("  %.2x %.2x%.2x\n", script->context->_0x28_unknown, script->context->_0x27_creducing, script->context->_0x26_creducing);
-//    printf("%.2x%.2x %.2x%.2x\n", script->context->_0x25_credon_credoff, script->context->_0x24_scan_inter.data, script->context->_0x23_unknown, script->context->_0x22_cworld);
-//    printf("%.2x%.2x %.4x\n", script->context->_0x21_cworld, script->context->_0x20_set_vect, script->context->_0x1e_scan_clr);
-//    printf("%.4x %.4x\n", script->context->_0x1c_scan_clr, (u16)script->context->_0x1a_cforme);
-//    printf("%.4x %.4x\n", script->context->_0x18_unknown, script->context->_0x16_screen_id);
-//    printf("%.8x\n", script->context->_0x14_script_org_offset);
-//    printf("%.4x %.4x\n", script->context->_0x10_script_id, script->context->_0x0e_script_ent);
-//    printf("%.4x %.4x\n", script->context->_0x0c_vacc_offset, script->context->_0x0a_vacc_offset);
-//    printf("%.8x\n", script->context->_0x08_script_ret_offset);
-//    printf("%.2x%.2x %.2x%.2x\n", script->context->_0x04_cstart_csleep, script->context->_0x03_xinv, script->context->_0x02_unknown, script->context->_0x01_cstart);
-
-    printf("\n");
 }
 
 

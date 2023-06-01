@@ -24,8 +24,8 @@ static void cnul(void) {
  */
 static void alocb(void) {
     s16 offset = script_read16();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
+    alis.sr.zero = (xread8(alis.script->vram_org + offset) == 0);
 }
 
 /**
@@ -35,8 +35,8 @@ static void alocb(void) {
  */
 static void alocw(void) {
     s16 offset = script_read16();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read16(offset) == 0);
+    xadd16(alis.script->vram_org + offset, alis.varD7);
+    alis.sr.zero = (xread16(alis.script->vram_org + offset) == 0);
 }
 
 /**
@@ -46,9 +46,7 @@ static void alocw(void) {
  */
 static void alocp(void) {
     s16 offset = script_read16();
-    char *dst = (char *)vram_ptr(offset);
-    char *src = (char *)alis.oldsd7;
-    strcat(dst, src);
+    strcat((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
 static void aloctp(void) {
@@ -65,21 +63,21 @@ static void alocti(void) {
 
     // TODO: finish
     // short result = tabint(offset, alis.mem + );
-//    vram_add16(result, *a4);
+//    xadd16(alis.script->vram_org + result, *a4);
 }
 static void adirb(void) {
     u8 offset = script_read8();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
+    alis.sr.zero = (xread8(alis.script->vram_org + offset) == 0);
 }
 static void adirw(void) {
     u8 offset = script_read8();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read16(offset) == 0);
+    xadd16(alis.script->vram_org + offset, alis.varD7);
+    alis.sr.zero = (xread16(alis.script->vram_org + offset) == 0);
 }
 static void adirp(void) {
     u8 offset = script_read8();
-    strcat((char *)vram_ptr(offset), (char *)alis.oldsd7);
+    strcat((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
 static void adirtp(void) {
@@ -88,12 +86,12 @@ static void adirtp(void) {
 static void adirtc(void) {
     debug(EDebugInfo, " /* CHECK */");
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    vram_write8(offset, (char)*(alis.acc));
+    xwrite8(alis.script->vram_org + offset, (char)*(alis.acc));
     alis.acc++;
 }
 static void adirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
-    vram_add16(offset, vram_pop32());
+    xadd16(alis.script->vram_org + offset, xpop32(alis.script->vram_org));
 }
 static void amainb(void) {
     s16 offset = script_read16();

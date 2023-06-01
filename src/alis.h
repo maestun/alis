@@ -13,12 +13,15 @@
 #include "platform.h"
 #include "script.h"
 #include "sys/sys.h"
-#include "vram.h"
+// #include "vram.h"
 
 
 // #define kVMHeaderLen            (16 * sizeof(u8))
 // #define kHostRAMSize            (1024 * 1024 * sizeof(u8))
 // #define kVirtualRAMSize         (0xffff * sizeof(u8))
+#define kHostRAMSize            (1024 * 1024)
+#define kVirtualRAMSize         (0xffff * sizeof(u8))
+
 #define kMaxScripts             (256)
 #define kBSSChunkLen            (256)
 
@@ -34,8 +37,8 @@
 #define ENTIDX(x) (x / sizeof(sScriptLoc))
 #define ENTLOC(x) (*(sScriptLoc *)(alis.mem + alis.atent + x)) /* alis.atent_ptr[ENTIDX(x)] */
 #define ENTSCR(x) alis.scripts[ENTIDX(x)]
-#define ENTNEXT(x) (*(s16 *)(alis.mem + alis.atent + x + 4))
-#define ENTVRAM(x) (*(s32 *)(alis.mem + alis.atent + x))
+#define ENTNEXT(x) (xread16(alis.atent + x + 4))
+#define ENTVRAM(x) (xread32(alis.atent + x))
 
 
 // =============================================================================
@@ -344,16 +347,28 @@ void            alis_debug_addr(u16 addr);
 
 void            alis_loop(void);
 
+u8 *            get_vram(s16 offset);
+
 u16             xswap16(u16 value);
 u32             xswap24(u32 value);
 u32             xswap32(u32 value);
 
-u8              xread8(u8 *addr);
-s16             xread16(u8 *addr);
-s32             xread32(u8 *addr);
+u8              xread8(u32 offset);
+s16             xread16(u32 offset);
+s32             xread32(u32 offset);
 
-void            xwrite8(u8 *addr, u8 value);
-void            xwrite16(u8 *addr, s16 value);
-void            xwrite32(u8 *addr, s32 value);
+void            xwrite8(u32 offset, u8 value);
+void            xwrite16(u32 offset, s16 value);
+void            xwrite32(u32 offset, s32 value);
+
+void            xadd8(s32 offset, s8 value);
+void            xadd16(s32 offset, s16 value);
+
+void            xsub8(s32 offset, s8 value);
+void            xsub16(s32 offset, s16 value);
+
+void            xpush32(u32 offset, u32 value);
+s32             xpeek32(u32 offset);
+s32             xpop32(s32 offset);
 
 #endif /* alis_vm_h */

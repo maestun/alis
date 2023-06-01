@@ -1022,7 +1022,7 @@ put13:
             if ((s8)cursprvar->credon_off < 0)
             {
                 cursprvar->creducing = 0;
-                cursprvar->credon_off = *(u8 *)(alis.mem + alis.basemain + alis.script->context->_0x16_screen_id + 0x1f);
+                cursprvar->credon_off = xread8(alis.basemain + alis.script->context->_0x16_screen_id + 0x1f);
             }
         }
 
@@ -1908,7 +1908,7 @@ void destofen(SpriteVariables *sprite)
             }
         }
     }
-    while ((ent = *(s16 *)(alis.mem + alis.atent + ent + 4)));
+    while ((ent = xread16(alis.atent + ent + 4)));
     
     if (index < 0)
     {
@@ -3284,54 +3284,6 @@ s16 tabint(s16 offset, u8 *address)
     return result;
 }
 
-int test = 0;
-void check_a3(void)
-{
-//    if (checkA6[checkA6Idx] != -1)
-//    {
-//        if (checkA6[checkA6Idx] != alis.script->vram_org)
-//        {
-//            printf("\nA6 mismatch! We are at: 0x%.6x and should be at: 0x%.6x!", alis.script->vram_org, checkA6[checkA6Idx]);
-//            sleep(0);
-//
-////            for (int i = 0; i < alis.nbent; i++)
-////            {
-////                if (alis.scripts[i]->vram_org == checkA6[checkA6Idx])
-////                {
-////                    alis.script = alis.scripts[i];
-////                }
-////            }
-//            return;
-//        }
-//        else
-//        {
-//            printf("\nA6 OK! We are at: 0x%.6x", alis.script->vram_org);
-//        }
-//
-//        printf("\nLine: %d.", checkA6Idx);
-//        checkA6Idx+=1;
-//    }
-//
-//    if (checkA3[checkA3Idx] != -1)
-//    {
-//        if (checkA3[checkA3Idx] != alis.script->pc)
-//        {
-//            printf("\nA3 mismatch! We are at: 0x%.6x and should be at: 0x%.6x!", alis.script->pc, checkA3[checkA3Idx]);
-//            sleep(0);
-//
-//            if (test)
-//                alis.script->pc = checkA3[checkA3Idx];
-//        }
-//        else
-//        {
-//            printf("\nA3 OK! We are at: 0x%.6x", alis.script->pc);
-//        }
-//
-//        printf("\nLine: %d.", checkA3Idx);
-//        checkA3Idx+=1;
-//    }
-}
-
 void moteur(void)
 {
     do
@@ -3358,19 +3310,11 @@ void moteur(void)
                 alis.saversp = alis.script->context->_0x0a_vacc_offset;
                 savecoord(vram_addr);
                 alis.script->pc = alis.script->context->_0x14_script_org_offset + 10 + script_offset;
-                printf("\n 0x14 + 10 [%.6x, a3=%.6x, %.4x] ", alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
-
-//                check_a3();
                 alis_loop();
                 updtcoord(vram_addr);
             }
         }
         
-        if (alis.script->context->_0x04_cstart_csleep == 0)
-        {
-            printf("\nScript %s SLEEP! %d ", alis.script->name, alis.script->context->_0x04_cstart_csleep);
-        }
- 
         if (alis.script->context->_0x04_cstart_csleep != 0)
         {
             if ((s8)alis.script->context->_0x04_cstart_csleep < 0)
@@ -3379,7 +3323,6 @@ void moteur(void)
             }
             
             alis.script->context->_0x01_cstart --;
-            printf("\n [%.2x, %.2x] ", alis.script->context->_0x01_cstart, alis.script->context->_0x02_unknown);
             if (alis.script->context->_0x01_cstart == 0)
             {
                 savecoord(vram_addr);
@@ -3387,16 +3330,11 @@ void moteur(void)
                 alis.script->pc = alis.script->context->_0x08_script_ret_offset;
                 alis.script->vacc_off = alis.script->context->_0x0a_vacc_offset;
                 alis.fseq ++;
-//                printf("\n 0x08 [%.6x, a3=%.6x, %.4x] ", alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
-                
-                check_a3();
                 alis_loop();
                 
                 if (alis.restart_loop != 0)
                 {
-                    printf("\nA3 KEEP: 0x%.6x\n", alis.script->context->_0x08_script_ret_offset);
-
-                    alis.varD5 = *(s16 *)(alis.mem + alis.atent + 4 + alis.varD5);
+                    alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
                     if (alis.varD5 == 0)
                     {
                         image();
@@ -3404,8 +3342,6 @@ void moteur(void)
 
                     continue;
                 }
-
-                printf("\nA3 STORE: 0x%.6x\n", alis.script->pc);
 
                 alis.script->context->_0x0a_vacc_offset = alis.script->vacc_off;
                 alis.script->context->_0x08_script_ret_offset = alis.script->pc;
@@ -3416,9 +3352,6 @@ void moteur(void)
                     alis.fseq = 0;
                     alis.saversp = alis.script->context->_0x0a_vacc_offset;
                     alis.script->pc = alis.script->context->_0x14_script_org_offset + 6 + script_offset;
-                    printf("\n 0x14 + 6 [%.6x, a3=%.6x, %.4x] ", alis.script->vram_org, alis.script->pc, alis.script->vacc_off);
- 
-//                    check_a3();
                     alis_loop();
                 }
                 
@@ -3429,7 +3362,7 @@ void moteur(void)
             }
         }
         
-        alis.varD5 = *(s16 *)(alis.mem + alis.atent + 4 + alis.varD5);
+        alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
         if (alis.varD5 == 0)
         {
             image();

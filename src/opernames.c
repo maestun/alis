@@ -35,18 +35,18 @@ void oimmp(void) {
 void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
     s16 offset = script_read16();
-    alis.varD7 = (s8)vram_read8(offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void olocw(void) {
     // read word offset, copy word from ram[offset] into r7
     s16 offset = script_read16();
-    alis.varD7 = vram_read16(offset);
+    alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
 void olocp(void) {
     s16 offset = script_read16();
-    vram_readp(offset, alis.sd7);
+    strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void oloctp(void) {
@@ -55,26 +55,26 @@ void oloctp(void) {
 
 void oloctc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = vram_read8(offset);
+    alis.varD7 = xread8(alis.script->vram_org + offset);
 }
 
 void olocti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = read16(vram_ptr(offset), alis.platform.is_little_endian);
+    alis.varD7 = read16(get_vram(offset), alis.platform.is_little_endian);
 }
 
 // reads a byte offset from script,
 // then reads an extended byte from vram[offset] into r7
 void odirb(void) {
     u8 offset = script_read8();
-    alis.varD7 = (s8)vram_read8(offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
 void odirw(void) {
     u8 offset = script_read8();
-    alis.varD7 = vram_read16(offset);
+    alis.varD7 = xread16(alis.script->vram_org + offset);
     // printf("\nXXodirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
 }
 
@@ -82,36 +82,34 @@ void odirw(void) {
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
 void odirp(void) {
     u8 offset = script_read8();
-    vram_readp(offset, alis.sd7);
+    strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtp(void) {
     debug(EDebugWarning, " /* CHECK */");
     s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
-    strcpy((char *)alis.sd7, (char *)(alis.mem + alis.script->vram_org + offset));
+    strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtc(void) {
     debug(EDebugWarning, " /* CHECK */");
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = *(char *)(alis.mem + alis.script->vram_org + offset);
+    alis.varD7 = (char)xread8(alis.script->vram_org + offset);
 }
 
 void odirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = read16(vram_ptr(offset), alis.platform.is_little_endian);
+    alis.varD7 = read16(get_vram(offset), alis.platform.is_little_endian);
 }
 
 void omainb(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%.2x <= %.6x]", *(s8 *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    alis.varD7 = *(s8 *)(alis.mem + alis.basemain + offset);
+    alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 void omainw(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%.4x <= %.6x]", *(s16 *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    alis.varD7 = *(s16 *)(alis.mem + alis.basemain + offset);
+    alis.varD7 = xread16(alis.basemain + offset);
 }
 
 void omainp(void) {
@@ -122,45 +120,42 @@ void omainp(void) {
 
 void omaintp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
-    debug(EDebugWarning, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
     strcpy((char *)alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 void omaintc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
-    debug(EDebugWarning, " [%.2x <= %.6x]", *(s8 *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    alis.varD7 = *(s8 *)(alis.mem + alis.basemain + offset);
+    alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 void omainti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
-    debug(EDebugWarning, " [%.4x <= %.6x]", *(s16 *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    alis.varD7 = *(s16 *)(alis.mem + alis.basemain + offset);
+    alis.varD7 = xread16(alis.basemain + offset);
 }
 
 void ohimb(void) {
-    u16 entry = vram_read16(script_read16());
+    u16 entry = xread16(alis.script->vram_org + script_read16());
     u32 vram_addr = ENTVRAM(entry);
 
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%.2x <= %.6x]", *(s8 *)(alis.mem + vram_addr + offset), vram_addr + offset);
-    alis.varD7 = *(s8 *)(alis.mem + vram_addr + offset);
+    alis.varD7 = (s8)xread8(vram_addr + offset);
 }
 
 void ohimw(void) {
-    u16 entry = vram_read16(script_read16());
+    u16 entry = xread16(alis.script->vram_org + script_read16());
     u32 vram_addr = ENTVRAM(entry);
 
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%.4x <= %.6x]", *(s16 *)(alis.mem + vram_addr + offset), vram_addr + offset);
-    alis.varD7 = *(s16 *)(alis.mem + vram_addr + offset);
+    alis.varD7 = xread16(vram_addr + offset);
 }
 
 void ohimp(void) {
-    u16 entry = vram_read16(script_read16());
+    u16 entry = xread16(alis.script->vram_org + script_read16());
     u32 vram_addr = ENTVRAM(entry);
 
     s16 offset = script_read16();
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
     strcpy((char *)alis.sd7, (char *)(alis.mem + vram_addr + offset));
 }
 

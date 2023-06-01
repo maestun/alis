@@ -528,14 +528,14 @@ static void cdim(void) {
     u8 counter = script_read8();
     u8 byte2 = script_read8();
     
-    vram_write8(--offset, counter);
-    vram_write8(--offset, byte2);
+    xwrite8(alis.script->vram_org + --offset, counter);
+    xwrite8(alis.script->vram_org + --offset, byte2);
     
     // loop w/ counter, read words, store backwards
     while(counter--) {
         u16 w = script_read16();
         offset -= 2;
-        vram_write16(offset, w);
+        xwrite16(alis.script->vram_org + offset, w);
     }
 }
 
@@ -652,7 +652,7 @@ static void cleave(void) {
         if (vacc_offset != 0)
         {
             alis.script->context->_0x0c_vacc_offset = 0;
-            alis.script->context->_0x08_script_ret_offset = vram_read32(vacc_offset);
+            alis.script->context->_0x08_script_ret_offset = xread32(alis.script->vram_org + vacc_offset);
             alis.script->context->_0x0a_vacc_offset = vacc_offset + 4;
             return;
         }
@@ -663,7 +663,7 @@ static void cleave(void) {
         if (alis.script->vacc_off != 0)
         {
             alis.script->context->_0x0c_vacc_offset = 0;
-            alis.script->pc = vram_read32(alis.script->vacc_off);
+            alis.script->pc = xread32(alis.script->vram_org + alis.script->vacc_off);
             return;
         }
     }
@@ -673,7 +673,7 @@ static void cleave(void) {
         return;
     }
     
-    s32 new_pc = vram_read32(alis.script->vacc_off);
+    s32 new_pc = xread32(alis.script->vram_org + alis.script->vacc_off);
     if (alis.script->vacc_off == alis.script->context->_0x0c_vacc_offset)
     {
         alis.script->context->_0x0c_vacc_offset = 0;
@@ -851,76 +851,11 @@ static void clive(void) {
             *(u8 *)(next + 0xa) = *(u8 *)(prev_vram + 0xa);
             *(u8 *)(next + 0xb) = *(u8 *)(prev_vram + 0xb);
 
-            printf(" %.6x = %.2x", script->vram_org - 0x28, alis.script->context->_0x0e_script_ent);
             script->context->_0x28_unknown = alis.script->context->_0x0e_script_ent;
             script->context->_0x16_screen_id = alis.script->context->_0x16_screen_id;
             script->context->_0x22_cworld    = alis.script->context->_0x22_cworld;
             script->context->_0x2a_clinking  = script->context->_0x0e_script_ent;
             
-            printf("\n");
-
-            u16 tent = 0;
-//            u16 pent = 0;
-
-            int loop = 8 > alis.nbent ? 8 : alis.nbent;
-            for (int i = 0; i < loop; i++)
-            {
-//             do
-//             {
-//                sScriptLoc *killloc = (sScriptLoc *)(alis.mem + alis.atent + tent);
-                tent = alis.atent_ptr[i].offset;
-
-                sAlisScript *s = alis.scripts[i];
-                if (s)
-                {
-                    u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
-                    s32 vramsize = s->header.vram_alloc_sz;
-                    s32 shrinkby = datasize + vramsize;
-                    
-                    printf("%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", script->vram_org == s->vram_org ? '*' : ' ', s->name, s->header.id, s->context->_0x10_script_id, tent, s->vram_org, shrinkby);
-                }
-                else
-                {
-                    printf(" [ empty  ID: 00(00), %.2x, 000000, 000000] \n", tent);
-                }
-//                pent = tent;
-            }
-            // while (tent);++
-            
-//            printf("\n");
-//            u8 *ptr = (u8 *)(alis.mem + script->vram_org);
-//            printf("%.4x %.2x%.2x\n", (u16)*(u16 *)(ptr - 0x35), (u8)*(ptr - 0x33), (u8)*(ptr - 0x32));
-//            printf("%.2x%.2x %.2x%.2x\n", (u8)*(ptr - 0x31), (u8)*(ptr - 0x30), (u8)*(ptr - 0x2f), (u8)*(ptr - 0x2e));
-//            printf("%.2x%.2x %.2x%.4x\n", (u8)*(ptr - 0x2d), (u8)*(ptr - 0x2c), (u8)*(ptr - 0x2b), *(u16 *)(ptr - 0x2a));
-//            printf("  %.2x %.2x%.2x\n", (u8)*(ptr - 0x28), (u8)*(ptr - 0x27), (u8)*(ptr - 0x26));
-//            printf("%.2x%.2x %.2x%.2x\n", (u8)*(ptr - 0x25), (u8)*(ptr - 0x24), (u8)*(ptr - 0x23), (u8)*(ptr - 0x22));
-//            printf("%.2x%.2x %.4x\n", (u8)*(ptr - 0x21), (u8)*(ptr - 0x20), *(u16 *)(ptr - 0x1e));
-//            printf("%.4x %.4x\n", *(u16 *)(ptr - 0x1c), *(u16 *)(ptr - 0x1a));
-//            printf("%.4x %.4x\n", *(u16 *)(ptr - 0x18), *(u16 *)(ptr - 0x16));
-//            printf("%.8x\n", *(u32 *)(ptr - 0x14));
-//            printf("%.4x %.4x\n", *(u16 *)(ptr - 0x10), *(u16 *)(ptr - 0xe));
-//            printf("%.4x %.4x\n", *(u16 *)(ptr - 0xc), *(u16 *)(ptr - 0xa));
-//            printf("%.8x\n", *(u32 *)(ptr - 0x8));
-//            printf("%.2x%.2x %.2x%.2x\n", (u8)*(ptr - 0x4), (u8)*(ptr - 0x3), (u8)*(ptr - 0x2), (u8)*(ptr - 0x1));
-//
-//            printf("\n");
-//        
-//            printf("%.4x %.2x%.2x\n", (u16)0, script->context->_0x34_unknown, script->context->_0x32_unknown);
-//            printf("%.2x%.2x %.2x%.2x\n", script->context->_0x31_unknown, script->context->_0x30_unknown, script->context->_0x2f_chsprite, script->context->_0x2e_script_header_word_2);
-//            printf("%.2x%.2x %.2x%.4x\n", script->context->_0x2d_calign, script->context->_0x2c_calign, script->context->_0x2b_cordspr, script->context->_0x2a_clinking);
-//            printf("  %.2x %.2x%.2x\n", script->context->_0x28_unknown, script->context->_0x27_creducing, script->context->_0x26_creducing);
-//            printf("%.2x%.2x %.2x%.2x\n", script->context->_0x25_credon_credoff, script->context->_0x24_scan_inter.data, script->context->_0x23_unknown, script->context->_0x22_cworld);
-//            printf("%.2x%.2x %.4x\n", script->context->_0x21_cworld, script->context->_0x20_set_vect, script->context->_0x1e_scan_clr);
-//            printf("%.4x %.4x\n", script->context->_0x1c_scan_clr, (u16)script->context->_0x1a_cforme);
-//            printf("%.4x %.4x\n", script->context->_0x18_unknown, script->context->_0x16_screen_id);
-//            printf("%.8x\n", script->context->_0x14_script_org_offset);
-//            printf("%.4x %.4x\n", script->context->_0x10_script_id, script->context->_0x0e_script_ent);
-//            printf("%.4x %.4x\n", script->context->_0x0c_vacc_offset, script->context->_0x0a_vacc_offset);
-//            printf("%.8x\n", script->context->_0x08_script_ret_offset);
-//            printf("%.2x%.2x %.2x%.2x\n", script->context->_0x04_cstart_csleep, script->context->_0x03_xinv, script->context->_0x02_unknown, script->context->_0x01_cstart);
-
-            printf(" [finent %.6x] \n", alis.finent);
-
             if (alis.maxent < alis.nbent)
             {
                 printf("ERROR: Exceeded number of scripts slots!\n");
@@ -985,10 +920,6 @@ static void cload(void) {
 
         readexec_opername_swap();
     }
-    
-    checkA3Idx += 1;
-    checkA6Idx += 1;
-    checkD5Idx ++;
 }
 
 // =============================================================================
@@ -1168,20 +1099,20 @@ static void cerasen(void) {
 
 static void cset(void) {
     readexec_opername();
-    vram_write16(0, alis.varD7);
+    xwrite16(alis.script->vram_org + 0, alis.varD7);
     readexec_opername();
-    vram_write16(2, alis.varD7);
+    xwrite16(alis.script->vram_org + 2, alis.varD7);
     readexec_opername();
-    vram_write16(4, alis.varD7);
+    xwrite16(alis.script->vram_org + 4, alis.varD7);
 }
 
 static void cmov(void) {
     readexec_opername();
-    vram_add16(0, alis.varD7);
+    xadd16(alis.script->vram_org + 0, alis.varD7);
     readexec_opername();
-    vram_add16(2, alis.varD7);
+    xadd16(alis.script->vram_org + 2, alis.varD7);
     readexec_opername();
-    vram_add16(4, alis.varD7);
+    xadd16(alis.script->vram_org + 4, alis.varD7);
 }
 
 static void copensc(void) {
@@ -1285,13 +1216,13 @@ void clipform(void) {
 static void ctstmov(void) {
     debug(EDebugWarning, " /* CHECK */");
     readexec_opername();
-    alis.wcx = ((s16 *)(alis.mem + alis.script->vram_org))[0] + alis.varD7;
+    alis.wcx = xread16(alis.script->vram_org + 0) + alis.varD7;
     readexec_opername();
-    alis.wcy = ((s16 *)(alis.mem + alis.script->vram_org))[1] + alis.varD7;
+    alis.wcy = xread16(alis.script->vram_org + 2) + alis.varD7;
     readexec_opername();
-    alis.wcz = ((s16 *)(alis.mem + alis.script->vram_org))[2] + alis.varD7;
+    alis.wcz = xread16(alis.script->vram_org + 4) + alis.varD7;
     readexec_opername();
-    alis.wforme = ((s16 *)(alis.mem + alis.script->vram_org))[-0xd];
+    alis.wforme = alis.script->context->_0x1a_cforme;
     alis.matmask = alis.varD7;
     clipform();
     crstent();
@@ -1304,11 +1235,11 @@ static void ctstset(void) {
 static void cftstmov(void) {
     debug(EDebugWarning, " /* CHECK */");
     readexec_opername();
-    alis.wcx = ((s16 *)(alis.mem + alis.script->vram_org))[0] + alis.varD7;
+    alis.wcx = xread16(alis.script->vram_org + 0) + alis.varD7;
     readexec_opername();
-    alis.wcy = ((s16 *)(alis.mem + alis.script->vram_org))[1] + alis.varD7;
+    alis.wcy = xread16(alis.script->vram_org + 2) + alis.varD7;
     readexec_opername();
-    alis.wcz = ((s16 *)(alis.mem + alis.script->vram_org))[2] + alis.varD7;
+    alis.wcz = xread16(alis.script->vram_org + 4) + alis.varD7;
     readexec_opername();
     alis.matmask = alis.varD7;
     readexec_opername();
@@ -1449,7 +1380,7 @@ static void csend(void) {
         if (new_vacc == script->context->_0x1e_scan_clr)
             break;
         
-        *(s16 *)(alis.mem + script->vram_org + old_vacc) = alis.varD7;
+        xwrite16(script->vram_org + old_vacc, alis.varD7);
         
         length --;
         old_vacc = new_vacc;
@@ -1876,7 +1807,7 @@ static void cdefworld(void) {
     u16 offset = script_read16();
     u8 counter = 5;
     while(counter--) {
-        vram_write8(offset, script_read8());
+        xwrite8(alis.script->vram_org + offset, script_read8());
     }
 }
 
@@ -1885,8 +1816,8 @@ static void cworld(void) {
 //00017404 1d 5b ff de     move.b     (A3)+,(0xFFDE,A6)
 //00017408 1d 5b ff df     move.b     (A3)+,(0xFFDF,A6)
 //0001740c 4e 75           rts
-    vram_write8(0xffde, script_read8());
-    vram_write8(0xffdf, script_read8());
+    xwrite8(alis.script->vram_org + 0xffde, script_read8());
+    xwrite8(alis.script->vram_org + 0xffdf, script_read8());
 }
 
 static void cfindmat(void) {
@@ -2022,7 +1953,7 @@ static void clistent(void) {
     
     s16 entidx = 0;
     s16 tabidx = 0;
-    while ((entidx = *(s16 *)(alis.mem + alis.atent + 4 + entidx)) != 0)
+    while ((entidx = xread16(alis.atent + 4 + entidx)) != 0)
     {
         alis.matent[tabidx] = 0;
         alis.tablent[tabidx] = entidx;
@@ -2092,9 +2023,9 @@ static void cwftstmov(void) {
 
 static void ctstform(void) {
     debug(EDebugWarning, " /* CHECK */");
-    alis.wcx = vram_read16(0);
-    alis.wcy = vram_read16(2);
-    alis.wcz = vram_read16(4);
+    alis.wcx = xread16(alis.script->vram_org + 0);
+    alis.wcy = xread16(alis.script->vram_org + 2);
+    alis.wcz = xread16(alis.script->vram_org + 4);
     readexec_opername();
     alis.matmask = alis.varD7;
     readexec_opername();
@@ -2546,7 +2477,7 @@ static void cfindcla(void) {
             }
         }
         
-        offset = *(s16 *)(alis.mem + alis.atent + 4 + offset);
+        offset = xread16(alis.atent + 4 + offset);
     }
     while (offset != 0);
     
@@ -2585,7 +2516,7 @@ static void cinstru(void) {
     else
     {
         addr = adresmus(idx);
-        u8 type = *(u8 *)(alis.mem + alis.script->data_org + addr);
+        u8 type = xread8(alis.script->data_org + addr);
         if (((type != 1) && (type != 2)) && (type != 5))
         {
             return;
@@ -2881,41 +2812,39 @@ static void cscamov(void) {
 
 static void cscfollow(void) {
     debug(EDebugWarning, " /* CHECK */");
-    u8 *screen = (u8 *)(alis.mem + alis.basemain + alis.script->context->_0x16_screen_id);
     readexec_opername();
-    *(s16 *)(screen + 0x60) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x60, alis.varD7);
     readexec_opername();
-    *(s8 *)(screen + 0x84) = (s8)alis.varD7;
+    xwrite8(alis.basemain + alis.script->context->_0x16_screen_id + 0x84, alis.varD7);
     readexec_opername();
-    *(s16 *)(screen + 0x86) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x86, alis.varD7);
     readexec_opername();
-    *(s16 *)(screen + 0x88) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x88, alis.varD7);
     readexec_opername();
-    *(s16 *)(screen + 0x8a) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x8a, alis.varD7);
     readexec_opername();
-    *(s16 *)(screen + 0x8c) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x8c, alis.varD7);
     readexec_opername();
-    *(s16 *)(screen + 0x8e) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x8e, alis.varD7);
     readexec_opername();
-    *(s16 *)(screen + 0x90) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x90, alis.varD7);
 }
 
 static void cscview(void) {
     debug(EDebugWarning, " /* CHECK */");
-    u8 *screen = (u8 *)(alis.mem + alis.basemain + alis.script->context->_0x16_screen_id);
     readexec_opername();
-    *(u16 *)(screen + 0x64) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x64, alis.varD7);
     readexec_opername();
-    *(u16 *)(screen + 0x66) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x66, alis.varD7);
     readexec_opername();
-    *(u16 *)(screen + 0x68) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x68, alis.varD7);
     readexec_opername();
-    *(u16 *)(screen + 0x6a) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x6a, alis.varD7);
     readexec_opername();
-    *(u16 *)(screen + 0x6c) = alis.varD7;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x6c, alis.varD7);
     readexec_opername();
-    *(u16 *)(screen + 0x6e) = alis.varD7;
-    *screen |= 0x80;
+    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x6e, alis.varD7);
+    xwrite8(alis.basemain + alis.script->context->_0x16_screen_id, xread8(alis.basemain + alis.script->context->_0x16_screen_id) | 0x80);
 }
 
 static void cfilm(void) {
@@ -3025,7 +2954,7 @@ static void cret(void) {
         return;
     }
     
-    s32 offset = vram_pop32();
+    s32 offset = xpop32(alis.script->vram_org);
     if (alis.script->vacc_off == alis.script->context->_0x0c_vacc_offset)
     {
         alis.script->context->_0x0c_vacc_offset = 0;
@@ -3043,7 +2972,7 @@ static void cjsr(s32 offset) {
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
     u32 pc_offset = (u32)(alis.script->pc - alis.script->pc_org);
-    vram_push32(pc_offset);
+    xpush32(alis.script->vram_org, pc_offset);
     script_jump(offset);
 }
 
@@ -3171,7 +3100,7 @@ static void cstart(s32 offset) {
             s16 vacc_offset = alis.script->context->_0x0a_vacc_offset - 4;
             alis.script->context->_0x0c_vacc_offset = vacc_offset;
             alis.script->context->_0x0a_vacc_offset = vacc_offset;
-            vram_write32(vacc_offset, alis.script->context->_0x08_script_ret_offset);
+            xwrite32(alis.script->vram_org + vacc_offset, alis.script->context->_0x08_script_ret_offset);
             alis.script->context->_0x08_script_ret_offset = offset + alis.script->pc;
         }
         else
@@ -3189,7 +3118,7 @@ static void cstart(s32 offset) {
         {
             alis.script->vacc_off -= 4;
             alis.script->context->_0x0c_vacc_offset = alis.script->vacc_off;
-            vram_write32(alis.script->vacc_off, alis.script->pc);
+            xwrite32(alis.script->vram_org + alis.script->vacc_off, alis.script->pc);
         }
 
         alis.script->pc += offset;
@@ -3508,6 +3437,7 @@ void killent(u16 killent, u16 testent)
     
     do
     {
+        // xwrite16(target, xread16(source));
         *(u16 *)(alis.mem + target) = *(u16 *)(alis.mem + source);
         target += 2;
         source += 2;
@@ -3539,40 +3469,18 @@ void killent(u16 killent, u16 testent)
         if (vram_org <= curscript->vram_org)
         {
             curscript->vram_org -= shrinkby;
-            ENTVRAM(nextent) -= shrinkby;
-            
-            if (curscript->vram_org != ENTVRAM(nextent))
-            {
-                int test = ENTVRAM(nextent);
-                sleep(0);
-            }
+            xwrite32(alis.atent + nextent, xread32(alis.atent + nextent) - shrinkby);
+            // ENTVRAM(nextent) -= shrinkby;
         }
     }
     while (nextent);
 
-    ENTNEXT(curent) = killloc->offset;
+    // ENTNEXT(curent) = killloc->offset;
+    xwrite16(alis.atent + curent + 4, killloc->offset);
     
     killloc->offset = alis.dernent;
     killloc->vram_offset = 0;
     killscript->vram_org = 0;
-    
-    u16 tent = 0;
-    u16 pent = 0;
-
-    do
-    {
-        sAlisScript *s = ENTSCR(tent);
-        tent = ENTNEXT(tent);
-
-        u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
-        s32 vramsize = s->header.vram_alloc_sz;
-        s32 shrinkby = datasize + vramsize;
-
-        printf("%c[%s (%.2x), %.2x, %.6x, %.6x] \n", pent == killent ? '*' : ' ', s->name, s->context->_0x10_script_id, pent, s->vram_org, shrinkby);
-        pent = tent;
-    }
-    while (tent);
-
 
     alis.dernent = killent;
     alis.nbent --;
@@ -3684,7 +3592,7 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
         u32 entidx = 0;
         u32 prevent = 0;
         
-        while ((entidx = *(u16 *)(alis.mem + alis.atent + 4 + entidx)))
+        while ((entidx = xread16(alis.atent + 4 + entidx)))
         {
             sAlisScript *script = ENTSCR(entidx);
             printf("\nChecking script: %s at: %.6x ", script->name, script->data_org);
@@ -3711,7 +3619,8 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
                 while (script->context->_0x0a_vacc_offset < script->vacc_off)
                 {
                     script->vacc_off -= 4;
-                    *(s32 *)(alis.mem + script->vram_org + script->vacc_off) -= length;
+                    xwrite32(script->vram_org + script->vacc_off, xread32(script->vram_org + script->vacc_off) - length);
+                    // *(s32 *)(alis.mem + script->vram_org + script->vacc_off) -= length;
                 }
 
                 printf("shrinked to: %.6x", script->data_org);
