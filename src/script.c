@@ -477,8 +477,8 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
             
             printf("\n");
 
-        //    // script program counter starts kScriptHeaderLen after data
-            script->context = NULL;
+//             script program counter starts kScriptHeaderLen after data
+//            script->context = NULL;
             script->pc = script->pc_org = 0;
             
             debug(EDebugVerbose, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
@@ -559,7 +559,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     printf("\n");
 
 //    // script program counter starts kScriptHeaderLen after data
-    script->context = NULL;
+//    script->context = NULL;
     script->pc = script->pc_org = 0;
     
     debug(EDebugVerbose, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
@@ -588,38 +588,38 @@ void  script_live(sAlisScript * script) {
 
     printf(" add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
 
-    script->context = (sScriptContext *)(alis.mem + script->vram_org - sizeof(sScriptContext));
-    script->context->_0x0a_vacc_offset          = script->vacc_off;
-    script->context->_0x1c_scan_clr             = script->vacc_off;
-    script->context->_0x1e_scan_clr             = script->vacc_off;
-    script->context->_0x08_script_ret_offset    = script->data_org + script->header.code_loc_offset + 2;
-    script->context->_0x10_script_id            = script->header.id;
-    script->context->_0x14_script_org_offset    = script->data_org;
-    script->context->_0x2e_script_header_word_2 = script->header.unknown01;
-    script->context->_0x2d_calign               = script->header.unknown02;
-    script->context->_0x02_unknown              = 1;
-    script->context->_0x01_cstart               = 1;
-    script->context->_0x04_cstart_csleep        = 0xff;
-    script->context->_0x1a_cforme               = 0xffff;
-    script->context->_0x0e_script_ent           = alis.dernent;
-    script->context->_0x24_scan_inter.data      = 2;
-    script->context->_0x18_unknown              = 0;
-    script->context->_0x0c_vacc_offset          = 0;
-    script->context->_0x22_cworld               = 0;
-    script->context->_0x20_set_vect             = 0;
-    script->context->_0x03_xinv                 = 0;
-    script->context->_0x25_credon_credoff       = 0;
-    script->context->_0x26_creducing            = 0xff;
-    script->context->_0x2a_clinking             = 0;
-    script->context->_0x2c_calign               = 0;
-    script->context->_0x28_unknown              = 0;
-    script->context->_0x2f_chsprite             = 0;
-    script->context->_0x32_unknown              = 0;
-    script->context->_0x34_unknown              = 0;
-    script->context->_0x30_unknown              = 0;
-    script->context->_0x16_screen_id            = 0;
+//    script->context = (sScriptContext *)(alis.mem + script->vram_org - sizeof(sScriptContext));
+    set_0x0a_vacc_offset(script->vram_org, script->vacc_off);
+    set_0x1c_scan_clr(script->vram_org, script->vacc_off);
+    set_0x1e_scan_clr(script->vram_org, script->vacc_off);
+    set_0x08_script_ret_offset(script->vram_org, script->data_org + script->header.code_loc_offset + 2);
+    set_0x10_script_id(script->vram_org, script->header.id);
+    set_0x14_script_org_offset(script->vram_org, script->data_org);
+    set_0x2e_script_header_word_2(script->vram_org, script->header.unknown01);
+    set_0x2d_calign(script->vram_org, script->header.unknown02);
+    set_0x02_unknown(script->vram_org, 1);
+    set_0x01_cstart(script->vram_org, 1);
+    set_0x04_cstart_csleep(script->vram_org, 0xff);
+    set_0x1a_cforme(script->vram_org, 0xffff);
+    set_0x0e_script_ent(script->vram_org, alis.dernent);
+    set_0x24_scan_inter(script->vram_org, 2);
+    set_0x18_unknown(script->vram_org, 0);
+    set_0x0c_vacc_offset(script->vram_org, 0);
+    set_0x22_cworld(script->vram_org, 0);
+    set_0x20_set_vect(script->vram_org, 0);
+    set_0x03_xinv(script->vram_org, 0);
+    set_0x25_credon_credoff(script->vram_org, 0);
+    set_0x26_creducing(script->vram_org, 0xff);
+    set_0x2a_clinking(script->vram_org, 0);
+    set_0x2c_calign(script->vram_org, 0);
+    set_0x28_unknown(script->vram_org, 0);
+    set_0x2f_chsprite(script->vram_org, 0);
+    set_0x32_unknown(script->vram_org, 0);
+    set_0x34_unknown(script->vram_org, 0);
+    set_0x30_unknown(script->vram_org, 0);
+    set_0x16_screen_id(script->vram_org, 0);
 
-    script->pc = script->pc_org = script->context->_0x08_script_ret_offset;
+    script->pc = script->pc_org = get_0x08_script_ret_offset(script->vram_org);
     
     s16 nextent = alis.atent_ptr[caller_idx].offset;
     alis.atent_ptr[caller_idx].offset = alis.dernent;
@@ -830,3 +830,72 @@ void script_debug(sAlisScript * script) {
            opcodes[code].name);
 }
 
+u16 get_0x34_unknown(u32 vram)                          { return xread16(vram - 0x34); }
+u8 get_0x32_unknown(u32 vram)                           { return xread8(vram - 0x32); }
+u8 get_0x31_unknown(u32 vram)                           { return xread8(vram - 0x31); }
+u8 get_0x30_unknown(u32 vram)                           { return xread8(vram - 0x30); }
+u8 get_0x2f_chsprite(u32 vram)                          { return xread8(vram - 0x2f); }
+u8 get_0x2e_script_header_word_2(u32 vram)              { return xread8(vram - 0x2e); }
+u8 get_0x2d_calign(u32 vram)                            { return xread8(vram - 0x2d); }
+u8 get_0x2c_calign(u32 vram)                            { return xread8(vram - 0x2c); }
+u8 get_0x2b_cordspr(u32 vram)                           { return xread8(vram - 0x2b); }
+u16 get_0x2a_clinking(u32 vram)                         { return xread16(vram - 0x2a); }
+u8 get_0x28_unknown(u32 vram)                           { return xread8(vram - 0x28); }
+u8 get_0x27_creducing(u32 vram)                         { return xread8(vram - 0x27); }
+u8 get_0x26_creducing(u32 vram)                         { return xread8(vram - 0x26); }
+u8 get_0x25_credon_credoff(u32 vram)                    { return xread8(vram - 0x25); }
+u8 get_0x24_scan_inter(u32 vram)                        { return xread8(vram - 0x24); }
+u8 get_0x23_unknown(u32 vram)                           { return xread8(vram - 0x23); }
+u8 get_0x22_cworld(u32 vram)                            { return xread8(vram - 0x22); }
+u8 get_0x21_cworld(u32 vram)                            { return xread8(vram - 0x21); }
+u16 get_0x20_set_vect(u32 vram)                         { return xread16(vram - 0x20); }
+u16 get_0x1e_scan_clr(u32 vram)                         { return xread16(vram - 0x1e); }
+u16 get_0x1c_scan_clr(u32 vram)                         { return xread16(vram - 0x1c); }
+s16 get_0x1a_cforme(u32 vram)                           { return xread16(vram - 0x1a); }
+u16 get_0x18_unknown(u32 vram)                          { return xread16(vram - 0x18); }
+u16 get_0x16_screen_id(u32 vram)                        { return xread16(vram - 0x16); }
+u32 get_0x14_script_org_offset(u32 vram)                { return xread32(vram - 0x14); }
+u16 get_0x10_script_id(u32 vram)                        { return xread16(vram - 0x10); }
+u16 get_0x0e_script_ent(u32 vram)                       { return xread16(vram - 0xe); }
+u16 get_0x0c_vacc_offset(u32 vram)                      { return xread16(vram - 0xc); }
+u16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 0xa); }
+u32 get_0x08_script_ret_offset(u32 vram)                { return xread32(vram - 0x8); }
+u8 get_0x04_cstart_csleep(u32 vram)                     { return xread8(vram - 0x4); }
+u8 get_0x03_xinv(u32 vram)                              { return xread8(vram - 0x3); }
+u8 get_0x02_unknown(u32 vram)                           { return xread8(vram - 0x2); }
+u8 get_0x01_cstart(u32 vram)                            { return xread8(vram - 0x1); }
+
+void set_0x34_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x34, val); }
+void set_0x32_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x32, val); }
+void set_0x31_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x31, val); }
+void set_0x30_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x30, val); }
+void set_0x2f_chsprite(u32 vram, u8 val)                { xwrite8(vram - 0x2f, val); }
+void set_0x2e_script_header_word_2(u32 vram, u8 val)    { xwrite8(vram - 0x2e, val); }
+void set_0x2d_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2d, val); }
+void set_0x2c_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2c, val); }
+void set_0x2b_cordspr(u32 vram, u8 val)                 { xwrite8(vram - 0x2b, val); }
+void set_0x2a_clinking(u32 vram, u16 val)               { xwrite16(vram - 0x2a, val); }
+void set_0x28_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x28, val); }
+void set_0x27_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x27, val); }
+void set_0x26_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x26, val); }
+void set_0x25_credon_credoff(u32 vram, u8 val)          { xwrite8(vram - 0x25, val); }
+void set_0x24_scan_inter(u32 vram, u8 val)              { xwrite8(vram - 0x24, val); }
+void set_0x23_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x23, val); }
+void set_0x22_cworld(u32 vram, u8 val)                  { xwrite8(vram - 0x22, val); }
+void set_0x21_cworld(u32 vram, u8 val)                  { xwrite8(vram - 0x21, val); }
+void set_0x20_set_vect(u32 vram, u16 val)               { xwrite16(vram - 0x20, val); }
+void set_0x1e_scan_clr(u32 vram, u16 val)               { xwrite16(vram - 0x1e, val); }
+void set_0x1c_scan_clr(u32 vram, u16 val)               { xwrite16(vram - 0x1c, val); }
+void set_0x1a_cforme(u32 vram, s16 val)                 { xwrite16(vram - 0x1a, val); }
+void set_0x18_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x18, val); }
+void set_0x16_screen_id(u32 vram, u16 val)              { xwrite16(vram - 0x16, val); }
+void set_0x14_script_org_offset(u32 vram, u32 val)      { xwrite32(vram - 0x14, val); }
+void set_0x10_script_id(u32 vram, u16 val)              { xwrite16(vram - 0x10, val); }
+void set_0x0e_script_ent(u32 vram, u16 val)             { xwrite16(vram - 0x0e, val); }
+void set_0x0c_vacc_offset(u32 vram, u16 val)            { xwrite16(vram - 0x0c, val); }
+void set_0x0a_vacc_offset(u32 vram, u16 val)            { xwrite16(vram - 0x0a, val); }
+void set_0x08_script_ret_offset(u32 vram, u32 val)      { xwrite32(vram - 0x08, val); }
+void set_0x04_cstart_csleep(u32 vram, u8 val)           { xwrite8(vram - 0x04, val); }
+void set_0x03_xinv(u32 vram, u8 val)                    { xwrite8(vram - 0x03, val); }
+void set_0x02_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x02, val); }
+void set_0x01_cstart(u32 vram, u8 val)                  { xwrite8(vram - 0x01, val); }

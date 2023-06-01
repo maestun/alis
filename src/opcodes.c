@@ -648,21 +648,21 @@ static void cleave(void) {
     debug(EDebugWarning, " /* CHECK */");
     if (alis.fseq == 0)
     {
-        s16 vacc_offset = alis.script->context->_0x0c_vacc_offset;
+        s16 vacc_offset = get_0x0c_vacc_offset(alis.script->vram_org);
         if (vacc_offset != 0)
         {
-            alis.script->context->_0x0c_vacc_offset = 0;
-            alis.script->context->_0x08_script_ret_offset = xread32(alis.script->vram_org + vacc_offset);
-            alis.script->context->_0x0a_vacc_offset = vacc_offset + 4;
+            set_0x0c_vacc_offset(alis.script->vram_org, 0);
+            set_0x08_script_ret_offset(alis.script->vram_org, xread32(alis.script->vram_org + vacc_offset));
+            set_0x0a_vacc_offset(alis.script->vram_org, vacc_offset + 4);
             return;
         }
     }
     else
     {
-        alis.script->vacc_off = alis.script->context->_0x0c_vacc_offset;
+        alis.script->vacc_off = get_0x0c_vacc_offset(alis.script->vram_org);
         if (alis.script->vacc_off != 0)
         {
-            alis.script->context->_0x0c_vacc_offset = 0;
+            set_0x0c_vacc_offset(alis.script->vram_org, 0);
             alis.script->pc = xread32(alis.script->vram_org + alis.script->vacc_off);
             return;
         }
@@ -674,9 +674,9 @@ static void cleave(void) {
     }
     
     s32 new_pc = xread32(alis.script->vram_org + alis.script->vacc_off);
-    if (alis.script->vacc_off == alis.script->context->_0x0c_vacc_offset)
+    if (alis.script->vacc_off == get_0x0c_vacc_offset(alis.script->vram_org))
     {
-        alis.script->context->_0x0c_vacc_offset = 0;
+        set_0x0c_vacc_offset(alis.script->vram_org, 0);
     }
     
     alis.script->pc = new_pc;
@@ -693,7 +693,7 @@ static void casleep(void) {
     if (-1 < alis.varD7)
     {
         sAlisScript *script = ENTSCR(alis.varD7);
-        script->context->_0x04_cstart_csleep = 0;
+        set_0x04_cstart_csleep(script->vram_org, 0);
     }
 }
 
@@ -705,7 +705,7 @@ static void cscmov(void) {
     readexec_opername_saveD7();
     s16 z = alis.varD7;
     
-    SceneVariables *scene = SCENE_VAR(alis.script->context->_0x16_screen_id);
+    SceneVariables *scene = SCENE_VAR(get_0x16_screen_id(alis.script->vram_org));
     scene->unknown0x2e = z;
     scene->unknown0x2c = y;
     scene->unknown0x2a = x;
@@ -720,14 +720,14 @@ static void cscset(void) {
     readexec_opername_saveD7();
     s16 z = alis.varD7;
     
-    SceneVariables *scene = SCENE_VAR(alis.script->context->_0x16_screen_id);
+    SceneVariables *scene = SCENE_VAR(get_0x16_screen_id(alis.script->vram_org));
     scene->unknown0x2e = z - scene->depz;
     scene->unknown0x2c = y - scene->depy;
     scene->unknown0x2a = x - scene->depx;
     scene->state |= 0x80;
     
     // Ishar 3
-//    SceneVariables *scene = SCENE_VAR(alis.script->context->_0x16_screen_id);
+//    SceneVariables *scene = SCENE_VAR(get_0x16_screen_id(alis.script->vram_org));
 //    if (z != scene->depz)
 //    {
 //        scene->depz = z;
@@ -761,7 +761,7 @@ static void cwlive(void) {
 
 static void cunload(void) {
     s16 id = script_read16();
-    if (id != -1 && id != alis.script->context->_0x10_script_id)
+    if (id != -1 && id != get_0x10_script_id(alis.script->vram_org))
     {
         s16 index = debprotf(id);
         if (index != -1)
@@ -807,12 +807,12 @@ static void cwakeup(void) {
     if (-1 < alis.varD7)
     {
         sAlisScript *script = ENTSCR(alis.varD7);
-        script->context->_0x04_cstart_csleep = 1;
+        set_0x04_cstart_csleep(script->vram_org, 1);
     }
 }
 
 static void csleep(void) {
-    alis.script->context->_0x04_cstart_csleep = 0;
+    set_0x04_cstart_csleep(alis.script->vram_org, 0);
     if (alis.fseq)
     {
         cstop();
@@ -851,10 +851,10 @@ static void clive(void) {
             *(u8 *)(next + 0xa) = *(u8 *)(prev_vram + 0xa);
             *(u8 *)(next + 0xb) = *(u8 *)(prev_vram + 0xb);
 
-            script->context->_0x28_unknown = alis.script->context->_0x0e_script_ent;
-            script->context->_0x16_screen_id = alis.script->context->_0x16_screen_id;
-            script->context->_0x22_cworld    = alis.script->context->_0x22_cworld;
-            script->context->_0x2a_clinking  = script->context->_0x0e_script_ent;
+            set_0x28_unknown(script->vram_org, get_0x0e_script_ent(alis.script->vram_org));
+            set_0x16_screen_id(script->vram_org, get_0x16_screen_id(alis.script->vram_org));
+            set_0x22_cworld(script->vram_org, get_0x22_cworld(alis.script->vram_org));
+            set_0x2a_clinking(script->vram_org, get_0x0e_script_ent(script->vram_org));
             
             if (alis.maxent < alis.nbent)
             {
@@ -1036,14 +1036,14 @@ static void cdefsc(void) {
 
 static void cscreen(void) {
     u16 screen_id = script_read16();
-    if (screen_id != alis.script->context->_0x16_screen_id) {
-        alis.script->context->_0x16_screen_id = screen_id;
+    if (screen_id != get_0x16_screen_id(alis.script->vram_org)) {
+        set_0x16_screen_id(alis.script->vram_org, screen_id);
     }
 }
 
 static void cput(void) {
     alis.flagmain = 0;
-    alis.flaginvx = alis.script->context->_0x03_xinv;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
 
     readexec_opername();
     
@@ -1058,7 +1058,7 @@ static void cput(void) {
 
 static void cputnat(void) {
     alis.flagmain = 0;
-    alis.flaginvx = alis.script->context->_0x03_xinv;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
     readexec_opername_saveD7();
     alis.depx = alis.varD7;
     readexec_opername_saveD7();
@@ -1131,7 +1131,7 @@ static void cclosesc(void) {
 
 static void cerasall(void) {
     u16 tmpidx = 0;
-    u16 curidx = alis.script->context->_0x18_unknown;
+    u16 curidx = get_0x18_unknown(alis.script->vram_org);
     while (curidx)
     {
         killelem(&curidx, &tmpidx);
@@ -1142,11 +1142,11 @@ static void cerasall(void) {
 
 static void cforme(void) {
     readexec_opername();
-    alis.script->context->_0x1a_cforme = alis.varD7;
+    set_0x1a_cforme(alis.script->vram_org, alis.varD7);
 }
 
 static void cdelforme(void) {
-    alis.script->context->_0x1a_cforme = -1;
+    set_0x1a_cforme(alis.script->vram_org, -1);
 }
 
 void clipform(void) {
@@ -1160,7 +1160,7 @@ void clipform(void) {
 //    alis.ptrent = alis.tablent;
 //    if (-1 < alis.wforme)
 //    {
-//        s32 val = *(s32 *)(alis.mem + alis.script->context->_0x14_script_org_offset);
+//        s32 val = *(s32 *)(alis.mem + get_0x14_script_org_offset(alis.script->vram_org));
 //        s32 addr = *(s32 *)(alis.mem + val + 0xe) + val;
 //        alis.baseform = *(s32 *)(alis.mem + addr + 6) + addr;
 //        s16 *psVar5 = (s16 *)(*(s16 *)(alis.baseform + alis.wforme * 2) + alis.baseform);
@@ -1222,7 +1222,7 @@ static void ctstmov(void) {
     readexec_opername();
     alis.wcz = xread16(alis.script->vram_org + 4) + alis.varD7;
     readexec_opername();
-    alis.wforme = alis.script->context->_0x1a_cforme;
+    alis.wforme = get_0x1a_cforme(alis.script->vram_org);
     alis.matmask = alis.varD7;
     clipform();
     crstent();
@@ -1360,11 +1360,11 @@ static void csend(void) {
     if (script->vram_org == 0)
         goto CSENDEXIT;
     
-    if ((script->context->_0x24_scan_inter.data & 1) != 0)
+    if ((get_0x24_scan_inter(script->vram_org) & 1) != 0)
         goto CSENDEXIT;
     
-    s16 offset = swap16((alis.mem + script->context->_0x14_script_org_offset + 0x16), alis.platform.is_little_endian);
-    s16 old_vacc = script->context->_0x1c_scan_clr;
+    s16 offset = swap16((alis.mem + get_0x14_script_org_offset(script->vram_org) + 0x16), alis.platform.is_little_endian);
+    s16 old_vacc = get_0x1c_scan_clr(script->vram_org);
     s16 new_vacc;
 
     while (1)
@@ -1377,7 +1377,7 @@ static void csend(void) {
             new_vacc -= offset;
         }
         
-        if (new_vacc == script->context->_0x1e_scan_clr)
+        if (new_vacc == get_0x1e_scan_clr(script->vram_org))
             break;
         
         xwrite16(script->vram_org + old_vacc, alis.varD7);
@@ -1386,13 +1386,13 @@ static void csend(void) {
         old_vacc = new_vacc;
         if (length == 0xffff)
         {
-            script->context->_0x1c_scan_clr = new_vacc;
-            script->context->_0x24_scan_inter.data |= 0x80;
+            set_0x1c_scan_clr(script->vram_org, new_vacc);
+            set_0x24_scan_inter(script->vram_org, get_0x24_scan_inter(script->vram_org) | 0x80);
             return;
         }
     }
     
-    script->context->_0x1c_scan_clr = new_vacc;
+    set_0x1c_scan_clr(script->vram_org, new_vacc);
     
     while ((--length) != 0xffff)
     {
@@ -1402,25 +1402,25 @@ CSENDEXIT:
 }
 
 static void cscanclr(void) {
-    alis.script->context->_0x1e_scan_clr = alis.script->context->_0x1c_scan_clr;
-    alis.script->context->_0x24_scan_inter.scan_clr_bit_7 = 0;
+    set_0x1e_scan_clr(alis.script->vram_org, get_0x1c_scan_clr(alis.script->vram_org));
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
 }
 
 static void cscanon(void) {
-    alis.script->context->_0x24_scan_inter.scan_off_bit_0 = 0;
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0xfe);
 }
 
 static void cscanoff(void) {
-    alis.script->context->_0x24_scan_inter.scan_off_bit_0 = 1;
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 1);
     cscanclr();
 }
 
 static void cinteron(void) {
-    alis.script->context->_0x24_scan_inter.inter_off_bit_1 = 0;
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0xfd);
 }
 
 static void cinteroff(void) {
-    alis.script->context->_0x24_scan_inter.inter_off_bit_1 = 1;
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 2);
 }
 
 static void callentity(void) {
@@ -1463,7 +1463,7 @@ static void ctiming(void) {
 static void czap(void) {
     debug(EDebugWarning, " /* STUBBED */");
     
-    alis.pereson = alis.script->context->_0x0e_script_ent;
+    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     alis.priorson = alis.varD7;
     readexec_opername();
@@ -1487,7 +1487,7 @@ static void czap(void) {
 static void cexplode(void) {
     debug(EDebugWarning, " /* STUBBED */");
     
-    alis.pereson = alis.script->context->_0x0e_script_ent;
+    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     alis.priorson = alis.varD7;
     readexec_opername();
@@ -1517,7 +1517,7 @@ static void cexplode(void) {
 static void cding(void) {
     debug(EDebugWarning, " /* STUBBED */");
     
-    alis.pereson = alis.script->context->_0x0e_script_ent;
+    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     alis.priorson = alis.varD7;
     readexec_opername();
@@ -1544,7 +1544,7 @@ static void cding(void) {
 static void cnoise(void) {
     debug(EDebugWarning, " /* STUBBED */");
     
-    alis.pereson = alis.script->context->_0x0e_script_ent;
+    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     alis.priorson = alis.varD7;
     readexec_opername();
@@ -1722,7 +1722,7 @@ static void cxyscroll(void) {
 
 static void clinking(void) {
     readexec_opername();
-    alis.script->context->_0x2a_clinking = alis.varD7;
+    set_0x2a_clinking(alis.script->vram_org, alis.varD7);
 }
 
 static void cmouson(void) {
@@ -1843,7 +1843,7 @@ static void cfindtyp(void) {
     do
     {
         script = ENTSCR(offset);
-        if (script_id == script->context->_0x10_script_id && alis.script->vram_org != script->vram_org)
+        if (script_id == get_0x10_script_id(script->vram_org) && alis.script->vram_org != script->vram_org)
         {
             alis.matent[tabidx] = 0;
             alis.tablent[tabidx] = offset;
@@ -1937,15 +1937,17 @@ static void csetvolum(void) {
 }
 
 static void cxinv(void) {
-    BIT_CHG(alis.script->context->_0x03_xinv, 0);
+    u8 xinv = get_0x03_xinv(alis.script->vram_org);
+    BIT_CHG(xinv, 0);
+    set_0x03_xinv(alis.script->vram_org, xinv);
 }
 
 static void cxinvon(void) {
-    alis.script->context->_0x03_xinv = 1;
+    set_0x03_xinv(alis.script->vram_org, 1);
 }
 
 static void cxinvoff(void) {
-    alis.script->context->_0x03_xinv = 0;
+    set_0x03_xinv(alis.script->vram_org, 0);
 }
 
 static void clistent(void) {
@@ -1998,11 +2000,11 @@ static void cmsound(void) {
 }
 
 static void credon(void) {
-    alis.script->context->_0x25_credon_credoff = 0x0;
+    set_0x25_credon_credoff(alis.script->vram_org, 0x0);
 }
 
 static void credoff(void) {
-    alis.script->context->_0x25_credon_credoff = 0xff;
+    set_0x25_credon_credoff(alis.script->vram_org, 0xff);
 }
 
 static void cdelsound(void) {
@@ -2036,7 +2038,7 @@ static void ctstform(void) {
 
 static void cxput(void) {
     alis.flagmain = 0;
-    alis.flaginvx = alis.script->context->_0x03_xinv ^ 1;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
     readexec_opername();
     alis.depx = 0;
     alis.depz = 0;
@@ -2048,7 +2050,7 @@ static void cxput(void) {
 
 static void cxputat(void) {
     alis.flagmain = 0;
-    alis.flaginvx = alis.script->context->_0x03_xinv;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
 
     readexec_opername_saveD7();
     alis.depx = alis.varD7;
@@ -2065,7 +2067,7 @@ static void cxputat(void) {
 
 static void cmput(void) {
     alis.flagmain = 1;
-    alis.flaginvx = alis.script->context->_0x03_xinv;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
     readexec_opername();
     u8 idx = alis.varD7;
     alis.depx = 0;
@@ -2077,7 +2079,7 @@ static void cmput(void) {
 
 static void cmputat(void) {
     alis.flagmain = 1;
-    alis.flaginvx = alis.script->context->_0x03_xinv;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
     readexec_opername_saveD7();
     alis.depx = alis.varD7;
     readexec_opername_saveD7();
@@ -2092,7 +2094,7 @@ static void cmputat(void) {
 
 static void cmxput(void) {
     alis.flagmain = 1;
-    alis.flaginvx = alis.script->context->_0x03_xinv ^ 1;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
     readexec_opername();
     alis.depx = 0;
     alis.depy = 0;
@@ -2103,7 +2105,7 @@ static void cmxput(void) {
 
 static void cmxputat(void) {
     alis.flagmain = 1;
-    alis.flaginvx = alis.script->context->_0x03_xinv ^ 1;
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
     readexec_opername_saveD7();
     alis.depx = alis.varD7;
     readexec_opername_saveD7();
@@ -2122,7 +2124,7 @@ static void cmmusic(void) {
 
 static void cmforme(void) {
     readexec_opername();
-    alis.script->context->_0x1a_cforme = alis.varD7;
+    set_0x1a_cforme(alis.script->vram_org, alis.varD7);
 }
 
 static void csettime(void) {
@@ -2340,7 +2342,7 @@ static void cscheart(void) {
     readexec_opername();
     readexec_opername_saveD6();
 
-    s16 screen_id = alis.script->context->_0x16_screen_id;
+    s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
         SceneVariables *scene = SCENE_VAR(screen_id);
@@ -2354,7 +2356,7 @@ static void cscpos(void) {
     readexec_opername();
     readexec_opername_saveD6();
     
-    s16 screen_id = alis.script->context->_0x16_screen_id;
+    s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
         SceneVariables *scene = SCENE_VAR(screen_id);
@@ -2368,7 +2370,7 @@ static void cscsize(void) {
     readexec_opername();
     readexec_opername_saveD6();
     
-    s16 screen_id = alis.script->context->_0x16_screen_id;
+    s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
         SceneVariables *scene = SCENE_VAR(screen_id);
@@ -2379,7 +2381,7 @@ static void cscsize(void) {
 }
 
 static void cschoriz(void) {
-    s16 screen_id = alis.script->context->_0x16_screen_id;
+    s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != '\0')
     {
         SceneVariables *scene = SCENE_VAR(screen_id);
@@ -2394,7 +2396,7 @@ static void cschoriz(void) {
 }
 
 static void cscvertic(void) {
-    s16 screen_id = alis.script->context->_0x16_screen_id;
+    s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != '\0')
     {
         SceneVariables *scene = SCENE_VAR(screen_id);
@@ -2414,12 +2416,12 @@ static void cscreduce(void) {
     s16 creducing = alis.varD7;
     readexec_opername_saveD6();
     s8 clinkingA = alis.varD6;
-    if (alis.script->context->_0x16_screen_id != 0)
+    if (get_0x16_screen_id(alis.script->vram_org) != 0)
     {
         readexec_opername();
         u8 clinkingB = alis.varD7;
 
-        SceneVariables *scene = SCENE_VAR(alis.script->context->_0x16_screen_id);
+        SceneVariables *scene = SCENE_VAR(get_0x16_screen_id(alis.script->vram_org));
         scene->creducing = creducing;
         scene->clinking = (s16)(clinkingA - 1) << 8 | clinkingB;
         scene->state |= 0x80;
@@ -2429,9 +2431,9 @@ static void cscreduce(void) {
 static void cscscale(void) {
     readexec_opername();
     s8 scale = alis.varD7;
-    if (alis.script->context->_0x16_screen_id != 0)
+    if (get_0x16_screen_id(alis.script->vram_org) != 0)
     {
-        SceneVariables *scene = SCENE_VAR(alis.script->context->_0x16_screen_id);
+        SceneVariables *scene = SCENE_VAR(get_0x16_screen_id(alis.script->vram_org));
         scene->credon_off = scale;
         scene->state |= 0x80;
     }
@@ -2439,9 +2441,9 @@ static void cscscale(void) {
 
 static void creducing(void) {
     readexec_opername();
-    alis.script->context->_0x26_creducing = alis.varD7;
+    set_0x26_creducing(alis.script->vram_org, alis.varD7);
     readexec_opername();
-    alis.script->context->_0x27_creducing = alis.varD7;
+    set_0x27_creducing(alis.script->vram_org, alis.varD7);
 }
 
 static void cscmap(void) {
@@ -2465,7 +2467,7 @@ static void cfindcla(void) {
     do
     {
         script = ENTSCR(offset);
-        if ((char)vacc_offset == script->context->_0x0c_vacc_offset && alis.script->vram_org != script->vram_org)
+        if ((char)vacc_offset == get_0x0c_vacc_offset(script->vram_org) && alis.script->vram_org != script->vram_org)
         {
             alis.matent[tabidx] = 0;
             alis.tablent[tabidx] = offset;
@@ -2537,7 +2539,7 @@ static void cminstru(void) {
 
 static void cordspr(void) {
     readexec_opername();
-    alis.script->context->_0x2b_cordspr = (u8)alis.varD7;
+    set_0x2b_cordspr(alis.script->vram_org, (u8)alis.varD7);
 }
 
 static void calign(void) {
@@ -2568,10 +2570,10 @@ static void calign(void) {
         bit = 0;
     }
 
-    alis.script->context->_0x2c_calign = bit;
+    set_0x2c_calign(alis.script->vram_org, bit);
     
     readexec_opername();
-    alis.script->context->_0x2d_calign = alis.varD7;
+    set_0x2d_calign(alis.script->vram_org, alis.varD7);
 }
 
 static void cbackstar(void) {
@@ -2630,7 +2632,7 @@ static void ccancall(void) {
     alis.ferase = 1;
     
     u16 tmpidx = 0;
-    u16 curidx = alis.script->context->_0x18_unknown;
+    u16 curidx = get_0x18_unknown(alis.script->vram_org);
     while (curidx)
     {
         killelem(&curidx, &tmpidx);
@@ -2702,7 +2704,7 @@ static void cshrink(void) {
         s16 height = swap16(data + 4, alis.platform.is_little_endian) + 1;
         s32 bits = width * height;
         
-        u8 *ptr = alis.mem + alis.script->context->_0x14_script_org_offset;
+        u8 *ptr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
         s32 l = read32(ptr + 0xe, alis.platform.is_little_endian);
         s16 e = read16(ptr + l + 4, alis.platform.is_little_endian);
         s32 a = read32(ptr + l, alis.platform.is_little_endian) + l;
@@ -2717,10 +2719,10 @@ static void cshrink(void) {
             }
         }
         
-        s32 val6 = swap32(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0x6, alis.platform.is_little_endian) - bits;
-        s32 valC = swap32(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0xc, alis.platform.is_little_endian) - bits;
-        *(s32 *)(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0x6) = swap32((u8 *)&val6, alis.platform.is_little_endian);
-        *(s32 *)(alis.mem + alis.script->context->_0x14_script_org_offset + l + 0xc) = swap32((u8 *)&valC, alis.platform.is_little_endian);
+        s32 val6 = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + l + 0x6, alis.platform.is_little_endian) - bits;
+        s32 valC = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + l + 0xc, alis.platform.is_little_endian) - bits;
+        *(s32 *)(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + l + 0x6) = swap32((u8 *)&val6, alis.platform.is_little_endian);
+        *(s32 *)(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + l + 0xc) = swap32((u8 *)&valC, alis.platform.is_little_endian);
 
         u16 w = 0xf;
         *(u16 *)(data + 2) = swap16((u8 *)&w, alis.platform.is_little_endian);
@@ -2813,38 +2815,38 @@ static void cscamov(void) {
 static void cscfollow(void) {
     debug(EDebugWarning, " /* CHECK */");
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x60, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x60, alis.varD7);
     readexec_opername();
-    xwrite8(alis.basemain + alis.script->context->_0x16_screen_id + 0x84, alis.varD7);
+    xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x84, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x86, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x86, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x88, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x88, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x8a, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x8a, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x8c, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x8c, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x8e, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x8e, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x90, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x90, alis.varD7);
 }
 
 static void cscview(void) {
     debug(EDebugWarning, " /* CHECK */");
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x64, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x64, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x66, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x66, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x68, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x68, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x6a, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x6a, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x6c, alis.varD7);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x6c, alis.varD7);
     readexec_opername();
-    xwrite16(alis.basemain + alis.script->context->_0x16_screen_id + 0x6e, alis.varD7);
-    xwrite8(alis.basemain + alis.script->context->_0x16_screen_id, xread8(alis.basemain + alis.script->context->_0x16_screen_id) | 0x80);
+    xwrite16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x6e, alis.varD7);
+    xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org), xread8(alis.basemain + get_0x16_screen_id(alis.script->vram_org)) | 0x80);
 }
 
 static void cfilm(void) {
@@ -2955,9 +2957,9 @@ static void cret(void) {
     }
     
     s32 offset = xpop32(alis.script->vram_org);
-    if (alis.script->vacc_off == alis.script->context->_0x0c_vacc_offset)
+    if (alis.script->vacc_off == get_0x0c_vacc_offset(alis.script->vram_org))
     {
-        alis.script->context->_0x0c_vacc_offset = 0;
+        set_0x0c_vacc_offset(alis.script->vram_org, 0);
     }
     
     alis.script->pc = alis.script->pc_org + offset;
@@ -3095,29 +3097,29 @@ static void cbne24(void) {
 static void cstart(s32 offset) {
     if (alis.fseq == '\0')
     {
-        if (alis.script->context->_0x0c_vacc_offset == 0)
+        if (get_0x0c_vacc_offset(alis.script->vram_org) == 0)
         {
-            s16 vacc_offset = alis.script->context->_0x0a_vacc_offset - 4;
-            alis.script->context->_0x0c_vacc_offset = vacc_offset;
-            alis.script->context->_0x0a_vacc_offset = vacc_offset;
-            xwrite32(alis.script->vram_org + vacc_offset, alis.script->context->_0x08_script_ret_offset);
-            alis.script->context->_0x08_script_ret_offset = offset + alis.script->pc;
+            s16 vacc_offset = get_0x0a_vacc_offset(alis.script->vram_org) - 4;
+            set_0x0c_vacc_offset(alis.script->vram_org, vacc_offset);
+            set_0x0a_vacc_offset(alis.script->vram_org, vacc_offset);
+            xwrite32(alis.script->vram_org + vacc_offset, get_0x08_script_ret_offset(alis.script->vram_org));
+            set_0x08_script_ret_offset(alis.script->vram_org, offset + alis.script->pc);
         }
         else
         {
-            alis.script->context->_0x0a_vacc_offset = alis.script->context->_0x0c_vacc_offset;
-            alis.script->context->_0x08_script_ret_offset = offset + alis.script->pc;
+            set_0x0a_vacc_offset(alis.script->vram_org, get_0x0c_vacc_offset(alis.script->vram_org));
+            set_0x08_script_ret_offset(alis.script->vram_org, offset + alis.script->pc);
         }
         
-        alis.script->context->_0x04_cstart_csleep = 1;
-        alis.script->context->_0x01_cstart = 1;
+        set_0x04_cstart_csleep(alis.script->vram_org, 1);
+        set_0x01_cstart(alis.script->vram_org, 1);
     }
     else
     {
-        if (alis.script->context->_0x0c_vacc_offset == 0)
+        if (get_0x0c_vacc_offset(alis.script->vram_org) == 0)
         {
             alis.script->vacc_off -= 4;
-            alis.script->context->_0x0c_vacc_offset = alis.script->vacc_off;
+            set_0x0c_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
             xwrite32(alis.script->vram_org + alis.script->vacc_off, alis.script->pc);
         }
 
@@ -3597,26 +3599,26 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
             sAlisScript *script = ENTSCR(entidx);
             printf("\nChecking script: %s at: %.6x ", script->name, script->data_org);
 
-            if (script_id == script->context->_0x10_script_id)
+            if (script_id == get_0x10_script_id(script->vram_org))
             {
                 killent(entidx, alis.varD5);
                 entidx = prevent; //alis.varD5;
                 printf("removed");
             }
-            else if (start <= script->context->_0x14_script_org_offset)
+            else if (start <= get_0x14_script_org_offset(script->vram_org))
             {
                 script->pc -= length;
                 script->pc_org -= length;
                 script->data_org -= length;
-                script->context->_0x14_script_org_offset -= length;
-                script->context->_0x08_script_ret_offset -= length;
+                set_0x14_script_org_offset(script->vram_org, get_0x14_script_org_offset(script->vram_org) - length);
+                set_0x08_script_ret_offset(script->vram_org, get_0x08_script_ret_offset(script->vram_org) - length);
                 
-                u32 org_offset = script->context->_0x14_script_org_offset;
+                u32 org_offset = get_0x14_script_org_offset(script->vram_org);
                 script->vacc_off = swap16(alis.mem + org_offset + 0x16, alis.platform.is_little_endian);
                 script->vacc_off *= -1;
                 script->vacc_off = -0x34;
                 
-                while (script->context->_0x0a_vacc_offset < script->vacc_off)
+                while (get_0x0a_vacc_offset(script->vram_org) < script->vacc_off)
                 {
                     script->vacc_off -= 4;
                     xwrite32(script->vram_org + script->vacc_off, xread32(script->vram_org + script->vacc_off) - length);

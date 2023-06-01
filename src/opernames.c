@@ -347,16 +347,16 @@ void oprnd(void) {
 }
 
 void oscan(void) {
-    if (alis.script->context->_0x1e_scan_clr == alis.script->context->_0x1c_scan_clr)
+    if (get_0x1e_scan_clr(alis.script->vram_org) == get_0x1c_scan_clr(alis.script->vram_org))
         return;
 
-    s16 scan_clr = alis.script->context->_0x1e_scan_clr + 2;
+    s16 scan_clr = get_0x1e_scan_clr(alis.script->vram_org) + 2;
     if (-0x35 < scan_clr)
-        scan_clr -= swap16((alis.mem + alis.script->context->_0x14_script_org_offset + 0x16), alis.platform.is_little_endian);
+        scan_clr -= swap16((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 0x16), alis.platform.is_little_endian);
 
-    alis.script->context->_0x1e_scan_clr = scan_clr;
-    if (scan_clr == alis.script->context->_0x1c_scan_clr)
-        alis.script->context->_0x24_scan_inter.scan_clr_bit_7 &= 0x7f;
+    set_0x1e_scan_clr(alis.script->vram_org, scan_clr);
+    if (scan_clr == get_0x1c_scan_clr(alis.script->vram_org))
+        set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
 }
 
 void oshiftkey(void) {
