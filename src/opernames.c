@@ -35,13 +35,13 @@ void oimmp(void) {
 void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
     s16 offset = script_read16();
-    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
 }
 
 void olocw(void) {
     // read word offset, copy word from ram[offset] into r7
     s16 offset = script_read16();
-    alis.varD7 = xread16(alis.script->vram_org + offset);
+    alis.varD7 = vread16(alis.script->vram_org + offset);
 }
 
 void olocp(void) {
@@ -55,26 +55,26 @@ void oloctp(void) {
 
 void oloctc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = xread8(alis.script->vram_org + offset);
+    alis.varD7 = vread8(alis.script->vram_org + offset);
 }
 
 void olocti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = read16(get_vram(offset), alis.platform.is_little_endian);
+    alis.varD7 = vread16(alis.script->vram_org + offset);
 }
 
 // reads a byte offset from script,
 // then reads an extended byte from vram[offset] into r7
 void odirb(void) {
     u8 offset = script_read8();
-    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
 }
 
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
 void odirw(void) {
     u8 offset = script_read8();
-    alis.varD7 = xread16(alis.script->vram_org + offset);
+    alis.varD7 = vread16(alis.script->vram_org + offset);
     // printf("\nXXodirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
 }
 
@@ -94,22 +94,22 @@ void odirtp(void) {
 void odirtc(void) {
     debug(EDebugWarning, " /* CHECK */");
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = (char)xread8(alis.script->vram_org + offset);
+    alis.varD7 = (char)vread8(alis.script->vram_org + offset);
 }
 
 void odirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = read16(get_vram(offset), alis.platform.is_little_endian);
+    alis.varD7 = vread16(alis.script->vram_org + offset);
 }
 
 void omainb(void) {
     s16 offset = script_read16();
-    alis.varD7 = (s8)xread8(alis.basemain + offset);
+    alis.varD7 = (s8)vread8(alis.basemain + offset);
 }
 
 void omainw(void) {
     s16 offset = script_read16();
-    alis.varD7 = xread16(alis.basemain + offset);
+    alis.varD7 = vread16(alis.basemain + offset);
 }
 
 void omainp(void) {
@@ -126,32 +126,32 @@ void omaintp(void) {
 
 void omaintc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = (s8)xread8(alis.basemain + offset);
+    alis.varD7 = (s8)vread8(alis.basemain + offset);
 }
 
 void omainti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = xread16(alis.basemain + offset);
+    alis.varD7 = vread16(alis.basemain + offset);
 }
 
 void ohimb(void) {
-    u16 entry = xread16(alis.script->vram_org + script_read16());
+    u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = ENTVRAM(entry);
 
     s16 offset = script_read16();
-    alis.varD7 = (s8)xread8(vram_addr + offset);
+    alis.varD7 = (s8)vread8(vram_addr + offset);
 }
 
 void ohimw(void) {
-    u16 entry = xread16(alis.script->vram_org + script_read16());
+    u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = ENTVRAM(entry);
 
     s16 offset = script_read16();
-    alis.varD7 = xread16(vram_addr + offset);
+    alis.varD7 = vread16(vram_addr + offset);
 }
 
 void ohimp(void) {
-    u16 entry = xread16(alis.script->vram_org + script_read16());
+    u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = ENTVRAM(entry);
 
     s16 offset = script_read16();
@@ -343,7 +343,12 @@ void ojoy(void) {
 }
 
 void oprnd(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    u32 result = *(alis.acc);
+    result = (u16)(result << 10 | result >> 6);
+    result = (u16)(result * 0x7ab7 + -0x77f);
+    result = (alis.varD7 & 0xffff) * result;
+    alis.varD7 = result * 0x10000 | result >> 0x10;
+    alis.acc++;
 }
 
 void oscan(void) {

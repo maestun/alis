@@ -51,51 +51,114 @@ typedef union {
     
 } SpriteVariables;
 
-typedef union {
-    
-    struct __attribute__((packed)) {
-        
-        u8 state;               // 0x0
-        u8 numelem;             // 0x1
-        u16 screen_id;          // 0x2
-        u16 to_next;            // 0x4
-        u16 link;               // 0x6
-        u16 unknown0x08;        // 0x8
-        u16 unknown0x0a;        // 0xa
-        u16 unknown0x0c;        // 0xc
-        s16 newx;               // 0xe
-        s16 newy;               // 0x10
-        u16 width;              // 0x12
-        u16 height;             // 0x14
-        u16 depx;               // 0x16
-        u16 depy;               // 0x18
-        u16 depz;               // 0x1a
-        u8 credon_off;          // 0x1c
-        u8 creducing;           // 0x1d
-        u16 clinking;           // 0x1e
+//typedef union {
+//    
+//    struct __attribute__((packed)) {
+//        
+//        u8 state;               // 0x0
+//        u8 numelem;             // 0x1
+//        u16 screen_id;          // 0x2
+//        u16 to_next;            // 0x4
+//        u16 link;               // 0x6
+//        u16 unknown0x08;        // 0x8
+//        u16 unknown0x0a;        // 0xa
+//        u16 unknown0x0c;        // 0xc
+//        s16 newx;               // 0xe
+//        s16 newy;               // 0x10
+//        u16 width;              // 0x12
+//        u16 height;             // 0x14
+//        u16 depx;               // 0x16
+//        u16 depy;               // 0x18
+//        u16 depz;               // 0x1a
+//        u8 credon_off;          // 0x1c
+//        u8 creducing;           // 0x1d
+//        u16 clinking;           // 0x1e
+//
+//        s8 unknown0x20;
+//        s8 unknown0x21;
+//        s8 unknown0x22;
+//        s8 unknown0x23;
+//        s8 unknown0x24;
+//        s8 unknown0x25;
+//        
+//        s8 unknown0x26;
+//        s8 unknown0x27;
+//        s8 unknown0x28;
+//
+//        u8 unknown0x29;
+//
+//        u16 unknown0x2a;
+//        u16 unknown0x2c;
+//        u16 unknown0x2e;
+//    };
+//    
+//    u8 variables[0x30];
+//    
+//} SceneVariables;
 
-        s8 unknown0x20;
-        s8 unknown0x21;
-        s8 unknown0x22;
-        s8 unknown0x23;
-        s8 unknown0x24;
-        s8 unknown0x25;
-        
-        s8 unknown0x26;
-        s8 unknown0x27;
-        s8 unknown0x28;
+u8  get_scene_state(u32 scene);
+u8  get_scene_numelem(u32 scene);
+u16 get_scene_screen_id(u32 scene);
+u16 get_scene_to_next(u32 scene);
+u16 get_scene_link(u32 scene);
+u16 get_scene_unknown0x08(u32 scene);
+u16 get_scene_unknown0x0a(u32 scene);
+u16 get_scene_unknown0x0c(u32 scene);
+s16 get_scene_newx(u32 scene);
+s16 get_scene_newy(u32 scene);
+u16 get_scene_width(u32 scene);
+u16 get_scene_height(u32 scene);
+u16 get_scene_depx(u32 scene);
+u16 get_scene_depy(u32 scene);
+u16 get_scene_depz(u32 scene);
+u8  get_scene_credon_off(u32 scene);
+u8  get_scene_creducing(u32 scene);
+u16 get_scene_clinking(u32 scene);
+s8  get_scene_unknown0x20(u32 scene);
+s8  get_scene_unknown0x21(u32 scene);
+s8  get_scene_unknown0x22(u32 scene);
+s8  get_scene_unknown0x23(u32 scene);
+s8  get_scene_unknown0x24(u32 scene);
+s8  get_scene_unknown0x25(u32 scene);
+s8  get_scene_unknown0x26(u32 scene);
+s8  get_scene_unknown0x27(u32 scene);
+s8  get_scene_unknown0x28(u32 scene);
+u8  get_scene_unknown0x29(u32 scene);
+u16 get_scene_unknown0x2a(u32 scene);
+u16 get_scene_unknown0x2c(u32 scene);
+u16 get_scene_unknown0x2e(u32 scene);
 
-        u8 unknown0x29;
-
-        u16 unknown0x2a;
-        u16 unknown0x2c;
-        u16 unknown0x2e;
-    };
-    
-    u8 variables[0x30];
-    
-} SceneVariables;
-
+void set_scene_state(u32 scene, u8 val);
+void set_scene_numelem(u32 scene, u8 val);
+void set_scene_screen_id(u32 scene, u16 val);
+void set_scene_to_next(u32 scene, u16 val);
+void set_scene_link(u32 scene, u16 val);
+void set_scene_unknown0x08(u32 scene, u16 val);
+void set_scene_unknown0x0a(u32 scene, u16 val);
+void set_scene_unknown0x0c(u32 scene, u16 val);
+void set_scene_newx(u32 scene, s16 val);
+void set_scene_newy(u32 scene, s16 val);
+void set_scene_width(u32 scene, u16 val);
+void set_scene_height(u32 scene, u16 val);
+void set_scene_depx(u32 scene, u16 val);
+void set_scene_depy(u32 scene, u16 val);
+void set_scene_depz(u32 scene, u16 val);
+void set_scene_credon_off(u32 scene, u8 val);
+void set_scene_creducing(u32 scene, u8 val);
+void set_scene_clinking(u32 scene, u16 val);
+void set_scene_unknown0x20(u32 scene, s8 val);
+void set_scene_unknown0x21(u32 scene, s8 val);
+void set_scene_unknown0x22(u32 scene, s8 val);
+void set_scene_unknown0x23(u32 scene, s8 val);
+void set_scene_unknown0x24(u32 scene, s8 val);
+void set_scene_unknown0x25(u32 scene, s8 val);
+void set_scene_unknown0x26(u32 scene, s8 val);
+void set_scene_unknown0x27(u32 scene, s8 val);
+void set_scene_unknown0x28(u32 scene, s8 val);
+void set_scene_unknown0x29(u32 scene, u8 val);
+void set_scene_unknown0x2a(u32 scene, u16 val);
+void set_scene_unknown0x2c(u32 scene, u16 val);
+void set_scene_unknown0x2e(u32 scene, u16 val);
 
 extern u8 thepalet;
 extern u8 defpalet;

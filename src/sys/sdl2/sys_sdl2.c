@@ -130,8 +130,7 @@ u8 sys_poll_event(void) {
     
     if (_mouse.lb)
     {
-        printf("\nx: %d, y: %d \n", _mouse.x, _mouse.y);
-        sleep(0);
+        debug(EDebugInfo, "\nx: %d, y: %d \n", _mouse.x, _mouse.y);
     }
     
     switch (_event.type) {

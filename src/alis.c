@@ -43,13 +43,13 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
-        debug(EDebugVerbose, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+        debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         return opcode.fptr();
     }
 }
 
 alisRet readexec_opcode(void) {
-    debug(EDebugVerbose, "\n%s [%.6x]: 0x%06x:", alis.script->name, alis.script->vram_org, alis.script->pc/* - alis.script->pc_org*/);
+    debug(EDebugInfo, "\n%s [%.6x]: 0x%06x:", alis.script->name, alis.script->vram_org, alis.script->pc/* - alis.script->pc_org*/);
     return readexec(opcodes, "opcode", 0);
 }
 
@@ -158,7 +158,7 @@ void alis_load_main(void) {
 
         // populate the script vrams table with the offsets (routine at $18cd8)
         for(int idx = 0; idx < alis.specs.script_vram_tab_len; idx++) {
-            u16 offset = (1 + idx) * sizeof(sScriptLoc);
+            u16 offset = xswap16((1 + idx) * sizeof(sScriptLoc));
             alis.atent_ptr[idx] = (sScriptLoc){0, offset};
         }
 
@@ -185,7 +185,7 @@ void alis_load_main(void) {
         script_live(alis.main);
         alis.basemain = alis.main->vram_org;
 
-        alis.dernent = alis.atent_ptr[0].offset;
+        alis.dernent = xswap16(alis.atent_ptr[0].offset);
         alis.atent_ptr[0].offset = 0;
     }
 }
@@ -350,6 +350,11 @@ void alis_loop(void) {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
         
+        if (xread16(0x269de) == 0x600)
+        {
+            sleep(0);
+        }
+        
         if (alis.script->pc == 0x057138)
         {
             sleep(0);
@@ -412,7 +417,7 @@ void alis_debug(void) {
 // =============================================================================
 
 u8 * get_vram(s16 offset) {
-    debug(EDebugWarning, " [%s <= %.6x]", (char *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
@@ -432,65 +437,73 @@ u32 xswap32(u32 value) {
 }
 
 u8 * xreadptr(u32 offset) {
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)(alis.mem + offset), offset);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + offset), offset);
     return (u8 *)(alis.mem + offset);
 }
 
 u8 xread8(u32 offset) {
-    debug(EDebugWarning, " [%.2x <= %.6x]", *(u8 *)(alis.mem + offset), offset);
+    debug(EDebugVerbose, " [%.2x <= %.6x]", *(u8 *)(alis.mem + offset), offset);
     return *(alis.mem + offset);
 }
 
 s16 xread16(u32 offset) {
-//    s16 result = swap16((alis.mem + offset), alis.platform.is_little_endian);
-    s16 result = *(s16 *)(alis.mem + offset);
-    debug(EDebugWarning, " [%.4x <= %.6x]", result, offset);
+    s16 result = swap16((alis.mem + offset), alis.platform.is_little_endian);
+//    s16 result = *(s16 *)(alis.mem + offset);
+    debug(EDebugVerbose, " [%.4x <= %.6x]", result, offset);
     return result;
 }
 
 s32 xread32(u32 offset) {
-//    s32 result = swap32((alis.mem + offset), alis.platform.is_little_endian);
-    s32 result = *(s32 *)(alis.mem + offset);
-    debug(EDebugWarning, " [%.8x <= %.6x]", result, offset);
+    s32 result = swap32((alis.mem + offset), alis.platform.is_little_endian);
+//    s32 result = *(s32 *)(alis.mem + offset);
+    debug(EDebugVerbose, " [%.8x <= %.6x]", result, offset);
     return result;
 }
 
 void xwrite8(u32 offset, u8 value) {
-    debug(EDebugWarning, " [%.2x => %.6x]", value, offset);
+    debug(EDebugVerbose, " [%.2x => %.6x]", value, offset);
     *(u8 *)(alis.mem + offset) = value;
+    if (xread16(0x269de) == 0x600)
+    {
+        sleep(0);
+    }
 }
 
 void xwrite16(u32 offset, s16 value) {
-    debug(EDebugWarning, " [%.4x => %.6x]", value, offset);
-//    *(s16 *)(alis.mem + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
-    *(s16 *)(alis.mem + offset) = value;
+    debug(EDebugVerbose, " [%.4x => %.6x]", value, offset);
+    *(s16 *)(alis.mem + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
+//    *(s16 *)(alis.mem + offset) = value;
+    if (xread16(0x269de) == 0x600)
+    {
+        sleep(0);
+    }
 }
 
 void xwrite32(u32 offset, s32 value) {
-    debug(EDebugWarning, " [%.8x => %.6x]", value, offset);
-//    *(s32 *)(alis.mem + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
-    *(s32 *)(alis.mem + offset) = value;
+    debug(EDebugVerbose, " [%.8x => %.6x]", value, offset);
+    *(s32 *)(alis.mem + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
+//    *(s32 *)(alis.mem + offset) = value;
 }
 
 void xadd8(s32 offset, s8 value) {
-    printf(" [%d + %d => %.6x]", *(u8 *)(alis.mem + offset), value, alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [%d + %d => %.6x]", *(u8 *)(alis.mem + offset), value, offset);
     *(s8 *)(alis.mem + offset) += value;
 }
 
 void xadd16(s32 offset, s16 addition) {
     s16 value = xread16(offset);
-    printf(" [%d + %d => %.6x]", value, addition, alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [%d + %d => %.6x]", value, addition, offset);
     xwrite16(offset, value + addition);
 }
 
 void xsub8(s32 offset, s8 value) {
-    printf(" [%d - %d => %.6x]", *(u8 *)(alis.mem + offset), value, alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [%d - %d => %.6x]", *(u8 *)(alis.mem + offset), value, offset);
     *(s8 *)(alis.mem + offset) -= value;
 }
 
 void xsub16(s32 offset, s16 sub) {
     s16 value = xread16(offset);
-    printf(" [%d - %d => %.6x]", value, sub, alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [%d - %d => %.6x]", value, sub, offset);
     xwrite16(offset, value - sub);
 }
 
@@ -507,6 +520,50 @@ s32 xpop32(s32 offset) {
     s32 ret = xpeek32(offset);
     alis.script->vacc_off += sizeof(s32);
     return ret;
+}
+
+u8 vread8(u32 offset) {
+    debug(EDebugInfo, " [%.2x <= %.6x]", *(u8 *)(alis.mem + offset), offset);
+    return *(alis.mem + offset);
+}
+
+s16 vread16(u32 offset) {
+    s16 result = swap16((alis.mem + offset), alis.platform.is_little_endian);
+//    s16 result = *(s16 *)(alis.mem + offset);
+    debug(EDebugInfo, " [%.4x <= %.6x]", result, offset);
+    return result;
+}
+
+s32 vread32(u32 offset) {
+    s32 result = swap32((alis.mem + offset), alis.platform.is_little_endian);
+//    s32 result = *(s32 *)(alis.mem + offset);
+    debug(EDebugInfo, " [%.8x <= %.6x]", result, offset);
+    return result;
+}
+
+void vwrite8(u32 offset, u8 value) {
+    debug(EDebugInfo, " [%.2x => %.6x]", value, offset);
+    *(u8 *)(alis.mem + offset) = value;
+    if (xread16(0x269de) == 0x600)
+    {
+        sleep(0);
+    }
+}
+
+void vwrite16(u32 offset, s16 value) {
+    debug(EDebugInfo, " [%.4x => %.6x]", value, offset);
+    *(s16 *)(alis.mem + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
+//    *(s16 *)(alis.mem + offset) = value;
+    if (xread16(0x269de) == 0x600)
+    {
+        sleep(0);
+    }
+}
+
+void vwrite32(u32 offset, s32 value) {
+    debug(EDebugInfo, " [%.8x => %.6x]", value, offset);
+    *(s32 *)(alis.mem + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
+//    *(s32 *)(alis.mem + offset) = value;
 }
 
 /**

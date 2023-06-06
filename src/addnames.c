@@ -25,7 +25,7 @@ static void cnul(void) {
 static void alocb(void) {
     s16 offset = script_read16();
     xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
-    alis.sr.zero = (xread8(alis.script->vram_org + offset) == 0);
+    alis.sr.zero = (vread8(alis.script->vram_org + offset) == 0);
 }
 
 /**
@@ -36,7 +36,7 @@ static void alocb(void) {
 static void alocw(void) {
     s16 offset = script_read16();
     xadd16(alis.script->vram_org + offset, alis.varD7);
-    alis.sr.zero = (xread16(alis.script->vram_org + offset) == 0);
+    alis.sr.zero = (vread16(alis.script->vram_org + offset) == 0);
 }
 
 /**
@@ -68,12 +68,12 @@ static void alocti(void) {
 static void adirb(void) {
     u8 offset = script_read8();
     xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
-    alis.sr.zero = (xread8(alis.script->vram_org + offset) == 0);
+    alis.sr.zero = (vread8(alis.script->vram_org + offset) == 0);
 }
 static void adirw(void) {
     u8 offset = script_read8();
     xadd16(alis.script->vram_org + offset, alis.varD7);
-    alis.sr.zero = (xread16(alis.script->vram_org + offset) == 0);
+    alis.sr.zero = (vread16(alis.script->vram_org + offset) == 0);
 }
 static void adirp(void) {
     u8 offset = script_read8();
@@ -86,7 +86,7 @@ static void adirtp(void) {
 static void adirtc(void) {
     debug(EDebugInfo, " /* CHECK */");
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    xwrite8(alis.script->vram_org + offset, (char)*(alis.acc));
+    vwrite8(alis.script->vram_org + offset, (char)*(alis.acc));
     alis.acc++;
 }
 static void adirti(void) {

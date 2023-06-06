@@ -35,7 +35,7 @@
 #define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
 
 #define ENTIDX(x) (x / sizeof(sScriptLoc))
-#define ENTLOC(x) (*(sScriptLoc *)(alis.mem + alis.atent + x)) /* alis.atent_ptr[ENTIDX(x)] */
+#define ENTLOC(x) (*(sScriptLoc *)(alis.mem + alis.atent + x))
 #define ENTSCR(x) alis.scripts[ENTIDX(x)]
 #define ENTNEXT(x) (xread16(alis.atent + x + 4))
 #define ENTVRAM(x) (xread32(alis.atent + x))
@@ -268,6 +268,11 @@ typedef struct {
     u8 fohaut;
     u16 fomax;
     
+    u8 witmov;
+    u8 fmitmov;
+    u16 goodmat;
+    u32 baseform;
+    
     // helper: executed instructions count
     u32             icount;
     u8              restart_loop;
@@ -370,5 +375,13 @@ void            xsub16(s32 offset, s16 value);
 void            xpush32(u32 offset, u32 value);
 s32             xpeek32(u32 offset);
 s32             xpop32(s32 offset);
+
+u8              vread8(u32 offset);
+s16             vread16(u32 offset);
+s32             vread32(u32 offset);
+
+void            vwrite8(u32 offset, u8 value);
+void            vwrite16(u32 offset, s16 value);
+void            vwrite32(u32 offset, s32 value);
 
 #endif /* alis_vm_h */
