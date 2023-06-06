@@ -1515,11 +1515,8 @@ void scalaire(u16 scene, s16 *x, s16 *y, s16 *z)
     if ((s8)get_scene_numelem(scene) < 0)
     {
         s32 prevx = (get_scene_unknown0x20(scene) * *x + get_scene_unknown0x21(scene) * *y + get_scene_unknown0x22(scene) * *z);
-        printf("\n%d = %d * %d + %d * %d + %d * %d", prevx, get_scene_unknown0x20(scene), *x, get_scene_unknown0x21(scene), *y, get_scene_unknown0x22(scene), *z);
         s32 prevy = (get_scene_unknown0x23(scene) * *x + get_scene_unknown0x24(scene) * *y + get_scene_unknown0x25(scene) * *z);
-        printf("\n%d = %d * %d + %d * %d + %d * %d", prevy, get_scene_unknown0x20(scene), *x, get_scene_unknown0x21(scene), *y, get_scene_unknown0x22(scene), *z);
         s32 prevz = (get_scene_unknown0x26(scene) * *x + get_scene_unknown0x27(scene) * *y + get_scene_unknown0x28(scene) * *z);
-        printf("\n%d = %d * %d + %d * %d + %d * %d", prevz, get_scene_unknown0x20(scene), *x, get_scene_unknown0x21(scene), *y, get_scene_unknown0x22(scene), *z);
         *x = prevx;
         *y = prevz;
         *z = prevy;
@@ -1527,10 +1524,8 @@ void scalaire(u16 scene, s16 *x, s16 *y, s16 *z)
     else
     {
         s16 prevy = *y;
-        printf("\n%d = %d * %d - %d", (*y * get_scene_unknown0x24(scene) - *z), *y, get_scene_unknown0x24(scene), *z);
         *y = *y * get_scene_unknown0x24(scene) - *z;
         *z = prevy;
-        printf("\n%d", *z);
     }
 }
 
