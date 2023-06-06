@@ -193,7 +193,7 @@ void image(void);
 void ctopalette(u8 *paldata, s32 duration);
 void ctoblackpal(s16 duration);
 
-void moteur(void);
+//void moteur(void);
 
 s16 debprotf(u16 d2w);
 

@@ -588,7 +588,6 @@ void  script_live(sAlisScript * script) {
 
     printf(" add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
 
-//    script->context = (sScriptContext *)(alis.mem + script->vram_org - sizeof(sScriptContext));
     set_0x0a_vacc_offset(script->vram_org, script->vacc_off);
     set_0x1c_scan_clr(script->vram_org, script->vacc_off);
     set_0x1e_scan_clr(script->vram_org, script->vacc_off);
@@ -623,25 +622,13 @@ void  script_live(sAlisScript * script) {
     script->pc = script->pc_org = get_0x08_script_ret_offset(script->vram_org);
     
     s16 nextent = xswap16(alis.atent_ptr[caller_idx].offset);
-//    printf("\nnextent: %.4x", nextent);
     alis.atent_ptr[caller_idx].offset = xswap16(alis.dernent);
-//    printf("\ndernent: %.4x", alis.dernent);
     alis.dernent = xswap16(alis.atent_ptr[script_idx].offset);
-//    printf("\ndernent: %.4x", alis.dernent);
     alis.atent_ptr[script_idx].offset = xswap16(nextent);
     alis.atent_ptr[script_idx].vram_offset = xswap32(script->vram_org);
-//    printf("\nvram_org: %.4x", script->vram_org);
     alis.scripts[script_idx] = script;
     alis.finent += vram_length;
     alis.nbent ++;
-    
-//    u16 len = alis.nbent;
-//    if (len < 24)
-//        len = 24;
-//    for (int i = 0; i < len; i ++)
-//    {
-//        printf("\n   %.3d, %.6x", xswap16(alis.atent_ptr[i].offset), xswap32(alis.atent_ptr[i].vram_offset));
-//    }
 
     debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off);
 }

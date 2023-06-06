@@ -95,32 +95,27 @@ static void adirti(void) {
 }
 static void amainb(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
-    *(u8 *)(BASEMNMEM_PTR + offset) += (u8)alis.varD7;
+    xadd8(alis.basemain + offset, (u8)alis.varD7);
 }
 static void amainw(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
-    *(s16 *)(BASEMNMEM_PTR + offset) += (s16)alis.varD7;
+    xadd16(alis.basemain + offset, (s16)alis.varD7);
 }
 static void amainp(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
-    strcat((char *)(BASEMNMEM_PTR + offset), (char *)alis.oldsd7);
+    strcat((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 static void amaintp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void amaintc(void) {
-    s16 offset = tabchar(script_read16(), BASEMNMEM_PTR);
-    debug(EDebugWarning, " [%.2x => %.6x]", *(u8 *)(alis.acc), alis.basemain + offset);
-    *(u8 *)(BASEMNMEM_PTR + offset) += *(alis.acc);
+    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    xadd8(alis.basemain + offset, (u8)*(alis.acc));
     alis.acc++;
 }
 static void amainti(void) {
-    s16 offset = tabint(script_read16(), BASEMNMEM_PTR);
-    debug(EDebugWarning, " [%.4x => %.6x]", *(s16 *)(alis.acc), alis.basemain + offset);
-    *(s16 *)(BASEMNMEM_PTR + offset) += *(alis.acc);
+    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    xadd16(alis.basemain + offset, *(alis.acc));
     alis.acc++;
 }
 static void ahimb(void) {

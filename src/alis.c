@@ -6,6 +6,8 @@
 //  Copyright © 2020 Zlot. All rights reserved.
 //
 
+#include <stdbool.h>
+
 #include "alis.h"
 #include "alis_private.h"
 #include "sys/sys.h"
@@ -136,7 +138,6 @@ void alis_load_main(void) {
         alis.atprog_ptr = (u32 *)(alis.mem + alis.atprog);
         alis.atent = alis.atprog + 0xf0;
         alis.atent_ptr = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
-        // alis.atent = (s32)((u8 *)alis.atent_ptr - alis.mem);
         alis.maxent = alis.specs.script_vram_tab_len;
         alis.debent = alis.atent + alis.maxent * 6;
         alis.finent = alis.debent;
@@ -225,6 +226,10 @@ void alis_init(sPlatform platform) {
     alis.depx = 0;
     alis.depy = 0;
     alis.depz = 0;
+
+    alis.oldcx = 0;
+    alis.oldcy = 0;
+    alis.oldcz = 0;
 
     alis.saversp = 0;
     alis.basemem = 0x22400;
@@ -350,15 +355,15 @@ void alis_loop(void) {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
         
-        if (xread16(0x269de) == 0x600)
-        {
-            sleep(0);
-        }
-        
-        if (alis.script->pc == 0x057138)
-        {
-            sleep(0);
-        }
+//        if (xread16(0x269de) == 0x600)
+//        {
+//            sleep(0);
+//        }
+//
+//        if (alis.script->pc == 0x057138)
+//        {
+//            sleep(0);
+//        }
         
         readexec_opcode();
     }
@@ -366,23 +371,205 @@ void alis_loop(void) {
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
 
+void savecoord(u8 *a6)
+{
+    // ishar 1&2
+    alis.oldcx = read16(a6 + 0, alis.platform.is_little_endian);
+    alis.oldcy = read16(a6 + 2, alis.platform.is_little_endian);
+    alis.oldcz = read16(a6 + 4, alis.platform.is_little_endian);
+
+//    //ishar 3
+//    oldcx = *(u16 *)(a6 + 0x00);
+//    oldcy = *(u16 *)(a6 + 0x08);
+//    oldcz = *(u16 *)(a6 + 0x10);
+//    oldacx = *(u16 *)(a6 + 0x18);
+//    oldacy = *(u16 *)(a6 + 0x20);
+//    oldacz = *(u16 *)(a6 + 0x28);
+}
+
+void updtcoord(u8 *a6)
+{
+    // ishar 1&2
+    s16 addx = read16(a6 + 0, alis.platform.is_little_endian) - alis.oldcx;
+    s16 addy = read16(a6 + 2, alis.platform.is_little_endian) - alis.oldcy;
+    s16 addz = read16(a6 + 4, alis.platform.is_little_endian) - alis.oldcz;
+    if (addz != 0 || addx != 0 || addy != 0)
+    {
+        for (SpriteVariables *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+        {
+            if (sprite->state == 0)
+                sprite->state = 2;
+            
+            sprite->depx += addx;
+            sprite->depy += addy;
+            sprite->depz += addz;
+        }
+    }
+    
+    // ishar 3
+//    s16 angle = *(u16 *)(a6 + 0x18);
+//    if (angle != oldacx)
+//    {
+//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+//            angle = angle % 0x168;
+//
+//        if (angle < -0x168 && (angle += 0x168) < -0x168)
+//            angle = angle % 0x168;
+//
+//        *(s16 *)(a6 + 0x18) = angle;
+//    }
+//
+//    angle = *(u16 *)(a6 + 0x20);
+//    if (angle != oldacy)
+//    {
+//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+//            angle = angle % 0x168;
+//
+//        if (angle < -0x168 && (angle += 0x168) < -0x168)
+//            angle = angle % 0x168;
+//
+//        *(s16 *)(a6 + 0x20) = angle;
+//    }
+//
+//    angle = *(u16 *)(a6 + 0x28);
+//    if (angle != oldacy)
+//    {
+//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
+//            angle = angle % 0x168;
+//
+//        if (angle < -0x168 && (angle += 0x168) < -0x168)
+//            angle = angle % 0x168;
+//
+//        *(s16 *)(a6 + 0x28) = angle;
+//    }
+//
+//    s16 addx = *(s16 *)(a6 + 0x00) - oldcx;
+//    s16 addy = *(s16 *)(a6 + 0x08) - oldcy;
+//    s16 addz = *(s16 *)(a6 + 0x10) - oldcz;
+//    u16 unknown28 = *(u16 *)(a6 + 0x28);
+//
+//    if (angle != oldacz || addz != 0 || addx != 0 || addy != 0)
+//    {
+//        for (SpriteVariables *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+//        {
+//            if (sprite->state == 0)
+//                sprite->state = 2;
+//
+//            sprite->depx += addx;
+//            sprite->depy += addy;
+//            sprite->depz += addz;
+//            sprite->sprite_0x28 = unknown28;
+//        }
+//    }
+}
+
+void moteur(void)
+{
+    do
+    {
+        alis.running = sys_poll_event();
+        alis.restart_loop = 0;
+        
+        itroutine();
+        
+        if (alis.varD5 > alis.nbent * 6)
+            alis.varD5 = 0;
+        
+        alis.script = ENTSCR(alis.varD5);
+        u8 *vram_addr = alis.mem + alis.script->vram_org;
+        
+        alis.fallent = 0;
+        alis.fseq = 0;
+        
+        if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0)
+        {
+            s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10), alis.platform.is_little_endian);
+            if (script_offset != 0)
+            {
+                alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                savecoord(vram_addr);
+                alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 10 + script_offset;
+                alis_loop();
+                updtcoord(vram_addr);
+            }
+        }
+        
+        
+        if (get_0x04_cstart_csleep(alis.script->vram_org) == 0)
+        {
+            debug(EDebugInfo, "\n SLEEPING %s", alis.script->name);
+        }
+
+        if (get_0x04_cstart_csleep(alis.script->vram_org) != 0)
+        {
+            if ((s8)get_0x04_cstart_csleep(alis.script->vram_org) < 0)
+            {
+                set_0x04_cstart_csleep(alis.script->vram_org, 1);
+            }
+            
+            set_0x01_cstart(alis.script->vram_org, get_0x01_wait_count(alis.script->vram_org) - 1);
+            debug(EDebugInfo, "\n %s %s [%.2x, %.2x] ", get_0x01_wait_count(alis.script->vram_org) == 0 ? "RUNNING" : "WAITING", alis.script->name, get_0x01_wait_count(alis.script->vram_org), get_0x02_wait_cycles(alis.script->vram_org));
+            if (get_0x01_wait_count(alis.script->vram_org) == 0)
+            {
+                savecoord(vram_addr);
+                
+                alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
+                alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
+                alis.fseq ++;
+                alis_loop();
+                
+                if (alis.restart_loop != 0)
+                {
+                    alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
+                    if (alis.varD5 == 0)
+                    {
+                        image();
+                    }
+
+                    continue;
+                }
+
+                set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
+                set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
+                
+                s32 script_offset = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 6, alis.platform.is_little_endian);
+                if (script_offset != 0)
+                {
+                    alis.fseq = 0;
+                    alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                    alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 6 + script_offset;
+                    alis_loop();
+                }
+                
+                updtcoord(vram_addr);
+                
+                set_0x01_cstart(alis.script->vram_org, get_0x02_wait_cycles(alis.script->vram_org));
+                alis.acc = alis.acc_org;
+            }
+        }
+        
+        alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
+        if (alis.varD5 == 0)
+        {
+            image();
+        }
+    }
+    while (alis.running);
+}
+
 u8 alis_main(void) {
     u8 ret = 0;
     
     // run !
     alis.running = 1;
-    while (alis.running) {
-        
-        alis._cstopret = 0;
-        alis._callentity = 0;
-        alis.varD5 = 0;
-        moteur();
-    }
+    alis._cstopret = 0;
+    alis._callentity = 0;
+    alis.varD5 = 0;
+    moteur();
     
     // alis was stopped by 'cexit' opcode
     return ret;
 }
-
 
 
 void alis_error(u8 errnum, ...) {
@@ -448,14 +635,12 @@ u8 xread8(u32 offset) {
 
 s16 xread16(u32 offset) {
     s16 result = swap16((alis.mem + offset), alis.platform.is_little_endian);
-//    s16 result = *(s16 *)(alis.mem + offset);
     debug(EDebugVerbose, " [%.4x <= %.6x]", result, offset);
     return result;
 }
 
 s32 xread32(u32 offset) {
     s32 result = swap32((alis.mem + offset), alis.platform.is_little_endian);
-//    s32 result = *(s32 *)(alis.mem + offset);
     debug(EDebugVerbose, " [%.8x <= %.6x]", result, offset);
     return result;
 }
@@ -463,26 +648,16 @@ s32 xread32(u32 offset) {
 void xwrite8(u32 offset, u8 value) {
     debug(EDebugVerbose, " [%.2x => %.6x]", value, offset);
     *(u8 *)(alis.mem + offset) = value;
-    if (xread16(0x269de) == 0x600)
-    {
-        sleep(0);
-    }
 }
 
 void xwrite16(u32 offset, s16 value) {
     debug(EDebugVerbose, " [%.4x => %.6x]", value, offset);
     *(s16 *)(alis.mem + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
-//    *(s16 *)(alis.mem + offset) = value;
-    if (xread16(0x269de) == 0x600)
-    {
-        sleep(0);
-    }
 }
 
 void xwrite32(u32 offset, s32 value) {
     debug(EDebugVerbose, " [%.8x => %.6x]", value, offset);
     *(s32 *)(alis.mem + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
-//    *(s32 *)(alis.mem + offset) = value;
 }
 
 void xadd8(s32 offset, s8 value) {
@@ -496,6 +671,12 @@ void xadd16(s32 offset, s16 addition) {
     xwrite16(offset, value + addition);
 }
 
+void xadd32(s32 offset, s32 addition) {
+    s32 value = xread32(offset);
+    debug(EDebugVerbose, " [%d + %d => %.6x]", value, addition, offset);
+    xwrite32(offset, value + addition);
+}
+
 void xsub8(s32 offset, s8 value) {
     debug(EDebugVerbose, " [%d - %d => %.6x]", *(u8 *)(alis.mem + offset), value, offset);
     *(s8 *)(alis.mem + offset) -= value;
@@ -505,6 +686,12 @@ void xsub16(s32 offset, s16 sub) {
     s16 value = xread16(offset);
     debug(EDebugVerbose, " [%d - %d => %.6x]", value, sub, offset);
     xwrite16(offset, value - sub);
+}
+
+void xsub32(s32 offset, s32 sub) {
+    s32 value = xread32(offset);
+    debug(EDebugVerbose, " [%d - %d => %.6x]", value, sub, offset);
+    xwrite32(offset, value - sub);
 }
 
 void xpush32(u32 offset, u32 value) {
@@ -529,14 +716,12 @@ u8 vread8(u32 offset) {
 
 s16 vread16(u32 offset) {
     s16 result = swap16((alis.mem + offset), alis.platform.is_little_endian);
-//    s16 result = *(s16 *)(alis.mem + offset);
     debug(EDebugInfo, " [%.4x <= %.6x]", result, offset);
     return result;
 }
 
 s32 vread32(u32 offset) {
     s32 result = swap32((alis.mem + offset), alis.platform.is_little_endian);
-//    s32 result = *(s32 *)(alis.mem + offset);
     debug(EDebugInfo, " [%.8x <= %.6x]", result, offset);
     return result;
 }
@@ -544,26 +729,16 @@ s32 vread32(u32 offset) {
 void vwrite8(u32 offset, u8 value) {
     debug(EDebugInfo, " [%.2x => %.6x]", value, offset);
     *(u8 *)(alis.mem + offset) = value;
-    if (xread16(0x269de) == 0x600)
-    {
-        sleep(0);
-    }
 }
 
 void vwrite16(u32 offset, s16 value) {
     debug(EDebugInfo, " [%.4x => %.6x]", value, offset);
     *(s16 *)(alis.mem + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
-//    *(s16 *)(alis.mem + offset) = value;
-    if (xread16(0x269de) == 0x600)
-    {
-        sleep(0);
-    }
 }
 
 void vwrite32(u32 offset, s32 value) {
     debug(EDebugInfo, " [%.8x => %.6x]", value, offset);
     *(s32 *)(alis.mem + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
-//    *(s32 *)(alis.mem + offset) = value;
 }
 
 /**

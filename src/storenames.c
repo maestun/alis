@@ -129,22 +129,20 @@ static void smainw(void) {
 
 static void smainp(void) {
     s16 offset = script_read16();
-//    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
+    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
     strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
 static void smaintp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
-//    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.sd7, alis.basemain + offset);
-    strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.sd7);
+    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
+    strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
 static void smaintc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-
-//    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
     vwrite8(alis.basemain + offset, (u8)alis.varD7);
 }
 
@@ -152,8 +150,6 @@ static void smainti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-
-//    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
     vwrite16(alis.basemain + offset, (s16)alis.varD7);
 }
 
@@ -161,11 +157,9 @@ static void shimb(void) {
     s16 offset = script_read16();
     s16 ent = vread16(alis.script->vram_org + offset);
 
-    s32 vram = ENTVRAM(ent);
+    s32 vram = xread32(alis.atent + ent);
 
     s16 offset2 = script_read16();
-
-//    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, vram + offset2);
     vwrite8(vram + offset2, (u8)alis.varD7);
 }
 
@@ -173,10 +167,9 @@ static void shimw(void) {
     s16 offset = script_read16();
     s16 ent = vread16(alis.script->vram_org + offset);
 
-    s32 vram = ENTVRAM(ent);
+    s32 vram = xread32(alis.atent + ent);
 
     s16 offset2 = script_read16();
-//    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, vram + offset2);
     vwrite16(vram + offset2, (s16)alis.varD7);
 }
 

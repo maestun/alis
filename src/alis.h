@@ -25,20 +25,13 @@
 #define kMaxScripts             (256)
 #define kBSSChunkLen            (256)
 
-
-#define BASEMNMEM_PTR alis.mem + alis.basemain
 #define SPRITEMEM_PTR alis.spritemem + alis.basesprite
 
 #define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
-#define SCENE_VAR(x) ((SceneVariables *)(BASEMNMEM_PTR + x))
 
 #define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
 
-#define ENTIDX(x) (x / sizeof(sScriptLoc))
-#define ENTLOC(x) (*(sScriptLoc *)(alis.mem + alis.atent + x))
-#define ENTSCR(x) alis.scripts[ENTIDX(x)]
-#define ENTNEXT(x) (xread16(alis.atent + x + 4))
-#define ENTVRAM(x) (xread32(alis.atent + x))
+#define ENTSCR(x) alis.scripts[x / sizeof(sScriptLoc)]
 
 
 // =============================================================================
@@ -202,6 +195,11 @@ typedef struct {
     s16             wcx;
     s16             wcy;
     s16             wcz;
+    
+    s16             oldcx;
+    s16             oldcy;
+    s16             oldcz;
+
     s16             wforme;
     s16             matmask;
     
@@ -368,9 +366,11 @@ void            xwrite32(u32 offset, s32 value);
 
 void            xadd8(s32 offset, s8 value);
 void            xadd16(s32 offset, s16 value);
+void            xadd32(s32 offset, s32 add);
 
 void            xsub8(s32 offset, s8 value);
 void            xsub16(s32 offset, s16 value);
+void            xsub32(s32 offset, s32 sub);
 
 void            xpush32(u32 offset, u32 value);
 s32             xpeek32(u32 offset);

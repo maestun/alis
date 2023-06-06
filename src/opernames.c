@@ -115,7 +115,7 @@ void omainw(void) {
 void omainp(void) {
     s16 offset = script_read16();
     debug(EDebugWarning, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    strcpy((char *)alis.sd7, (char *)(BASEMNMEM_PTR + offset));
+    strcpy((char *)alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 void omaintp(void) {
@@ -136,7 +136,7 @@ void omainti(void) {
 
 void ohimb(void) {
     u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
-    u32 vram_addr = ENTVRAM(entry);
+    u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
     alis.varD7 = (s8)vread8(vram_addr + offset);
@@ -144,7 +144,7 @@ void ohimb(void) {
 
 void ohimw(void) {
     u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
-    u32 vram_addr = ENTVRAM(entry);
+    u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
     alis.varD7 = vread16(vram_addr + offset);
@@ -152,7 +152,7 @@ void ohimw(void) {
 
 void ohimp(void) {
     u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
-    u32 vram_addr = ENTVRAM(entry);
+    u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
     debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
