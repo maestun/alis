@@ -899,7 +899,7 @@ static void ckill(void) {
 static void cstop(void) {
     // in real program, adds 4 to real stack pointer
     alis.script->running = 0;
-    debug(EDebugWarning, "\n-- CSTOP --");
+    debug(EDebugInfo, "\n-- CSTOP --");
 }
 
 static void cstopret(void) {
@@ -1039,10 +1039,6 @@ static void cdefsc(void) {
     sprite->newd = 0x7fff;
     sprite->depx = get_scene_newx(scene) + get_scene_width(scene);// | 0xf;
     sprite->depy = get_scene_newy(scene) + get_scene_height(scene);
-
-//    printf("\n0x%.4x\n", ELEMIDX(alis.libsprit));
-//    printf("0x%.4x 0x%.4x 0x%.4x 0x%.4x\n", scene->newx, scene->newy, scene->width, scene->height);
-//    printf("0x%.4x 0x%.4x 0x%.4x 0x%.4x\n", sprite->newx, sprite->newy, sprite->depx, sprite->depy);
 
     alis.libsprit = sprite->to_next;
 
@@ -3142,14 +3138,14 @@ static void cbne24(void) {
 #pragma mark - Flow control - Start
 // ============================================================================
 static void cstart(s32 offset) {
-    if (alis.fseq == '\0')
+    if (alis.fseq == 0)
     {
         if (get_0x0c_vacc_offset(alis.script->vram_org) == 0)
         {
             s16 vacc_offset = get_0x0a_vacc_offset(alis.script->vram_org) - 4;
             set_0x0c_vacc_offset(alis.script->vram_org, vacc_offset);
             set_0x0a_vacc_offset(alis.script->vram_org, vacc_offset);
-            vwrite32(alis.script->vram_org + vacc_offset, get_0x08_script_ret_offset(alis.script->vram_org));
+            vwrite32(alis.script->vram_org + vacc_offset, (u32)(alis.script->pc - get_0x08_script_ret_offset(alis.script->vram_org)));
             set_0x08_script_ret_offset(alis.script->vram_org, offset + alis.script->pc);
         }
         else
@@ -3167,7 +3163,8 @@ static void cstart(s32 offset) {
         {
             alis.script->vacc_off -= 4;
             set_0x0c_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
-            vwrite32(alis.script->vram_org + alis.script->vacc_off, alis.script->pc);
+            
+            vwrite32(alis.script->vram_org + alis.script->vacc_off, (u32)(alis.script->pc - alis.script->pc_org)); // alis.script->pc);
         }
 
         alis.script->pc += offset;

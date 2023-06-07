@@ -3,6 +3,7 @@
 //  silmarils-unpacker
 //
 
+#include "alis.h"
 #include "unpack.h"
 #include "utils.h"
 
@@ -224,7 +225,7 @@ u32 unpack_new(u8* ptr_packed,
             write_neg(&ptr_unpacked, word(d5), &counter);
         }
     }
-    printf("unpack counter=%d\n", __unpack_counter);
+    debug(EDebugInfo, "unpack counter=%d\n", __unpack_counter);
     return __unpack_counter;
 }
 
@@ -307,7 +308,7 @@ int unpack_script(const char* packed_file_path,
             else if (packer_kind == kPackerKindOldInterlaced) {
                 unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
             }
-            printf("Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", 
+            debug(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n",
                     packed_file_path, packed_size, unpacked_size, 
                     100 - (int)((packed_size * 100) / unpacked_size),
                     packer_kind == kPackerKindNew ? "new" : "old");
@@ -317,13 +318,13 @@ int unpack_script(const char* packed_file_path,
         }
         else {
             // do nothing
-            printf("%s is not packed, or packer format is unknown (0x%02x)\n", packed_file_path, (magic >> 24));
+            debug(EDebugWarning, "%s is not packed, or packer format is unknown (0x%02x)\n", packed_file_path, (magic >> 24));
             ret = EUnpackErrorFormat;
         }
     }
     else {
         // error
-        printf("Cannot open input file (%s)\n", packed_file_path);
+        debug(EDebugFatal, "Cannot open input file (%s)\n", packed_file_path);
         ret = EUnpackErrorInput;
     }
     return ret;

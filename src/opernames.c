@@ -75,7 +75,6 @@ void odirb(void) {
 void odirw(void) {
     u8 offset = script_read8();
     alis.varD7 = vread16(alis.script->vram_org + offset);
-    // printf("\nXXodirw: 0x%.6x > 0x%.2x\n", (u16)alis.varD7, offset);
 }
 
 // reads a byte offset from script,
@@ -324,11 +323,7 @@ void onot(void) {
 
 void oinkey(void) {
     alis.varD7 = alis.automode ? alis.prevkey : (alis.prevkey = io_inkey());
-    
-    if (alis.varD7)
-    {
-        printf(" [ON] ");
-    }
+    debug(EDebugInfo, " [%d] ", alis.varD7);
 }
 
 void okeyon(void) {

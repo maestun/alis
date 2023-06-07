@@ -694,9 +694,10 @@ void xsub32(s32 offset, s32 sub) {
     xwrite32(offset, value - sub);
 }
 
-void xpush32(u32 offset, u32 value) {
+void xpush32(u32 offset, s32 value) {
     alis.script->vacc_off -= sizeof(u32);
     xwrite32(offset + alis.script->vacc_off, value);
+    debug(EDebugInfo, " [%.8x => %.6x + %.6x]", value, alis.script->vacc_off, offset);
 }
 
 s32 xpeek32(u32 offset) {
@@ -706,6 +707,7 @@ s32 xpeek32(u32 offset) {
 s32 xpop32(s32 offset) {
     s32 ret = xpeek32(offset);
     alis.script->vacc_off += sizeof(s32);
+    debug(EDebugInfo, " [%.8x <= %.6x + %.6x]", ret, alis.script->vacc_off, offset);
     return ret;
 }
 

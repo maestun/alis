@@ -372,7 +372,7 @@ void            xsub8(s32 offset, s8 value);
 void            xsub16(s32 offset, s16 value);
 void            xsub32(s32 offset, s32 sub);
 
-void            xpush32(u32 offset, u32 value);
+void            xpush32(u32 offset, s32 value);
 s32             xpeek32(u32 offset);
 s32             xpop32(s32 offset);
 

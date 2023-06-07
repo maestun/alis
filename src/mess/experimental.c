@@ -1277,8 +1277,6 @@ s16 inilink(s16 elemidx)
     blocy1 = 0x7fff;
     blocx2 = 0x8000;
     blocy2 = 0x8000;
-    
-//    printf("\n inilink [%.6x : %.6x] \n", elemidx, SPRITE_VAR(elemidx)->clinking);
 
     return SPRITE_VAR(elemidx)->clinking;
 }

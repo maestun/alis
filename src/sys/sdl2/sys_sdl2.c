@@ -202,13 +202,12 @@ void sys_enable_mouse(u8 enable) {
 }
 
 
-
 // =============================================================================
 #pragma mark - FILE SYSTEM
 // =============================================================================
 FILE * sys_fopen(char * path, u16 mode) {
     // TODO: mode...
-    printf(" (%s) ", path);
+    debug(EDebugInfo, " [%s] ", path);
     return fopen(path, "r");
 }
 
