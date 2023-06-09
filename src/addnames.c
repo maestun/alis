@@ -91,7 +91,7 @@ static void adirtc(void) {
 }
 static void adirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
-    xadd16(alis.script->vram_org + offset, xpop32(alis.script->vram_org));
+    xadd16(alis.script->vram_org + offset, xpop32());
 }
 static void amainb(void) {
     s16 offset = script_read16();

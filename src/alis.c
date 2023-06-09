@@ -486,7 +486,7 @@ void moteur(void)
             s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10), alis.platform.is_little_endian);
             if (script_offset != 0)
             {
-                alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
                 savecoord(vram_addr);
                 alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 10 + script_offset;
                 alis_loop();
@@ -515,6 +515,7 @@ void moteur(void)
                 
                 alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
                 alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
+                debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
                 alis.fseq ++;
                 alis_loop();
                 
@@ -536,7 +537,7 @@ void moteur(void)
                 if (script_offset != 0)
                 {
                     alis.fseq = 0;
-                    alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                    alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
                     alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 6 + script_offset;
                     alis_loop();
                 }
@@ -694,20 +695,20 @@ void xsub32(s32 offset, s32 sub) {
     xwrite32(offset, value - sub);
 }
 
-void xpush32(u32 offset, s32 value) {
+void xpush32(s32 value) {
     alis.script->vacc_off -= sizeof(u32);
-    xwrite32(offset + alis.script->vacc_off, value);
-    debug(EDebugInfo, " [%.8x => %.6x + %.6x]", value, alis.script->vacc_off, offset);
+    xwrite32(alis.script->vram_org + alis.script->vacc_off, value);
+    debug(EDebugInfo, " [%.8x => va %.4x + %.6x (%.6x)]", value, (s16)alis.script->vacc_off, alis.script->vram_org, alis.script->vacc_off + alis.script->vram_org);
 }
 
-s32 xpeek32(u32 offset) {
-    return xread32(offset + alis.script->vacc_off);
+s32 xpeek32(void) {
+    return xread32(alis.script->vram_org + alis.script->vacc_off);
 }
 
-s32 xpop32(s32 offset) {
-    s32 ret = xpeek32(offset);
+s32 xpop32(void) {
+    s32 ret = xpeek32();
+    debug(EDebugInfo, " [%.8x <= va %.4x + %.6x (%.6x)]", ret, (s16)alis.script->vacc_off, alis.script->vram_org, alis.script->vacc_off + alis.script->vram_org);
     alis.script->vacc_off += sizeof(s32);
-    debug(EDebugInfo, " [%.8x <= %.6x + %.6x]", ret, alis.script->vacc_off, offset);
     return ret;
 }
 

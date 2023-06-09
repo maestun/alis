@@ -655,6 +655,7 @@ static void cleave(void) {
     else
     {
         alis.script->vacc_off = get_0x0c_vacc_offset(alis.script->vram_org);
+        debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
         if (alis.script->vacc_off != 0)
         {
             set_0x0c_vacc_offset(alis.script->vram_org, 0);
@@ -2999,7 +3000,7 @@ static void cret(void) {
         return;
     }
     
-    s32 offset = xpop32(alis.script->vram_org);
+    s32 offset = xpop32();
     if (alis.script->vacc_off == get_0x0c_vacc_offset(alis.script->vram_org))
     {
         set_0x0c_vacc_offset(alis.script->vram_org, 0);
@@ -3016,8 +3017,7 @@ static void cjsr(s32 offset) {
     // TODO: peut-on stocker une adresse de retour *virtuelle* ?
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
-    u32 pc_offset = (u32)(alis.script->pc - alis.script->pc_org);
-    xpush32(alis.script->vram_org, pc_offset);
+    xpush32((u32)(alis.script->pc - alis.script->pc_org));
     script_jump(offset);
 }
 
@@ -3161,10 +3161,12 @@ static void cstart(s32 offset) {
     {
         if (get_0x0c_vacc_offset(alis.script->vram_org) == 0)
         {
-            alis.script->vacc_off -= 4;
+            xpush32((u32)(alis.script->pc - alis.script->pc_org));
             set_0x0c_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
-            
-            vwrite32(alis.script->vram_org + alis.script->vacc_off, (u32)(alis.script->pc - alis.script->pc_org)); // alis.script->pc);
+        }
+        else
+        {
+            alis.script->vacc_off = get_0x0c_vacc_offset(alis.script->vram_org);
         }
 
         alis.script->pc += offset;
@@ -3658,14 +3660,14 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
                 set_0x08_script_ret_offset(script->vram_org, get_0x08_script_ret_offset(script->vram_org) - length);
                 
                 u32 org_offset = get_0x14_script_org_offset(script->vram_org);
-                script->vacc_off = xread16(org_offset + 0x16);
-                script->vacc_off *= -1;
-                script->vacc_off = -0x34;
-                
+                script->vacc_off = -0x34 - xread16(org_offset + 0x16);
+                debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
+
                 while (get_0x0a_vacc_offset(script->vram_org) < script->vacc_off)
                 {
                     script->vacc_off -= 4;
                     xsub32(script->vram_org + script->vacc_off, length);
+                    debug(EDebugInfo, " [%.8x => va %.4x + %.6x (%.6x)]", xread32(script->vram_org + script->vacc_off), (s16)script->vacc_off, script->vram_org, script->vacc_off + script->vram_org);
                 }
 
                 debug(EDebugInfo, "shrinked to: %.6x", script->data_org);

@@ -2966,6 +2966,7 @@ u16 tabchar(u16 offset, u8 *address)
     for (int i = 0; i < length; i++)
     {
         result += *(alis.acc) * xswap16(*(--ptr));
+        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, *(alis.acc) * xswap16(*(ptr)));
         alis.acc++;
     }
 
@@ -2980,6 +2981,7 @@ s16 tabstring(s16 offset, u8 *address)
     for (int i = 0; i < length; i++)
     {
         result += *(alis.acc) * xswap16(*(--ptr));
+        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, *(alis.acc) * xswap16(*(ptr)));
         alis.acc++;
     }
     
@@ -2994,6 +2996,7 @@ s16 tabint(s16 offset, u8 *address)
     for (int i = 0; i < length; i++)
     {
         result += *(alis.acc) * xswap16(*(--ptr));
+        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, *(alis.acc) * xswap16(*(ptr)));
         alis.acc++;
     }
     
