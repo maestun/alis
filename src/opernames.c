@@ -46,6 +46,7 @@ void olocw(void) {
 
 void olocp(void) {
     s16 offset = script_read16();
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
@@ -81,17 +82,17 @@ void odirw(void) {
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
 void odirp(void) {
     u8 offset = script_read8();
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtp(void) {
-    debug(EDebugWarning, " /* CHECK */");
     s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtc(void) {
-    debug(EDebugWarning, " /* CHECK */");
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
     alis.varD7 = (char)vread8(alis.script->vram_org + offset);
 }
@@ -305,7 +306,11 @@ void oabs(void) {
 }
 
 void ornd(void) {
-    alis.varD7 = sys_random() % alis.varD7;
+//    alis.varD7 = sys_random() % alis.varD7;
+    u32 result = alis._random_number;
+    result = alis._random_number = (u16)(result * 0x7ab7 + -0x77f);
+    result = (alis.varD7 & 0xffff) * result;
+    alis.varD7 = result * 0x10000 | result >> 0x10;
 }
 
 void osgn(void) {
@@ -483,12 +488,12 @@ void osadd(void) {
 
 void osegal(void) {
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) == 0 ? 0 : -1;
+    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) ? 0 : -1;
 }
 
 void osdiff(void) {
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) == 0 ? -1 : 0;
+    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) ? -1 : 0;
 }
 
 void osinfeg(void) {
@@ -521,6 +526,7 @@ void ospushacc(void) {
 
 void pop_sd6(void)
 {
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
     strcpy((char *)alis.sd6, (char *)alis.acc);
     alis.acc += (s32)strlen((char *)alis.sd6) / 2;
 }

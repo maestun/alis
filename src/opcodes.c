@@ -1988,8 +1988,6 @@ static void cxinvoff(void) {
 }
 
 static void clistent(void) {
-    debug(EDebugWarning, " /* CHECK */");
-    
     s16 entidx = 0;
     s16 tabidx = 0;
     while ((entidx = vread16(alis.atent + 4 + entidx)) != 0)
@@ -2087,7 +2085,7 @@ static void cxput(void) {
 
 static void cxputat(void) {
     alis.flagmain = 0;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
+    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
 
     readexec_opername_saveD7();
     alis.depx = alis.varD7;

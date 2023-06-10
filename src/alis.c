@@ -51,7 +51,7 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
 }
 
 alisRet readexec_opcode(void) {
-    debug(EDebugInfo, "\n%s [%.6x]: 0x%06x:", alis.script->name, alis.script->vram_org, alis.script->pc/* - alis.script->pc_org*/);
+    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc/* - alis.script->pc_org*/);
     return readexec(opcodes, "opcode", 0);
 }
 
@@ -360,7 +360,7 @@ void alis_loop(void) {
 //            sleep(0);
 //        }
 //
-//        if (alis.script->pc == 0x057138)
+//        if (alis.script->pc == 0x04c0e2)
 //        {
 //            sleep(0);
 //        }
