@@ -9,3 +9,5 @@ tools/pytools/venv
 build
 **/xcuserdata
 tools/Steem.SSE.4.0.2.Debug.Win64.DD/steem.log
+.vscode/launch.json
+data/
