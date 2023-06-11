@@ -207,8 +207,8 @@ void sys_enable_mouse(u8 enable) {
 // =============================================================================
 FILE * sys_fopen(char * path, u16 mode) {
     // TODO: mode...
-    debug(EDebugInfo, " [%s] ", path);
-    return fopen(path, "r");
+    printf(" (%s) ", path);
+    return fopen(strlower(path), "r");
 }
 
 //s16 FUN_OpenFile(char *path, short mode)
