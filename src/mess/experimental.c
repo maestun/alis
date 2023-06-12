@@ -660,10 +660,7 @@ u8 verifyintegrity(void)
     {
         cursprvar = SPRITE_VAR(curidx);
         
-        u16 screen_id = cursprvar->screen_id;
-        u16 state = cursprvar->state;
         u16 link = cursprvar->link;
-        u32 clink = cursprvar->clinking;
 
         ELEM_TRACE("    N: 0x%.4x L: 0x%.4x Sc: 0x%.4x St: 0x%.2x Cl: 0x%.8x\n", ELEMIDX(curidx), ELEMIDX(link), ELEMIDX(screen_id), state, clink);
 
@@ -706,10 +703,6 @@ u8 verifyintegrity(void)
                 lastidx2 = lastidx;
                 lastidx = curidx;
                 sprite = SPRITE_VAR(curidx);
-                s16 posx1 = sprite->newx;
-                s16 posy1 = sprite->newy;
-                s16 width = sprite->width;
-                s16 height = sprite->height;
 
                 sAlisScript *script = ENTSCR(sprite->script_ent);
                 
@@ -781,9 +774,6 @@ u8 verifyintegrity2(void)
         result = false;
     }
     
-    SpriteVariables *cursprvar = NULL;
-    
-    u16 previdx = 0;
     u16 curidx = get_0x18_unknown(alis.script->vram_org);
     u16 scsprite = ptscreen;
     
@@ -801,9 +791,13 @@ u8 verifyintegrity2(void)
                 lastidx = curidx;
                 sprite = SPRITE_VAR(curidx);
                 u32 spnewad = sprite->newad & 0xffffff;
-                if (spnewad)
+                if (spnewad && sprite->width >= 319 && sprite->height >= 199)
                 {
                     bitmap = (alis.mem + spnewad);
+                }
+                else
+                {
+                    bitmap = 0;
                 }
             }
             

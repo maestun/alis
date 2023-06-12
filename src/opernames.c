@@ -185,6 +185,8 @@ void oeval(void) {
     while(alis.oeval_loop) {
         readexec_opername();
     }
+    
+    debug(EDebugInfo, " [ = %d]", (s8)alis.varD7);
 }
 
 // stop eval loop
@@ -352,16 +354,27 @@ void oprnd(void) {
 }
 
 void oscan(void) {
-    if (get_0x1e_scan_clr(alis.script->vram_org) == get_0x1c_scan_clr(alis.script->vram_org))
+    s16 scan_clr = get_0x1e_scan_clr(alis.script->vram_org);
+    if (scan_clr == get_0x1c_scan_clr(alis.script->vram_org))
+    {
+        alis.varD7 = -1;
         return;
-
-    s16 scan_clr = get_0x1e_scan_clr(alis.script->vram_org) + 2;
+    }
+    
+    s16 result = xread16(alis.script->vram_org + scan_clr);
+    scan_clr += 2;
     if (-0x35 < scan_clr)
-        scan_clr -= swap16((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 0x16), alis.platform.is_little_endian);
+    {
+        scan_clr -= xread16(get_0x14_script_org_offset(alis.script->vram_org) + 0x16);
+    }
 
     set_0x1e_scan_clr(alis.script->vram_org, scan_clr);
     if (scan_clr == get_0x1c_scan_clr(alis.script->vram_org))
+    {
         set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
+    }
+    
+    alis.varD7 = result;
 }
 
 void oshiftkey(void) {
@@ -470,7 +483,6 @@ void oasc(void) {
 }
 
 void ostr(void) {
-    debug(EDebugWarning, " /* CHECK */");
     vald0(alis.sd7, alis.varD7);
 }
 

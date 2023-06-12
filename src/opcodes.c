@@ -582,10 +582,9 @@ static void cloop24(void) {
 
 static void cswitch1(void) {
     readexec_opername();
-    
+
     s16 addition = script_read8();
-    s32 new_pc = alis.script->pc;
-    if ((new_pc & 1) != 0)
+    if ((alis.script->pc & 1) != 0)
     {
         alis.script->pc ++;
     }
@@ -601,17 +600,16 @@ static void cswitch1(void) {
             alis.script->pc += addition;
             return;
         }
-        
+
         alis.script->pc += 2;
     }
     while (test <= alis.varD7 && (addition --) != -1);
-    
+
     if (addition < 0)
     {
-        // alis.script->pc = new_pc;
         return;
     }
-    
+
     alis.script->pc += (addition * 4);
 }
 
@@ -660,6 +658,7 @@ static void cleave(void) {
         {
             set_0x0c_vacc_offset(alis.script->vram_org, 0);
             alis.script->pc = vread32(alis.script->vram_org + alis.script->vacc_off);
+            debug(EDebugInfo, " (7NAME: %s, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vacc_off, alis.script->pc);
             return;
         }
     }
@@ -676,6 +675,7 @@ static void cleave(void) {
     }
     
     alis.script->pc = new_pc;
+    debug(EDebugInfo, " (8NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 }
 
 static void cprotect(void) {
@@ -885,7 +885,7 @@ static void clive(void) {
             }
         }
     }
-    
+
     cstore_continue();
 }
 
@@ -920,6 +920,7 @@ static void cexit(void) {
 }
 
 static void cload(void) {
+    
     // get script ID
     u16 id = script_read16();
     if(id != 0) {
@@ -3004,6 +3005,11 @@ static void cret(void) {
         set_0x0c_vacc_offset(alis.script->vram_org, 0);
     }
     
+    if (alis.script->vacc_off >= -0x34)
+    {
+        debug(EDebugError, " VACC out of bounds!!! ");
+    }
+    
     alis.script->pc = alis.script->pc_org + offset;
 }
 
@@ -3462,6 +3468,23 @@ void killent(u16 killent, u16 testent)
     debug(EDebugInfo, "\n killent: [%.2x, %.6x][%.6x] \n", killent, script_vram, prevscript->vram_org);
     debug(EDebugInfo, " killent: [%.2x, %.6x] \n", xread16(alis.atent + 4 + killent), xread32(alis.atent + killent));
 
+    u16 tent = 0;
+    u16 pent = 0;
+
+    do
+    {
+        sAlisScript *s = ENTSCR(tent);
+        tent = xread16(alis.atent + 4 + tent);
+
+        u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
+        s32 vramsize = s->header.vram_alloc_sz;
+        s32 shrinkby = datasize + vramsize;
+
+        debug(EDebugInfo, "%c[%s (%.2x), %.2x, %.6x, %.6x] \n", pent == killent ? '*' : ' ', s->name, get_0x10_script_id(s->vram_org), pent, s->vram_org, shrinkby);
+        pent = tent;
+    }
+    while (tent);
+
     if (script_vram == 0)
     {
         alis.ferase = 0;
@@ -3488,7 +3511,6 @@ void killent(u16 killent, u16 testent)
     while (source < alis.finent);
 
     alis.finent -= shrinkby;
-    debug(EDebugInfo, " [finent %.6x] \n", alis.finent);
 
     // change work addresses of next scripts to match new locations
     
@@ -3523,26 +3545,9 @@ void killent(u16 killent, u16 testent)
 
     killscript->vram_org = 0;
 
-    u16 tent = 0;
-    u16 pent = 0;
-
-    do
-    {
-        sAlisScript *s = ENTSCR(tent);
-        tent = xread16(alis.atent + 4 + tent);
-
-        u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
-        s32 vramsize = s->header.vram_alloc_sz;
-        s32 shrinkby = datasize + vramsize;
-
-        debug(EDebugInfo, "%c[%s (%.2x), %.2x, %.6x, %.6x] \n", pent == killent ? '*' : ' ', s->name, get_0x10_script_id(s->vram_org), pent, s->vram_org, shrinkby);
-        pent = tent;
-    }
-    while (tent);
-
     alis.dernent = killent;
     alis.nbent --;
-    
+
     // if we deleted currently running script, set previous script and restart loop
     if (testent == killent)
     {

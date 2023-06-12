@@ -355,16 +355,6 @@ void alis_loop(void) {
     alis.script->running = 1;
     while (alis.running && alis.script->running) {
         
-//        if (xread16(0x269de) == 0x600)
-//        {
-//            sleep(0);
-//        }
-//
-//        if (alis.script->pc == 0x04c0e2)
-//        {
-//            sleep(0);
-//        }
-        
         readexec_opcode();
     }
     
@@ -472,9 +462,6 @@ void moteur(void)
         
         itroutine();
         
-        if (alis.varD5 > alis.nbent * 6)
-            alis.varD5 = 0;
-        
         alis.script = ENTSCR(alis.varD5);
         u8 *vram_addr = alis.mem + alis.script->vram_org;
         
@@ -515,7 +502,6 @@ void moteur(void)
                 
                 alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
                 alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
-                debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
                 alis.fseq ++;
                 alis_loop();
                 
@@ -573,9 +559,12 @@ u8 alis_main(void) {
 }
 
 
-void alis_error(u8 errnum, ...) {
+void alis_error(int errnum, ...) {
+    va_list args;
+    va_start(args, errnum);
     sAlisError err = errors[errnum];
-    debug(EDebugError, err.descfmt, errnum);
+    debug(EDebugError, err.descfmt, args);
+    va_end(args);
     exit(-1);
 }
 

@@ -343,7 +343,7 @@ void            alis_init(sPlatform platform);
 u8              alis_main(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
-void            alis_error(u8 errnum, ...);
+void            alis_error(int errnum, ...);
 void            alis_debug(void);
 void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);

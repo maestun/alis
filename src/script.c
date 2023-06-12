@@ -299,7 +299,8 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
             debug(EDebugInfo, "\n");
 
             script->pc = script->pc_org = 0;
-            
+            debug(EDebugInfo, " (10NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
+
             debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
             return script;
         }
@@ -364,7 +365,8 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     debug(EDebugInfo, "\n");
 
     script->pc = script->pc_org = 0;
-    
+    debug(EDebugInfo, " (11NAME: %s VACC: 0x%x, PC: 0x%x) ", script->name, script->vacc_off, script->pc);
+
     debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
     return script;
@@ -373,11 +375,11 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
 void  script_live(sAlisScript * script) {
     u8 *data = alis.mem + script->data_org;
 
-    s32 test = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
+//    s32 test = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
 
     alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(sScriptContext));
     
-    script->vacc_off = (test - alis.finent) & 0xffff;
+    script->vacc_off = -0x34 - xread16(script->data_org + 0x12); // (test - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
     
     u16 vram_length = swap16((data + 0x14), alis.platform.is_little_endian);
@@ -433,7 +435,7 @@ void  script_live(sAlisScript * script) {
     alis.finent += vram_length;
     alis.nbent ++;
 
-    debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off);
+    debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off, script->pc_org);
 }
 
 
@@ -647,7 +649,7 @@ u8 get_0x28_unknown(u32 vram)                           { return xread8(vram - 0
 u8 get_0x27_creducing(u32 vram)                         { return xread8(vram - 0x27); }
 u8 get_0x26_creducing(u32 vram)                         { return xread8(vram - 0x26); }
 u8 get_0x25_credon_credoff(u32 vram)                    { return xread8(vram - 0x25); }
-u8 get_0x24_scan_inter(u32 vram)                        { return xread8(vram - 0x24); }
+s8 get_0x24_scan_inter(u32 vram)                        { return xread8(vram - 0x24); }
 u8 get_0x23_unknown(u32 vram)                           { return xread8(vram - 0x23); }
 u16 get_0x22_cworld(u32 vram)                           { return xread16(vram - 0x22); }
 //u8 get_0x21_cworld(u32 vram)                            { return xread8(vram - 0x21); }
@@ -682,7 +684,7 @@ void set_0x28_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x28, v
 void set_0x27_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x27, val); }
 void set_0x26_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x26, val); }
 void set_0x25_credon_credoff(u32 vram, u8 val)          { xwrite8(vram - 0x25, val); }
-void set_0x24_scan_inter(u32 vram, u8 val)              { xwrite8(vram - 0x24, val); }
+void set_0x24_scan_inter(u32 vram, s8 val)              { xwrite8(vram - 0x24, val); }
 void set_0x23_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x23, val); }
 void set_0x22_cworld(u32 vram, u16 val)                 { xwrite16(vram - 0x22, val); }
 //void set_0x21_cworld(u32 vram, u8 val)                  { xwrite8(vram - 0x21, val); }
