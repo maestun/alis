@@ -1164,299 +1164,588 @@ static void cdelforme(void) {
     set_0x1a_cforme(alis.script->vram_org, -1);
 }
 
-//int traitform(u8 *a1, u8 *a2,int d0)
-//{
-//    short sVar2;
-//    short sVar4;
-//    short sVar5;
-//    short sVar6;
-//    short sVar7;
-//    short sVar8;
-//    short sVar9;
-//    int unaff_A6;
-//    u8 bVar11;
-//    ushort uVar3;
-//
-//    u32 uVar1 = d0 * 2;
-//    u16 *puVar10 = (ushort *)(*(short *)(alis.baseform + uVar1) + alis.baseform);
-//    if ((short)*puVar10 < 0)
-//    {
-//        if (*(u8 *)((int)puVar10 + 1) != 0)
-//        {
-//            sVar2 = *(u8 *)((int)puVar10 + 1) - 1;
-//            do
-//            {
-//                puVar10 = puVar10 + 1;
-//                uVar3 = *puVar10;
-//                uVar1 = uVar1 & 0xffff0000 | (uint)uVar3;
-//                bVar11 = uVar3 == 0;
-//                if ((-1 < (short)uVar3) && (uVar1 = traitform(a1, a2, (int)(short)uVar3), !bVar11))
-//                {
-//                    return uVar1;
-//                }
-//                sVar2 = sVar2 + -1;
-//            }
-//            while (sVar2 != -1);
-//        }
-//
-//        return uVar1;
-//    }
-//
-//    if (*puVar10 == 0)
-//    {
-//        sVar2 = (short)*(char *)(puVar10 + 2);
-//        if (*(char *)(unaff_A6 + -3) != '\0')
-//        {
-//            sVar2 = -sVar2;
-//        }
-//
-//        sVar2 = sVar2 + alis.wcx;
-//        sVar4 = *(char *)((int)puVar10 + 5) + alis.wcy;
-//        sVar6 = *(char *)(puVar10 + 3) + alis.wcz;
-//        _px2 = (short)*(char *)((int)puVar10 + 7);
-//        if (*(char *)(unaff_A6 + -3) != '\0')
-//        {
-//            _px2 = -_px2;
-//        }
-//
-//        _px2 = _px2 + sVar2;
-//        _py2 = *(char *)(puVar10 + 4) + sVar4;
-//        _pz2 = *(char *)((int)puVar10 + 9) + sVar6;
-//    }
-//    else
-//    {
-//        if (*(char *)puVar10 != '\x01')
-//        {
-//            return uVar1;
-//        }
-//
-//        uVar3 = puVar10[2];
-//        if (*(char *)(unaff_A6 + -3) != '\0')
-//        {
-//            uVar3 = -uVar3;
-//        }
-//
-//        sVar2 = uVar3 + alis.wcx;
-//        sVar4 = puVar10[3] + alis.wcy;
-//        sVar6 = puVar10[4] + alis.wcz;
-//        uVar3 = puVar10[5];
-//
-//        if (*(char *)(unaff_A6 + -3) != '\0')
-//        {
-//            uVar3 = -uVar3;
-//        }
-//
-//        _px2 = uVar3 + sVar2;
-//        _py2 = puVar10[6] + sVar4;
-//        _pz2 = puVar10[7] + sVar6;
-//    }
-//
-//    _py1 = sVar4;
-//
-//    if (_py2 <= sVar4)
-//    {
-//        _py1 = _py2;
-//        _py2 = sVar4;
-//    }
-//
-//    _pz1 = sVar6;
-//
-//    if (_pz2 <= sVar6)
-//    {
-//        _pz1 = _pz2;
-//        _pz2 = sVar6;
-//    }
-//
-//    _px1 = sVar2;
-//
-//    if (_px2 <= sVar2)
-//    {
-//        _px1 = _px2;
-//        _px2 = sVar2;
-//    }
-//
-//    puVar10 = (ushort *)(a2 + 2);
-//
-//    if (-1 < *(short *)a2)
-//    {
-//        if (*(short *)a2 == 0)
-//        {
-//            uVar1 = uVar1 & 0xffff0000 | (uint)(*puVar10 & _matmask);
-//            if ((*puVar10 & _matmask) == 0)
-//            {
-//                return uVar1;
-//            }
-//
-//            goodmat = *(undefined2 *)(a2 + 2);
-//            sVar2 = (short)(char)a2[4];
-//            if (a1[-3] != 0)
-//            {
-//                sVar2 = -sVar2;
-//            }
-//
-//            sVar2 = sVar2 + *(short *)a1;
-//            sVar6 = (short)(char)a2[5] + *(short *)(a1 + 2);
-//            sVar7 = (short)(char)a2[6] + *(short *)(a1 + 4);
-//            sVar4 = (short)(char)a2[7];
-//            if (a1[-3] != 0)
-//            {
-//                sVar4 = -sVar4;
-//            }
-//
-//            sVar4 = sVar4 + sVar2;
-//            sVar8 = (char)a2[8] + sVar6;
-//            sVar9 = (char)a2[9] + sVar7;
-//        }
-//        else
-//        {
-//            if (*a2 != 1)
-//            {
-//                return uVar1;
-//            }
-//
-//            uVar1 = uVar1 & 0xffff0000 | (uint)(*puVar10 & _matmask);
-//            if ((*puVar10 & _matmask) == 0)
-//            {
-//                return uVar1;
-//            }
-//            goodmat = *(undefined2 *)(a2 + 2);
-//            sVar2 = *(short *)(a2 + 4);
-//            if (a1[-3] != 0)
-//            {
-//                sVar2 = -sVar2;
-//            }
-//
-//            sVar2 = sVar2 + *(short *)a1;
-//            sVar6 = *(short *)(a2 + 6) + *(short *)(a1 + 2);
-//            sVar7 = *(short *)(a2 + 8) + *(short *)(a1 + 4);
-//            sVar4 = *(short *)(a2 + 10);
-//            if (a1[-3] != 0)
-//            {
-//                sVar4 = -sVar4;
-//            }
-//
-//            sVar4 = sVar4 + sVar2;
-//            sVar8 = *(short *)(a2 + 0xc) + sVar6;
-//            sVar9 = *(short *)(a2 + 0xe) + sVar7;
-//        }
-//
-//        sVar5 = sVar6;
-//        if (sVar8 <= sVar6)
-//        {
-//            sVar5 = sVar8;
-//            sVar8 = sVar6;
-//        }
-//
-//        if ((_py1 <= sVar8) && (sVar5 <= _py2))
-//        {
-//            sVar6 = sVar7;
-//            if (sVar9 <= sVar7)
-//            {
-//                sVar6 = sVar9;
-//                sVar9 = sVar7;
-//            }
-//
-//            if ((_pz1 <= sVar9) && (sVar6 <= _pz2))
-//            {
-//                sVar6 = sVar2;
-//                if (sVar4 <= sVar2)
-//                {
-//                    sVar6 = sVar4;
-//                    sVar4 = sVar2;
-//                }
-//
-//                if ((_px1 <= sVar4) && (sVar6 <= _px2))
-//                {
-//                    return uVar1;
-//                }
-//            }
-//        }
-//
-//        return uVar1;
-//    }
-//
-//    if (a2[1] != 0)
-//    {
-//        sVar2 = a2[1] - 1;
-//
-//        do
-//        {
-//            uVar3 = *puVar10;
-//            uVar1 = uVar1 & 0xffff0000 | (uint)uVar3;
-//            bVar11 = uVar3 == 0;
-//            if ((-1 < (short)uVar3) && (uVar1 = traitfirm(), !bVar11))
-//            {
-//                return uVar1;
-//            }
-//
-//            sVar2 = sVar2 + -1;
-//            puVar10 = puVar10 + 1;
-//        }
-//        while (sVar2 != -1);
-//    }
-//
-//    return uVar1;
-//}
+s16 px1;
+s16 py1;
+s16 pz1;
 
-void multiform(void)
+s16 px2;
+s16 py2;
+s16 pz2;
+
+// TODO: cleanup
+s32 traitfirm(s32 a1, s32 a3, s32 a4, s32 d0)
 {
-//    short sVar1;
-//    short *unaff_A3;
-//    u8 bVar2;
-//
-//    if (*(u8 *)((int)unaff_A3 + -1) != 0)
-//    {
-//        sVar1 = *(u8 *)((int)unaff_A3 + -1) - 1;
-//
-//        do
-//        {
-//            bVar2 = *unaff_A3 == 0;
-//            if ((-1 < *unaff_A3) && (traitform(), !bVar2))
-//                return;
-//
-//            sVar1 --;
-//            unaff_A3 = unaff_A3 + 1;
-//        }
-//        while (sVar1 != -1);
-//    }
+    debug(EDebugWarning, " /* CHECK */");
+    s16 uVar1;
+    u8 bVar2;
+    u16 uVar3;
+    s16 sVar4;
+    s16 sVar5;
+    s16 sVar6;
+    s16 sVar7;
+    s16 sVar8;
+    s16 sVar9;
+    s16 sVar10;
+    u8 bVar13;
+    
+    s32 psVar12 = a4 + xread16(a4 + d0 * 2);
+    s32 puVar11 = psVar12 + 2;
+    if (-1 < xread16(psVar12))
+    {
+        if (xread16(psVar12) == 0)
+        {
+            if ((xread16(puVar11) & alis.matmask) == 0)
+                return 0;
+
+            alis.goodmat = xread16(psVar12 + 2);
+            sVar4 = xread8(psVar12 + 2);
+            if (get_0x03_xinv(a1) != 0)
+                sVar4 = -sVar4;
+
+            sVar4 += xread16(a1 + 0);
+            sVar5 = xread8(psVar12 + 5) + xread16(a1 + 2);
+            sVar7 = xread8(psVar12 + 3) + xread16(a1 + 4);
+            sVar8 = xread8(psVar12 + 7);
+            if (get_0x03_xinv(a1) != 0)
+                sVar8 = -sVar8;
+
+            sVar8 += sVar4;
+            sVar9 = xread8(psVar12 + 4) + sVar5;
+            sVar10 = xread8(psVar12 + 9) + sVar7;
+        }
+        else
+        {
+            if (xread8(psVar12) != 1)
+                return 0;
+            
+            if ((xread16(puVar11) & alis.matmask) == 0)
+                return 0;
+            
+            alis.goodmat = xread16(psVar12 + 2);
+            sVar4 = xread16(psVar12 + 4);
+            if (get_0x03_xinv(a1) != 0)
+                sVar4 = -sVar4;
+            
+            sVar4 += xread16(a1 + 0);
+            sVar5 = xread16(psVar12 + 6) + xread16(a1 + 2);
+            sVar7 = xread16(psVar12 + 8) + xread16(a1 + 4);
+            sVar8 = xread16(psVar12 + 10);
+            if (get_0x03_xinv(a1) != 0)
+                sVar8 = -sVar8;
+            
+            sVar8 += sVar4;
+            sVar9 = xread16(psVar12 + 12) + sVar5;
+            sVar10 = xread16(psVar12 + 14) + sVar7;
+        }
+        
+        sVar6 = sVar5;
+        if (sVar9 <= sVar5)
+        {
+            sVar6 = sVar9;
+            sVar9 = sVar5;
+        }
+        
+        if ((py1 <= sVar9) && (sVar6 <= py2))
+        {
+            sVar5 = sVar7;
+            if (sVar10 <= sVar7)
+            {
+                sVar5 = sVar10;
+                sVar10 = sVar7;
+            }
+            
+            if ((pz1 <= sVar10) && (sVar5 <= pz2))
+            {
+                sVar5 = sVar4;
+                if (sVar8 <= sVar4)
+                {
+                    sVar5 = sVar8;
+                    sVar8 = sVar4;
+                }
+                
+                if ((px1 <= sVar8) && (sVar5 <= px2))
+                    return 1;
+            }
+        }
+        
+        return 0;
+    }
+    
+    bVar2 = xread8(psVar12 + 1);
+    uVar3 = (u16)bVar2;
+    if (bVar2 != 0)
+    {
+        uVar3 = bVar2 - 1;
+        do
+        {
+            uVar1 = xread16(puVar11);
+            if ((-1 < uVar1) && (uVar1 = traitfirm(a1, a3, a4, uVar1)))
+                return uVar3;
+            
+            uVar3 --;
+            puVar11 = puVar11 + 1;
+        }
+        while (uVar3 != 0xffff);
+        
+        uVar3 = 0;
+    }
+    
+    return uVar3;
 }
 
-void monoform(void)
+// TODO: cleanup
+s32 traitform(s32 a1, s32 a2, s32 a4, s32 d0)
 {
+    debug(EDebugWarning, " /* CHECK */");
+    u16 uVar1;
+    s16 sVar2;
+    s16 sVar3;
+    s16 sVar4;
+    s16 sVar5;
+    s16 sVar6;
+    s16 sVar7;
+    s16 sVar8;
+    s32 a3;
+    u8 bVar10;
+    
+    d0 = d0 * 2;
+    s32 puVar9 = xread16(alis.baseform + d0) + alis.baseform;
+    if (xread16(puVar9) < 0)
+    {
+        if (xread8(puVar9 + 1) != 0)
+        {
+            sVar2 = xread8(puVar9 + 1) - 1;
+            
+            do
+            {
+                puVar9 += 2;
+                uVar1 = xread16(puVar9);
+                d0 = uVar1;
+                bVar10 = uVar1 == 0;
+                if (-1 < (short)uVar1)
+                {
+                    d0 = traitform(a1, a2, a4, d0);
+                    if (!bVar10)
+                        break;
+                }
+                
+                sVar2 --;
+            }
+            while (sVar2 != -1);
+        }
+        
+        return (short)d0;
+    }
+    
+    if (xread16(puVar9) == 0)
+    {
+        sVar2 = xread8(puVar9 + 2);
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            sVar2 = -sVar2;
+
+        sVar2 = sVar2 + alis.wcx;
+        sVar3 = xread8(puVar9 + 5) + alis.wcy;
+        sVar5 = xread8(puVar9 + 3) + alis.wcz;
+        px2 = xread8(puVar9 + 7);
+        a3 = puVar9 + 5;
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            px2 = -px2;
+
+        px2 = px2 + sVar2;
+        py2 = xread8(puVar9 + 4) + sVar3;
+        pz2 = xread8(puVar9 + 9) + sVar5;
+    }
+    else
+    {
+        if (xread8(puVar9) != 1)
+            return (short)d0;
+        
+        uVar1 = xread16(puVar9 + 4);
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            uVar1 = -uVar1;
+
+        sVar2 = uVar1 + alis.wcx;
+        sVar3 = xread16(puVar9 + 6) + alis.wcy;
+        sVar5 = xread16(puVar9 + 8) + alis.wcz;
+        uVar1 = xread16(puVar9 + 10);
+        a3 = puVar9 + 8;
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            uVar1 = -uVar1;
+
+        px2 = uVar1 + sVar2;
+        py2 = xread16(puVar9 + 12) + sVar3;
+        pz2 = xread16(puVar9 + 14) + sVar5;
+    }
+    
+    py1 = sVar3;
+    if (py2 <= sVar3)
+    {
+        py1 = py2;
+        py2 = sVar3;
+    }
+    
+    pz1 = sVar5;
+    if (pz2 <= sVar5)
+    {
+        pz1 = pz2;
+        pz2 = sVar5;
+    }
+    
+    px1 = sVar2;
+    if (px2 <= sVar2)
+    {
+        px1 = px2;
+        px2 = sVar2;
+    }
+    
+    puVar9 = (a2 + 2);
+    if (xread16(a2) < 0)
+    {
+        if (xread8(a2 + 1) != 0)
+        {
+            sVar2 = xread8(a2 + 1) - 1;
+            
+            do
+            {
+                uVar1 = xread16(puVar9);
+                d0 = (uint)uVar1;
+                if (-1 < (short)uVar1)
+                {
+                    d0 = (uint)(short)uVar1;
+                    d0 = traitfirm(a1, a3, a4, d0);
+                    if (d0)
+                        break;
+                }
+                sVar2 --;
+                puVar9 += 2;
+            }
+            while (sVar2 != -1);
+        }
+        return (short)d0;
+    }
+    
+    if (xread16(a2) == 0)
+    {
+        d0 = (xread16(puVar9) & alis.matmask);
+        if (d0 == 0)
+            return d0;
+        
+        alis.goodmat = xread16(a2 + 2);
+        sVar2 = xread8(a2 + 4);
+        if (get_0x03_xinv(a1) != 0)
+            sVar2 = -sVar2;
+
+        sVar2 += xread16(a1 + 0);
+        sVar5 = xread8(a2 + 5) + xread16(a1 + 2);
+        sVar6 = xread8(a2 + 6) + xread16(a1 + 4);
+        sVar3 = xread8(a2 + 7);
+        if (get_0x03_xinv(a1) != 0)
+            sVar3 = -sVar3;
+
+        sVar3 += sVar2;
+        sVar7 = xread8(a2 + 8) + sVar5;
+        sVar8 = xread8(a2 + 9) + sVar6;
+    }
+    else
+    {
+        if (xread8(a2) != 1)
+            return d0;
+        
+        d0 = (xread16(puVar9) & alis.matmask);
+        if (d0 == 0)
+            return d0;
+        
+        alis.goodmat = xread16(a2 + 2);
+        sVar2 = xread16(a2 + 4);
+        if (get_0x03_xinv(a1) != 0)
+            sVar2 = -sVar2;
+        
+        sVar2 += xread16(a1 + 0);
+        sVar5 = xread16(a2 + 6) + xread16(a1 + 2);
+        sVar6 = xread16(a2 + 8) + xread16(a1 + 4);
+        sVar3 = xread16(a2 + 10);
+        if (get_0x03_xinv(a1) != 0)
+            sVar3 = -sVar3;
+
+        sVar3 += sVar2;
+        sVar7 = xread16(a2 + 0xc) + sVar5;
+        sVar8 = xread16(a2 + 0xe) + sVar6;
+    }
+    
+    sVar4 = sVar5;
+    if (sVar7 <= sVar5)
+    {
+        sVar4 = sVar7;
+        sVar7 = sVar5;
+    }
+    
+    if ((py1 <= sVar7) && (sVar4 <= py2))
+    {
+        sVar5 = sVar6;
+        if (sVar8 <= sVar6)
+        {
+            sVar5 = sVar8;
+            sVar8 = sVar6;
+        }
+        
+        if ((pz1 <= sVar8) && (sVar5 <= pz2))
+        {
+            sVar5 = sVar2;
+            if (sVar3 <= sVar2)
+            {
+                sVar5 = sVar3;
+                sVar3 = sVar2;
+            }
+            
+            if ((px1 <= sVar3) && (sVar5 <= px2))
+                return d0;
+        }
+    }
+    
+    return d0;
+}
+
+// TODO: cleanup
+s32 multiform(s32 a1, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
+{
+    debug(EDebugWarning, " /* CHECK */");
+    if (xread8(a3 - 1) != 0)
+    {
+        s16 sVar1 = xread8(a3 - 1) - 1;
+        
+        do
+        {
+            d0 = xread16(a3);
+            if ((-1 < d0) && (d0 = traitform(a1, a2, a4, d0)))
+                return d0;
+            
+            sVar1 --;
+            a3 += 2;
+        }
+        while (sVar1 != -1);
+    }
+    
+    return d0;
+}
+
+// TODO: cleanup
+s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
+{
+    u16 uVar1;
+    s16 sVar2;
+    s16 sVar3;
+    s16 sVar4;
+    s16 sVar5;
+    s16 sVar6;
+    s16 sVar7;
+    s16 sVar8;
+    s32 a3_00;
+    
+    if (zf)
+    {
+        sVar2 = xread8(a3 + 2);
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            sVar2 = -sVar2;
+
+        sVar2 = sVar2 + alis.wcx;
+        sVar3 = xread8(a3 + 3) + alis.wcy;
+        sVar5 = xread8(a3 + 4) + alis.wcz;
+        px2 = xread8(a3 + 5);
+        a3_00 = a3 + 8;
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            px2 = -px2;
+
+        px2 = px2 + sVar2;
+        py2 = xread8(a3 + 6) + sVar3;
+        pz2 = xread8(a3 + 7) + sVar5;
+    }
+    else
+    {
+        if (xread8(a3 - 2) != 1)
+            return d0;
+
+        sVar2 = xread16(a3 + 2);
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            sVar2 = -sVar2;
+
+        sVar2 = sVar2 + alis.wcx;
+        sVar3 = xread16(a3 + 4) + alis.wcy;
+        sVar5 = xread16(a3 + 6) + alis.wcz;
+        px2 = xread16(a3 + 8);
+        a3_00 = a3 + 0xe;
+        if (get_0x03_xinv(alis.script->vram_org) != 0)
+            px2 = -px2;
+
+        px2 = px2 + sVar2;
+        py2 = xread16(a3 + 0xa) + sVar3;
+        pz2 = xread16(a3 + 0xc) + sVar5;
+    }
+    
+    py1 = sVar3;
+    if (py2 <= sVar3)
+    {
+        py1 = py2;
+        py2 = sVar3;
+    }
+    
+    pz1 = sVar5;
+    if (pz2 <= sVar5)
+    {
+        pz1 = pz2;
+        pz2 = sVar5;
+    }
+    
+    px1 = sVar2;
+    if (px2 <= sVar2)
+    {
+        px1 = px2;
+        px2 = sVar2;
+    }
+    
+    s32 a2b = a2 + 2;
+    if (xread16(a2) < 0)
+    {
+        if (xread8(a2 + 1) != 0)
+        {
+            sVar2 = xread8(a2 + 1) - 1;
+            do
+            {
+                d0 = xread16(a2b);
+                if (-1 < d0)
+                {
+                    d0 = traitfirm(vram, a3_00, a4, d0);
+                    if (d0)
+                        return d0;
+                }
+                
+                sVar2 --;
+                a2b += 2;
+            }
+            while (sVar2 != -1);
+        }
+        
+        return d0;
+    }
+    
+    if (xread16(a2) == 0)
+    {
+        uVar1 = xread16(a2b) & alis.matmask;
+        if (uVar1 == 0)
+            return 0;
+        
+        alis.goodmat = xread16(a2 + 2);
+        sVar2 = xread8(a2 + 4);
+        if (get_0x03_xinv(vram) != 0)
+            sVar2 = -sVar2;
+        
+        sVar2 += xread16(vram + 0);
+        sVar5 = xread8(a2 + 5) + xread16(vram + 2);
+        sVar6 = xread8(a2 + 6) + xread16(vram + 4);
+        sVar3 = xread8(a2 + 7);
+        
+        if (get_0x03_xinv(vram) != 0)
+            sVar3 = -sVar3;
+        
+        sVar3 += sVar2;
+        sVar7 = xread8(a2 + 8) + sVar5;
+        sVar8 = xread8(a2 + 9) + sVar6;
+    }
+    else
+    {
+        if (xread8(a2) != 1)
+            return d0;
+        
+        uVar1 = xread16(a2b) & alis.matmask;
+        if (uVar1 == 0)
+            return 0;
+        
+        alis.goodmat = xread16(a2 + 2);
+        sVar2 = xread16(a2 + 4);
+        if (get_0x03_xinv(vram) != 0)
+            sVar2 = -sVar2;
+        
+        sVar2 += xread16(xread16(vram));
+        sVar5 = xread16(a2 + 6) + xread16(vram + 2);
+        sVar6 = xread16(a2 + 8) + xread16(vram + 4);
+        sVar3 = xread16(a2 + 10);
+        
+        if (get_0x03_xinv(vram) != 0)
+            sVar3 = -sVar3;
+        
+        sVar3 += sVar2;
+        sVar7 = xread16(a2 + 0xc) + sVar5;
+        sVar8 = xread16(a2 + 0xe) + sVar6;
+    }
+    
+    sVar4 = sVar5;
+    if (sVar7 <= sVar5)
+    {
+        sVar4 = sVar7;
+        sVar7 = sVar5;
+    }
+    
+    if ((py1 <= sVar7) && (sVar4 <= py2))
+    {
+        sVar5 = sVar6;
+        if (sVar8 <= sVar6)
+        {
+            sVar5 = sVar8;
+            sVar8 = sVar6;
+        }
+        
+        if ((pz1 <= sVar8) && (sVar5 <= pz2))
+        {
+            sVar5 = sVar2;
+            if (sVar3 <= sVar2)
+            {
+                sVar5 = sVar3;
+                sVar3 = sVar2;
+            }
+            
+            if ((px1 <= sVar3) && (sVar5 <= px2))
+                return uVar1;
+        }
+    }
+    
+    return uVar1;
 }
 
 void clipform(void) {
-    
-    debug(EDebugWarning, " /* MISSING */");
-
     alis.ptrent = alis.tablent;
     if (-1 < alis.wforme)
     {
         s32 val = get_0x14_script_org_offset(alis.script->vram_org);
         s32 addr = xread32(val + 0xe) + val;
         alis.baseform = xread32(addr + 6) + addr;
-        s16 *psVar5 = (s16 *)(alis.mem + xread16(alis.baseform + alis.wforme * 2) + alis.baseform);
+        s32 atforme = xread16(alis.baseform + alis.wforme * 2) + alis.baseform;
         s16 entidx = 0;
 
-        s32 iVar4;
-        u8 uVar6;
+        u8 zf;
 
         do
         {
             // alis.mem + alis.script->vram_org;
             s32 ent_vram = xread32(alis.atent + entidx);
-            if (xread16(ent_vram + 6 == xread16(alis.script->vram_org + 6) && -1 < xread16(ent_vram - 0x1a)) && xread16(alis.script->vram_org != ent_vram))
+            if (xread16(ent_vram + 6) == xread16(alis.script->vram_org + 6) && -1 < xread16(ent_vram - 0x1a) && alis.script->vram_org != ent_vram)
             {
-                uVar6 = *psVar5 == 0;
-                if (*psVar5 < 0) {
-                    multiform();
+                s32 val2 = get_0x14_script_org_offset(ent_vram);
+                s32 addr2 = xread32(val2 + 0xe) + val2;
+                s32 a4 = xread32(addr2 + 6) + addr2;
+                s32 iVar3 = get_0x1a_cforme(ent_vram) * 2;
+                s8 test = xread8(atforme);
+                s32 a2 = xread16(a4 + iVar3) + a4;
+                
+                zf = test == 0;
+                if (test < 0)
+                {
+                    multiform(ent_vram, a2, atforme + 2, a4, iVar3, zf);
                 }
                 else
                 {
-                    monoform();
+                    monoform(ent_vram, a2, atforme + 2, a4, iVar3, zf);
                 }
                 
-                if (!(u8)uVar6)
+                if (!(u8)zf)
                 {
                     if (alis.witmov != '\0')
                     {
@@ -1468,6 +1757,7 @@ void clipform(void) {
                     alis.matent[index] = alis.goodmat;
                     alis.tablent[index] = entidx;
                     alis.ptrent += 2;
+                    atforme += 2;
 
                     if (alis.fallent == 0)
                     {
@@ -2332,7 +2622,6 @@ static void cwftstmov(void) {
 }
 
 static void ctstform(void) {
-    debug(EDebugWarning, " /* CHECK */");
     alis.wcx = vread16(alis.script->vram_org + 0);
     alis.wcy = vread16(alis.script->vram_org + 2);
     alis.wcz = vread16(alis.script->vram_org + 4);
@@ -2964,8 +3253,8 @@ static void cscrolpage(void) {
 }
 
 static void cmatent(void) {
-    debug(EDebugWarning, " /* CHECK */");
-    alis.varD7 = *(s16 *)(alis.ptrent + 0xfe);
+    int index = (int)((alis.ptrent - alis.tablent) / 2);
+    alis.varD7 = alis.matent[index];
     cstore_continue();
 }
 

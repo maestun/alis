@@ -2550,13 +2550,13 @@ affiscin:
                         {
 //                            printf("LINK: %.x == %.x", tmpidx3, SPRITE_VAR(tmpidx1)->clinking);
                         }
-                        else
-                        {
-                            u16 elem = ELEMIDX(tmpidx1);
-                            SpriteVariables *stest = SPRITE_VAR(tmpidx1);
-                            
+//                        else
+//                        {
+//                            u16 elem = ELEMIDX(tmpidx1);
+//                            SpriteVariables *stest = SPRITE_VAR(tmpidx1);
+//
 //                            printf("LINK: %.x != %.x", tmpidx3, SPRITE_VAR(tmpidx1)->clinking);
-                        }
+//                        }
                         
                         if (1) // draw everything
 //                        if (tmpidx3 == SPRITE_VAR(tmpidx1)->clinking)
