@@ -510,6 +510,7 @@ void moteur(void)
                     alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
                     if (alis.varD5 == 0)
                     {
+                        alis.script = ENTSCR(alis.varD5);
                         image();
                     }
 
@@ -538,6 +539,7 @@ void moteur(void)
         alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
         if (alis.varD5 == 0)
         {
+            alis.script = ENTSCR(alis.varD5);
             image();
         }
     }
