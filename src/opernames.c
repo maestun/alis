@@ -457,8 +457,22 @@ void omodel(void) {
     alis.varD7 = sys_get_model();
 }
 
+// TODO: place to approriate location, use usleep while polling keyboard?
+char SYS_GetKey(void)
+{
+    char result = io_inkey();
+    if ((char)result != 0)
+    {
+        while (io_inkey() != 0);
+        return result;
+    }
+    
+    return SYS_GetKey();
+}
+
 void ogetkey(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    alis.varD7 = SYS_GetKey();
+    debug(EDebugInfo, " [%d] ", alis.varD7);
 }
 
 void oleft(void) {

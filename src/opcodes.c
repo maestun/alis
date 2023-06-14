@@ -1062,6 +1062,7 @@ static void cput(void) {
     readexec_opername();
     
     alis.depx = 0;
+    alis.depy = 0;
     alis.depz = 0;
     alis.numelem = 0;
     
@@ -1162,6 +1163,240 @@ static void cforme(void) {
 static void cdelforme(void) {
     set_0x1a_cforme(alis.script->vram_org, -1);
 }
+
+//int traitform(u8 *a1, u8 *a2,int d0)
+//{
+//    short sVar2;
+//    short sVar4;
+//    short sVar5;
+//    short sVar6;
+//    short sVar7;
+//    short sVar8;
+//    short sVar9;
+//    int unaff_A6;
+//    u8 bVar11;
+//    ushort uVar3;
+//
+//    u32 uVar1 = d0 * 2;
+//    u16 *puVar10 = (ushort *)(*(short *)(alis.baseform + uVar1) + alis.baseform);
+//    if ((short)*puVar10 < 0)
+//    {
+//        if (*(u8 *)((int)puVar10 + 1) != 0)
+//        {
+//            sVar2 = *(u8 *)((int)puVar10 + 1) - 1;
+//            do
+//            {
+//                puVar10 = puVar10 + 1;
+//                uVar3 = *puVar10;
+//                uVar1 = uVar1 & 0xffff0000 | (uint)uVar3;
+//                bVar11 = uVar3 == 0;
+//                if ((-1 < (short)uVar3) && (uVar1 = traitform(a1, a2, (int)(short)uVar3), !bVar11))
+//                {
+//                    return uVar1;
+//                }
+//                sVar2 = sVar2 + -1;
+//            }
+//            while (sVar2 != -1);
+//        }
+//
+//        return uVar1;
+//    }
+//
+//    if (*puVar10 == 0)
+//    {
+//        sVar2 = (short)*(char *)(puVar10 + 2);
+//        if (*(char *)(unaff_A6 + -3) != '\0')
+//        {
+//            sVar2 = -sVar2;
+//        }
+//
+//        sVar2 = sVar2 + alis.wcx;
+//        sVar4 = *(char *)((int)puVar10 + 5) + alis.wcy;
+//        sVar6 = *(char *)(puVar10 + 3) + alis.wcz;
+//        _px2 = (short)*(char *)((int)puVar10 + 7);
+//        if (*(char *)(unaff_A6 + -3) != '\0')
+//        {
+//            _px2 = -_px2;
+//        }
+//
+//        _px2 = _px2 + sVar2;
+//        _py2 = *(char *)(puVar10 + 4) + sVar4;
+//        _pz2 = *(char *)((int)puVar10 + 9) + sVar6;
+//    }
+//    else
+//    {
+//        if (*(char *)puVar10 != '\x01')
+//        {
+//            return uVar1;
+//        }
+//
+//        uVar3 = puVar10[2];
+//        if (*(char *)(unaff_A6 + -3) != '\0')
+//        {
+//            uVar3 = -uVar3;
+//        }
+//
+//        sVar2 = uVar3 + alis.wcx;
+//        sVar4 = puVar10[3] + alis.wcy;
+//        sVar6 = puVar10[4] + alis.wcz;
+//        uVar3 = puVar10[5];
+//
+//        if (*(char *)(unaff_A6 + -3) != '\0')
+//        {
+//            uVar3 = -uVar3;
+//        }
+//
+//        _px2 = uVar3 + sVar2;
+//        _py2 = puVar10[6] + sVar4;
+//        _pz2 = puVar10[7] + sVar6;
+//    }
+//
+//    _py1 = sVar4;
+//
+//    if (_py2 <= sVar4)
+//    {
+//        _py1 = _py2;
+//        _py2 = sVar4;
+//    }
+//
+//    _pz1 = sVar6;
+//
+//    if (_pz2 <= sVar6)
+//    {
+//        _pz1 = _pz2;
+//        _pz2 = sVar6;
+//    }
+//
+//    _px1 = sVar2;
+//
+//    if (_px2 <= sVar2)
+//    {
+//        _px1 = _px2;
+//        _px2 = sVar2;
+//    }
+//
+//    puVar10 = (ushort *)(a2 + 2);
+//
+//    if (-1 < *(short *)a2)
+//    {
+//        if (*(short *)a2 == 0)
+//        {
+//            uVar1 = uVar1 & 0xffff0000 | (uint)(*puVar10 & _matmask);
+//            if ((*puVar10 & _matmask) == 0)
+//            {
+//                return uVar1;
+//            }
+//
+//            goodmat = *(undefined2 *)(a2 + 2);
+//            sVar2 = (short)(char)a2[4];
+//            if (a1[-3] != 0)
+//            {
+//                sVar2 = -sVar2;
+//            }
+//
+//            sVar2 = sVar2 + *(short *)a1;
+//            sVar6 = (short)(char)a2[5] + *(short *)(a1 + 2);
+//            sVar7 = (short)(char)a2[6] + *(short *)(a1 + 4);
+//            sVar4 = (short)(char)a2[7];
+//            if (a1[-3] != 0)
+//            {
+//                sVar4 = -sVar4;
+//            }
+//
+//            sVar4 = sVar4 + sVar2;
+//            sVar8 = (char)a2[8] + sVar6;
+//            sVar9 = (char)a2[9] + sVar7;
+//        }
+//        else
+//        {
+//            if (*a2 != 1)
+//            {
+//                return uVar1;
+//            }
+//
+//            uVar1 = uVar1 & 0xffff0000 | (uint)(*puVar10 & _matmask);
+//            if ((*puVar10 & _matmask) == 0)
+//            {
+//                return uVar1;
+//            }
+//            goodmat = *(undefined2 *)(a2 + 2);
+//            sVar2 = *(short *)(a2 + 4);
+//            if (a1[-3] != 0)
+//            {
+//                sVar2 = -sVar2;
+//            }
+//
+//            sVar2 = sVar2 + *(short *)a1;
+//            sVar6 = *(short *)(a2 + 6) + *(short *)(a1 + 2);
+//            sVar7 = *(short *)(a2 + 8) + *(short *)(a1 + 4);
+//            sVar4 = *(short *)(a2 + 10);
+//            if (a1[-3] != 0)
+//            {
+//                sVar4 = -sVar4;
+//            }
+//
+//            sVar4 = sVar4 + sVar2;
+//            sVar8 = *(short *)(a2 + 0xc) + sVar6;
+//            sVar9 = *(short *)(a2 + 0xe) + sVar7;
+//        }
+//
+//        sVar5 = sVar6;
+//        if (sVar8 <= sVar6)
+//        {
+//            sVar5 = sVar8;
+//            sVar8 = sVar6;
+//        }
+//
+//        if ((_py1 <= sVar8) && (sVar5 <= _py2))
+//        {
+//            sVar6 = sVar7;
+//            if (sVar9 <= sVar7)
+//            {
+//                sVar6 = sVar9;
+//                sVar9 = sVar7;
+//            }
+//
+//            if ((_pz1 <= sVar9) && (sVar6 <= _pz2))
+//            {
+//                sVar6 = sVar2;
+//                if (sVar4 <= sVar2)
+//                {
+//                    sVar6 = sVar4;
+//                    sVar4 = sVar2;
+//                }
+//
+//                if ((_px1 <= sVar4) && (sVar6 <= _px2))
+//                {
+//                    return uVar1;
+//                }
+//            }
+//        }
+//
+//        return uVar1;
+//    }
+//
+//    if (a2[1] != 0)
+//    {
+//        sVar2 = a2[1] - 1;
+//
+//        do
+//        {
+//            uVar3 = *puVar10;
+//            uVar1 = uVar1 & 0xffff0000 | (uint)uVar3;
+//            bVar11 = uVar3 == 0;
+//            if ((-1 < (short)uVar3) && (uVar1 = traitfirm(), !bVar11))
+//            {
+//                return uVar1;
+//            }
+//
+//            sVar2 = sVar2 + -1;
+//            puVar10 = puVar10 + 1;
+//        }
+//        while (sVar2 != -1);
+//    }
+//
+//    return uVar1;
+//}
 
 void multiform(void)
 {
@@ -1649,6 +1884,8 @@ static void cfclose(void) {
     if(sys_fclose(alis.fp) < 0) {
         alis_error(ALIS_ERR_FCLOSE);
     }
+    
+    alis.fp = NULL;
 }
 
 static void cfcreat(void) {
@@ -1826,7 +2063,42 @@ static void capproach(void) {
 }
 
 static void cescape(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
+    
+    readexec_opername();
+    s16 sVar2 = alis.varD7;
+    if (sVar2 != -1)
+    {
+//        deb_approach();
+//
+//        s32 iVar1 = 0x7fffffff;
+//        int unaff_D4;
+//        char unaff_D6b = alis.varD6;
+//        u8 *in_A0;
+//        u8 *in_A1;
+//        int unaff_A6;
+//
+//        do
+//        {
+//            calscal();
+//
+//            if (unaff_D4 < iVar1)
+//            {
+//                unaff_D6b = (char)sVar2;
+//                iVar1 = unaff_D4;
+//                in_A1 = in_A0;
+//            }
+//
+//            in_A0 += 3;
+//            sVar2 --1;
+//        }
+//        while (sVar2 != -1);
+//
+//        *(char *)(unaff_A6 + 8) = *(char *)(unaff_A6 + 8) - unaff_D6b;
+//        *(u8 *)(unaff_A6 + 9) = *in_A1;
+//        *(u8 *)(unaff_A6 + 10) = in_A1[1];
+//        *(u8 *)(unaff_A6 + 0xb) = in_A1[2];
+    }
 }
 
 static void cvtstmov(void) {
@@ -2077,6 +2349,7 @@ static void cxput(void) {
     alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
     readexec_opername();
     alis.depx = 0;
+    alis.depy = 0;
     alis.depz = 0;
     alis.numelem = 0;
     
@@ -3149,7 +3422,7 @@ static void cstart(s32 offset) {
             s16 vacc_offset = get_0x0a_vacc_offset(alis.script->vram_org) - 4;
             set_0x0c_vacc_offset(alis.script->vram_org, vacc_offset);
             set_0x0a_vacc_offset(alis.script->vram_org, vacc_offset);
-            vwrite32(alis.script->vram_org + vacc_offset, (u32)(alis.script->pc - get_0x08_script_ret_offset(alis.script->vram_org)));
+            vwrite32(alis.script->vram_org + vacc_offset, (u32)(get_0x08_script_ret_offset(alis.script->vram_org) - alis.script->pc_org));
             set_0x08_script_ret_offset(alis.script->vram_org, offset + alis.script->pc);
         }
         else
