@@ -53,17 +53,15 @@ static void aloctp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void aloctc(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    xadd8(alis.script->vram_org + offset, (char)*(alis.acc));
+    alis.acc++;
 }
 
 static void alocti(void) {
-    debug(EDebugInfo, " /* STUBBED */");
-
-    s16 offset = script_read16();
-
-    // TODO: finish
-    // short result = tabint(offset, alis.mem + );
-//    xadd16(alis.script->vram_org + result, *a4);
+    s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
+    xadd16(alis.script->vram_org + offset, *(alis.acc));
+    alis.acc++;
 }
 static void adirb(void) {
     u8 offset = script_read8();
@@ -84,14 +82,14 @@ static void adirtp(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void adirtc(void) {
-    debug(EDebugInfo, " /* CHECK */");
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    vwrite8(alis.script->vram_org + offset, (char)*(alis.acc));
+    xadd8(alis.script->vram_org + offset, (char)*(alis.acc));
     alis.acc++;
 }
 static void adirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
-    xadd16(alis.script->vram_org + offset, xpop32());
+    xadd16(alis.script->vram_org + offset, *(alis.acc));
+    alis.acc++;
 }
 static void amainb(void) {
     s16 offset = script_read16();

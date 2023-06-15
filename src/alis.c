@@ -481,7 +481,6 @@ void moteur(void)
             }
         }
         
-        
         if (get_0x04_cstart_csleep(alis.script->vram_org) == 0)
         {
             debug(EDebugInfo, "\n SLEEPING %s", alis.script->name);

@@ -42,15 +42,13 @@ u8 io_inkey(void)
 
 u8 io_shiftkey(void)
 {
-    // TODO: ...
-    return 8;
-//    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
-//    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
-//    {
-//        shift = 0;
-//    }
-//
-//    return shift;
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
+    {
+        shift = 0;
+    }
+
+    return shift;
 }
 
 u8 io_getkey(void)

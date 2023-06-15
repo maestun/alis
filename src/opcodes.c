@@ -1817,7 +1817,18 @@ static void cftstmov(void) {
 }
 
 static void cftstset(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    readexec_opername();
+    alis.wcx = alis.varD7;
+    readexec_opername();
+    alis.wcy = alis.varD7;
+    readexec_opername();
+    alis.wcz = alis.varD7;
+    readexec_opername();
+    alis.matmask = alis.varD7;
+    readexec_opername();
+    alis.wforme = alis.varD7;
+    clipform();
+    crstent();
 }
 
 static void csuccent(void) {
