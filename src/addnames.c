@@ -120,7 +120,9 @@ static void ahimb(void) {
     debug(EDebugInfo, " /* MISSING */");
 }
 static void ahimw(void) {
-    debug(EDebugInfo, " /* MISSING */");
+    s16 offset = xread16(alis.script->vram_org + script_read16());
+    s32 offset2 = xread32(alis.atent + offset) + script_read16();
+    xadd16(offset2, alis.varD7);
 }
 static void ahimp(void) {
     debug(EDebugInfo, " /* MISSING */");

@@ -2154,6 +2154,60 @@ static void cinitab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
+int FUN_FileExists(const char *fname)
+{
+    FILE *file;
+    if ((file = fopen(fname, "r")))
+    {
+        fclose(file);
+        return 1;
+    }
+    
+    return 0;
+}
+
+uint FUN_OpenFile(char *path, uint mode, uint d1)
+{
+    u32 uVar1;
+    
+    u16 w_file_open_mode = (u16)mode;
+    char *_addr_file_name = path;
+    if ((mode & 0x100) == 0 || FUN_FileExists(path))
+    {
+        u8 bVar2 = (mode & 0x200) == 0;
+        if (bVar2)
+        {
+            alis.fp = sys_fopen(path, d1);
+            if (alis.fp != NULL)
+            {
+                uVar1 = mode & 0xffff0000 | (uint)w_file_open_mode;
+                if ((w_file_open_mode & 0x400) == 0)
+                {
+                    return uVar1;
+                }
+                
+                bVar2 = (int)mode < 0;
+                // SYS_SeekFile();
+                if (!bVar2)
+                {
+                    return uVar1;
+                }
+            }
+            //uVar1 = SYS_PrintError();
+            return uVar1;
+        }
+        
+        if (FUN_FileExists(path))
+        {
+            // uVar1 = FUN_FileTruncate();
+            return uVar1;
+        }
+    }
+    
+    // uVar1 = FUN_CreateFile();
+    return uVar1;
+}
+
 static void cfopen(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
@@ -2198,15 +2252,15 @@ static void cfdel(void) {
 }
 
 static void cfreadv(void) {
-    debug(EDebugWarning, " /* CHECK */");
     fread(alis.buffer, 2, 1, alis.fp);
-    
-    alis.varD7 = *(s16 *)alis.buffer;
+    alis.varD7 = xswap16(*(s16 *)alis.buffer);
     cstore_continue();
 }
 
 static void cfwritev(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    readexec_opername();
+    *(s16 *)alis.buffer = xswap16(alis.varD7);
+    fwrite(alis.buffer, 2, 1, alis.fp);
 }
 
 static void cfwritei(void) {
@@ -2232,9 +2286,7 @@ static void cfreadb(void) {
 }
 
 static void cfwriteb(void) {
-    debug(EDebugWarning, " /* STUBBED */");
-    
-    s16 addr = (s16)script_read16();
+    s32 addr = (s16)script_read16();
     if (addr == 0)
     {
         addr = (s16)script_read16();
@@ -2246,7 +2298,8 @@ static void cfwriteb(void) {
     }
 
     u16 length = script_read16();
-    // fwrite(alis.mem + addr, length);
+
+    fwrite(alis.mem + addr, length, 1, alis.fp);
 }
 
 static void cplot(void) {

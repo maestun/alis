@@ -206,9 +206,28 @@ void sys_enable_mouse(u8 enable) {
 #pragma mark - FILE SYSTEM
 // =============================================================================
 FILE * sys_fopen(char * path, u16 mode) {
-    // TODO: mode...
-    printf(" (%s) ", path);
-    return fopen(strlower(path), "r");
+
+    char flag[8] = "rb";
+    
+    if (mode & 0x100)
+    {
+        // create if necessary
+        strcat(flag, "wb");
+    }
+    
+    if (mode & 0x200)
+    {
+        // truncate if necessary
+        strcpy(flag, "wb");
+    }
+    
+    if (mode & 0x400)
+    {
+        // append???
+    }
+
+    debug(EDebugInfo, " [%s][%.3x] ", path, mode);
+    return fopen(strlower(path), flag);
 }
 
 //s16 FUN_OpenFile(char *path, short mode)
