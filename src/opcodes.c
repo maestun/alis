@@ -1189,65 +1189,64 @@ s32 traitfirm(s32 vram, s32 a3, s32 a4, s32 d0)
     s16 sVar8;
     s16 sVar9;
     s16 sVar10;
-    u8 bVar13;
-    
-    s32 psVar12 = a4 + xread16(a4 + d0 * 2);
-    s32 puVar11 = psVar12 + 2;
-    if (-1 < xread16(psVar12))
+
+    s32 a2 = a4 + xread16(a4 + d0 * 2);
+    s32 puVar11 = a2 + 2;
+    if (-1 < xread16(a2))
     {
-        if (xread16(psVar12) == 0)
+        if (xread16(a2) == 0)
         {
             if ((xread16(puVar11) & alis.matmask) == 0)
-                return 0;
+                return 1;
 
-            alis.goodmat = xread16(psVar12 + 2);
-            sVar4 = xread8(psVar12 + 2);
+            alis.goodmat = xread16(a2 + 2);
+            sVar4 = (s8)xread8(a2 + 2);
             if (get_0x03_xinv(vram) != 0)
                 sVar4 = -sVar4;
 
             sVar4 += xread16(vram + 0);
-            sVar5 = xread8(psVar12 + 5) + xread16(vram + 2);
-            sVar7 = xread8(psVar12 + 3) + xread16(vram + 4);
-            sVar8 = xread8(psVar12 + 7);
+            sVar5 = (s8)xread8(a2 + 5) + xread16(vram + 2);
+            sVar7 = (s8)xread8(a2 + 3) + xread16(vram + 4);
+            sVar8 = (s8)xread8(a2 + 7);
             if (get_0x03_xinv(vram) != 0)
                 sVar8 = -sVar8;
 
             sVar8 += sVar4;
-            sVar9 = xread8(psVar12 + 4) + sVar5;
-            sVar10 = xread8(psVar12 + 9) + sVar7;
+            sVar9 = (s8)xread8(a2 + 4) + sVar5;
+            sVar10 = (s8)xread8(a2 + 9) + sVar7;
         }
         else
         {
-            if (xread8(psVar12) != 1)
-                return 0;
-            
+            if ((s8)xread8(a2) != 1)
+                return 1;
+
             if ((xread16(puVar11) & alis.matmask) == 0)
-                return 0;
-            
-            alis.goodmat = xread16(psVar12 + 2);
-            sVar4 = xread16(psVar12 + 4);
+                return 1;
+
+            alis.goodmat = xread16(a2 + 2);
+            sVar4 = xread16(a2 + 4);
             if (get_0x03_xinv(vram) != 0)
                 sVar4 = -sVar4;
-            
+
             sVar4 += xread16(vram + 0);
-            sVar5 = xread16(psVar12 + 6) + xread16(vram + 2);
-            sVar7 = xread16(psVar12 + 8) + xread16(vram + 4);
-            sVar8 = xread16(psVar12 + 10);
+            sVar5 = xread16(a2 + 6) + xread16(vram + 2);
+            sVar7 = xread16(a2 + 8) + xread16(vram + 4);
+            sVar8 = xread16(a2 + 10);
             if (get_0x03_xinv(vram) != 0)
                 sVar8 = -sVar8;
-            
+
             sVar8 += sVar4;
-            sVar9 = xread16(psVar12 + 12) + sVar5;
-            sVar10 = xread16(psVar12 + 14) + sVar7;
+            sVar9 = xread16(a2 + 12) + sVar5;
+            sVar10 = xread16(a2 + 14) + sVar7;
         }
-        
+
         sVar6 = sVar5;
         if (sVar9 <= sVar5)
         {
             sVar6 = sVar9;
             sVar9 = sVar5;
         }
-        
+
         if ((py1 <= sVar9) && (sVar6 <= py2))
         {
             sVar5 = sVar7;
@@ -1256,7 +1255,7 @@ s32 traitfirm(s32 vram, s32 a3, s32 a4, s32 d0)
                 sVar5 = sVar10;
                 sVar10 = sVar7;
             }
-            
+
             if ((pz1 <= sVar10) && (sVar5 <= pz2))
             {
                 sVar5 = sVar4;
@@ -1265,16 +1264,16 @@ s32 traitfirm(s32 vram, s32 a3, s32 a4, s32 d0)
                     sVar5 = sVar8;
                     sVar8 = sVar4;
                 }
-                
+
                 if ((px1 <= sVar8) && (sVar5 <= px2))
-                    return 1;
+                    return 0;
             }
         }
-        
-        return 0;
+
+        return 1;
     }
-    
-    bVar2 = xread8(psVar12 + 1);
+
+    bVar2 = xread8(a2 + 1);
     uVar3 = (u16)bVar2;
     if (bVar2 != 0)
     {
@@ -1282,17 +1281,17 @@ s32 traitfirm(s32 vram, s32 a3, s32 a4, s32 d0)
         do
         {
             uVar1 = xread16(puVar11);
-            if ((-1 < uVar1) && (uVar1 = traitfirm(vram, a3, a4, uVar1)))
+            if ((-1 < uVar1) && (uVar3 = traitfirm(vram, a3, a4, uVar1)))
                 return uVar3;
-            
+
             uVar3 --;
             puVar11 = puVar11 + 1;
         }
         while (uVar3 != 0xffff);
-        
-        uVar3 = 0;
+
+        uVar3 = 1;
     }
-    
+
     return uVar3;
 }
 
@@ -1435,15 +1434,15 @@ s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
             do
             {
                 d0 = xread16(a2b);
+                a2b += 2;
                 if (-1 < d0)
                 {
-                    traitfirm(vram, a3nxt, a4, d0);
-                    if (d0)
-                        return d0 ? 1 : 0;
+                    result = traitfirm(vram, a3nxt, a4, d0);
+                    if (!result)
+                        return result;
                 }
                 
                 length --;
-                a2b += 2;
             }
             while (length != -1);
         }
