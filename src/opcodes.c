@@ -603,7 +603,7 @@ static void cswitch1(void) {
 
         alis.script->pc += 2;
     }
-    while (test <= alis.varD7 && (addition --) != -1);
+    while (test <= alis.varD7 && (--addition) != -1);
 
     if (addition < 0)
     {
