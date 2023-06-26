@@ -20,8 +20,8 @@ typedef union {
     struct __attribute__((packed)) {
         
         u8 state;               // 0x00
-        u8 numelem;             // 0x01
-        u16 screen_id;          // 0x02
+        s8 numelem;             // 0x01
+        s16 screen_id;          // 0x02
         u16 to_next;            // 0x04
         u16 link;               // 0x06
         u32 newad:24;           // 0x08
@@ -205,5 +205,7 @@ u16 tabchar(u16 offset, u8 *address);
 s16 tabstring(s16 offset, u8 *address);
 
 void vald0(u8 *string, s16 value);
+
+void log_sprites(void);
 
 #endif /* experimental_h */

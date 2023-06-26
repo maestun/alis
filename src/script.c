@@ -375,11 +375,11 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
 void  script_live(sAlisScript * script) {
     u8 *data = alis.mem + script->data_org;
 
-//    s32 test = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
+    s32 prevfin = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
 
     alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(sScriptContext));
     
-    script->vacc_off = -0x34 - xread16(script->data_org + 0x12); // (test - alis.finent) & 0xffff;
+    script->vacc_off = (prevfin - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
     
     u16 vram_length = swap16((data + 0x14), alis.platform.is_little_endian);

@@ -856,7 +856,7 @@ static void clive(void) {
             debug(EDebugInfo, "\n");
 
             u16 tent = 0;
-            u32 loop = 8 > alis.nbent ? 8 : alis.nbent;
+            u32 loop = alis.nbent;
             for (int i = 0; i < loop; i++)
             {
                 tent = alis.atent_ptr[i].offset;
@@ -873,6 +873,7 @@ static void clive(void) {
                 else
                 {
                     debug(EDebugInfo, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
+                    loop++;
                 }
             }
 
@@ -1551,6 +1552,8 @@ s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
     
     return 1;
 }
+
+// check for clicked object
 
 void clipform(void) {
     alis.ptrent = alis.tablent;
@@ -3935,21 +3938,26 @@ void killent(u16 killent, u16 testent)
     debug(EDebugInfo, " killent: [%.2x, %.6x] \n", xread16(alis.atent + 4 + killent), xread32(alis.atent + killent));
 
     u16 tent = 0;
-    u16 pent = 0;
-
-    do
+    u32 loop = alis.nbent;
+    for (int i = 0; i < loop; i++)
     {
-        sAlisScript *s = ENTSCR(tent);
-        tent = xread16(alis.atent + 4 + tent);
+        tent = alis.atent_ptr[i].offset;
 
-        u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
-        s32 vramsize = s->header.vram_alloc_sz;
-        s32 shrinkby = datasize + vramsize;
-
-        debug(EDebugInfo, "%c[%s (%.2x), %.2x, %.6x, %.6x] \n", pent == killent ? '*' : ' ', s->name, get_0x10_script_id(s->vram_org), pent, s->vram_org, shrinkby);
-        pent = tent;
+        sAlisScript *s = alis.scripts[i];
+        if (s && s->vram_org)
+        {
+            u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
+            s32 vramsize = s->header.vram_alloc_sz;
+            s32 shrinkby = datasize + vramsize;
+            
+            debug(EDebugInfo, "%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", script_vram == s->vram_org ? '*' : ' ', s->name, s->header.id, get_0x10_script_id(s->vram_org), xswap16(tent), s->vram_org, shrinkby);
+        }
+        else
+        {
+            debug(EDebugInfo, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
+            loop++;
+        }
     }
-    while (tent);
 
     if (script_vram == 0)
     {
@@ -4024,6 +4032,30 @@ void killent(u16 killent, u16 testent)
     else
     {
         alis.script = prevscript;
+    }
+
+    debug(EDebugInfo, "\n");
+
+    tent = 0;
+    loop = alis.nbent;
+    for (int i = 0; i < loop; i++)
+    {
+        tent = alis.atent_ptr[i].offset;
+
+        sAlisScript *s = alis.scripts[i];
+        if (s && s->vram_org)
+        {
+            u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
+            s32 vramsize = s->header.vram_alloc_sz;
+            s32 shrinkby = datasize + vramsize;
+            
+            debug(EDebugInfo, "%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", ' ', s->name, s->header.id, get_0x10_script_id(s->vram_org), xswap16(tent), s->vram_org, shrinkby);
+        }
+        else
+        {
+            debug(EDebugInfo, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
+            loop++;
+        }
     }
 }
 

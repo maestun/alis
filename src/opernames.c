@@ -30,6 +30,7 @@ void oimmw(void) {
 void oimmp(void) {
     // reads null-terminated data into bssChunk3
     script_read_until_zero(alis.sd7);
+    debug(EDebugWarning, " [\"%s\" <= sd7]", (char *)alis.sd7);
 }
 
 void olocb(void) {
