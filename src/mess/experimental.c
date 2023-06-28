@@ -39,7 +39,7 @@
 # define VERIFYINTEGRITY verifyintegrity()
 # define ELEM_TRACE(x, ...) DBTRACE(x,  ## __VA_ARGS__)
 #else
-# define VERIFYINTEGRITY verifyintegrity2()
+# define VERIFYINTEGRITY
 # define ELEM_TRACE(x, ...)
 #endif
 
@@ -220,7 +220,7 @@ u32 timeclock = 0;
 //        u16 clinking;           // 0x1e
 
 u8  get_scene_state(u32 scene)       { return xread8(alis.basemain + scene + 0x0); }
-u8  get_scene_numelem(u32 scene)     { return xread8(alis.basemain + scene + 0x1); }
+s8  get_scene_numelem(u32 scene)     { return xread8(alis.basemain + scene + 0x1); }
 u16 get_scene_screen_id(u32 scene)   { return xread16(alis.basemain + scene + 0x2); }
 u16 get_scene_to_next(u32 scene)     { return xread16(alis.basemain + scene + 0x4); }
 u16 get_scene_link(u32 scene)        { return xread16(alis.basemain + scene + 0x6); }
@@ -252,7 +252,7 @@ u16 get_scene_unknown0x2c(u32 scene) { return xread16(alis.basemain + scene + 0x
 u16 get_scene_unknown0x2e(u32 scene) { return xread16(alis.basemain + scene + 0x2e); }
 
 void set_scene_state(u32 scene, u8 val)          { xwrite8(alis.basemain + scene + 0x0, val); }
-void set_scene_numelem(u32 scene, u8 val)        { xwrite8(alis.basemain + scene + 0x1, val); }
+void set_scene_numelem(u32 scene, s8 val)        { xwrite8(alis.basemain + scene + 0x1, val); }
 void set_scene_screen_id(u32 scene, u16 val)     { xwrite16(alis.basemain + scene + 0x2, val); }
 void set_scene_to_next(u32 scene, u16 val)       { xwrite16(alis.basemain + scene + 0x4, val); }
 void set_scene_link(u32 scene, u16 val)          { xwrite16(alis.basemain + scene + 0x6, val); }
@@ -719,7 +719,7 @@ void log_sprites(void)
                     }
                 }
 
-                printf("  %s0x%.4x type: %c idx: %d [x:%d y:%d w:%d h:%d] %s\n", deleted ? "!!" : "  ", ELEMIDX(curidx), type ? 'R' : 'B', index, sprite->newx, sprite->newy, width, height, script->name);
+                printf("  %s%.2x %.4x type: %c idx: %d [x:%d y:%d w:%d h:%d] %s\n", deleted ? "!!" : "  ", (u8)sprite->numelem, ELEMIDX(curidx), type ? 'R' : 'B', index, sprite->newx, sprite->newy, width, height, script->name);
             }
         }
 
@@ -858,58 +858,104 @@ u8 verifyintegrity(void)
     return result;
 }
 
-u8 verifyintegrity2(void)
-{
-    u8 result = true;
-
-    if (alis.libsprit == 0)
-    {
-        ELEM_TRACE("ERROR: alis.libsprit = 0!\n");
-        result = false;
-    }
-    
-    u16 curidx = get_0x18_unknown(alis.script->vram_org);
-    u16 scsprite = ptscreen;
-    
-    while (scsprite != 0)
-    {
-        if ((get_scene_state(scsprite) & 0x40) == 0)
-        {
-            u8 *bitmap = 0;
-            SpriteVariables *sprite;
-            u16 lastidx2 = 0;
-            u16 lastidx = 0;
-            for (curidx = get_scene_screen_id(scsprite); curidx != 0; curidx = SPRITE_VAR(curidx)->link)
-            {
-                lastidx2 = lastidx;
-                lastidx = curidx;
-                sprite = SPRITE_VAR(curidx);
-                u32 spnewad = sprite->newad & 0xffffff;
-                if (spnewad && sprite->width >= 319 && sprite->height >= 199)
-                {
-                    bitmap = (alis.mem + spnewad);
-                }
-                else
-                {
-                    bitmap = 0;
-                }
-            }
-            
-            // NOTE: silmarils are placing black rectangle as last drawn item until everything is initialized, removing it allow us to see whats happening
-            if (bitmap && bitmap[0] == 1)
-            {
-                if (lastidx2)
-                {
-                    SPRITE_VAR(lastidx2)->link = 0;
-                }
-            }
-        }
-
-        scsprite = get_scene_to_next(scsprite);
-    }
- 
-    return result;
-}
+//u8 verifyintegrity2(void)
+//{
+//    u8 result = true;
+//
+//    if (alis.libsprit == 0)
+//    {
+//        ELEM_TRACE("ERROR: alis.libsprit = 0!\n");
+//        result = false;
+//    }
+//
+//    u16 curidx = get_0x18_unknown(alis.script->vram_org);
+//    u16 scsprite = ptscreen;
+//
+//    while (scsprite != 0)
+//    {
+//        if ((get_scene_state(scsprite) & 0x40) == 0)
+//        {
+//            u8 *bitmap = 0;
+//            SpriteVariables *sprite = NULL;
+//            u16 lastidx2 = 0;
+//            u16 lastidx = 0;
+//            for (curidx = get_scene_screen_id(scsprite); curidx != 0; curidx = SPRITE_VAR(curidx)->link)
+//            {
+//                lastidx2 = lastidx;
+//                lastidx = curidx;
+//                sprite = SPRITE_VAR(curidx);
+//                u32 spnewad = sprite->newad & 0xffffff;
+//                if (spnewad && sprite->width >= 319 && sprite->height >= 199)
+//                {
+//                    bitmap = (alis.mem + spnewad);
+//                }
+//                else
+//                {
+//                    bitmap = 0;
+//                }
+//            }
+//
+//            // NOTE: silmarils are placing black rectangle as last drawn item until everything is initialized, removing it allow us to see whats happening
+//            if (bitmap && bitmap[0] == 1)
+//            {
+//                if (lastidx2)
+//                {
+//                    sAlisScript *script = ENTSCR(sprite->script_ent);
+//
+//                    s32 addr = 0;
+//                    s32 index = -1;
+//
+//                    bool deleted = false;
+//
+//                    if (script->vram_org)
+//                    {
+//                        u8 *ptr = alis.mem + get_0x14_script_org_offset(script->vram_org);
+//                        s32 l = read32(ptr + 0xe, alis.platform.is_little_endian);
+//                        s32 e = read16(ptr + l + 4, alis.platform.is_little_endian);
+//
+//                        sAlisScript *prev = alis.script;
+//                        alis.script = script;
+//
+//                        for (s32 i = 0; i < e; i++)
+//                        {
+//                            addr = adresdes(i);
+//                            if (sprite && sprite->data == addr + script->data_org)
+//                            {
+//                                index = i;
+//                                break;
+//                            }
+//                        }
+//
+//                        alis.script = prev;
+//                    }
+//                    else
+//                    {
+//                        deleted = true;
+//                    }
+//
+//                    u8 type = 0;
+//                    s16 width = -1;
+//                    s16 height = -1;
+//                    if (bitmap)
+//                    {
+//                        if (bitmap[0] == 1)
+//                            type = 1;
+//
+//                        width = read16(bitmap + 2, alis.platform.is_little_endian);
+//                        height = read16(bitmap + 4, alis.platform.is_little_endian);
+//                    }
+//
+//                    printf("  %s%.2x %.4x type: %c idx: %d [x:%d y:%d w:%d h:%d] %s\n", deleted ? "!!" : "  ", (u8)(sprite->numelem), ELEMIDX(curidx), type ? 'R' : 'B', index, sprite->newx, sprite->newy, width, height, script->name);
+//                    SPRITE_VAR(lastidx2)->link = 0;
+//                }
+//            }
+//        }
+//
+//        scsprite = get_scene_to_next(scsprite);
+//    }
+//
+//    return result;
+//}
 
 void inisprit(void)
 {
@@ -965,7 +1011,7 @@ u8 searchelem(u16 *curidx, u16 *previdx)
     {
         SpriteVariables *cursprvar = NULL;
         s16 screen_id;
-        char num;
+        s8 num;
 
         do
         {
@@ -984,8 +1030,7 @@ u8 searchelem(u16 *curidx, u16 *previdx)
                         return 1;
                     }
                     
-                    // TODO: this is just a temporary hack, re-enable once we fix sprite sorting
-                    // break;
+                    break;
                 }
             }
             
@@ -1100,7 +1145,7 @@ void killelem(u16 *curidx, u16 *previdx)
 //    u16 height = read16(resourcedata + 4, alis.platform.is_little_endian);
 //    printf(" killelem: %d x %d [%s] ", width, height, s->name);
     
-    if (alis.ferase == '\0' && -1 < (s8)cursprvar->state)
+    if (alis.ferase == 0 && -1 < (s8)cursprvar->state)
     {
         cursprvar->state = 1;
         
@@ -1582,7 +1627,7 @@ void scalaire(u16 scene, s16 *x, s16 *y, s16 *z)
 {
     DEBUGFCE;
 
-    if ((s8)get_scene_numelem(scene) < 0)
+    if (get_scene_numelem(scene) < 0)
     {
         s32 prevx = (get_scene_unknown0x20(scene) * *x + get_scene_unknown0x21(scene) * *y + get_scene_unknown0x22(scene) * *z);
         s32 prevy = (get_scene_unknown0x23(scene) * *x + get_scene_unknown0x24(scene) * *y + get_scene_unknown0x25(scene) * *z);

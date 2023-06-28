@@ -41,8 +41,8 @@ typedef union {
         u8 chsprite;            // 0x21
         u16 script_ent;         // 0x22
         u32 sprite_0x28;        // 0x24
-        u16 width;              // 0x28
-        u16 height;             // 0x2a
+        s16 width;              // 0x28
+        s16 height;             // 0x2a
         u16 newzoomx;           // 0x2c
         u16 newzoomy;           // 0x2e
     };
@@ -97,7 +97,7 @@ typedef union {
 //} SceneVariables;
 
 u8  get_scene_state(u32 scene);
-u8  get_scene_numelem(u32 scene);
+s8  get_scene_numelem(u32 scene);
 u16 get_scene_screen_id(u32 scene);
 u16 get_scene_to_next(u32 scene);
 u16 get_scene_link(u32 scene);
@@ -129,7 +129,7 @@ u16 get_scene_unknown0x2c(u32 scene);
 u16 get_scene_unknown0x2e(u32 scene);
 
 void set_scene_state(u32 scene, u8 val);
-void set_scene_numelem(u32 scene, u8 val);
+void set_scene_numelem(u32 scene, s8 val);
 void set_scene_screen_id(u32 scene, u16 val);
 void set_scene_to_next(u32 scene, u16 val);
 void set_scene_link(u32 scene, u16 val);
