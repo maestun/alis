@@ -2278,7 +2278,15 @@ static void cfindmat(void) {
 }
 
 static void cfindtyp(void) {
-    readexec_opername();
+    
+    if (alis.platform.kind == EPlatformPC)
+    {
+        alis.varD7 = script_read16();
+    }
+    else
+    {
+        readexec_opername();
+    }
     
     if (alis.varD7 < 0)
     {
