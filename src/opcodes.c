@@ -1997,60 +1997,6 @@ static void cinitab(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-int FUN_FileExists(const char *fname)
-{
-    FILE *file;
-    if ((file = fopen(fname, "r")))
-    {
-        fclose(file);
-        return 1;
-    }
-    
-    return 0;
-}
-
-uint FUN_OpenFile(char *path, uint mode, uint d1)
-{
-    u32 uVar1;
-    
-    u16 w_file_open_mode = (u16)mode;
-    char *_addr_file_name = path;
-    if ((mode & 0x100) == 0 || FUN_FileExists(path))
-    {
-        u8 bVar2 = (mode & 0x200) == 0;
-        if (bVar2)
-        {
-            alis.fp = sys_fopen(path, d1);
-            if (alis.fp != NULL)
-            {
-                uVar1 = mode & 0xffff0000 | (uint)w_file_open_mode;
-                if ((w_file_open_mode & 0x400) == 0)
-                {
-                    return uVar1;
-                }
-                
-                bVar2 = (int)mode < 0;
-                // SYS_SeekFile();
-                if (!bVar2)
-                {
-                    return uVar1;
-                }
-            }
-            //uVar1 = SYS_PrintError();
-            return uVar1;
-        }
-        
-        if (FUN_FileExists(path))
-        {
-            // uVar1 = FUN_FileTruncate();
-            return uVar1;
-        }
-    }
-    
-    // uVar1 = FUN_CreateFile();
-    return uVar1;
-}
-
 static void cfopen(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);

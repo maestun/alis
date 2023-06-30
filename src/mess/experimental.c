@@ -442,7 +442,7 @@ void topalet(void)
 void ctopalette(u8 *paldata, s32 duration)
 {
     u16 colors = paldata[1];
-    if (colors == 0) // ST palette
+    if (colors == 0) // 4 bit palette
     {
         if (thepalet != 0)
         {
@@ -455,18 +455,23 @@ void ctopalette(u8 *paldata, s32 duration)
         u8 *palptr = &paldata[2];
 
         u16 to = 0;
-        for (s32 i = 0; i < 16; i++)
+        if (alis.platform.kind == EPlatformAtari)
         {
-            u8 r = palptr[i * 2 + 0];
-            r = (r & 0b00000111) << 5;
-            u8 g = palptr[i * 2 + 1];
-            g = (g >> 4) << 5;
-            u8 b = palptr[i * 2 + 1];
-            b = (b & 0b00000111) << 5;
-            
-            atpalet[to++] = r;
-            atpalet[to++] = g;
-            atpalet[to++] = b;
+            for (s32 i = 0; i < 16; i++)
+            {
+                atpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
+                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
+                atpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
+            }
+        }
+        else
+        {
+            for (s32 i = 0; i < 16; i++)
+            {
+                atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
+                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
+                atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
+            }
         }
     }
     else // 8 bit palette
