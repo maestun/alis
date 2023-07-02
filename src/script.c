@@ -4,13 +4,13 @@
 //
 
 #include "alis.h"
-#include "unpack.h"
+#include "alis_private.h"
 #include "debug.h"
+#include "image.h"
 #include "platform.h"
 #include "script.h"
+#include "unpack.h"
 #include "utils.h"
-#include "alis_private.h"
-#include "experimental.h"
 
 
 // TODO: for debugging
@@ -260,7 +260,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     s16 insert = debprotf(id);
     if (insert > 0 && insert < alis.nbprog)
     {
-        sAlisScript *script = alis.progs[insert];
+        sAlisScript *script = alis.loaded_scripts[insert];
         if (script->header.id == id)
         {
             script->sz = data_sz;
@@ -293,7 +293,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
             
             for (int i = 0; i < alis.nbprog; i++)
             {
-                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.progs[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
             }
             
             debug(EDebugInfo, "\n");
@@ -351,15 +351,15 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     for (int i = alis.nbprog - 2; i >= insert; i--)
     {
         alis.atprog_ptr[i + 1] = alis.atprog_ptr[i];
-        alis.progs[i + 1] = alis.progs[i];
+        alis.loaded_scripts[i + 1] = alis.loaded_scripts[i];
     }
 
     alis.atprog_ptr[insert] = script->data_org;
-    alis.progs[insert] = script;
+    alis.loaded_scripts[insert] = script;
 
     for (int i = 0; i < alis.nbprog; i++)
     {
-        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.progs[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
     }
     
     debug(EDebugInfo, "\n");
@@ -431,7 +431,7 @@ void  script_live(sAlisScript * script) {
     alis.dernent = xswap16(alis.atent_ptr[script_idx].offset);
     alis.atent_ptr[script_idx].offset = xswap16(nextent);
     alis.atent_ptr[script_idx].vram_offset = xswap32(script->vram_org);
-    alis.scripts[script_idx] = script;
+    alis.live_scripts[script_idx] = script;
     alis.finent += vram_length;
     alis.nbent ++;
 

@@ -6,9 +6,9 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "image.h"
+#include "screen.h"
 #include "utils.h"
-
-#include "experimental.h"
 
 #define BIT_SCAN        (0)
 #define BIT_INTER       (1)
@@ -24,6 +24,9 @@
 // ============================================================================
 #pragma mark - Experimental
 // ============================================================================
+
+extern u8 thepalet;
+extern u8 defpalet;
 
 int putdataidx = 0;
 
@@ -495,14 +498,14 @@ static void csprinti(void) {
     alis.charmode = 0;
     for (u8 c = script_read8(); c != 0; c = script_read8())
     {
-        alis_putchar(c);
+        put_char(c);
     }
 }
 
 static void csprinta(void) {
     alis.charmode = 0;
     readexec_opername_saveD7();
-    alis_putstring();
+    put_string();
 }
 
 static void clocate(void) {
@@ -541,9 +544,9 @@ static void cdim(void) {
 
 static void crandom(void) {
     readexec_opername();
-    alis._random_number = alis.varD7;
-    if(alis._random_number == 0) {
-        alis._random_number = sys_random();
+    alis.random_number = alis.varD7;
+    if(alis.random_number == 0) {
+        alis.random_number = sys_random();
         // test key/joy input, if zero, random is set to $64 ???
     }
 }
@@ -701,11 +704,11 @@ static void cscmov(void) {
     readexec_opername_saveD7();
     s16 z = alis.varD7;
     
-    u16 scene = get_0x16_screen_id(alis.script->vram_org);
-    set_scene_unknown0x2e(scene, z);
-    set_scene_unknown0x2c(scene, y);
-    set_scene_unknown0x2a(scene, x);
-    set_scene_state(scene, get_scene_state(scene) | 0x80);
+    u16 scridx = get_0x16_screen_id(alis.script->vram_org);
+    set_scr_unknown0x2e(scridx, z);
+    set_scr_unknown0x2c(scridx, y);
+    set_scr_unknown0x2a(scridx, x);
+    set_scr_state(scridx, get_scr_state(scridx) | 0x80);
 }
 
 static void cscset(void) {
@@ -716,29 +719,29 @@ static void cscset(void) {
     readexec_opername_saveD7();
     s16 z = alis.varD7;
     
-    u16 scene = get_0x16_screen_id(alis.script->vram_org);
-    set_scene_unknown0x2e(scene, z - get_scene_depz(scene));
-    set_scene_unknown0x2c(scene, y - get_scene_depy(scene));
-    set_scene_unknown0x2a(scene, x - get_scene_depx(scene));
-    set_scene_state(scene, get_scene_state(scene) | 0x80);
+    u16 scridx = get_0x16_screen_id(alis.script->vram_org);
+    set_scr_unknown0x2e(scridx, z - get_scr_depz(scridx));
+    set_scr_unknown0x2c(scridx, y - get_scr_depy(scridx));
+    set_scr_unknown0x2a(scridx, x - get_scr_depx(scridx));
+    set_scr_state(scridx, get_scr_state(scridx) | 0x80);
 
     // Ishar 3
-//    if (z != get_scene_depz(scene))
+//    if (z != get_scr_depz(scridx))
 //    {
-//        set_scene_depz(scene, z);
-//        set_scene_state(scene, get_scene_state(scene) | 0x80);
+//        set_scr_depz(scridx, z);
+//        set_scr_state(scridx, get_scr_state(scridx) | 0x80);
 //    }
 //
-//    if (y != get_scene_depy(scene))
+//    if (y != get_scr_depy(scridx))
 //    {
-//        set_scene_depy(scene, y);
-//        set_scene_state(scene, get_scene_state(scene) | 0x80);
+//        set_scr_depy(scridx, y);
+//        set_scr_state(scridx, get_scr_state(scridx) | 0x80);
 //    }
 //
-//    if (x != get_scene_depx(scene))
+//    if (x != get_scr_depx(scridx))
 //    {
-//        set_scene_depx(scene, x);
-//        set_scene_state(scene, get_scene_state(scene) | 0x80);
+//        set_scr_depx(scridx, x);
+//        set_scr_state(scridx, get_scr_state(scridx) | 0x80);
 //    }
 }
 
@@ -779,7 +782,7 @@ static void cunload(void) {
             }
             
 //            shrinkprog(data_org, data_end - data_org, id);
-            sAlisScript *script = alis.progs[index];
+            sAlisScript *script = alis.loaded_scripts[index];
             if (script->data_org != data_org)
             {
                 sleep(0);
@@ -827,7 +830,7 @@ static void clive(void) {
         s16 index = debprotf(id);
         if (index != -1)
         {
-            sAlisScript *prog = alis.progs[index];
+            sAlisScript *prog = alis.loaded_scripts[index];
 
             sAlisScript *script = (sAlisScript *)malloc(sizeof(sAlisScript));
             memcpy(script, prog, sizeof(sAlisScript));
@@ -861,7 +864,7 @@ static void clive(void) {
             {
                 tent = alis.atent_ptr[i].offset;
 
-                sAlisScript *s = alis.scripts[i];
+                sAlisScript *s = alis.live_scripts[i];
                 if (s && s->vram_org)
                 {
                     u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
@@ -1011,42 +1014,42 @@ void FUN_00013dda(void) {
 
 // reads 35 bytes
 static void cdefsc(void) {
-    if (alis.libsprit == 0)
+    if (image.libsprit == 0)
         return;
 
-    u16 scene = script_read16();
-    set_scene_state(scene, 0x40);
-    set_scene_numelem(scene, script_read8());
-    set_scene_screen_id(scene, alis.libsprit);
+    u16 scridx = script_read16();
+    set_scr_state(scridx, 0x40);
+    set_scr_numelem(scridx, script_read8());
+    set_scr_screen_id(scridx, image.libsprit);
 
-    u8 *ptr = alis.mem + alis.basemain + scene + 6;
+    u8 *ptr = alis.mem + alis.basemain + scridx + 6;
     for (int i = 0; i < 32; i++, ptr++)
         *ptr = script_read8();
     
-    set_scene_to_next(scene, 0);
-//    set_scene_newx(scene, swap16(get_scene_newx(scene), alis.platform.is_little_endian));
-//    set_scene_newy(scene, swap16(get_scene_newy(scene), alis.platform.is_little_endian));
-//    set_scene_width(scene, swap16((u8 *)&(scene->width), alis.platform.is_little_endian));
-//    set_scene_height(scene, swap16((u8 *)&(scene->height), alis.platform.is_little_endian));
-//    set_scene_unknown0x0a(scene, swap16((u8 *)&(scene->unknown0x0a), alis.platform.is_little_endian));
-//    set_scene_unknown0x0c(scene, swap16((u8 *)&(scene->unknown0x0c), alis.platform.is_little_endian));
-    set_scene_unknown0x2a(scene, 0);
-    set_scene_unknown0x2c(scene, 0);
-    set_scene_unknown0x2e(scene, 0);
+    set_scr_to_next(scridx, 0);
+//    set_scr_newx(scridx, swap16(get_scr_newx(scridx), alis.platform.is_little_endian));
+//    set_scr_newy(scridx, swap16(get_scr_newy(scridx), alis.platform.is_little_endian));
+//    set_scr_width(scridx, swap16((u8 *)&(scridx->width), alis.platform.is_little_endian));
+//    set_scr_height(scridx, swap16((u8 *)&(scridx->height), alis.platform.is_little_endian));
+//    set_scr_unknown0x0a(scridx, swap16((u8 *)&(scridx->unknown0x0a), alis.platform.is_little_endian));
+//    set_scr_unknown0x0c(scridx, swap16((u8 *)&(scridx->unknown0x0c), alis.platform.is_little_endian));
+    set_scr_unknown0x2a(scridx, 0);
+    set_scr_unknown0x2c(scridx, 0);
+    set_scr_unknown0x2e(scridx, 0);
 
-    SpriteVariables *sprite = SPRITE_VAR(alis.libsprit);
+    sSprite *sprite = SPRITE_VAR(image.libsprit);
     sprite->link = 0;
-    sprite->numelem = get_scene_numelem(scene);
-    sprite->newx = get_scene_newx(scene);// & 0xfff0;
-    sprite->newy = get_scene_newy(scene);
+    sprite->numelem = get_scr_numelem(scridx);
+    sprite->newx = get_scr_newx(scridx);// & 0xfff0;
+    sprite->newy = get_scr_newy(scridx);
     sprite->newd = 0x7fff;
-    sprite->depx = get_scene_newx(scene) + get_scene_width(scene);// | 0xf;
-    sprite->depy = get_scene_newy(scene) + get_scene_height(scene);
+    sprite->depx = get_scr_newx(scridx) + get_scr_width(scridx);// | 0xf;
+    sprite->depy = get_scr_newy(scridx) + get_scr_height(scridx);
 
-    alis.libsprit = sprite->to_next;
+    image.libsprit = sprite->to_next;
 
-    scadd(scene);
-    vectoriel(scene);
+    scadd(scridx);
+    vectoriel(scridx);
 }
 
 static void cscreen(void) {
@@ -1058,34 +1061,34 @@ static void cscreen(void) {
 
 static void cput(void) {
     alis.flagmain = 0;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
+    image.invert_x = get_0x03_xinv(alis.script->vram_org);
 
     readexec_opername();
     
-    alis.depx = 0;
-    alis.depy = 0;
-    alis.depz = 0;
-    alis.numelem = 0;
+    image.depx = 0;
+    image.depy = 0;
+    image.depz = 0;
+    image.numelem = 0;
     
-    u8 idx = alis.varD7;
+    u16 idx = alis.varD7;
 
     put(idx);
 }
 
 static void cputnat(void) {
     alis.flagmain = 0;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
+    image.invert_x = get_0x03_xinv(alis.script->vram_org);
     readexec_opername_saveD7();
-    alis.depx = alis.varD7;
+    image.depx = alis.varD7;
     readexec_opername_saveD7();
-    alis.depy = alis.varD7;
+    image.depy = alis.varD7;
     readexec_opername_saveD7();
-    alis.depz = alis.varD7;
+    image.depz = alis.varD7;
     readexec_opername_saveD7();
     readexec_opername_saveD6();
     
-    alis.numelem = alis.varD6;
-    u8 idx = alis.varD7;
+    image.numelem = alis.varD6;
+    u16 idx = alis.varD7;
     
     put(idx);
 }
@@ -1096,7 +1099,7 @@ static void cerase(void) {
 
 static void cerasen(void) {
     readexec_opername_saveD7();
-    alis.numelem = alis.varD7;
+    image.numelem = alis.varD7;
     
     u16 curidx = 0;
     u16 previdx = 0;
@@ -1590,7 +1593,7 @@ void clipform(void) {
                 
                 if (!result)
                 {
-                    if (alis.witmov != '\0')
+                    if (alis.witmov != 0)
                     {
                         alis.fmitmov = 1;
                         return;
@@ -1853,13 +1856,10 @@ static void cpalette(void) {
     alis.flagmain = 0;
 
     readexec_opername();
-    u16 palidx = alis.varD7;
-    u16 duration = 0;
-    
+    s16 palidx = alis.varD7;
     if (palidx < 0)
     {
-        // TODO: ...
-        debug(EDebugWarning, " /* STUBBED */");
+        restorepal(palidx, 0);
     }
     else
     {
@@ -1869,7 +1869,7 @@ static void cpalette(void) {
         
         s32 addr = adresdes(palidx);
         u8 *paldata = alis.mem + alis.script->data_org + addr;
-        ctopalette(paldata, duration);
+        topalette(paldata, 0);
     }
 }
 
@@ -1879,7 +1879,7 @@ static void cdefcolor(void) {
 
 static void ctiming(void) {
     readexec_opername();
-    alis._ctiming = (u8)(alis.varD7 & 0xff);
+    alis.ctiming = (u8)(alis.varD7 & 0xff);
 }
 
 static void czap(void) {
@@ -2254,9 +2254,9 @@ static void cvftstmov(void) {
 
 static void cvmov(void) {
     debug(EDebugWarning, " /* CHCECK */");
-    xadd16(alis.script->vram_org + 0, xread8(alis.script->vram_org + 0x9));
-    xadd16(alis.script->vram_org + 2, xread8(alis.script->vram_org + 0x5));
-    xadd16(alis.script->vram_org + 4, xread8(alis.script->vram_org + 0xb));
+    xadd16(alis.script->vram_org + 0, (s8)xread8(alis.script->vram_org + 0x9));
+    xadd16(alis.script->vram_org + 2, (s8)xread8(alis.script->vram_org + 0x5));
+    xadd16(alis.script->vram_org + 4, (s8)xread8(alis.script->vram_org + 0xb));
 }
 
 static void cdefworld(void) {
@@ -2332,7 +2332,7 @@ static void cmusic(void) {
     
     readexec_opername();
     s16 idx = alis.varD7;
-    s16 addr = adresmus(idx);
+    s32 addr = adresmus(idx);
 
     u8 type = xread8(alis.script->data_org + addr);
     if (type != 4)
@@ -2455,7 +2455,29 @@ static void csound(void) {
 }
 
 static void cmsound(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, " /* STUBBED */");
+    alis.flagmain = 1;
+    readexec_opername();
+    s32 addr = adresmus(alis.varD7);
+    readexec_opername();
+    alis.priorson = alis.varD7;
+    readexec_opername();
+    alis.volson = alis.varD7;
+    readexec_opername();
+    alis.loopsam = alis.varD7;
+    readexec_opername();
+    alis.speedsam = (s8)alis.varD7;
+
+    s8 type = xread8(alis.script->data_org + addr);
+    if (type != 1 && type != 2)
+        return;
+
+    if (alis.speedsam == 0)
+        alis.speedsam = xread8(alis.script->data_org + addr + 1);
+
+    alis.longsam = xread32(alis.script->data_org + addr + 2) - 0x10;
+    alis.startsam = addr + 0x10;
+//    gosound();
 }
 
 static void credon(void) {
@@ -2496,84 +2518,84 @@ static void ctstform(void) {
 
 static void cxput(void) {
     alis.flagmain = 0;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
+    image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
     readexec_opername();
-    alis.depx = 0;
-    alis.depy = 0;
-    alis.depz = 0;
-    alis.numelem = 0;
+    image.depx = 0;
+    image.depy = 0;
+    image.depz = 0;
+    image.numelem = 0;
     
-    u8 idx = alis.varD7;
+    u16 idx = alis.varD7;
     put(idx);
 }
 
 static void cxputat(void) {
     alis.flagmain = 0;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
+    image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
 
     readexec_opername_saveD7();
-    alis.depx = alis.varD7;
+    image.depx = alis.varD7;
     readexec_opername_saveD7();
-    alis.depy = alis.varD7;
+    image.depy = alis.varD7;
     readexec_opername_saveD7();
-    alis.depz = alis.varD7;
+    image.depz = alis.varD7;
     readexec_opername_saveD7();
     readexec_opername_saveD6();
-    u8 idx = alis.varD7;
-    alis.numelem = alis.varD6;
+    u16 idx = alis.varD7;
+    image.numelem = alis.varD6;
     put(idx);
 }
 
 static void cmput(void) {
     alis.flagmain = 1;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
+    image.invert_x = get_0x03_xinv(alis.script->vram_org);
     readexec_opername();
-    u8 idx = alis.varD7;
-    alis.depx = 0;
-    alis.depy = 0;
-    alis.depz = 0;
-    alis.numelem = 0;
+    u16 idx = alis.varD7;
+    image.depx = 0;
+    image.depy = 0;
+    image.depz = 0;
+    image.numelem = 0;
     put(idx);
 }
 
 static void cmputat(void) {
     alis.flagmain = 1;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org);
+    image.invert_x = get_0x03_xinv(alis.script->vram_org);
     readexec_opername_saveD7();
-    alis.depx = alis.varD7;
+    image.depx = alis.varD7;
     readexec_opername_saveD7();
-    alis.depy = alis.varD7;
+    image.depy = alis.varD7;
     readexec_opername_saveD7();
-    alis.depz = alis.varD7;
+    image.depz = alis.varD7;
     readexec_opername_saveD7();
     readexec_opername_saveD6();
-    alis.numelem = alis.varD6;
+    image.numelem = alis.varD6;
     put(alis.varD7);
 }
 
 static void cmxput(void) {
     alis.flagmain = 1;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
+    image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
     readexec_opername();
-    alis.depx = 0;
-    alis.depy = 0;
-    alis.depz = 0;
-    alis.numelem = 0;
+    image.depx = 0;
+    image.depy = 0;
+    image.depz = 0;
+    image.numelem = 0;
     put(alis.varD7);
 }
 
 static void cmxputat(void) {
     alis.flagmain = 1;
-    alis.flaginvx = get_0x03_xinv(alis.script->vram_org) ^ 1;
+    image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
     readexec_opername_saveD7();
-    alis.depx = alis.varD7;
+    image.depx = alis.varD7;
     readexec_opername_saveD7();
-    alis.depy = alis.varD7;
+    image.depy = alis.varD7;
     readexec_opername_saveD7();
-    alis.depz = alis.varD7;
+    image.depz = alis.varD7;
     readexec_opername_saveD7();
     readexec_opername_saveD6();
-    alis.numelem = alis.varD6;
+    image.numelem = alis.varD6;
     put(alis.varD7);
 }
 
@@ -2696,11 +2718,11 @@ static void crunfilm(void) {
 void printd0(s16 d0w)
 {
     u8 *ptr = alis.sd7;
-    vald0(alis.sd7, d0w);
+    valtostr(alis.sd7, d0w);
     
     while (*ptr != 0)
     {
-        alis_putchar(*ptr++);
+        put_char(*ptr++);
     }
 }
 
@@ -2719,7 +2741,7 @@ static void cvpicprint(void) {
 static void cspicprint(void) {
     alis.charmode = 1;
     readexec_opername_swap();
-    alis_putstring();
+    put_string();
 }
 
 static void cvputprint(void) {
@@ -2731,7 +2753,7 @@ static void cvputprint(void) {
 static void csputprint(void) {
     alis.charmode = 2;
     readexec_opername_swap();
-    alis_putstring();
+    put_string();
 }
 
 static void cfont(void) {
@@ -2756,7 +2778,7 @@ static void ctoblack(void) {
     readexec_opername_saveD6();
     
     s16 duration = alis.varD6;
-    ctoblackpal(duration);
+    toblackpal(duration);
 }
 
 static void cmovcolor(void) {
@@ -2775,26 +2797,25 @@ static void ctopalet(void) {
     
     if (palidx < 0)
     {
-        // TODO: ...
-        debug(EDebugWarning, " /* STUBBED */");
+        restorepal(palidx, duration);
     }
     else
     {
         s32 addr = adresdes(palidx);
         u8 *paldata = alis.mem + alis.script->data_org + addr;
-        ctopalette(paldata, duration);
+        topalette(paldata, duration);
     }
 }
 
 static void cnumput(void) {
     readexec_opername();
-    alis.depx = alis.varD7;
+    image.depx = alis.varD7;
     readexec_opername();
-    alis.depy = alis.varD7;
+    image.depy = alis.varD7;
     readexec_opername();
-    alis.depz = alis.varD7;
+    image.depz = alis.varD7;
     readexec_opername();
-    alis.numelem = alis.varD7;
+    image.numelem = alis.varD7;
 }
 
 static void cscheart(void) {
@@ -2804,9 +2825,9 @@ static void cscheart(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
-        set_scene_unknown0x0a(screen_id, alis.varD7);
-        set_scene_unknown0x0c(screen_id, alis.varD6);
-        set_scene_state(screen_id, get_scene_state(screen_id) | 0x80);
+        set_scr_unknown0x0a(screen_id, alis.varD7);
+        set_scr_unknown0x0c(screen_id, alis.varD6);
+        set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
 
@@ -2817,9 +2838,9 @@ static void cscpos(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
-        set_scene_newx(screen_id, alis.varD7);
-        set_scene_newy(screen_id, alis.varD6);
-        set_scene_state(screen_id, get_scene_state(screen_id) | 0x80);
+        set_scr_newx(screen_id, alis.varD7);
+        set_scr_newy(screen_id, alis.varD6);
+        set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
 
@@ -2830,37 +2851,37 @@ static void cscsize(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
-        set_scene_width(screen_id, alis.varD7);
-        set_scene_height(screen_id, alis.varD6);
-        set_scene_state(screen_id, get_scene_state(screen_id) | 0x80);
+        set_scr_width(screen_id, alis.varD7);
+        set_scr_height(screen_id, alis.varD6);
+        set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
 
 static void cschoriz(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
-    if (screen_id != '\0')
+    if (screen_id != 0)
     {
         readexec_opername();
-        set_scene_unknown0x20(screen_id, (u8)alis.varD7);
+        set_scr_unknown0x20(screen_id, (u8)alis.varD7);
         readexec_opername();
-        set_scene_unknown0x21(screen_id, (u8)alis.varD7);
+        set_scr_unknown0x21(screen_id, (u8)alis.varD7);
         readexec_opername();
-        set_scene_unknown0x22(screen_id, (u8)alis.varD7);
-        set_scene_state(screen_id, get_scene_state(screen_id) | 0x80);
+        set_scr_unknown0x22(screen_id, (u8)alis.varD7);
+        set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
 
 static void cscvertic(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
-    if (screen_id != '\0')
+    if (screen_id != 0)
     {
         readexec_opername();
-        set_scene_unknown0x23(screen_id, (u8)alis.varD7);
+        set_scr_unknown0x23(screen_id, (u8)alis.varD7);
         readexec_opername();
-        set_scene_unknown0x24(screen_id, (u8)alis.varD7);
+        set_scr_unknown0x24(screen_id, (u8)alis.varD7);
         readexec_opername();
-        set_scene_unknown0x25(screen_id, (u8)alis.varD7);
-        set_scene_state(screen_id, get_scene_state(screen_id) | 0x80);
+        set_scr_unknown0x25(screen_id, (u8)alis.varD7);
+        set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
 
@@ -2876,9 +2897,9 @@ static void cscreduce(void) {
         readexec_opername();
         u8 clinkingB = alis.varD7;
 
-        set_scene_creducing(screen_id, creducing);
-        set_scene_clinking(screen_id, (s16)(clinkingA - 1) << 8 | clinkingB);
-        set_scene_state(screen_id, get_scene_state(screen_id) | 0x80);
+        set_scr_creducing(screen_id, creducing);
+        set_scr_clinking(screen_id, (s16)(clinkingA - 1) << 8 | clinkingB);
+        set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
 
@@ -2888,8 +2909,8 @@ static void cscscale(void) {
     u16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
-        set_scene_credon_off(screen_id, scale);
-        set_scene_state(screen_id, get_scene_state(screen_id) | 0x80);
+        set_scr_credon_off(screen_id, scale);
+        set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
 
@@ -3195,22 +3216,9 @@ static void cputmap(void) {
     debug(EDebugWarning, " /* MISSING */");
 }
 
-u8 svpalet[1024];
-u8 svpalet2[1024];
-
-extern u8 tpalet[1024];
-extern u8 mpalet[1024];
-extern float dpalet[1024];
-
 static void csavepal(void) {
-    debug(EDebugWarning, " /* CHECK */");
     readexec_opername();
-    s16 mode = alis.varD7;
-    if (mode < 0 && -3 < mode)
-    {
-        u8 *tgt = (mode != -1) ? svpalet2 : svpalet;
-        memcpy(tgt, tpalet, 1024);
-    }
+    savepal(alis.varD7);
 }
 
 static void csczoom(void) {
@@ -3897,7 +3905,7 @@ void killent(u16 killent, u16 testent)
     {
         tent = alis.atent_ptr[i].offset;
 
-        sAlisScript *s = alis.scripts[i];
+        sAlisScript *s = alis.live_scripts[i];
         if (s && s->vram_org)
         {
             u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
@@ -3996,7 +4004,7 @@ void killent(u16 killent, u16 testent)
     {
         tent = alis.atent_ptr[i].offset;
 
-        sAlisScript *s = alis.scripts[i];
+        sAlisScript *s = alis.live_scripts[i];
         if (s && s->vram_org)
         {
             u32 datasize = sizeof(sScriptContext) + s->header.w_unknown5 + s->header.w_unknown7;
@@ -4033,7 +4041,7 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
         s8 idx = -1;
         for (s32 i = 0; i < alis.nbprog; i++)
         {
-            sAlisScript *scr = alis.progs[i];
+            sAlisScript *scr = alis.loaded_scripts[i];
             if (scr->header.id == script_id)
             {
                 idx = i;
@@ -4046,7 +4054,7 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
 
             if (idx > 0)
             {
-                alis.progs[i] = i < alis.maxprog ? alis.progs[i + 1] : 0;
+                alis.loaded_scripts[i] = i < alis.maxprog ? alis.loaded_scripts[i + 1] : 0;
             }
         }
 
@@ -4073,7 +4081,7 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
 
     for (int i = 0; i < alis.nbprog; i++)
     {
-        sAlisScript *script = alis.progs[i];
+        sAlisScript *script = alis.loaded_scripts[i];
         debug(EDebugInfo, "\nChecking prog: %s at: %.6x ", script->name, script->data_org);
             
         if (start <= script->data_org)
@@ -4140,14 +4148,14 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
 
     // move addresses to sprite data to match actual new locations
     
-    for (s16 scidx = ptscreen; scidx != 0; scidx = get_scene_to_next(scidx))
+    for (s16 scidx = screen.ptscreen; scidx != 0; scidx = get_scr_to_next(scidx))
     {
-        s16 spridx = get_scene_screen_id(scidx);
+        s16 spridx = get_scr_screen_id(scidx);
         if (spridx != 0)
         {
             while ((spridx = SPRITE_VAR(spridx)->link) != 0)
             {
-                SpriteVariables *sprite = SPRITE_VAR(spridx);
+                sSprite *sprite = SPRITE_VAR(spridx);
                 if (start < sprite->newad)
                     sprite->newad -= length;
 
@@ -4233,6 +4241,6 @@ void runson(void)
 //        *(u16 *)(a3 + 0x8) = alis.dvolson;
 //        *(u16 *)(a3 + 0x4) = alis.longson;
 //        *(s16 *)(a3 + 0xe) = alis.pereson;
-//        a3[0] = '\x02';
+//        a3[0] = 2;
 //    }
 }

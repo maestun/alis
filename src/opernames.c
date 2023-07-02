@@ -8,9 +8,8 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "image.h"
 #include "utils.h"
-
-#include "experimental.h"
 
 
 // =============================================================================
@@ -57,7 +56,7 @@ void oloctp(void) {
 
 void oloctc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
 }
 
 void olocti(void) {
@@ -95,7 +94,7 @@ void odirtp(void) {
 
 void odirtc(void) {
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = (char)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
 }
 
 void odirti(void) {
@@ -310,8 +309,8 @@ void oabs(void) {
 
 void ornd(void) {
 //    alis.varD7 = sys_random() % alis.varD7;
-    u32 result = alis._random_number;
-    result = alis._random_number = (u16)(result * 0x7ab7 + -0x77f);
+    u32 result = alis.random_number;
+    result = alis.random_number = (u16)(result * 0x7ab7 + -0x77f);
     result = (alis.varD7 & 0xffff) * result;
     alis.varD7 = result * 0x10000 | result >> 0x10;
 }
@@ -412,7 +411,7 @@ void ofree(void) {
     }
     else if (alis.varD7 == 1)
     {
-        alis.varD7 = (alis.debsprit - alis.finent) / 1000;
+        alis.varD7 = (image.debsprit - alis.finent) / 1000;
     }
     else if (alis.varD7 == 2)
     {
@@ -424,7 +423,7 @@ void ofree(void) {
         {
             alis.varD7 = 0;
             
-            for (s16 spritidx = alis.libsprit; spritidx != 0; spritidx = SPRITE_VAR(spritidx)->to_next)
+            for (s16 spritidx = image.libsprit; spritidx != 0; spritidx = SPRITE_VAR(spritidx)->to_next)
             {
                 alis.varD7 ++;
             }
@@ -507,7 +506,7 @@ void oasc(void) {
 }
 
 void ostr(void) {
-    vald0(alis.sd7, alis.varD7);
+    valtostr(alis.sd7, alis.varD7);
 }
 
 void osadd(void) {

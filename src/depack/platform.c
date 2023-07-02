@@ -79,7 +79,7 @@ sPlatform* pl_guess(const char * path) {
                 platform = pf;
                 // strcpy(platform->main, path);
                 // char * ptr = strrchr(path, kPathSeparator[0]);
-                // *++ptr = '\0';
+                // *++ptr = 0;
                 // strcpy(platform->path, path);
             }
         }

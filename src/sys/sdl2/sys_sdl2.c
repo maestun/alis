@@ -4,7 +4,7 @@
 //
 
 #include "../sys.h"
-#include "experimental.h"
+#include "image.h"
 #include <SDL2/SDL.h>
 
 u8 joystick0 = 0;

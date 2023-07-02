@@ -25,13 +25,13 @@
 #define kMaxScripts             (256)
 #define kBSSChunkLen            (256)
 
-#define SPRITEMEM_PTR alis.spritemem + alis.basesprite
+#define SPRITEMEM_PTR image.spritemem + image.basesprite
 
-#define SPRITE_VAR(x) (x ? (SpriteVariables *)(SPRITEMEM_PTR + x) : NULL)
+#define SPRITE_VAR(x) (x ? (sSprite *)(SPRITEMEM_PTR + x) : NULL)
 
 #define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
 
-#define ENTSCR(x) alis.scripts[x / sizeof(sScriptLoc)]
+#define ENTSCR(x) alis.live_scripts[x / sizeof(sScriptLoc)]
 
 
 // =============================================================================
@@ -130,11 +130,9 @@ typedef struct {
 
     u8              nmode;
     u8              automode;
-    s8              numelem;
             
     u8              fallent;
     u8              fseq;
-    u8              flaginvx;
     u8              fmuldes;
     u8              fadddes;
     u8              ferase;
@@ -164,17 +162,9 @@ typedef struct {
             
     u32             finmem;     // 0xf6e98
             
-    s32             basemem;   // 0x22400
-    s32             basevar;   // 0x0
+    s32             basemem;    // 0x22400
+    s32             basevar;    // 0x0
     s32             basemain;   // 0x22690
-    s32             basesprite;
-    u16             libsprit;
-    s32             debsprit;   // 0x29f40
-    s32             finsprit;   // 0x2edd8
-    s32             backsprite;
-    s32             tvsprite;
-    s32             texsprite;
-    s32             atexsprite;
 
     // mouse
     u8              mousflag;
@@ -187,18 +177,10 @@ typedef struct {
     u8 *            desmouse;
     
     s16             prevkey;
-
-    s16             depx;
-    s16             depy;
-    s16             depz;
     
     s16             wcx;
     s16             wcy;
     s16             wcz;
-    
-    s16             oldcx;
-    s16             oldcy;
-    s16             oldcz;
 
     s16             wforme;
     s16             matmask;
@@ -231,45 +213,46 @@ typedef struct {
     
     // SCRIPTS
     // global table containing all depacked scripts
-    sAlisScript *   scripts[kMaxScripts];
-    sAlisScript *   progs[kMaxScripts];
+    sAlisScript *   live_scripts[kMaxScripts];
+    sAlisScript *   loaded_scripts[kMaxScripts];
 
     // pointer to current script
-    sAlisScript *       script;
-    sAlisScript *       main;
+    sAlisScript *   script;
+    sAlisScript *   main;
         
     // virtual registers
     s16             varD6;
     s16             varD7;
     
-    // branching register
+    // running script id
     u16             varD5;
     
-    // virtual array registers
-    u8 *           bsd7;
-    u8 *           bsd6;
-    u8 *           bsd7bis;
+    // string buffers
+    u8 *            bsd7;
+    u8 *            bsd6;
+    u8 *            bsd7bis;
     
-    u8 *           sd7;
-    u8 *           sd6;
-    u8 *           oldsd7;
+    u8 *            sd7;
+    u8 *            sd6;
+    u8 *            oldsd7;
 
-    u8             buffer[1024];
-    sRawBlock      blocks[1024];
+    // data buffers
+    u8              buffer[1024];
+    sRawBlock       blocks[1024];
     
-    u8 charmode;
+    u8              charmode;
     
     // font
-    u16 foasc;
-    u16 fonum;
-    u8 folarg;
-    u8 fohaut;
-    u16 fomax;
+    u16             foasc;
+    u16             fonum;
+    u8              folarg;
+    u8              fohaut;
+    u16             fomax;
     
-    u8 witmov;
-    u8 fmitmov;
-    u16 goodmat;
-    u32 baseform;
+    u8              witmov;
+    u8              fmitmov;
+    u16             goodmat;
+    u32             baseform;
     
     // helper: executed instructions count
     u32             icount;
@@ -285,42 +268,36 @@ typedef struct {
     } sr;
     
     // helpers
-    u8          oeval_loop;
+    u8              oeval_loop;
     
     // system helpers
-    FILE *      fp;
-    u16         openmode;
+    FILE *          fp;
+    u16             openmode;
     
     // sound
-    u8 volson;
-    u8 typeson;
-    u8 pereson;
-    u8 priorson;
-    u16 freqson;
-    u16 longson;
-    u16 dfreqson;
-    u16 dvolson;
-    u8 volsam;
-    u8 speedsam;
-    u16 loopsam;
-    u32 startsam;
-    u32 longsam;
-    u16 freqsam;
-    u16 vquality;
+    u8              volson;
+    u8              typeson;
+    u8              pereson;
+    u8              priorson;
+    u16             freqson;
+    u16             longson;
+    u16             dfreqson;
+    u16             dvolson;
+    u8              volsam;
+    u8              speedsam;
+    u16             loopsam;
+    u32             startsam;
+    u32             longsam;
+    u16             freqsam;
+    u16             vquality;
     
-    // unknown variables
-    u8          _cstopret;
-    u8          _callentity;
-    u8          fswitch;
-    u8          _ctiming;
-//    s16         _a6_minus_1a; // used by cforme
-//    u16         _a6_minus_16;
-    u16         _random_number;
-//    u8          _xinvon; // (-0x3,A6)
+    // misc
+    u8              fswitch;
+    u8              ctiming;
+    u8              cstopret;
+    u16             random_number;
     
-    u8 *        spritemem;
-    
-    struct timeval time;
+    struct timeval  time;
 
 } sAlisVM;
 
@@ -347,8 +324,6 @@ void            alis_error(int errnum, ...);
 void            alis_debug(void);
 void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
-
-void            alis_loop(void);
 
 u8 *            get_vram(s16 offset);
 
@@ -383,5 +358,14 @@ s32             vread32(u32 offset);
 void            vwrite8(u32 offset, u8 value);
 void            vwrite16(u32 offset, s16 value);
 void            vwrite32(u32 offset, s32 value);
+
+
+int             adresdes(s32 idx);
+int             adresmus(s32 idx);
+
+
+s16             tabint(s16 offset, u8 *address);
+s16             tabchar(s16 offset, u8 *address);
+s16             tabstring(s16 offset, u8 *address);
 
 #endif /* alis_vm_h */

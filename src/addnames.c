@@ -8,8 +8,8 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "image.h"
 
-#include "experimental.h"
 
 // ============================================================================
 #pragma mark - Addnames routines

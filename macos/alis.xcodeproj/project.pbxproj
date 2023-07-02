@@ -13,8 +13,10 @@
 		0981CBD4250B46970097F862 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
 		6803AFC329C5172A00C42135 /* unpack.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745929B972E200F51FAE /* unpack.c */; };
 		6803AFC429C5172E00C42135 /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745029B972E200F51FAE /* platform.c */; };
-		6808EE05297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
-		6808EE06297069760045BA8A /* experimental.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* experimental.c */; };
+		6808EE05297069760045BA8A /* image.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* image.c */; };
+		6808EE06297069760045BA8A /* image.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* image.c */; };
+		685EBE252A52033800E4F465 /* screen.c in Sources */ = {isa = PBXBuildFile; fileRef = 685EBE242A52033800E4F465 /* screen.c */; };
+		685EBE262A52033800E4F465 /* screen.c in Sources */ = {isa = PBXBuildFile; fileRef = 685EBE242A52033800E4F465 /* screen.c */; };
 		68B9745A29B972E200F51FAE /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745029B972E200F51FAE /* platform.c */; };
 		68B9745E29B972E200F51FAE /* unpack.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B9745929B972E200F51FAE /* unpack.c */; };
 		8B20A3D9256913C40045BF66 /* storenames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCD250B46970097F862 /* storenames.c */; };
@@ -76,8 +78,10 @@
 		0981CBCF250B46970097F862 /* escnames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = escnames.c; sourceTree = "<group>"; };
 		0981CBD0250B46970097F862 /* opernames.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = opernames.c; sourceTree = "<group>"; };
 		0981CBD5250B470E0097F862 /* alis_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = alis_private.h; sourceTree = "<group>"; };
-		6808EE03297069760045BA8A /* experimental.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = experimental.h; sourceTree = "<group>"; };
-		6808EE04297069760045BA8A /* experimental.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = experimental.c; sourceTree = "<group>"; };
+		6808EE03297069760045BA8A /* image.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = image.h; sourceTree = "<group>"; };
+		6808EE04297069760045BA8A /* image.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = image.c; sourceTree = "<group>"; };
+		685EBE232A52033800E4F465 /* screen.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = screen.h; sourceTree = "<group>"; };
+		685EBE242A52033800E4F465 /* screen.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = screen.c; sourceTree = "<group>"; };
 		68B9745029B972E200F51FAE /* platform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = platform.c; sourceTree = "<group>"; };
 		68B9745329B972E200F51FAE /* unpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unpack.h; sourceTree = "<group>"; };
 		68B9745529B972E200F51FAE /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
@@ -141,15 +145,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		6808EE02297069420045BA8A /* mess */ = {
-			isa = PBXGroup;
-			children = (
-				6808EE03297069760045BA8A /* experimental.h */,
-				6808EE04297069760045BA8A /* experimental.c */,
-			);
-			path = mess;
-			sourceTree = "<group>";
-		};
 		8B28A60F25076CC800E3F0FF = {
 			isa = PBXGroup;
 			children = (
@@ -234,7 +229,6 @@
 		8B9C400D250921E900C947F9 /* alis */ = {
 			isa = PBXGroup;
 			children = (
-				6808EE02297069420045BA8A /* mess */,
 				8B9C4034250A39FD00C947F9 /* depack */,
 				8B7D7B13256D3ECA00DAA932 /* sys */,
 				0981CBCE250B46970097F862 /* addnames.c */,
@@ -247,7 +241,11 @@
 				0981CBCF250B46970097F862 /* escnames.c */,
 				8B9C4016250A247D00C947F9 /* opcodes.c */,
 				0981CBD0250B46970097F862 /* opernames.c */,
+				6808EE03297069760045BA8A /* image.h */,
+				6808EE04297069760045BA8A /* image.c */,
 				8B9C402B250A2A8F00C947F9 /* main.c */,
+				685EBE232A52033800E4F465 /* screen.h */,
+				685EBE242A52033800E4F465 /* screen.c */,
 				8B9C4039250A3E5200C947F9 /* script.h */,
 				8B9C403A250A3E5200C947F9 /* script.c */,
 				0981CBCD250B46970097F862 /* storenames.c */,
@@ -348,11 +346,12 @@
 				8B20A3DC256913C40045BF66 /* utils.c in Sources */,
 				8B20A3DD256913C40045BF66 /* main.c in Sources */,
 				8B20A3DE256913C40045BF66 /* alis.c in Sources */,
-				6808EE06297069760045BA8A /* experimental.c in Sources */,
+				6808EE06297069760045BA8A /* image.c in Sources */,
 				8B20A3E1256913C40045BF66 /* opernames.c in Sources */,
 				6803AFC329C5172A00C42135 /* unpack.c in Sources */,
 				8B20A3E2256913C40045BF66 /* script.c in Sources */,
 				6803AFC429C5172E00C42135 /* platform.c in Sources */,
+				685EBE262A52033800E4F465 /* screen.c in Sources */,
 				8B20A3E3256913C40045BF66 /* opcodes.c in Sources */,
 				8B20A3E4256913C40045BF66 /* escnames.c in Sources */,
 				8B20A3E5256913C40045BF66 /* debug.c in Sources */,
@@ -370,7 +369,8 @@
 				8B9C4030250A2F9300C947F9 /* utils.c in Sources */,
 				8B9C402C250A2A8F00C947F9 /* main.c in Sources */,
 				8B9C401B250A2A5B00C947F9 /* alis.c in Sources */,
-				6808EE05297069760045BA8A /* experimental.c in Sources */,
+				6808EE05297069760045BA8A /* image.c in Sources */,
+				685EBE252A52033800E4F465 /* screen.c in Sources */,
 				0981CBD4250B46970097F862 /* opernames.c in Sources */,
 				68B9745E29B972E200F51FAE /* unpack.c in Sources */,
 				8B9C403B250A3E5200C947F9 /* script.c in Sources */,

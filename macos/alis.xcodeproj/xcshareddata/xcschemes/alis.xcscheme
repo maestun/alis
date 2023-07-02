@@ -58,10 +58,18 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/atari/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/falcon/"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar/amiga/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar/aga/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument

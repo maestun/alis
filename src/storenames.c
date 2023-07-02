@@ -8,9 +8,8 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "image.h"
 #include "utils.h"
-
-#include "experimental.h"
 
 // ============================================================================
 #pragma mark - Store Routines
