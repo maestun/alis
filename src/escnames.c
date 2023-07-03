@@ -28,22 +28,22 @@
 static void cnul(void) {
 }
 void consound(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 void coffsound(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 void conmusic(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 void coffmusic(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 void cdelfilm(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 void copenfilm(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 

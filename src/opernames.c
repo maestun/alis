@@ -64,7 +64,7 @@ void olocp(void) {
 }
 
 void oloctp(void) {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 }
 
 void oloctc(void) {
@@ -173,15 +173,15 @@ void ohimp(void) {
 }
 
 void ohimtp(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void ohimtc(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void ohimti(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // pop from accumulator into r6
@@ -347,7 +347,7 @@ void oinkey(void) {
 }
 
 void okeyon(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void ojoy(void) {
@@ -498,15 +498,15 @@ void ogetkey(void) {
 }
 
 void oleft(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void oright(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void omid(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void olen(void) {
@@ -523,7 +523,7 @@ void ostr(void) {
 }
 
 void osadd(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     readexec_opername_swap();
     
@@ -545,25 +545,25 @@ void osdiff(void) {
 }
 
 void osinfeg(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) <= 0 ? -1 : 0;
 }
 
 void ossupeg(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) >= 0 ? -1 : 0;
 }
 
 void osinf(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) < 0 ? -1 : 0;
 }
 
 void ossup(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) > 0 ? -1 : 0;
 }
@@ -580,7 +580,7 @@ void pop_sd6(void)
 }
 
 void ospile(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
     u8 * tmp = alis.sd6;
     alis.sd6 = alis.sd7;
@@ -597,7 +597,7 @@ void ospile(void) {
 
 void oval(void) {
     // TODO: compute int value of bssChunk3 string -> d7 ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
     s8 cVar1;
     s8 bVar2;
@@ -679,12 +679,12 @@ void ochr(void) {
 
 void ochange(void) {
     // TODO: change le drive courant ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.varD7 = -1;
 }
 
 void ocountry(void) {
-    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void omip(void) {

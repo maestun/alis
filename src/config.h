@@ -41,7 +41,7 @@
 #include <sys/mman.h>
 
 #define kProgName           "alis"
-#define kProgVersion        "0.0.1"
+#define kProgVersion        "0.1.0"
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)

@@ -785,7 +785,7 @@ void putin(u16 idx)
         if (resourcedata[0] == 0xfe)
         {
             // TODO: handle palette
-            debug(EDebugWarning, "MISSING: ", __FUNCTION__);
+            debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
             return;
         }
         

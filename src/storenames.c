@@ -190,19 +190,19 @@ static void shimw(void) {
 }
 
 static void shimp(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 static void shimtp(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 static void shimtc(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 static void shimti(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 static void spile(void) {
