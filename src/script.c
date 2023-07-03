@@ -4,13 +4,13 @@
 //
 
 #include "alis.h"
-#include "depack/asm.h"
+#include "alis_private.h"
 #include "debug.h"
+#include "image.h"
 #include "platform.h"
 #include "script.h"
+#include "unpack.h"
 #include "utils.h"
-#include "alis_private.h"
-
 
 
 // TODO: for debugging
@@ -219,7 +219,7 @@ static uint8_t * p_dic;
 // if not main: byte 6..13 -> dic
 #define HEADER_DIC_SZ       (2 * sizeof(u32))
 
-u8 is_packed(u32 magic) {
+u8 is_packedx(u32 magic) {
     return ((magic >> 24) & 0xf0) == 0xa0;
 }
 
@@ -231,242 +231,211 @@ int is_main(u16 check) {
     return kMainScriptID == check;
 }
 
-
-void depak_11() {
-//    printf("depak_11 ($163a8)\n");
-    ADDREG_B(d0, d7);               // ADD.B     D0,D7
-    CLRREG_W(d5);                      // CLR.W     D5
-    ROLREG_L(d7, d5);               // ROL.L     D7,D5
-    SWAP(d5);                       // SWAP      D5
-//    if(p_pak > p_pak_end) {         // CMPA.L    A4,A0
-//        get_moar_data(); // BGE       _DEPACK_GET_MORE_DATA ; read 32k bytes
-//    }
-
-// _DEPACK_12:
-    uint16_t w = *p_pak;
-    w <<= 8;
-    w += *(p_pak + 1);
-//    printf("depak11: read word 0x%x at address 0x%x\n", w, (uint32_t)p_pak);
-    p_pak += 2;
-    MOVE_W(w, d5);                  // MOVE.W    (A0)+,D5
-//    MOVE(W, 0, p_pak++, d5)
-
-    SWAP(d5);                       // SWAP      D5
-
-    SUBREG_B(d7, d0);               // SUB.B     D7,D0
-    MOVEQ(16, d7);                  // MOVEQ     #$10,D7
-    ROLREG_L(d0, d5);               // ROL.L     D0,D5
-
-    SUBREG_B(d0, d7);               // SUB.B     D0,D7
-}
-
-
-void depak_2() {
-//    printf("depak_2 ($1639e)\n");
-    SUBREG_B(d0, d7);               // SUB.B     D0,D7
-    if((int8_t)BYTE(d7) < 0) {      // BMI.S     _DEPACK_11
-        depak_11();
-    }
-    else {
-        CLRREG_W(d5);                      // CLR.W     D5
-        ROLREG_L(d0, d5);               // ROL.L     D0,D5
-    }
-}
-
-
-void depak(uint8_t * aPakBuffer, // A0
-           uint8_t * aDepakBuffer, // A1 -> pointe sur byte courant, A2 pointe sur dernier byte
-           size_t aPakSize,
-           size_t aDepakSize, // D1
-           uint8_t * aDic) { // A5
-
-//    printf("DEPACK: unpacking...\n");
-//    printf("PAK buffer start: 0x%08x\n", (uint32_t) aPakBuffer);
-//    printf("PAK buffer size: %ld\n", aPakSize);
-//    printf("PAK buffer end: 0x%08x\n", (uint32_t)(aPakBuffer + aPakSize));
-//    printf("DEPAK buffer start: 0x%08x\n", (uint32_t)aDepakBuffer);
-//    printf("DEPAK buffer size: %ld\n", aDepakSize);
-//    printf("DEPAK buffer end: 0x%08x\n", (uint32_t)(aDepakBuffer + aDepakSize));
-
-    int16_t offset = 0;
-    uint8_t tmp_b = 0;
-
-    p_depak = aDepakBuffer; // A1
-    p_depak_end = aDepakBuffer + aDepakSize - 1; // A2
-    p_pak = aPakBuffer; // A0
-    p_pak_end = aPakBuffer + aPakSize; // A4
-    p_dic = aDic;
-
-    CLRREG_W(d7);
-
-_depak_start:
-//    printf("depak_start ($1632e)\n");
-    if(p_depak > p_depak_end) {     // CMPA.L    A2,A1
-        goto _depak_end;            // BGT       FN_DEPACK_END ; si a2 (adresse fin decrunch) > a1 (adresse debut decrunch) alors fin
-    }
-    MOVEQ(1, d0);                   // MOVEQ     #1,D0
-    depak_2();                      // BSR.S     _DEPACK_2
-    if(BYTE(d5) == 0) {             // TST.B     D5
-        goto _depak_3;              // BEQ.S     _DEPACK_3
-    }
-    MOVEQ(0, d2);                   // MOVEQ     #0,D2
-
-_depak_4:
-//    printf("depak_4 ($1633e)\n");
-    MOVEQ(2, d0);                   // MOVEQ     #2,D0
-    depak_2();                      // BSR.S     _DEPACK_2
-    ADDREG_W(d5, d2);               // ADD.W     D5,D2
-    if(WORD(d5) == 3) {             // CMP.W     #3,D5
-        goto _depak_4;              // BEQ.S     _DEPACK_4
-    }
-
-_depak_5:
-//    printf("depak_5 ($1634a)\n");
-    MOVEQ(8, d0);                   // MOVEQ     #8,D0
-    depak_2();                      // BSR.S     _DEPACK_2
-    *p_depak = BYTE(d5);            // MOVE.B    D5,(A1)+      ; ecriture d'un octet depack :)
-
-//    printf("depak5: wrote %uth byte (0x%02x) at address 0x%08x\n", depak_counter++, BYTE(d5), (uint32_t)p_depak);
-
-    p_depak++;
-    SUB_W(1, d2);
-    if((int16_t)WORD(d2) >= 0) {             // DBF       D2,_DEPACK_5
-        goto _depak_5;
-    }
-
-    if(p_depak > p_depak_end) {     // CMPA.L    A2,A1
-        goto _depak_end;            // BGT       FN_DEPACK_END ; si a2 (adresse fin decrunch) > a1 (adresse debut decrunch) alors fin
-    }
-
-_depak_3:
-//    printf("depak_3 ($1635a)\n");
-    MOVEQ(3, d0);                   // MOVEQ     #3,D0
-    depak_2();
-    CLRREG_W(d0);                      // CLR.W     D0
-
-//    printf("Dic: byte %d is 0x%02x\n", WORD(d5), p_dic[WORD(d5)]);
-    MOVE_B(p_dic[WORD(d5)], d0);    // MOVE.B    0(A5,D5.W),D0
-
-    ANDI_W(3, d5);                  // ANDI.W    #3,D5
-    if(WORD(d5) == 0) {
-        goto _depak_7;              // BEQ       _DEPACK_7
-    }
-//    MOVEREG_W(d5, d2);              // MOVE.W    D5,D2
-    MOVE(W, 0, d5, d2);
-
-    depak_2();                      // BSR.S     _DEPACK_2
-
-_depak_8:
-//    printf("depak_8 ($1636e)\n");
-    NEG_W(d5);                      // NEG.W     D5
-
-_depak_9:
-
-    // MOVE.B    -1(A1,D5.W),(A1)+ ; ecriture d'un octet depack :)
-    offset = WORD(d5) * -1;
-    offset++;
-    tmp_b = *(p_depak - offset);
-    *p_depak = tmp_b;
-//    printf("depak9: wrote %uth byte (0x%02x) at address 0x%08x\n", depak_counter++, tmp_b, (uint32_t)p_depak);
-    p_depak++;
-
-
-    SUB_W(1, d2);
-    if((int16_t)WORD(d2) >= 0) {    // DBF       D2,_DEPACK_9
-        goto _depak_9;
-    }
-    goto _depak_start;              // BRA       _DEPACK_START
-
-_depak_7:
-//    printf("depak_7\n");
-    depak_2();                      // BSR       _DEPACK_2
-    // MOVEREG_W(d5, d3);              // MOVE.W    D5,D3
-    MOVE(W, 0, d5, d3);
-
-    CLRREG_W(d2);                      // CLR.W     D2
-
-_depak_10:
-//    printf("depak_10\n");
-    MOVEQ(3, d0);                   // MOVEQ     #3,D0
-    depak_2();                      // BSR.S     _DEPACK_6
-
-    ADDREG_W(d5, d2);               // ADD.W     D5,D2
-    if(WORD(d5) == 7) {             // CMP.W     #7,D5
-        goto _depak_10;             // BEQ.S     _DEPACK_10
-    }
-
-//    MOVEREG_W(d3, d5);              // MOVE.W    D3,D5
-    MOVE(W, 0, d3, d5);
-
-    ADDQ_W(4, d2);                  // ADDQ.W    #4,D2
-
-    goto _depak_8;                  // BRA.S     _DEPACK_8
-
-_depak_end:
-//    printf("depak_end\n");
-    return;
-}
-
-
 // =============================================================================
 // MARK: - Script API
 // =============================================================================
+
+int search_insert(u32 *nums, u32 size, int target_id) {
+    int start = 0;
+    int end = size - 1;
+        
+    while(start <= end) {
+        int mid = start + (end - start) / 2;
+        int current_id = read16(alis.mem + nums[mid], alis.platform.is_little_endian);
+        if (current_id == target_id)
+            return mid;
+        
+        if (current_id < target_id)
+            start = mid + 1;
+        else
+            end = mid - 1;
+    }
+    
+    return start;
+}
+
 sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
+    
+    s16 id = swap16((data + 0), alis.platform.is_little_endian);
+    s16 insert = debprotf(id);
+    if (insert > 0 && insert < alis.nbprog)
+    {
+        sAlisScript *script = alis.loaded_scripts[insert];
+        if (script->header.id == id)
+        {
+            script->sz = data_sz;
+            
+            // script data
+            script->header.id = swap16((data + 0), alis.platform.is_little_endian);
+            
+            if (alis.platform.kind == EPlatformPC)
+            {
+                // script->header.w_0x1700 = swap16((data + 4), alis.platform.is_little_endian);
+                script->header.unknown01 = *(data + 4);
+                script->header.unknown02 = *(data + 5);
+                script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+            }
+            else
+            {
+                // script->header.w_0x1700 = swap16((data + 2), alis.platform.is_little_endian);
+                script->header.unknown01 = *(data + 2);
+                script->header.unknown02 = *(data + 3);
+                script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+            }
+            
+            script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
+            script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
+            script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
+            script->header.w_unknown5 = swap16((data + 18), alis.platform.is_little_endian);
+            script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
+            script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
+            memcpy(alis.mem + script->data_org, data, data_sz);
+            
+            for (int i = 0; i < alis.nbprog; i++)
+            {
+                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+            }
+            
+            debug(EDebugInfo, "\n");
+
+            script->pc = script->pc_org = 0;
+            debug(EDebugInfo, " (10NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
+
+            debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
+            return script;
+        }
+    }
+    
     // init script
     sAlisScript * script = (sAlisScript *)malloc(sizeof(sAlisScript));
+    memset(script, 0, sizeof(sAlisScript));
     strcpy(script->name, name);
     script->sz = data_sz;
     
     // script data
-    script->header.id = swap16(*(u16 *)(data + 0), alis.platform);
-    script->header.w_0x1700 = swap16(*(u16 *)(data + 2), alis.platform);
-    script->header.code_loc_offset = swap16(*(u16 *)(data + 4), alis.platform);
-    script->header.ret_offset = swap32(*(u32 *)(data + 6), alis.platform);
-    script->header.dw_unknown3 = swap32(*(u32 *)(data + 10), alis.platform);
-    script->header.dw_unknown4 = swap32(*(u32 *)(data + 14), alis.platform);
-    script->header.w_unknown5 = swap16(*(u16 *)(data + 18), alis.platform);
-    script->header.vram_alloc_sz = swap16(*(u16 *)(data + 20), alis.platform);
-    script->header.w_unknown7 = swap16(*(u16 *)(data + 22), alis.platform);
+    script->header.id = swap16((data + 0), alis.platform.is_little_endian);
     
-    // TODO: this is for debug / static allocs
-    sScriptDebug debug_data = script_debug_data[script->header.id];
+    if (alis.platform.kind == EPlatformPC)
+    {
+        script->header.unknown01 = *(data + 4);
+        script->header.unknown02 = *(data + 5);
+        script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+    }
+    else
+    {
+        script->header.unknown01 = *(data + 2);
+        script->header.unknown02 = *(data + 3);
+        script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+    }
+    
+    script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
+    script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
+    script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
+    script->header.w_unknown5 = swap16((data + 18), alis.platform.is_little_endian);
+    script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
+    script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
+    
+    script->vram_org = 0;
+    script->vacc_off = 0;
+    script->data_org = alis.finprog;
 
-    // tell where the script vram is located in host memory
-    script->vram_org = debug_data.vram_org; // TODO: for main it's $2261c (DAT_0001954c) + header_word5 + header_word7 + 0x34 (sizeof(context))
-    u32 test = sizeof(script->context) + script->header.w_unknown5 + script->header.w_unknown7;
-    script->vacc_off = debug_data.vacc_off;
-    script->data_org = debug_data.data_org;
-    
-    // init context
-    memset(&(script->context), 0, sizeof(script->context));
-    script->context._0x10_script_id = script->header.id;
-    
-    script->context._0x14_script_org_offset = script->data_org;
-    script->context._0x8_script_ret_offset = script->data_org + script->header.code_loc_offset + 2;
-    script->context._0x2e_script_header_word_2 = script->header.w_0x1700;
-    script->context._0x2_unknown = 1;
-    script->context._0x1_cstart = 1;
-    script->context._0x4_cstart_csleep = 0xff;
-    script->context._0x1a_cforme = 0xff;
-    script->context._0x24_scan_inter.inter_off_bit_1 = 1;
-    script->context._0x24_scan_inter.scan_off_bit_0 = 1;
-    script->context._0x26_creducing = 0xff;
-    
-    // copy script data to static host memory
     memcpy(alis.mem + script->data_org, data, data_sz);
+
+    // get insert point
+    insert = search_insert(alis.atprog_ptr, alis.nbprog, script->header.id);
+
+    alis.finprog += data_sz;
+    alis.dernprog += 4;
+    alis.nbprog ++;
+
+    for (int i = alis.nbprog - 2; i >= insert; i--)
+    {
+        alis.atprog_ptr[i + 1] = alis.atprog_ptr[i];
+        alis.loaded_scripts[i + 1] = alis.loaded_scripts[i];
+    }
+
+    alis.atprog_ptr[insert] = script->data_org;
+    alis.loaded_scripts[insert] = script;
+
+    for (int i = 0; i < alis.nbprog; i++)
+    {
+        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+    }
     
-    // script program counter starts kScriptHeaderLen after data
-    script->pc = script->pc_org = script->context._0x8_script_ret_offset; //(script->data_org + kScriptHeaderLen);
-    
-    debug(EDebugVerbose,
-          "Initialized script '%s' (ID = 0x%02x)\nVRAM at address 0x%x\nDATA at address 0x%x\nCODE at address 0x%x\nVACC = 0x%04x\n",
-          script->name, script->header.id,
-          script->vram_org,
-          script->data_org,
-          script->pc_org,
-          script->vacc_off);
+    debug(EDebugInfo, "\n");
+
+    script->pc = script->pc_org = 0;
+    debug(EDebugInfo, " (11NAME: %s VACC: 0x%x, PC: 0x%x) ", script->name, script->vacc_off, script->pc);
+
+    debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
     return script;
+}
+
+void  script_live(sAlisScript * script) {
+    u8 *data = alis.mem + script->data_org;
+
+    s32 prevfin = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
+
+    alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(sScriptContext));
+    
+    script->vacc_off = (prevfin - alis.finent) & 0xffff;
+    script->vram_org = alis.finent;
+    
+    u16 vram_length = swap16((data + 0x14), alis.platform.is_little_endian);
+    memset(alis.mem + script->vram_org, 0, vram_length);
+
+    s16 curent = alis.varD5;
+    alis.varD7 = alis.dernent;
+    
+    int caller_idx = curent / sizeof(sScriptLoc);
+    int script_idx = alis.dernent / sizeof(sScriptLoc);
+
+    debug(EDebugInfo, " add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
+
+    set_0x0a_vacc_offset(script->vram_org, script->vacc_off);
+    set_0x1c_scan_clr(script->vram_org, script->vacc_off);
+    set_0x1e_scan_clr(script->vram_org, script->vacc_off);
+    set_0x08_script_ret_offset(script->vram_org, script->data_org + script->header.code_loc_offset + 2);
+    set_0x10_script_id(script->vram_org, script->header.id);
+    set_0x14_script_org_offset(script->vram_org, script->data_org);
+    set_0x2e_script_header_word_2(script->vram_org, script->header.unknown01);
+    set_0x02_unknown(script->vram_org, 1);
+    set_0x01_cstart(script->vram_org, 1);
+    set_0x04_cstart_csleep(script->vram_org, 0xff);
+    set_0x1a_cforme(script->vram_org, 0xffff);
+    set_0x0e_script_ent(script->vram_org, alis.dernent);
+    set_0x24_scan_inter(script->vram_org, 2);
+    set_0x18_unknown(script->vram_org, 0);
+    set_0x0c_vacc_offset(script->vram_org, 0);
+    set_0x22_cworld(script->vram_org, 0);
+    set_0x20_set_vect(script->vram_org, 0);
+    set_0x03_xinv(script->vram_org, 0);
+    set_0x25_credon_credoff(script->vram_org, 0);
+    set_0x26_creducing(script->vram_org, 0xff);
+    set_0x2a_clinking(script->vram_org, 0); // byte
+    set_0x2c_calign(script->vram_org, 0);
+    set_0x2d_calign(script->vram_org, 0);
+    set_0x28_unknown(script->vram_org, 0); // wide
+    set_0x2f_chsprite(script->vram_org, 0);
+    set_0x32_unknown(script->vram_org, 0); // wide
+    set_0x34_unknown(script->vram_org, 0);
+    set_0x30_unknown(script->vram_org, 0);
+
+    //set_0x2d_calign(script->vram_org, script->header.unknown02);
+
+    script->pc = script->pc_org = get_0x08_script_ret_offset(script->vram_org);
+    
+    s16 nextent = xswap16(alis.atent_ptr[caller_idx].offset);
+    alis.atent_ptr[caller_idx].offset = xswap16(alis.dernent);
+    alis.dernent = xswap16(alis.atent_ptr[script_idx].offset);
+    alis.atent_ptr[script_idx].offset = xswap16(nextent);
+    alis.atent_ptr[script_idx].vram_offset = xswap32(script->vram_org);
+    alis.live_scripts[script_idx] = script;
+    alis.finent += vram_length;
+    alis.nbent ++;
+
+    debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off, script->pc_org);
 }
 
 
@@ -500,8 +469,8 @@ sAlisScript * script_load(const char * script_path) {
     
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
-        debug(EDebugVerbose,
-              "Loading script file: %s\n", script_path);
+        debug(EDebugInfo,
+              "\nLoading script file: %s\n", script_path);
         
         // get packed file size
         fseek(fp, 0L, SEEK_END);
@@ -509,60 +478,58 @@ sAlisScript * script_load(const char * script_path) {
         rewind(fp);
 
         // read header
-        u32 magic = fread32(fp, alis.platform);
-        u16 check = fread16(fp, alis.platform);
+        u32 magic = fread32(fp, alis.platform.is_little_endian);
+        u16 check = fread16(fp, alis.platform.is_little_endian);
         
         u32 depak_sz = input_sz;
         
         // TODO: check if this was already loaded, if so use cache
         
         // decrunch if needed
-        if(is_packed(magic)) {
-            u32 pak_sz = input_sz - HEADER_MAGIC_SZ - HEADER_CHECK_SZ - HEADER_DIC_SZ;
-            if(is_main(check)) {
-                debug(EDebugVerbose, "Main script detected.\n");
-                
-                // skip vm specs
-                fseek(fp, HEADER_MAIN_SZ, SEEK_CUR);
-                pak_sz -= HEADER_MAIN_SZ;
-            }
+        u32 pak_sz = input_sz - HEADER_MAGIC_SZ - HEADER_CHECK_SZ - HEADER_DIC_SZ;
+        if(is_main(check)) {
+            debug(EDebugInfo, "Main script detected.\n");
+            
+            // skip vm specs
+            fseek(fp, HEADER_MAIN_SZ, SEEK_CUR);
+            pak_sz -= HEADER_MAIN_SZ;
+        }
 
-            // read dictionary
-            u8 dic[HEADER_DIC_SZ];
-            fread(dic, sizeof(u8), HEADER_DIC_SZ, fp);
-            
-            // read file into buffer
-            u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
-            fread(pak_buf, sizeof(u8), pak_sz, fp);
-            
-            // alloc and depack
-            debug(EDebugVerbose, "Depacking...\n");
-            depak_sz = get_depacked_size(magic);
-            u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
-            depak(pak_buf,
-                  depak_buf,
-                  pak_sz,
-                  depak_sz,
-                  dic);
-            
-            debug(EDebugVerbose,
-                       "Depacking done in %ld bytes (~%d%% packing ratio)\n",
-                       depak_sz, 100 - (100 * pak_sz) / depak_sz);
+        // read dictionary
+        u8 dic[HEADER_DIC_SZ];
+        fread(dic, sizeof(u8), HEADER_DIC_SZ, fp);
         
+        // read file into buffer
+        u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
+        fread(pak_buf, sizeof(u8), pak_sz, fp);
+        
+        // alloc and depack
+        debug(EDebugInfo, "Depacking...\n");
+        depak_sz = get_depacked_size(magic);
+        u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
+        
+        depak_sz = unpack_script(script_path, alis.platform.is_little_endian, &depak_buf);
+        if (depak_sz > 0) {
+            // unpacked, continue
+            debug(EDebugInfo,
+                  "Depacking done in %ld bytes (~%d%% packing ratio)\n",
+                  depak_sz, 100 - (100 * pak_sz) / depak_sz);
+            
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
-            
-            // cleanup
-            free(depak_buf);
-            free(pak_buf);
         }
         else {
+
             // not packed !!
             debug(EDebugFatal,
                   "Unpacked scripts are not supported: '%s'\n",
                   script_path);
-
         }
+
+        // cleanup
+        free(depak_buf);
+        free(pak_buf);
+
         fclose(fp);
     }
     else {
@@ -588,16 +555,16 @@ void script_unload(sAlisScript * script) {
 void script_read_debug(s32 value, size_t sz) {
     switch (sz) {
         case 1:
-            debug(EDebugVerbose, " 0x%02x", value);
+            debug(EDebugInfo, " 0x%02x", value & 0xff);
             break;
         case 2:
-            debug(EDebugVerbose, " 0x%04x", value);
+            debug(EDebugInfo, " 0x%04x", value & 0xffff);
             break;
         case 4:
-            debug(EDebugVerbose, " 0x%06x", value);
+            debug(EDebugInfo, " 0x%06x", value & 0xffffff);
             break;
         default:
-            debug(EDebugVerbose, " %d", value);
+            debug(EDebugInfo, " %d", value);
             break;
     }
 }
@@ -608,43 +575,22 @@ u8 script_read8(void) {
     return ret;
 }
 
-s16 script_read8ext16(void) {
-    u8 b = alis.mem[alis.script->pc++];
-    s16 ret = b;
-    if(BIT_CHK((b), 7)) {
-        ret |= 0xff00;
-    }
-    
-    script_read_debug(ret, sizeof(s16));
-    return  ret;
-}
-
-s32 script_read8ext32(void) {
-    s32 ret = extend_l(extend_w(alis.mem[alis.script->pc++]));
-    script_read_debug(ret, sizeof(u32));
-    return  ret;
-}
-
 /**
  * @brief Reads a word from current script
  * 
  * @return u16 
  */
 u16 script_read16(void) {
-    u16 ret = (alis.mem[alis.script->pc++] << 8) + alis.mem[alis.script->pc++];
+    
+    u16 ret = read16(alis.mem + alis.script->pc, alis.platform.is_little_endian);
+    alis.script->pc += 2;
     script_read_debug(ret, sizeof(u16));
     return ret;
 }
 
-s32 script_read16ext32(void) {
-    u16 val = (alis.mem[alis.script->pc++] << 8) + alis.mem[alis.script->pc++];
-    u32 ret = extend_l(val);
-    script_read_debug(ret, sizeof(s32));
-    return ret;
-}
-
 u32 script_read24(void) {
-    u32 ret = (alis.mem[alis.script->pc++] << 16) + (alis.mem[alis.script->pc++] << 8) + alis.mem[alis.script->pc++];
+    u32 ret = read24(alis.mem + alis.script->pc, alis.platform.is_little_endian);
+    alis.script->pc += 3;
     script_read_debug(ret, sizeof(u32));
     return ret;
 }
@@ -656,10 +602,7 @@ void script_read_bytes(u32 len, u8 * dest) {
 }
 
 void script_read_until_zero(u8 * dest) {
-    while(alis.mem[alis.script->pc]) {
-        *dest++ = alis.mem[alis.script->pc++];
-    }
-    alis.script->pc++;
+    while((*dest++ = alis.mem[alis.script->pc++]));
 }
 
 void script_jump(s32 offset) {
@@ -692,3 +635,72 @@ void script_debug(sAlisScript * script) {
            opcodes[code].name);
 }
 
+u16 get_0x34_unknown(u32 vram)                          { return xread16(vram - 0x34); }
+u8 get_0x32_unknown(u32 vram)                           { return xread8(vram - 0x32); }
+u8 get_0x31_unknown(u32 vram)                           { return xread8(vram - 0x31); }
+u8 get_0x30_unknown(u32 vram)                           { return xread8(vram - 0x30); }
+u8 get_0x2f_chsprite(u32 vram)                          { return xread8(vram - 0x2f); }
+u8 get_0x2e_script_header_word_2(u32 vram)              { return xread8(vram - 0x2e); }
+u8 get_0x2d_calign(u32 vram)                            { return xread8(vram - 0x2d); }
+u8 get_0x2c_calign(u32 vram)                            { return xread8(vram - 0x2c); }
+u8 get_0x2b_cordspr(u32 vram)                           { return xread8(vram - 0x2b); }
+u16 get_0x2a_clinking(u32 vram)                         { return xread16(vram - 0x2a); }
+u8 get_0x28_unknown(u32 vram)                           { return xread8(vram - 0x28); }
+u8 get_0x27_creducing(u32 vram)                         { return xread8(vram - 0x27); }
+u8 get_0x26_creducing(u32 vram)                         { return xread8(vram - 0x26); }
+u8 get_0x25_credon_credoff(u32 vram)                    { return xread8(vram - 0x25); }
+s8 get_0x24_scan_inter(u32 vram)                        { return xread8(vram - 0x24); }
+u8 get_0x23_unknown(u32 vram)                           { return xread8(vram - 0x23); }
+u16 get_0x22_cworld(u32 vram)                           { return xread16(vram - 0x22); }
+//u8 get_0x21_cworld(u32 vram)                            { return xread8(vram - 0x21); }
+u16 get_0x20_set_vect(u32 vram)                         { return xread16(vram - 0x20); }
+u16 get_0x1e_scan_clr(u32 vram)                         { return xread16(vram - 0x1e); }
+u16 get_0x1c_scan_clr(u32 vram)                         { return xread16(vram - 0x1c); }
+s16 get_0x1a_cforme(u32 vram)                           { return xread16(vram - 0x1a); }
+u16 get_0x18_unknown(u32 vram)                          { return xread16(vram - 0x18); }
+u16 get_0x16_screen_id(u32 vram)                        { return xread16(vram - 0x16); }
+u32 get_0x14_script_org_offset(u32 vram)                { return xread32(vram - 0x14); }
+u16 get_0x10_script_id(u32 vram)                        { return xread16(vram - 0x10); }
+u16 get_0x0e_script_ent(u32 vram)                       { return xread16(vram - 0xe); }
+u16 get_0x0c_vacc_offset(u32 vram)                      { return xread16(vram - 0xc); }
+u16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 0xa); }
+u32 get_0x08_script_ret_offset(u32 vram)                { return xread32(vram - 0x8); }
+u8 get_0x04_cstart_csleep(u32 vram)                     { return xread8(vram - 0x4); }
+u8 get_0x03_xinv(u32 vram)                              { return xread8(vram - 0x3); }
+u8 get_0x02_wait_cycles(u32 vram)                           { return xread8(vram - 0x2); }
+u8 get_0x01_wait_count(u32 vram)                            { return xread8(vram - 0x1); }
+
+void set_0x34_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x34, val); }
+void set_0x32_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x32, val); }
+void set_0x31_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x31, val); }
+void set_0x30_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x30, val); }
+void set_0x2f_chsprite(u32 vram, u8 val)                { xwrite8(vram - 0x2f, val); }
+void set_0x2e_script_header_word_2(u32 vram, u8 val)    { xwrite8(vram - 0x2e, val); }
+void set_0x2d_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2d, val); }
+void set_0x2c_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2c, val); }
+void set_0x2b_cordspr(u32 vram, u8 val)                 { xwrite8(vram - 0x2b, val); }
+void set_0x2a_clinking(u32 vram, u16 val)               { xwrite16(vram - 0x2a, val); }
+void set_0x28_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x28, val); }
+void set_0x27_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x27, val); }
+void set_0x26_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x26, val); }
+void set_0x25_credon_credoff(u32 vram, u8 val)          { xwrite8(vram - 0x25, val); }
+void set_0x24_scan_inter(u32 vram, s8 val)              { xwrite8(vram - 0x24, val); }
+void set_0x23_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x23, val); }
+void set_0x22_cworld(u32 vram, u16 val)                 { xwrite16(vram - 0x22, val); }
+//void set_0x21_cworld(u32 vram, u8 val)                  { xwrite8(vram - 0x21, val); }
+void set_0x20_set_vect(u32 vram, u16 val)               { xwrite16(vram - 0x20, val); }
+void set_0x1e_scan_clr(u32 vram, u16 val)               { xwrite16(vram - 0x1e, val); }
+void set_0x1c_scan_clr(u32 vram, u16 val)               { xwrite16(vram - 0x1c, val); }
+void set_0x1a_cforme(u32 vram, s16 val)                 { xwrite16(vram - 0x1a, val); }
+void set_0x18_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x18, val); }
+void set_0x16_screen_id(u32 vram, u16 val)              { xwrite16(vram - 0x16, val); }
+void set_0x14_script_org_offset(u32 vram, u32 val)      { xwrite32(vram - 0x14, val); }
+void set_0x10_script_id(u32 vram, u16 val)              { xwrite16(vram - 0x10, val); }
+void set_0x0e_script_ent(u32 vram, u16 val)             { xwrite16(vram - 0x0e, val); }
+void set_0x0c_vacc_offset(u32 vram, u16 val)            { xwrite16(vram - 0x0c, val); }
+void set_0x0a_vacc_offset(u32 vram, u16 val)            { xwrite16(vram - 0x0a, val); }
+void set_0x08_script_ret_offset(u32 vram, u32 val)      { xwrite32(vram - 0x08, val); }
+void set_0x04_cstart_csleep(u32 vram, u8 val)           { xwrite8(vram - 0x04, val); }
+void set_0x03_xinv(u32 vram, u8 val)                    { xwrite8(vram - 0x03, val); }
+void set_0x02_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x02, val); }
+void set_0x01_cstart(u32 vram, u8 val)                  { xwrite8(vram - 0x01, val); }

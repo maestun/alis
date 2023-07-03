@@ -6,7 +6,7 @@
 #include "config.h"
 #include "sys/sys.h"
 
-void usage() {
+void usage(void) {
     printf("%s v%s\nUsage:\n\t%s <data_path>\n\n\t%s <script_path>\n",
            kProgName, kProgVersion, kProgName, kProgName);
 }
@@ -18,10 +18,10 @@ int main(int argc, const char* argv[]) {
         usage();
     }
     else {
-        sPlatform pl = guess_platform(argv[1]);
-        if(is_supported(pl)) {
+        sPlatform *pl = pl_guess(argv[1]);
+        if(pl_supported(pl)) {
             sys_init();
-            alis_init(pl);
+            alis_init(*pl);
             
             alis_main();
             
@@ -31,7 +31,7 @@ int main(int argc, const char* argv[]) {
         else {
             debug(EDebugFatal,
                   "Platform '%s' is not supported.\n",
-                  pl.desc);
+                  pl->desc);
         }
     }
     return 0;

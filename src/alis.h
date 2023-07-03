@@ -6,20 +6,32 @@
 #ifndef alis_vm_h
 #define alis_vm_h
 
+#include <sys/time.h>
+
 #include "config.h"
 #include "debug.h"
 #include "platform.h"
 #include "script.h"
 #include "sys/sys.h"
-#include "vram.h"
+// #include "vram.h"
 
 
 // #define kVMHeaderLen            (16 * sizeof(u8))
 // #define kHostRAMSize            (1024 * 1024 * sizeof(u8))
 // #define kVirtualRAMSize         (0xffff * sizeof(u8))
+#define kHostRAMSize            (1024 * 1024)
+#define kVirtualRAMSize         (0xffff * sizeof(u8))
+
 #define kMaxScripts             (256)
 #define kBSSChunkLen            (256)
 
+#define SPRITEMEM_PTR image.spritemem + image.basesprite
+
+#define SPRITE_VAR(x) (x ? (sSprite *)(SPRITEMEM_PTR + x) : NULL)
+
+#define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
+
+#define ENTSCR(x) alis.live_scripts[x / sizeof(sScriptLoc)]
 
 
 // =============================================================================
@@ -81,6 +93,13 @@ typedef struct {
 } sAlisSpecs;
 
 typedef struct {
+    
+    u32 address;
+    u32 length;
+    
+} sRawBlock;
+
+typedef struct {
     // platform
     sPlatform       platform;
     
@@ -106,8 +125,69 @@ typedef struct {
     // Located at VRAM_ORG + (max_script_addrs * sizeof(u32))
     // On atari it's ($22400 + ($3c * 4)) ==> $224f0
     // $224f0
-    sScriptLoc *    script_vram_orgs;
+    sScriptLoc *    atent_ptr;
+    u32 *           atprog_ptr;
+
+    u8              nmode;
+    u8              automode;
+            
+    u8              fallent;
+    u8              fseq;
+    u8              fmuldes;
+    u8              fadddes;
+    u8              ferase;
+            
+    u32             atprog;     // 0x22400
+    u32             debprog;    // 0x2edd8
+    u32             finprog;
+    u32             dernprog;
+    u16             maxprog;
+    u16             nbprog;
     
+    u16             saversp;
+    
+    u16             fview;
+    u32             valnorme;
+    s16             valchamp;
+    s16 *           ptrent;
+    s16             tablent[128];
+    s16             matent[128];
+
+    s32             atent;      // 0x224f0
+    s32             debent;     // 0x2261c
+    s32             finent;
+    s32             maxent;
+    s16             nbent;
+    s16             dernent;
+            
+    u32             finmem;     // 0xf6e98
+            
+    s32             basemem;    // 0x22400
+    s32             basevar;    // 0x0
+    s32             basemain;   // 0x22690
+
+    // mouse
+    u8              mousflag;
+    u8              fmouse;
+    u8              fremouse;
+    u8              fremouse2;
+    u8              butmouse;
+    u32             cbutmouse;
+    u16             oldmouse;
+    u8 *            desmouse;
+    
+    s16             prevkey;
+    
+    s16             wcx;
+    s16             wcy;
+    s16             wcz;
+
+    s16             wforme;
+    s16             matmask;
+    
+    s16             poldy;
+    s16             poldx;
+
     // true if disasm only
     u8              disasm;
     
@@ -121,6 +201,8 @@ typedef struct {
     // MEMORY
     u8 *            mem; // host: system memory (hardware)
     
+    u8              flagmain;
+    
     // in atari, located at $22400
     // contains the addresses of the loaded scripts' data
     // 60 dwords max (from $22400 -> $224f0)
@@ -131,26 +213,50 @@ typedef struct {
     
     // SCRIPTS
     // global table containing all depacked scripts
-    sAlisScript *   scripts[kMaxScripts];
-    
+    sAlisScript *   live_scripts[kMaxScripts];
+    sAlisScript *   loaded_scripts[kMaxScripts];
+
     // pointer to current script
-    sAlisScript *       script;
-    sAlisScript *       main;
+    sAlisScript *   script;
+    sAlisScript *   main;
         
     // virtual registers
     s16             varD6;
     s16             varD7;
     
-    // branching register
+    // running script id
     u16             varD5;
     
-    // virtual array registers
-    u8 *           bssChunk1;
-    u8 *           bssChunk2;
-    u8 *           bssChunk3;
+    // string buffers
+    u8 *            bsd7;
+    u8 *            bsd6;
+    u8 *            bsd7bis;
+    
+    u8 *            sd7;
+    u8 *            sd6;
+    u8 *            oldsd7;
+
+    // data buffers
+    u8              buffer[1024];
+    sRawBlock       blocks[1024];
+    
+    u8              charmode;
+    
+    // font
+    u16             foasc;
+    u16             fonum;
+    u8              folarg;
+    u8              fohaut;
+    u16             fomax;
+    
+    u8              witmov;
+    u8              fmitmov;
+    u16             goodmat;
+    u32             baseform;
     
     // helper: executed instructions count
-    u32            icount;
+    u32             icount;
+    u8              restart_loop;
         
     // unknown vars
     u32 DAT_000194fe;
@@ -162,25 +268,37 @@ typedef struct {
     } sr;
     
     // helpers
-    u8          oeval_loop;
+    u8              oeval_loop;
     
     // system helpers
-    FILE *      fp;
+    FILE *          fp;
+    u16             openmode;
     
-    // unknown variables
-    u8          _cstopret;
-    u8          _callentity;
-    u8          _cclipping;
-    u8          _ctiming;
-//    s16         _a6_minus_1a; // used by cforme
-//    u16         _a6_minus_16;
-    u16         _random_number;
-//    u8          _xinvon; // (-0x3,A6)
+    // sound
+    u8              volson;
+    u8              typeson;
+    u8              pereson;
+    u8              priorson;
+    u16             freqson;
+    u16             longson;
+    u16             dfreqson;
+    u16             dvolson;
+    u8              volsam;
+    u8              speedsam;
+    u16             loopsam;
+    u32             startsam;
+    u32             longsam;
+    u16             freqsam;
+    u16             vquality;
     
-    u16         _DAT_000195fa;
-    u16         _DAT_000195fc;
-    u16         _DAT_000195fe;
-        
+    // misc
+    u8              fswitch;
+    u8              ctiming;
+    u8              cstopret;
+    u16             random_number;
+    
+    struct timeval  time;
+
 } sAlisVM;
 
 typedef struct {
@@ -197,14 +315,57 @@ extern sHost host;
 // =============================================================================
 // MARK: - API
 // =============================================================================
+
 void            alis_init(sPlatform platform);
 u8              alis_main(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
-void            alis_register_script(sAlisScript * script);
-void            alis_error(u8 errnum, ...);
+void            alis_error(int errnum, ...);
 void            alis_debug(void);
 void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
+
+u8 *            get_vram(s16 offset);
+
+u16             xswap16(u16 value);
+u32             xswap24(u32 value);
+u32             xswap32(u32 value);
+
+u8              xread8(u32 offset);
+s16             xread16(u32 offset);
+s32             xread32(u32 offset);
+
+void            xwrite8(u32 offset, u8 value);
+void            xwrite16(u32 offset, s16 value);
+void            xwrite32(u32 offset, s32 value);
+
+void            xadd8(s32 offset, s8 value);
+void            xadd16(s32 offset, s16 value);
+void            xadd32(s32 offset, s32 add);
+
+void            xsub8(s32 offset, s8 value);
+void            xsub16(s32 offset, s16 value);
+void            xsub32(s32 offset, s32 sub);
+
+void            xpush32(s32 value);
+s32             xpeek32(void);
+s32             xpop32(void);
+
+u8              vread8(u32 offset);
+s16             vread16(u32 offset);
+s32             vread32(u32 offset);
+
+void            vwrite8(u32 offset, u8 value);
+void            vwrite16(u32 offset, s16 value);
+void            vwrite32(u32 offset, s32 value);
+
+
+int             adresdes(s32 idx);
+int             adresmus(s32 idx);
+
+
+s16             tabint(s16 offset, u8 *address);
+s16             tabchar(s16 offset, u8 *address);
+s16             tabstring(s16 offset, u8 *address);
 
 #endif /* alis_vm_h */

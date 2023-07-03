@@ -9,6 +9,12 @@
 #include "../config.h"
 #include "../debug.h"
 
+
+u8 io_inkey(void);
+u8 io_shiftkey(void);
+u8 io_joy(u8 port);
+u8 io_joykey(u8 test);
+
 // =============================================================================
 #pragma mark - LIFECYCLE
 // =============================================================================
@@ -39,6 +45,7 @@ typedef struct {
     u16     w, h;
     u8      scale;
     u8 *    data;
+    u8 *    palette;
 } pixelbuf_t;
 void    sys_render(pixelbuf_t buffer);
 
@@ -47,7 +54,7 @@ void    sys_render(pixelbuf_t buffer);
 #pragma mark - FILE SYSTEM
 // =============================================================================
 int     sys_fclose(FILE * fp);
-FILE *  sys_fopen(char * path);
+FILE *  sys_fopen(char * path, u16 mode);
 u8      sys_fexists(char * path);
 
 

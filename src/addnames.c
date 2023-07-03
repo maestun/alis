@@ -8,11 +8,13 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "image.h"
+
 
 // ============================================================================
 #pragma mark - Addnames routines
 // ============================================================================
-static void cnul() {
+static void cnul(void) {
 }
 
 /**
@@ -20,10 +22,10 @@ static void cnul() {
  *          adds byte from d7 to byte at (vram+offset)
  * 
  */
-static void alocb() {
-    u16 offset = script_read16();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+static void alocb(void) {
+    s16 offset = script_read16();
+    xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
+    alis.sr.zero = (vread8(alis.script->vram_org + offset) == 0);
 }
 
 /**
@@ -31,10 +33,10 @@ static void alocb() {
  *          adds word from d7 to word at (vram+offset)
  * 
  */
-static void alocw() {
-    u16 offset = script_read16();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+static void alocw(void) {
+    s16 offset = script_read16();
+    xadd16(alis.script->vram_org + offset, alis.varD7);
+    alis.sr.zero = (vread16(alis.script->vram_org + offset) == 0);
 }
 
 /**
@@ -42,116 +44,105 @@ static void alocw() {
  *          concatenate null-terminated string at ARRAY_A
  *          to null-terminated string located at (vram+offset)
  */
-static void alocp() {
-    u16 offset = script_read16();
-    u8 * a1 = vram_ptr(offset);
-    u8 * a0 = alis.bssChunk3;
-    
-    // set (vram+offset) pointer to first zero byte
-    while (*++a1);
-
-    // concatenate string to vram
-    while (*a0) {
-        *a1++ = *a0++;
-    }
+static void alocp(void) {
+    s16 offset = script_read16();
+    strcat((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
+static void aloctp(void) {
+    debug(EDebugInfo, " /* MISSING */");
+}
+static void aloctc(void) {
+    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    xadd8(alis.script->vram_org + offset, (char)*(alis.acc));
+    alis.acc++;
+}
 
-static void aloctp() {
-    debug(EDebugInfo, "aloctp STUBBED\n");
+static void alocti(void) {
+    s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
+    xadd16(alis.script->vram_org + offset, *(alis.acc));
+    alis.acc++;
 }
-static void aloctc() {
-    debug(EDebugInfo, "aloctc STUBBED\n");
-}
-static void alocti() {
-    debug(EDebugInfo, "alocti STUBBED\n");
-}
-static void adirb() {
+static void adirb(void) {
     u8 offset = script_read8();
-    vram_add8(offset, (u8)alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
+    alis.sr.zero = (vread8(alis.script->vram_org + offset) == 0);
 }
-static void adirw() {
+static void adirw(void) {
     u8 offset = script_read8();
-    vram_add16(offset, alis.varD7);
-    alis.sr.zero = (vram_read8(offset) == 0);
+    xadd16(alis.script->vram_org + offset, alis.varD7);
+    alis.sr.zero = (vread16(alis.script->vram_org + offset) == 0);
 }
-static void adirp() {
+static void adirp(void) {
+    u8 offset = script_read8();
+    strcat((char *)get_vram(offset), (char *)alis.oldsd7);
+}
 
+static void adirtp(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void adirtp() {
-    debug(EDebugInfo, "adirtp STUBBED\n");
+static void adirtc(void) {
+    s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
+    xadd8(alis.script->vram_org + offset, (char)*(alis.acc));
+    alis.acc++;
 }
-static void adirtc() {
-    debug(EDebugInfo, "adirtc STUBBED\n");
+static void adirti(void) {
+    s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    xadd16(alis.script->vram_org + offset, *(alis.acc));
+    alis.acc++;
 }
-static void adirti() {
-    debug(EDebugInfo, "adirti STUBBED\n");
+static void amainb(void) {
+    s16 offset = script_read16();
+    xadd8(alis.basemain + offset, (u8)alis.varD7);
 }
-static void amainb() {
-//    ADDNAME_AMAINB_0xf
-//00018288 10 1b           move.b     (A3)+,D0b
-//0001828a e1 40           asl.w      #0x8,D0w
-//0001828c 10 1b           move.b     (A3)+,D0b
-//0001828e 22 79 00        movea.l    (ADDR_VSTACK).l,A1
-//01 95 7c
-//00018294 df 31 00 00     add.b      D7b,(0x0,A1,D0w*0x1)
-//00018298 4e 75           rts
+static void amainw(void) {
+    s16 offset = script_read16();
+    xadd16(alis.basemain + offset, (s16)alis.varD7);
 }
-static void amainw() {
-//    ADDNAME_AMAINW_0x10
-//0001829a 10 1b           move.b     (A3)+,D0b
-//0001829c e1 40           asl.w      #0x8,D0w
-//0001829e 10 1b           move.b     (A3)+,D0b
-//000182a0 22 79 00        movea.l    (ADDR_VSTACK).l,A1
-//01 95 7c
-//000182a6 df 71 00 00     add.w      D7w,(0x0,A1,D0w*0x1)
-//000182aa 4e 75           rts
+static void amainp(void) {
+    s16 offset = script_read16();
+    strcat((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
-static void amainp() {
-    // log_debug("STUBBED");
+static void amaintp(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void amaintp() {
-    // log_debug("STUBBED");
+static void amaintc(void) {
+    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    xadd8(alis.basemain + offset, (u8)*(alis.acc));
+    alis.acc++;
 }
-static void amaintc() {
-    // log_debug("STUBBED");
+static void amainti(void) {
+    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    xadd16(alis.basemain + offset, *(alis.acc));
+    alis.acc++;
 }
-static void amainti() {
-    // log_debug("STUBBED");
+static void ahimb(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimb() {
-    // log_debug("STUBBED");
+static void ahimw(void) {
+    s16 offset = xread16(alis.script->vram_org + script_read16());
+    s32 offset2 = xread32(alis.atent + offset) + script_read16();
+    xadd16(offset2, alis.varD7);
 }
-static void ahimw() {
-    // log_debug("STUBBED");
+static void ahimp(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimp() {
-    // log_debug("STUBBED");
+static void ahimtp(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimtp() {
-    // log_debug("STUBBED");
+static void ahimtc(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimtc() {
-    // log_debug("STUBBED");
+static void ahimti(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void ahimti() {
-    // log_debug("STUBBED");
+static void spile(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
-static void spile() {
-    // log_debug("STUBBED");
-}
-static void aeval() {
-//    ADDNAME_AEVAL_0x1c
-//0001843c 39 07           move.w     D7w,-(A4)
-//0001843e 61 00 fa c6     bsr.w      OPERNAME_OEVAL_0x1c                              undefined OPERNAME_OEVAL_0x1c()
-//00018442 41 f9 00        lea        (JTAB_ADDNAMES).l,A0                             =
-//01 2f 6a
-//00018448 10 1b           move.b     (A3)+,D0b
-//0001844a 48 80           ext.w      D0w
-//0001844c 30 30 00 00     move.w     (0x0,A0,D0w*offset JTAB_ADDNAMES),D0w            =
-//00018450 4e f0 00 00     jmp        (0x0,A0,D0w*0x1)
-    
+static void aeval(void) {
+    *(--alis.acc) = alis.varD7;
+    oeval();
+    readexec_addname();
 }
 
 

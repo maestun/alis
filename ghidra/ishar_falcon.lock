@@ -1,9 +1,9 @@
 #Ghidra Lock File
-#Sun Jul 31 09:36:41 CEST 2022
-OS\ Name=Mac OS X
-OS\ Version=11.5
-Username=olivier
-Hostname=Pisco
+#Wed May 10 01:29:15 CEST 2023
 <META>\ Supports\ File\ Channel\ Locking=Channel Lock
-OS\ Architecture=x86_64
-Timestamp=7/31/22, 9\:36 AM
+Hostname=Mac-mini-M1.local
+OS\ Architecture=aarch64
+OS\ Name=Mac OS X
+OS\ Version=13.3.1
+Timestamp=5/10/23, 1\:29\u202FAM
+Username=gildor

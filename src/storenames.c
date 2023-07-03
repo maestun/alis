@@ -8,60 +8,65 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "image.h"
 #include "utils.h"
 
 // ============================================================================
 #pragma mark - Store Routines
 // ============================================================================
 
-static void cnul() {
+static void cnul(void) {
 }
 
 /**
  * @brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
  * 
  */
-static void slocb() {
-    vram_write8(script_read16(), (u8)alis.varD7);
+static void slocb(void) {
+    s16 offset = script_read16();
+    vwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
 /**
  * @brief reads a word (offset) from script, then stores d7 word at (vram + offset)
  * 
  */
-static void slocw() {
-    vram_write16(script_read16(), alis.varD7);
+static void slocw(void) {
+    s16 offset = script_read16();
+    vwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
 /**
  * @brief reads a word (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
  * 
  */
-static void slocp() {
-    vram_writep(script_read16(), alis.bssChunk3);
+static void slocp(void) {
+    s16 offset = script_read16();
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
 // Store at LOCation with offseT: Pointer
-static void sloctp() {
-    u16 offset = loctp_common(script_read16());
-    u8 * ptr = alis.bssChunk3;
-    while (*ptr) {
-        vram_write8(offset++, *ptr++);
-    }
+static void sloctp(void) {
+    s16 offset = tabstring(script_read16(), alis.mem + alis.script->vram_org);
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    strcpy((char *)alis.mem + alis.script->vram_org + offset, (char *)alis.oldsd7);
 }
 
 // Store at LOCation with offseT: Char
-static void sloctc() {
-    u16 offset = loctc_common(script_read16());
-    alis.varD7 = *(alis.acc++);
-    vram_write8(offset, alis.varD7);
+static void sloctc(void) {
+    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+    vwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
-static void slocti() {
-    u16 offset = locti_common(script_read16());
-    alis.varD7 = *(alis.acc++);
-    vram_write16(offset, alis.varD7);
+static void slocti(void) {
+    s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+    vwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
 
@@ -69,103 +74,129 @@ static void slocti() {
  * @brief reads a byte (offset) from script, then stores d7 byte at (vram + offset)
  * 
  */
-static void sdirb() {
-    vram_write8(script_read8(), (u8)alis.varD7);
+static void sdirb(void) {
+    vwrite8(alis.script->vram_org + script_read8(), (u8)alis.varD7);
 }
 
 /**
  * @brief reads a byte (offset) from script, then stores d7 word at (vram + offset)
  * 
  */
-static void sdirw() {
-    vram_write16(script_read8(), (u16)alis.varD7);
+static void sdirw(void) {
+    
+    u8 offset = script_read8();
+    vwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
 /**
  * @brief reads a byte (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
  * 
  */
-static void sdirp() {
-    vram_writep(script_read8(), alis.bssChunk3);
+static void sdirp(void) {
+    u8 offset = script_read8();
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
-static void sdirtp() {
-    debug(EDebugInfo, "sdirtp STUBBED\n");
+static void sdirtp(void) {
+    s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
+    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
-static void sdirtc() {
-    debug(EDebugInfo, "sdirtc STUBBED\n");
+static void sdirtc(void) {
+    s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+    vwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
-static void sdirti() {
-    debug(EDebugInfo, "sdirti STUBBED\n");
+static void sdirti(void) {
+    s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+    vwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
-static void smainb() {
-    debug(EDebugInfo, "smainb STUBBED\n");
+static void smainb(void) {
+    s16 offset = script_read16();
+//    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
+    vwrite8(alis.basemain + offset, (u8)alis.varD7);
 }
 
-static void smainw() {
-    debug(EDebugInfo, "smainw STUBBED\n");
+static void smainw(void) {
+    s16 offset = script_read16();
+//    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
+    vwrite16(alis.basemain + offset, (s16)alis.varD7);
 }
 
-static void smainp() {
-    debug(EDebugInfo, "smainp STUBBED\n");
+static void smainp(void) {
+    s16 offset = script_read16();
+    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
+    strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
-static void smaintp() {
-    debug(EDebugInfo, "smaintp STUBBED\n");
+static void smaintp(void) {
+    s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
+    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
+    strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
-static void smaintc() {
-    debug(EDebugInfo, "smaintc STUBBED\n");
+static void smaintc(void) {
+    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+    vwrite8(alis.basemain + offset, (u8)alis.varD7);
 }
 
-static void smainti() {
-    debug(EDebugInfo, "smainti STUBBED\n");
+static void smainti(void) {
+    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    alis.varD7 = *(alis.acc);
+    alis.acc++;
+    vwrite16(alis.basemain + offset, (s16)alis.varD7);
 }
 
-static void shimb() {
-    debug(EDebugInfo, "shimb STUBBED\n");
+static void shimb(void) {
+    s16 offset = script_read16();
+    s16 ent = vread16(alis.script->vram_org + offset);
+
+    s32 vram = xread32(alis.atent + ent);
+
+    s16 offset2 = script_read16();
+    vwrite8(vram + offset2, (u8)alis.varD7);
 }
 
-static void shimw() {
-    debug(EDebugInfo, "shimw STUBBED\n");
+static void shimw(void) {
+    s16 offset = script_read16();
+    s16 ent = vread16(alis.script->vram_org + offset);
+
+    s32 vram = xread32(alis.atent + ent);
+
+    s16 offset2 = script_read16();
+    vwrite16(vram + offset2, (s16)alis.varD7);
 }
 
-static void shimp() {
-    debug(EDebugInfo, "shimp STUBBED\n");
+static void shimp(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
 
-static void shimtp() {
-    debug(EDebugInfo, "shimtp STUBBED\n");
+static void shimtp(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
 
-static void shimtc() {
-    debug(EDebugInfo, "shimtc STUBBED\n");
+static void shimtc(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
 
-static void shimti() {
-    debug(EDebugInfo, "shimti STUBBED\n");
+static void shimti(void) {
+    debug(EDebugInfo, " /* MISSING */");
 }
 
-static void spile() {
+static void spile(void) {
     *(--alis.acc) = alis.varD7;
 }
 
-static void seval() {
-//    00015d2c 39 07           move.w     D7w,-(A4)
-//    00015d2e 61 00 fd 86     bsr.w      FUN_READEXEC_OPNAME                              undefined FUN_READEXEC_OPNAME()
-//                         -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
-//    00015d32 41 f9 00        lea        (JTAB_STORENAME).l,A0
-//             01 0f 92
-//    00015d38 10 1b           move.b     (A3)+,D0b
-//    00015d3a 48 80           ext.w      D0w
-//    00015d3c 30 30 00 00     move.w     (0x0,A0,D0w*offset JTAB_STORENAME),D0w
-//    00015d40 4e f0 00 00     jmp        (0x0,A0,D0w*0x1)
-
-    
-    // save r7 to virtual accumulator
+static void seval(void) {
     *(--alis.acc) = alis.varD7;
     oeval();
     readexec_storename();

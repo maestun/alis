@@ -34,32 +34,8 @@ u8 vram_read8(sVRAM * vram, u16 offset) {
     return *(u8 *)(vram->ram + offset);
 }
 
-s16 vram_read8ext16(sVRAM * vram, u16 offset) {
-    s16 ret = *(u8 *)(vram->ram + offset);
-    if(BIT_CHK(ret, 7)) {
-        ret |= 0xff00;
-    }
-    return ret;
-}
-
-s32 vram_read8ext32(sVRAM * vram, u16 offset) {
-    s32 ret = *(u8 *)(vram->ram + offset);
-    if(BIT_CHK(ret, 7)) {
-        ret |= 0xffffff00;
-    }
-    return ret;
-}
-
 u16 vram_read16(sVRAM * vram, u16 offset) {
     return *(u16 *)(vram->ram + offset);
-}
-
-s32 vram_read16ext32(sVRAM * vram, u16 offset) {
-    s32 ret = *(u16 *)(vram->ram + offset);
-    if(BIT_CHK(ret, 15)) {
-        ret |= 0xffffff00;
-    }
-    return ret;
 }
 
 void vram_readp(sVRAM * vram, u16 offset, u8 * dst_ptr) {
