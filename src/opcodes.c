@@ -1,7 +1,22 @@
 //
-//  opcodes.c
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
 #include "alis.h"
@@ -519,7 +534,7 @@ static void clocate(void) {
 }
 
 static void ctab(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 // copy values to vram
@@ -754,7 +769,7 @@ static void cswitching(void) {
 }
 
 static void cwlive(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cunload(void) {
@@ -909,7 +924,7 @@ static void cstop(void) {
 
 static void cstopret(void) {
     // never seen in ishar execution (boot2game)
-    debug(EDebugWarning, " /* MISSING */");                                     
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);                                     
 }
 
 static void cexit(void) {
@@ -1094,7 +1109,7 @@ static void cputnat(void) {
 }
 
 static void cerase(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cerasen(void) {
@@ -1643,7 +1658,7 @@ static void ctstmov(void) {
 }
 
 static void ctstset(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cftstmov(void) {
@@ -1746,27 +1761,27 @@ static void cnearent(void) {
 }
 
 static void cneartyp(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cnearmat(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cviewent(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cviewtyp(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cviewmat(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void corient(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void crstent(void) {
@@ -1874,7 +1889,7 @@ static void cpalette(void) {
 }
 
 static void cdefcolor(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void ctiming(void) {
@@ -1994,7 +2009,7 @@ static void cnoise(void) {
 }
 
 static void cinitab(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cfopen(void) {
@@ -2033,11 +2048,11 @@ static void cfclose(void) {
 }
 
 static void cfcreat(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cfdel(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cfreadv(void) {
@@ -2053,7 +2068,7 @@ static void cfwritev(void) {
 }
 
 static void cfwritei(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cfreadb(void) {
@@ -2092,7 +2107,7 @@ static void cfwriteb(void) {
 }
 
 static void cplot(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cdraw(void) {
@@ -2111,31 +2126,31 @@ static void cdraw(void) {
 }
 
 static void cbox(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cboxf(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cink(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cpset(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cpmove(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cpmode(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cpicture(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cxyscroll(void) {
@@ -2194,15 +2209,15 @@ static void csetmouse(void) {
 }
 
 static void cdefvect(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void csetvect(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void capproach(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cescape(void) {
@@ -2245,11 +2260,11 @@ static void cescape(void) {
 }
 
 static void cvtstmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cvftstmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cvmov(void) {
@@ -2274,7 +2289,7 @@ static void cworld(void) {
 }
 
 static void cfindmat(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cfindtyp(void) {
@@ -2394,7 +2409,7 @@ static void ccadence(void) {
 }
 
 static void csetvolum(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cxinv(void) {
@@ -2489,19 +2504,19 @@ static void credoff(void) {
 }
 
 static void cdelsound(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cwmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cwtstmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cwftstmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void ctstform(void) {
@@ -2600,7 +2615,7 @@ static void cmxputat(void) {
 }
 
 static void cmmusic(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cmforme(void) {
@@ -2712,7 +2727,7 @@ static void csinput(void) {
 }
 
 static void crunfilm(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 void printd0(s16 d0w)
@@ -2770,7 +2785,7 @@ static void cfont(void) {
 }
 
 static void cpaper(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 // fade-out to black
@@ -2782,7 +2797,7 @@ static void ctoblack(void) {
 }
 
 static void cmovcolor(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 // fade-in to palette
@@ -2922,11 +2937,11 @@ static void creducing(void) {
 }
 
 static void cscmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscdump(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cfindcla(void) {
@@ -2965,11 +2980,11 @@ static void cfindcla(void) {
 }
 
 static void cnearcla(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cviewcla(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cinstru(void) {
@@ -3009,7 +3024,7 @@ static void cinstru(void) {
 }
 
 static void cminstru(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cordspr(void) {
@@ -3052,11 +3067,11 @@ static void calign(void) {
 }
 
 static void cbackstar(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cstarring(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cengine(void) {
@@ -3067,7 +3082,7 @@ static void cengine(void) {
 }
 
 static void cautobase(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cquality(void) {
@@ -3076,7 +3091,7 @@ static void cquality(void) {
 }
 
 static void chsprite(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cselpalet(void) {
@@ -3092,7 +3107,7 @@ static void clinepalet(void) {
 }
 
 static void cautomode(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cautofile(void) {
@@ -3100,7 +3115,7 @@ static void cautofile(void) {
 }
 
 static void ccancel(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void ccancall(void) {
@@ -3127,11 +3142,11 @@ static void cblast(void) {
 }
 
 static void cscback(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscrolpage(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cmatent(void) {
@@ -3205,15 +3220,15 @@ static void cshrink(void) {
 }
 
 static void cdefmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void csetmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cputmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void csavepal(void) {
@@ -3222,11 +3237,11 @@ static void csavepal(void) {
 }
 
 static void csczoom(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void ctexmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void calloctab(void) {
@@ -3245,43 +3260,43 @@ static void calloctab(void) {
 }
 
 static void cfreetab(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscantab(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cneartab(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscsun(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cdarkpal(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscdark(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void caset(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void camov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscaset(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscamov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscfollow(void) {
@@ -3324,39 +3339,39 @@ static void cscview(void) {
 }
 
 static void cfilm(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cwalkmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void catstmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cavtstmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cavmov(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void caim(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cpointpix(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cchartmap(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void cscsky(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: ", __FUNCTION__);
 }
 
 static void czoom(void) {
