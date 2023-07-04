@@ -43,7 +43,7 @@ sAlisError errors[] = {
     { ALIS_ERR_FSEEK,   "fseek", "" }
 };
 
-void vram_debug(void);
+// void vram_debug(void);
 
 // =============================================================================
 // MARK: - Private
@@ -531,26 +531,6 @@ void alis_error(int errnum, ...) {
 }
 
 
-void alis_debug(void) {
-    printf("\n-- ALIS --\nCurrent script: '%s' (0x%02x)\n", alis.script->name, alis.script->header.id);
-    printf("R6  0x%04x\n", alis.varD6);
-    printf("R7  0x%04x\n", alis.varD7);
-
-    
-    script_debug(alis.script);
-//    printf("ACC OFFSET=0x%04x (byte=0x%02x) (word=0x%04x)\n",
-//           (u16)(alis.acc - alis.acc_org),
-//           (u8)(*alis.acc),
-//           (u16)(*alis.acc));
-//
-//    printf("BSS1=%s\n", alis.bssChunk1);
-//    printf("BSS2=%s\n", alis.bssChunk2);
-//    printf("BSS3=%s\n", alis.bssChunk3);
-    
-    vram_debug();
-}
-
-
 // =============================================================================
 // MARK: - MEMORY ACCESS
 // =============================================================================
@@ -837,43 +817,43 @@ s16 tabint(s16 offset, u8 *address)
 // =============================================================================
 // MARK: - Virtual RAM debug
 // =============================================================================
-void vram_debug(void) {
-    u8 width = 16;
+// void vram_debug(void) {
+//     u8 width = 16;
     
-    printf("Stack Offset=0x%04x (word=0x%04x) (dword=0x%08x)\n",
-           alis.script->vacc_off,
-           (u16)(xread16(alis.script->vram_org + alis.script->vacc_off)),
-           (u32)(xread32(alis.script->vram_org + alis.script->vacc_off)));
+//     printf("Stack Offset=0x%04x (word=0x%04x) (dword=0x%08x)\n",
+//            alis.script->vacc_off,
+//            (u16)(xread16(alis.script->vram_org + alis.script->vacc_off)),
+//            (u32)(xread32(alis.script->vram_org + alis.script->vacc_off)));
 
-    printf("Virtual RAM:\n");
+//     printf("Virtual RAM:\n");
     
-    printf("       ");
-    for(u8 j = 0; j < width; j++) {
-        printf("  %x", j);
-    }
-    printf("\n");
+//     printf("       ");
+//     for(u8 j = 0; j < width; j++) {
+//         printf("  %x", j);
+//     }
+//     printf("\n");
     
-    for(u32 i = 0; i < kVirtualRAMSize; i += width) {
-        printf("0x%04x: ", i);
-        for(u8 j = 0; j < width; j++) {
-            printf("%02x ", get_vram(0)[i + j]);
-        }
-        printf("\n");
-    }
-}
+//     for(u32 i = 0; i < kVirtualRAMSize; i += width) {
+//         printf("0x%04x: ", i);
+//         for(u8 j = 0; j < width; j++) {
+//             printf("%02x ", get_vram(0)[i + j]);
+//         }
+//         printf("\n");
+//     }
+// }
 
-void vram_debug_addr(u16 addr) {
-    u8 width = 16;
-    printf("Virtual RAM:\n");
+// void vram_debug_addr(u16 addr) {
+//     u8 width = 16;
+//     printf("Virtual RAM:\n");
     
-    printf("       ");
-    for(u8 j = 0; j < width; j++) {
-        printf("  %x", j);
-    }
-    printf("\n");
-    printf("0x%04x: ", addr);
-    for(u32 j = addr; j < addr + width; j++) {
-        printf("%02x ", (alis.mem + alis.script->vram_org)[j]);
-    }
-}
+//     printf("       ");
+//     for(u8 j = 0; j < width; j++) {
+//         printf("  %x", j);
+//     }
+//     printf("\n");
+//     printf("0x%04x: ", addr);
+//     for(u32 j = addr; j < addr + width; j++) {
+//         printf("%02x ", (alis.mem + alis.script->vram_org)[j]);
+//     }
+// }
 

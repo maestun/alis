@@ -197,274 +197,274 @@ void shrinkprog(s32 start, s32 length, u16 script_id);
 void killent(u16 d0w, u16 d5w);
 void runson(void);
 
-// ============================================================================
-#pragma mark - Opcodes
-// ============================================================================
-static void cstore_continue(void);
-static void cstore(void);
-static void ceval(void);
-static void cadd(void);
-static void csub(void);
-static void cvprint(void);
-static void csprinti(void);
-static void csprinta(void);
-static void clocate(void);
-static void ctab(void);
-static void cdim(void);
-static void crandom(void);
-static void cloop(s32 offset);
-static void cloop8(void);
-static void cloop16(void);
-static void cloop24(void);
-static void cswitch1(void);
-static void cswitch2(void);
-static void cleave(void);
-static void cprotect(void);
-static void casleep(void);
-static void cscmov(void);
-static void cscset(void);
-static void cclipping(void);
-static void cswitching(void);
-static void cwlive(void);
-static void cunload(void);
-static void cwakeup(void);
-static void cstop(void);
-static void csleep(void);
-static void clive(void);
-static void ckill(void);
-static void cstop(void);
-static void cstopret(void);
-static void cexit(void);
-static void cload(void);
-static void cdefsc(void);
-static void cscreen(void);
-static void cput(void);
-static void cputnat(void);
-static void cerase(void);
-static void cerasen(void);
-static void cset(void);
-static void cmov(void);
-static void copensc(void);
-static void cclosesc(void);
-static void cerasall(void);
-static void cforme(void);
-static void cdelforme(void);
-void clipform(void);
-static void ctstmov(void);
-static void ctstset(void);
-static void cftstmov(void);
-static void cftstset(void);
-static void csuccent(void);
-static void cpredent(void);
-static void cnearent(void);
-static void cneartyp(void);
-static void cnearmat(void);
-static void cviewent(void);
-static void cviewtyp(void);
-static void cviewmat(void);
-static void corient(void);
-static void crstent(void);
-static void csend(void);
-static void cscanclr(void);
-static void cscanon(void);
-static void cscanoff(void);
-static void cinteron(void);
-static void cinteroff(void);
-static void callentity(void);
-static void cpalette(void);
-static void cdefcolor(void);
-static void ctiming(void);
-static void czap(void);
-static void cexplode(void);
-static void cding(void);
-static void cnoise(void);
-static void cinitab(void);
-static void cfopen(void);
-static void cfclose(void);
-static void cfcreat(void);
-static void cfdel(void);
-static void cfreadv(void);
-static void cfwritev(void);
-static void cfwritei(void);
-static void cfreadb(void);
-static void cfwriteb(void);
-static void cplot(void);
-static void cdraw(void);
-static void cbox(void);
-static void cboxf(void);
-static void cink(void);
-static void cpset(void);
-static void cpmove(void);
-static void cpmode(void);
-static void cpicture(void);
-static void cxyscroll(void);
-static void clinking(void);
-static void cmouson(void);
-static void cmousoff(void);
-static void cmouse(void);
-static void cdefmouse(void);
-static void csetmouse(void);
-static void cdefvect(void);
-static void csetvect(void);
-static void capproach(void);
-static void cescape(void);
-static void cvtstmov(void);
-static void cvftstmov(void);
-static void cvmov(void);
-static void cdefworld(void);
-static void cworld(void);
-static void cfindmat(void);
-static void cfindtyp(void);
-static void cmusic(void);
-static void cdelmusic(void);
-static void ccadence(void);
-static void csetvolum(void);
-static void cxinv(void);
-static void cxinvon(void);
-static void cxinvoff(void);
-static void clistent(void);
-static void csound(void);
-static void cmsound(void);
-static void credon(void);
-static void credoff(void);
-static void cdelsound(void);
-static void cwmov(void);
-static void cwtstmov(void);
-static void cwftstmov(void);
-static void ctstform(void);
-static void cxput(void);
-static void cxputat(void);
-static void cmput(void);
-static void cmputat(void);
-static void cmxput(void);
-static void cmxputat(void);
-static void cmmusic(void);
-static void cmforme(void);
-static void csettime(void);
-static void cgettime(void);
-static void cvinput(void);
-static void csinput(void);
-static void crunfilm(void);
-static void cvpicprint(void);
-static void cspicprint(void);
-static void cvputprint(void);
-static void csputprint(void);
-static void cfont(void);
-static void cpaper(void);
-static void ctoblack(void);
-static void cmovcolor(void);
-static void ctopalet(void);
-static void cnumput(void);
-static void cscheart(void);
-static void cscpos(void);
-static void cscsize(void);
-static void cschoriz(void);
-static void cscvertic(void);
-static void cscreduce(void);
-static void cscscale(void);
-static void creducing(void);
-static void cscmap(void);
-static void cscdump(void);
-static void cfindcla(void);
-static void cnearcla(void);
-static void cviewcla(void);
-static void cinstru(void);
-static void cminstru(void);
-static void cordspr(void);
-static void calign(void);
-static void cbackstar(void);
-static void cstarring(void);
-static void cengine(void);
-static void cautobase(void);
-static void cquality(void);
-static void chsprite(void);
-static void cselpalet(void);
-static void clinepalet(void);
-static void cautomode(void);
-static void cautofile(void);
-static void ccancel(void);
-static void ccancall(void);
-static void ccancen(void);
-static void cblast(void);
-static void cscback(void);
-static void cscrolpage(void);
-static void cmatent(void);
-static void cshrink(void);
-static void cdefmap(void);
-static void csetmap(void);
-static void cputmap(void);
-static void csavepal(void);
-static void csczoom(void);
-static void ctexmap(void);
-static void calloctab(void);
-static void cfreetab(void);
-static void cscantab(void);
-static void cneartab(void);
-static void cscsun(void);
-static void cdarkpal(void);
-static void cscdark(void);
-static void caset(void);
-static void camov(void);
-static void cscaset(void);
-static void cscamov(void);
-static void cscfollow(void);
-static void cscview(void);
-static void cfilm(void);
-static void cwalkmap(void);
-static void catstmap(void);
-static void cavtstmov(void);
-static void cavmov(void);
-static void caim(void);
-static void cpointpix(void);
-static void cchartmap(void);
-static void cscsky(void);
-static void czoom(void);
+// // ============================================================================
+// #pragma mark - Opcodes
+// // ============================================================================
+// static void cstore_continue(void);
+// static void cstore(void);
+// static void ceval(void);
+// static void cadd(void);
+// static void csub(void);
+// static void cvprint(void);
+// static void csprinti(void);
+// static void csprinta(void);
+// static void clocate(void);
+// static void ctab(void);
+// static void cdim(void);
+// static void crandom(void);
+// static void cloop(s32 offset);
+// static void cloop8(void);
+// static void cloop16(void);
+// static void cloop24(void);
+// static void cswitch1(void);
+// static void cswitch2(void);
+// static void cleave(void);
+// static void cprotect(void);
+// static void casleep(void);
+// static void cscmov(void);
+// static void cscset(void);
+// static void cclipping(void);
+// static void cswitching(void);
+// static void cwlive(void);
+// static void cunload(void);
+// static void cwakeup(void);
+// static void cstop(void);
+// static void csleep(void);
+// static void clive(void);
+// static void ckill(void);
+// static void cstop(void);
+// static void cstopret(void);
+// static void cexit(void);
+// static void cload(void);
+// static void cdefsc(void);
+// static void cscreen(void);
+// static void cput(void);
+// static void cputnat(void);
+// static void cerase(void);
+// static void cerasen(void);
+// static void cset(void);
+// static void cmov(void);
+// static void copensc(void);
+// static void cclosesc(void);
+// static void cerasall(void);
+// static void cforme(void);
+// static void cdelforme(void);
+// void clipform(void);
+// static void ctstmov(void);
+// static void ctstset(void);
+// static void cftstmov(void);
+// static void cftstset(void);
+// static void csuccent(void);
+// static void cpredent(void);
+// static void cnearent(void);
+// static void cneartyp(void);
+// static void cnearmat(void);
+// static void cviewent(void);
+// static void cviewtyp(void);
+// static void cviewmat(void);
+// static void corient(void);
+// static void crstent(void);
+// static void csend(void);
+// static void cscanclr(void);
+// static void cscanon(void);
+// static void cscanoff(void);
+// static void cinteron(void);
+// static void cinteroff(void);
+// static void callentity(void);
+// static void cpalette(void);
+// static void cdefcolor(void);
+// static void ctiming(void);
+// static void czap(void);
+// static void cexplode(void);
+// static void cding(void);
+// static void cnoise(void);
+// static void cinitab(void);
+// static void cfopen(void);
+// static void cfclose(void);
+// static void cfcreat(void);
+// static void cfdel(void);
+// static void cfreadv(void);
+// static void cfwritev(void);
+// static void cfwritei(void);
+// static void cfreadb(void);
+// static void cfwriteb(void);
+// static void cplot(void);
+// static void cdraw(void);
+// static void cbox(void);
+// static void cboxf(void);
+// static void cink(void);
+// static void cpset(void);
+// static void cpmove(void);
+// static void cpmode(void);
+// static void cpicture(void);
+// static void cxyscroll(void);
+// static void clinking(void);
+// static void cmouson(void);
+// static void cmousoff(void);
+// static void cmouse(void);
+// static void cdefmouse(void);
+// static void csetmouse(void);
+// static void cdefvect(void);
+// static void csetvect(void);
+// static void capproach(void);
+// static void cescape(void);
+// static void cvtstmov(void);
+// static void cvftstmov(void);
+// static void cvmov(void);
+// static void cdefworld(void);
+// static void cworld(void);
+// static void cfindmat(void);
+// static void cfindtyp(void);
+// static void cmusic(void);
+// static void cdelmusic(void);
+// static void ccadence(void);
+// static void csetvolum(void);
+// static void cxinv(void);
+// static void cxinvon(void);
+// static void cxinvoff(void);
+// static void clistent(void);
+// static void csound(void);
+// static void cmsound(void);
+// static void credon(void);
+// static void credoff(void);
+// static void cdelsound(void);
+// static void cwmov(void);
+// static void cwtstmov(void);
+// static void cwftstmov(void);
+// static void ctstform(void);
+// static void cxput(void);
+// static void cxputat(void);
+// static void cmput(void);
+// static void cmputat(void);
+// static void cmxput(void);
+// static void cmxputat(void);
+// static void cmmusic(void);
+// static void cmforme(void);
+// static void csettime(void);
+// static void cgettime(void);
+// static void cvinput(void);
+// static void csinput(void);
+// static void crunfilm(void);
+// static void cvpicprint(void);
+// static void cspicprint(void);
+// static void cvputprint(void);
+// static void csputprint(void);
+// static void cfont(void);
+// static void cpaper(void);
+// static void ctoblack(void);
+// static void cmovcolor(void);
+// static void ctopalet(void);
+// static void cnumput(void);
+// static void cscheart(void);
+// static void cscpos(void);
+// static void cscsize(void);
+// static void cschoriz(void);
+// static void cscvertic(void);
+// static void cscreduce(void);
+// static void cscscale(void);
+// static void creducing(void);
+// static void cscmap(void);
+// static void cscdump(void);
+// static void cfindcla(void);
+// static void cnearcla(void);
+// static void cviewcla(void);
+// static void cinstru(void);
+// static void cminstru(void);
+// static void cordspr(void);
+// static void calign(void);
+// static void cbackstar(void);
+// static void cstarring(void);
+// static void cengine(void);
+// static void cautobase(void);
+// static void cquality(void);
+// static void chsprite(void);
+// static void cselpalet(void);
+// static void clinepalet(void);
+// static void cautomode(void);
+// static void cautofile(void);
+// static void ccancel(void);
+// static void ccancall(void);
+// static void ccancen(void);
+// static void cblast(void);
+// static void cscback(void);
+// static void cscrolpage(void);
+// static void cmatent(void);
+// static void cshrink(void);
+// static void cdefmap(void);
+// static void csetmap(void);
+// static void cputmap(void);
+// static void csavepal(void);
+// static void csczoom(void);
+// static void ctexmap(void);
+// static void calloctab(void);
+// static void cfreetab(void);
+// static void cscantab(void);
+// static void cneartab(void);
+// static void cscsun(void);
+// static void cdarkpal(void);
+// static void cscdark(void);
+// static void caset(void);
+// static void camov(void);
+// static void cscaset(void);
+// static void cscamov(void);
+// static void cscfollow(void);
+// static void cscview(void);
+// static void cfilm(void);
+// static void cwalkmap(void);
+// static void catstmap(void);
+// static void cavtstmov(void);
+// static void cavmov(void);
+// static void caim(void);
+// static void cpointpix(void);
+// static void cchartmap(void);
+// static void cscsky(void);
+// static void czoom(void);
 
-static void cnul(void);
-static void cesc1(void);
-static void cesc2(void);
-static void cesc3(void);
-static void cclock(void);
-static void cbreakpt(void);
-static void cmul(void);
-static void cdiv(void);
-static void cjsrabs(void);
-static void cjmpabs(void);
-static void cjsrind16(void);
-static void cjsrind24(void);
-static void cjmpind16(void);
-static void cjmpind24(void);
+// static void cnul(void);
+// static void cesc1(void);
+// static void cesc2(void);
+// static void cesc3(void);
+// static void cclock(void);
+// static void cbreakpt(void);
+// static void cmul(void);
+// static void cdiv(void);
+// static void cjsrabs(void);
+// static void cjmpabs(void);
+// static void cjsrind16(void);
+// static void cjsrind24(void);
+// static void cjmpind16(void);
+// static void cjmpind24(void);
 
-static void cret(void);
-static void cjsr(s32 offset);
-static void cjsr8(void);
-static void cjsr16(void);
-static void cjsr24(void);
+// static void cret(void);
+// static void cjsr(s32 offset);
+// static void cjsr8(void);
+// static void cjsr16(void);
+// static void cjsr24(void);
 
-static void cjmp8(void);
-static void cjmp16(void);
-static void cjmp24(void);
+// static void cjmp8(void);
+// static void cjmp16(void);
+// static void cjmp24(void);
 
-static void cbz8(void);
-static void cbz16(void);
-static void cbz24(void);
+// static void cbz8(void);
+// static void cbz16(void);
+// static void cbz24(void);
 
-static void cbnz8(void);
-static void cbnz16(void);
-static void cbnz24(void);
+// static void cbnz8(void);
+// static void cbnz16(void);
+// static void cbnz24(void);
 
-static void cbeq8(void);
-static void cbeq16(void);
-static void cbeq24(void);
+// static void cbeq8(void);
+// static void cbeq16(void);
+// static void cbeq24(void);
 
-static void cbne8(void);
-static void cbne16(void);
-static void cbne24(void);
+// static void cbne8(void);
+// static void cbne16(void);
+// static void cbne24(void);
 
-static void cstart(s32 offset);
-static void cstart8(void);
-static void cstart16(void);
-static void cstart24(void);
+// static void cstart(s32 offset);
+// static void cstart8(void);
+// static void cstart16(void);
+// static void cstart24(void);
 
 
 static void cstore_continue(void) {
@@ -824,6 +824,12 @@ static void cwakeup(void) {
     }
 }
 
+static void cstop(void) {
+    // in real program, adds 4 to real stack pointer
+    alis.script->running = 0;
+    debug(EDebugInfo, "\n-- CSTOP --");
+}
+
 static void csleep(void) {
     set_0x04_cstart_csleep(alis.script->vram_org, 0);
     if (alis.fseq)
@@ -916,12 +922,6 @@ static void ckill(void) {
      killent(alis.varD7, alis.varD5);
 }
 
-static void cstop(void) {
-    // in real program, adds 4 to real stack pointer
-    alis.script->running = 0;
-    debug(EDebugInfo, "\n-- CSTOP --");
-}
-
 static void cstopret(void) {
     // never seen in ishar execution (boot2game)
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);                                     
@@ -958,72 +958,6 @@ static void cload(void) {
 
         readexec_opername_swap();
     }
-}
-
-// =============================================================================
-void FUN_00013d82(void) {
-//    clr.w      ($4,A0,D0)
-//    move.w     (W_000195a0).l,D1
-//
-//    bne.w      __not_zero
-//    move.w     D0,(W_000195a0).l
-//    rts
-//__not_zero:
-//    move.w     D1,D2
-//    move.w     ($4,A0,D2),D1
-//    bne.w      __not_zero
-//    move.w     D0,($4,A0,D2)
-//    rts
-}
-// =============================================================================
-void FUN_00013dda(void) {
-//    move.b         ($21,A0),D0
-//    ext.w          D0
-//    move.b         ($25,A0),D1
-//    ext.w          D1
-//    muls.w         D1,D0
-//    move.b         ($24,A0),D2
-//    ext.w          D2
-//    move.b         ($22,A0),D3
-//    ext.w          D3
-//    muls.w         D3,D2
-//    sub.w          D2,D0
-//    move.b         D0,($26,A0)
-//    move.b         ($22,A0),D0
-//    ext.w          D0
-//    move.b         ($23,A0),D1
-//    ext.w          D1
-//    muls.w         D1,D0
-//    move.b         ($25,A0),D2
-//    ext.w          D2
-//    move.b         ($20,A0),D3
-//    ext.w          D3
-//    muls.w         D3,D2
-//    sub.w          D2,D0
-//    move.b         D0,($27,A0)
-//    move.b         ($20,A0),D0
-//    ext.w          D0
-//    move.b         ($24,A0),D1
-//    ext.w          D1
-//    muls.w         D1,D0
-//    move.b         ($23,A0),D2
-//    ext.w          D2
-//    move.b         ($21,A0),D3
-//    ext.w          D3
-//    muls.w         D3,D2
-//    sub.w          D2,D0
-//    move.b         D0,($28,A0)
-//    rts
-//    move.b         ($21,A0),D0
-//    ext.w          D0
-//    move.b         ($25,A0),D1
-//    ext.w          D1
-//    muls.w         D1,D0
-//    move.b         ($24,A0),D2
-//    ext.w          D2
-//    move.b         ($22,A0),D3
-//    ext.w          D3
-//    muls.w         D3,D2
 }
 
 
@@ -1642,6 +1576,21 @@ void clipform(void) {
     }
 }
 
+static void csuccent(void) {
+    
+    alis.varD7 = *alis.ptrent;
+    
+    if (-1 < *alis.ptrent)
+        alis.ptrent ++;
+
+    cstore_continue();
+}
+
+static void crstent(void) {
+    alis.ptrent = alis.tablent;
+    csuccent();
+}
+
 static void ctstmov(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
@@ -1690,16 +1639,6 @@ static void cftstset(void) {
     alis.wforme = alis.varD7;
     clipform();
     crstent();
-}
-
-static void csuccent(void) {
-    
-    alis.varD7 = *alis.ptrent;
-    
-    if (-1 < *alis.ptrent)
-        alis.ptrent ++;
-
-    cstore_continue();
 }
 
 static void cpredent(void) {
@@ -1782,11 +1721,6 @@ static void cviewmat(void) {
 
 static void corient(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-static void crstent(void) {
-    alis.ptrent = alis.tablent;
-    csuccent();
 }
 
 static void csend(void) {

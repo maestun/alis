@@ -25,11 +25,6 @@
 #include "../debug.h"
 
 
-u8 io_inkey(void);
-u8 io_shiftkey(void);
-u8 io_joy(u8 port);
-u8 io_joykey(u8 test);
-
 // =============================================================================
 #pragma mark - LIFECYCLE
 // =============================================================================
@@ -52,6 +47,11 @@ mouse_t sys_get_mouse(void);
 void    sys_set_mouse(u16 x, u16 y);
 void    sys_enable_mouse(u8 enable);
 
+u8      io_inkey(void);
+u8      io_shiftkey(void);
+u8      io_joy(u8 port);
+u8      io_joykey(u8 test);
+char    sys_get_key(void);
 
 // =============================================================================
 #pragma mark - GFX

@@ -408,11 +408,11 @@ void log_sprites(void)
 
     if (image.libsprit == 0)
     {
-        printf("ERROR: image.libsprit = 0!\n");
+        debug(EDebugError, "image.libsprit = 0!\n");
         result = false;
     }
     
-    printf("  list\n");
+    debug(EDebugInfo, "  list\n");
 
     s16 curidx;
     s16 scsprite = screen.ptscreen;
@@ -421,7 +421,7 @@ void log_sprites(void)
     {
         // if ((get_scr_state(scsprite) & 0x40) == 0)
         {
-            printf("  %s screen [0x%.4x]\n", (get_scr_state(scsprite) & 0x40) == 0 ? "visible" : "hidden", ELEMIDX(scsprite));
+            debug(EDebugInfo, "  %s screen [0x%.4x]\n", (get_scr_state(scsprite) & 0x40) == 0 ? "visible" : "hidden", ELEMIDX(scsprite));
 
             u8 *bitmap = 0;
             sSprite *sprite;
@@ -483,7 +483,7 @@ void log_sprites(void)
                     }
                 }
 
-                printf("  %s%.2x %.4x type: %c idx: %.3d [x:%d y:%d d:%d w:%d h:%d] %s\n", deleted ? "!!" : "  ", (u8)sprite->numelem, ELEMIDX(curidx), type ? 'R' : 'B', index, sprite->newx, sprite->newy, sprite->newd, width, height, script->name);
+                debug(EDebugInfo, "  %s%.2x %.4x type: %c idx: %.3d [x:%d y:%d d:%d w:%d h:%d] %s\n", deleted ? "!!" : "  ", (u8)sprite->numelem, ELEMIDX(curidx), type ? 'R' : 'B', index, sprite->newx, sprite->newy, sprite->newd, width, height, script->name);
             }
         }
 

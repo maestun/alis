@@ -198,7 +198,7 @@ void            script_read_bytes(u32 len, u8 * dest);
 void            script_read_until_zero(u8 * dest);
 void            script_jump(s32 offset);
 
-void            script_debug(sAlisScript * script);
+// void            script_debug(sAlisScript * script);
 
 u16 get_0x34_unknown(u32 vram);
 u8 get_0x32_unknown(u32 vram);

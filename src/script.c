@@ -436,28 +436,28 @@ void script_jump(s32 offset) {
 }
 
 
-void script_debug(sAlisScript * script) {
+// void script_debug(sAlisScript * script) {
     
-    printf("\n-- SCRIPT --\n'%s' (0x%02x)\nHeader:\n",
-           script->name,
-           script->header.id);
+//     debug(EDebugInfo, "\n-- SCRIPT --\n'%s' (0x%02x)\nHeader:\n",
+//            script->name,
+//            script->header.id);
     
-    // total header len is located in header, also add sizeof(script_id)
-    u8 header_len = script->header.code_loc_offset + sizeof(u16) /* script ID length */;
+//     // total header len is located in header, also add sizeof(script_id)
+//     u8 header_len = script->header.code_loc_offset + sizeof(u16) /* script ID length */;
     
-//    for(int i = 0; i < header_len; i++) {
-//        printf("%02x ", script->data_org[i]);
-//    }
+// //    for(int i = 0; i < header_len; i++) {
+// //        printf("%02x ", script->data_org[i]);
+// //    }
     
-    u8 code = *(alis.mem + alis.script->pc++);//*(script->pc);
-    printf("\nDATA ORG: 0x%06x\nCODE ORG: 0x%06x\nPC OFFSET: 0x%04x\nPC BYTE: 0x%02x ('%s')\n",
-           script->data_org,
-           script->data_org + header_len,
-           alis.script->pc,
-           // script_pc(script),
-           code,
-           opcodes[code].name);
-}
+//     u8 code = *(alis.mem + alis.script->pc++);//*(script->pc);
+//     debug(EDebugInfo, "\nDATA ORG: 0x%06x\nCODE ORG: 0x%06x\nPC OFFSET: 0x%04x\nPC BYTE: 0x%02x ('%s')\n",
+//            script->data_org,
+//            script->data_org + header_len,
+//            alis.script->pc,
+//            // script_pc(script),
+//            code,
+//            opcodes[code].name);
+// }
 
 u16 get_0x34_unknown(u32 vram)                          { return xread16(vram - 0x34); }
 u8 get_0x32_unknown(u32 vram)                           { return xread8(vram - 0x32); }

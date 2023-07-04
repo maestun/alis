@@ -73,4 +73,4 @@ typedef enum {
     EDebugVerbose,
 } EDebugLevel;
 
-#define DEBUG_LEVEL         EDebugError
+#define DEBUG_LEVEL         EDebugVerbose

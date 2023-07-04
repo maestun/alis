@@ -19,6 +19,8 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// TODO: remove platform/posix dependencies
+#include "debug.h"
 #include "platform.h"
 #include "utils.h"
 
@@ -100,7 +102,7 @@ sPlatform* pl_guess(const char * path) {
             }
         }
         else {
-            printf("ERROR: %s is not a valid script path.", path);
+            debug(EDebugError,"%s is not a valid data path.", path);
         }
     }
     return platform;

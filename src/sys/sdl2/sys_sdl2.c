@@ -42,79 +42,6 @@ float           _scaleY;
 u32             _width = 320;
 u32             _height = 200;
 
-u8 io_inkey(void)
-{
-    SDL_PumpEvents();
-    
-    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
-    if (!currentKeyStates[button.scancode])
-    {
-        button.scancode = 0;
-        button.sym = 0;
-    }
-
-    return button.sym;
-}
-
-u8 io_shiftkey(void)
-{
-    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
-    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
-    {
-        shift = 0;
-    }
-
-    return shift;
-}
-
-u8 io_getkey(void)
-{
-    // wait for input
-    
-    u8 result = io_inkey();
-    while (result == 0)
-    {
-        result = io_inkey();
-    }
-    
-    // wait for user to release key
-    
-    u8 dummy;
-
-    do
-    {
-        dummy = io_inkey();
-    }
-    while (dummy != 0);
-    
-    return result;
-}
-
-u8 io_joy(u8 port)
-{
-    return port ? joystick0 : joystick1;
-}
-
-u8 io_joykey(u8 test)
-{
-    u8 result = 0;
-    
-    if (test == 0)
-    {
-        result = (joystick1 & 0x80) != 0;
-        if ((shift & 4) != 0)
-            result = result | 2;
-
-        if ((shift & 8) != 0)
-            result = result | 4;
-
-        if (button.sym == -0x1f)
-            result = result | 0x80;
-    }
-    
-    return result;
-}
-
 void sys_init(void) {
     _scaleX = _scale;
     _scaleY = _scale * _aspect_ratio;
@@ -215,6 +142,96 @@ void sys_set_mouse(u16 x, u16 y) {
 
 void sys_enable_mouse(u8 enable) {
     _mouse.enabled = enable;
+}
+
+
+u8 io_inkey(void)
+{
+    SDL_PumpEvents();
+    
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (!currentKeyStates[button.scancode])
+    {
+        button.scancode = 0;
+        button.sym = 0;
+    }
+
+    return button.sym;
+}
+
+u8 io_shiftkey(void) {
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
+    {
+        shift = 0;
+    }
+
+    return shift;
+}
+
+u8 io_getkey(void) {
+    // wait for input
+    
+    u8 result = io_inkey();
+    while (result == 0)
+    {
+        result = io_inkey();
+    }
+    
+    // wait for user to release key
+    
+    u8 dummy;
+
+    do
+    {
+        dummy = io_inkey();
+    }
+    while (dummy != 0);
+    
+    return result;
+}
+
+u8 io_joy(u8 port) {
+    return port ? joystick0 : joystick1;
+}
+
+u8 io_joykey(u8 test) {
+    u8 result = 0;
+    
+    if (test == 0)
+    {
+        result = (joystick1 & 0x80) != 0;
+        if ((shift & 4) != 0)
+            result = result | 2;
+
+        if ((shift & 8) != 0)
+            result = result | 4;
+
+        if (button.sym == -0x1f)
+            result = result | 0x80;
+    }
+    
+    return result;
+}
+
+char sys_get_key(void) {
+    sys_poll_event();
+    char result = io_inkey();
+    if ((char)result != 0)
+    {
+        while (io_inkey() != 0)
+        {
+            sys_poll_event();
+            sys_render(host.pixelbuf);
+            usleep(100);
+        }
+
+        return result;
+    }
+    
+    sys_render(host.pixelbuf);
+    usleep(100);
+    return sys_get_key();
 }
 
 

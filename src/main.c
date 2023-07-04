@@ -28,7 +28,6 @@ void usage(void) {
            kProgName, kProgVersion, kProgName, kProgName);
 }
 
-
 int main(int argc, const char* argv[]) {
 
     if (argc < 2) {
@@ -39,9 +38,7 @@ int main(int argc, const char* argv[]) {
         if(pl_supported(pl)) {
             sys_init();
             alis_init(*pl);
-            
             alis_main();
-            
             alis_deinit();
             sys_deinit();
         }

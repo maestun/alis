@@ -21,11 +21,37 @@
 
 #include "debug.h"
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+static char* debug_colors[] = {
+    ANSI_COLOR_RED,
+    ANSI_COLOR_RED,
+    ANSI_COLOR_YELLOW,
+    ANSI_COLOR_GREEN,
+    ANSI_COLOR_CYAN
+};
+
+static char* debug_prefix[] = {
+    "\x1b[1m[FATAL]",
+    "[ERROR]",
+    "[WARNING]",
+    "[INFO]",
+    "[VERBOSE]"
+};
+
 void debug(EDebugLevel level, char * format, ...) {
     if(level <= DEBUG_LEVEL) {
         va_list arg;
         va_start(arg, format);
-        vfprintf(stdout, format, arg);
+        printf("%s%s ", debug_colors[level], debug_prefix[level]);
+        vprintf(format, arg);
+        printf("%s", ANSI_COLOR_RESET);
         fflush(stdout);
         va_end(arg);
     }
