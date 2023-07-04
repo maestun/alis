@@ -38,7 +38,7 @@ int main(int argc, const char* argv[]) {
         if(pl_supported(pl)) {
             sys_init();
             alis_init(*pl);
-            alis_main();
+            alis_start();
             alis_deinit();
             sys_deinit();
         }

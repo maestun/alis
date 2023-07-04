@@ -38,7 +38,7 @@ static void cnul(void) {
 static void alocb(void) {
     s16 offset = script_read16();
     xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
-    alis.sr.zero = (vread8(alis.script->vram_org + offset) == 0);
+    alis.sr.zero = (xread8(alis.script->vram_org + offset) == 0);
 }
 
 /**
@@ -79,7 +79,7 @@ static void alocti(void) {
 static void adirb(void) {
     u8 offset = script_read8();
     xadd8(alis.script->vram_org + offset, (u8)alis.varD7);
-    alis.sr.zero = (vread8(alis.script->vram_org + offset) == 0);
+    alis.sr.zero = (xread8(alis.script->vram_org + offset) == 0);
 }
 static void adirw(void) {
     u8 offset = script_read8();

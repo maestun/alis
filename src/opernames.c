@@ -48,7 +48,7 @@ void oimmp(void) {
 void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
     s16 offset = script_read16();
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void olocw(void) {
@@ -69,7 +69,7 @@ void oloctp(void) {
 
 void oloctc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void olocti(void) {
@@ -81,7 +81,7 @@ void olocti(void) {
 // then reads an extended byte from vram[offset] into r7
 void odirb(void) {
     u8 offset = script_read8();
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 // reads a byte offset from script,
@@ -107,7 +107,7 @@ void odirtp(void) {
 
 void odirtc(void) {
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void odirti(void) {
@@ -117,7 +117,7 @@ void odirti(void) {
 
 void omainb(void) {
     s16 offset = script_read16();
-    alis.varD7 = (s8)vread8(alis.basemain + offset);
+    alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 void omainw(void) {
@@ -139,7 +139,7 @@ void omaintp(void) {
 
 void omaintc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = (s8)vread8(alis.basemain + offset);
+    alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 void omainti(void) {
@@ -152,7 +152,7 @@ void ohimb(void) {
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
-    alis.varD7 = (s8)vread8(vram_addr + offset);
+    alis.varD7 = (s8)xread8(vram_addr + offset);
 }
 
 void ohimw(void) {

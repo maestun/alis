@@ -2942,7 +2942,7 @@ static void cinstru(void) {
     else
     {
         addr = adresmus(idx);
-        u8 type = vread8(alis.script->data_org + addr);
+        u8 type = xread8(alis.script->data_org + addr);
         if (((type != 1) && (type != 2)) && (type != 5))
         {
             return;
@@ -3269,7 +3269,7 @@ static void cscview(void) {
     vwrite16(screen + 0x6c, alis.varD7);
     readexec_opername();
     vwrite16(screen + 0x6e, alis.varD7);
-    vwrite8(screen, vread8(screen) | 0x80);
+    vwrite8(screen, xread8(screen) | 0x80);
 }
 
 static void cfilm(void) {

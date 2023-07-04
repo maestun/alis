@@ -312,6 +312,8 @@ typedef struct {
     
     struct timeval  time;
 
+    u8              swap_endianness;
+
 } sAlisVM;
 
 typedef struct {
@@ -330,7 +332,7 @@ extern sHost host;
 // =============================================================================
 
 void            alis_init(sPlatform platform);
-u8              alis_main(void);
+u8              alis_start(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
 void            alis_error(int errnum, ...);
@@ -363,7 +365,7 @@ void            xpush32(s32 value);
 s32             xpeek32(void);
 s32             xpop32(void);
 
-u8              vread8(u32 offset);
+// u8              vread8(u32 offset);
 s16             vread16(u32 offset);
 s32             vread32(u32 offset);
 

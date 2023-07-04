@@ -45,6 +45,7 @@ static char* debug_prefix[] = {
     "[VERBOSE]"
 };
 
+#ifndef DISABLE_DEBUG
 void debug(EDebugLevel level, char * format, ...) {
     if(level <= DEBUG_LEVEL) {
         va_list arg;
@@ -56,3 +57,6 @@ void debug(EDebugLevel level, char * format, ...) {
         va_end(arg);
     }
 }
+#else
+void debug(EDebugLevel level, char * format, ...) {}
+#endif

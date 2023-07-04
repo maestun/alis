@@ -326,10 +326,9 @@ time_t sys_get_time(void) {
 
 u16 sys_get_model(void) {
     // TODO: make it configureable?
-    debug(EDebugWarning, "/* %s SIMULATED */", __FUNCTION__);
+    debug(EDebugInfo, "SIMULATED: %s", __FUNCTION__);
     // 0x456 = Atari STe / 1MB / Lowrez
     // 0x3f2 = Atari ST / 1MB / Lowrez
-    
     
     return 0x456;
 }

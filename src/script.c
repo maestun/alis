@@ -369,7 +369,7 @@ sAlisScript * script_load(const char * script_path) {
 void script_unload(sAlisScript * script) {
 //    free(script->ram);
 //    free(script->data);
-    free(script);
+    // free(script);
 }
 
 

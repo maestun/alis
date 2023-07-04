@@ -35,7 +35,6 @@ typedef enum {
     EPlatformUnknown
 } EPlatform;
 
-
 typedef struct {
     EPlatform   kind;
     char        desc[kDescMaxLen];  // platform description
