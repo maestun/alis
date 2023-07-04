@@ -443,8 +443,8 @@ void log_sprites(void)
                 if (script->vram_org)
                 {
                     u8 *ptr = alis.mem + get_0x14_script_org_offset(script->vram_org);
-                    s32 l = read32(ptr + 0xe, alis.platform.is_little_endian);
-                    s32 e = read16(ptr + l + 4, alis.platform.is_little_endian);
+                    s32 l = read32(ptr + 0xe);
+                    s32 e = read16(ptr + l + 4);
                     
                     sAlisScript *prev = alis.script;
                     alis.script = script;
@@ -478,8 +478,8 @@ void log_sprites(void)
                         if (bitmap[0] == 1)
                             type = 1;
 
-                        width = read16(bitmap + 2, alis.platform.is_little_endian);
-                        height = read16(bitmap + 4, alis.platform.is_little_endian);
+                        width = read16(bitmap + 2);
+                        height = read16(bitmap + 4);
                     }
                 }
 
@@ -696,8 +696,8 @@ void killelem(s16 *curidx, s16 *previdx)
     sSprite *cursprvar = SPRITE_VAR(*curidx);
 //    sAlisScript *s = ENTSCR(cursprvar->script_ent);
 //    u8 *resourcedata = alis.mem + cursprvar->data;
-//    s16 width = read16(resourcedata + 2, alis.platform.is_little_endian);
-//    s16 height = read16(resourcedata + 4, alis.platform.is_little_endian);
+//    s16 width = read16(resourcedata + 2);
+//    s16 height = read16(resourcedata + 4);
 //    printf(" killelem: %d x %d [%s] ", width, height, s->name);
     
     if (alis.ferase == 0 && -1 < cursprvar->state)
@@ -772,8 +772,8 @@ void putin(u16 idx)
 {
     s32 addr = adresdes(idx);
     u8 *resourcedata = alis.mem + (alis.flagmain != 0 ? alis.main->data_org : alis.script->data_org) + addr;
-//    s16 width = read16(resourcedata + 2, alis.platform.is_little_endian);
-//    s16 height = read16(resourcedata + 4, alis.platform.is_little_endian);
+//    s16 width = read16(resourcedata + 2);
+//    s16 height = read16(resourcedata + 4);
 //    printf(" putin: %d x %d ", width, height);
 
     s16 x = image.depx;
@@ -802,17 +802,17 @@ void putin(u16 idx)
             invx = image.invert_x;
             muldes = alis.fmuldes;
             
-            s16 curelem = read16(currsrc + 0, alis.platform.is_little_endian);
-            s16 curdepx = read16(currsrc + 2, alis.platform.is_little_endian);
+            s16 curelem = read16(currsrc + 0);
+            s16 curdepx = read16(currsrc + 2);
             if (*((u8 *)(&image.invert_x)) != 0)
                 curdepx = -curdepx;
 
             image.depx += curdepx;
 
-            s16 curdepy = read16(currsrc + 4, alis.platform.is_little_endian);
+            s16 curdepy = read16(currsrc + 4);
             image.depy = curdepy + y;
 
-            s16 curdepz = read16(currsrc + 6, alis.platform.is_little_endian);
+            s16 curdepz = read16(currsrc + 6);
             image.depz = curdepz + z;
             
             if (curelem < 0)
@@ -1300,19 +1300,19 @@ void deptopix(s16 scene, s16 elemidx)
         u8 *spritedata = (alis.mem + newad);
         if (spritedata[0] == '\x03')
         {
-            tmpdepx += (elemsprvar->flaginvx ? -1 : 1) * read16(spritedata + 4, alis.platform.is_little_endian);
-            tmpdepy += read16(spritedata + 6, alis.platform.is_little_endian);
+            tmpdepx += (elemsprvar->flaginvx ? -1 : 1) * read16(spritedata + 4);
+            tmpdepy += read16(spritedata + 6);
             if (spritedata[1] != 0)
             {
                 newf = newf ^ 1;
             }
             
-            newad = (newad + (read16(spritedata + 2, alis.platform.is_little_endian) << 2));
+            newad = (newad + (read16(spritedata + 2) << 2));
             spritedata = (alis.mem + newad);
         }
         
-        newl = read16(spritedata + 2, alis.platform.is_little_endian);
-        newh = read16(spritedata + 4, alis.platform.is_little_endian);
+        newl = read16(spritedata + 2);
+        newh = read16(spritedata + 4);
         newzoomx = 0;
         newzoomy = 0;
         newx = tmpdepx - (newl >> 1);
@@ -1656,8 +1656,8 @@ void destofen(sSprite *sprite)
 
     s16 posx1 = sprite->newx;
     s16 posy1 = sprite->newy;
-    s16 xpos2 = posx1 + (s16)read16(bitmap + 2, alis.platform.is_little_endian);
-    s16 ypos2 = posy1 + (s16)read16(bitmap + 4, alis.platform.is_little_endian);
+    s16 xpos2 = posx1 + (s16)read16(bitmap + 2);
+    s16 ypos2 = posy1 + (s16)read16(bitmap + 4);
 
     s8 flip = sprite->newf;
     s32 width = sprite->width + 1;
@@ -1674,8 +1674,8 @@ void destofen(sSprite *sprite)
 //    s32 addr = 0;
 //
 //    u8 *ptr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-//    s32 l = read32(ptr + 0xe, alis.platform.is_little_endian);
-//    s32 e = read16(ptr + l + 4, alis.platform.is_little_endian);
+//    s32 l = read32(ptr + 0xe);
+//    s32 e = read16(ptr + l + 4);
 //
 //    for (s32 i = 0; i < e; i++)
 //    {
@@ -1873,7 +1873,7 @@ void destofen(sSprite *sprite)
         {
             // FLI video
             
-            uint32_t size1 = read32(bitmap + 2, alis.platform.is_little_endian);
+            uint32_t size1 = read32(bitmap + 2);
             s8 *fliname = (s8 *)&bitmap[6];
             debug(EDebugVerbose, "FLI video (%s) %d bytes [", fliname, size1);
 
@@ -2555,7 +2555,7 @@ s16 debprotf(s16 target_id)
     do
     {
         mid = (end + start) >> 1;
-        current_id = read16((alis.mem + alis.atprog_ptr[mid]), alis.platform.is_little_endian);
+        current_id = read16((alis.mem + alis.atprog_ptr[mid]));
         if (current_id == target_id)
         {
             return mid;

@@ -160,7 +160,7 @@ void alis_load_main(void) {
         alis.debprog = image.finsprit;
         alis.finprog = alis.debprog;
         alis.dernprog = alis.atprog;
-        alis.maxprog = 0x3c;
+        alis.maxprog = 0x3c; // TODO: read from script / alis2
         
         // TODO: ...
         alis.finmem = 0xf6e98;
@@ -180,7 +180,7 @@ void alis_load_main(void) {
 
         u32 main_script_data_addr = alis.specs.script_vram_max_addr + alis.specs.vram_to_data_offset;
 
-        debug(EDebugVerbose, "\
+        debug(EDebugInfo, "\
 - script data table count: %d (0x%x), located at 0x%x\n\
 - script vram table count: %d (0x%x), located at 0x%x, ends at 0x%x\n\
 - script data located at 0x%x\n\
@@ -208,7 +208,6 @@ void alis_load_main(void) {
 // =============================================================================
 // MARK: - VM API
 // =============================================================================
-void vram_init();
 void alis_init(sPlatform platform) {
     debug(EDebugVerbose, "ALIS: Init.\n");
 
@@ -298,7 +297,7 @@ void alis_init(sPlatform platform) {
     alis.script = alis.main;
     alis.basemain = alis.main->vram_org;
     
-    gettimeofday(&alis.time, NULL);
+    gettimeofday(&alis.time, NULL); // TODO: remove system dependencies
 }
 
 
@@ -327,9 +326,9 @@ void alis_loop(void) {
 void savecoord(u8 *a6)
 {
     // ishar 1&2
-    image.oldcx = read16(a6 + 0, alis.platform.is_little_endian);
-    image.oldcy = read16(a6 + 2, alis.platform.is_little_endian);
-    image.oldcz = read16(a6 + 4, alis.platform.is_little_endian);
+    image.oldcx = read16(a6 + 0);
+    image.oldcy = read16(a6 + 2);
+    image.oldcz = read16(a6 + 4);
 
 //    //ishar 3
 //    oldcx = *(u16 *)(a6 + 0x00);
@@ -343,9 +342,9 @@ void savecoord(u8 *a6)
 void updtcoord(u8 *a6)
 {
     // ishar 1&2
-    s16 addx = read16(a6 + 0, alis.platform.is_little_endian) - image.oldcx;
-    s16 addy = read16(a6 + 2, alis.platform.is_little_endian) - image.oldcy;
-    s16 addz = read16(a6 + 4, alis.platform.is_little_endian) - image.oldcz;
+    s16 addx = read16(a6 + 0) - image.oldcx;
+    s16 addy = read16(a6 + 2) - image.oldcy;
+    s16 addz = read16(a6 + 4) - image.oldcz;
     if (addz != 0 || addx != 0 || addy != 0)
     {
         for (sSprite *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
@@ -431,7 +430,7 @@ void alis_main(void) {
         
         if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0) 
         {
-            s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10), alis.platform.is_little_endian);
+            s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10));
             if (script_offset != 0)
             {
                 alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
@@ -462,7 +461,7 @@ void alis_main(void) {
                 
                 alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
                 alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
-                alis.fseq ++;
+                alis.fseq++;
                 alis_loop();
                 
                 if (alis.restart_loop != 0)
@@ -480,7 +479,7 @@ void alis_main(void) {
                 set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
                 set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
                 
-                s32 script_offset = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 6, alis.platform.is_little_endian);
+                s32 script_offset = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 6);
                 if (script_offset != 0)
                 {
                     alis.fseq = 0;
@@ -546,6 +545,7 @@ typedef u16 (*fConvert16)(u16);
 typedef u32 (*fConvert32)(u32);
 
 static fConvert16 _convert16;
+static fConvert32 _convert24;
 static fConvert32 _convert32;
 
 static u16 _swap16(u16 value) {
@@ -579,7 +579,49 @@ static u32 _linear32(u32 value) {
 
 void vram_init() {
     _convert16 = (alis.platform.is_little_endian == is_host_le()) ? _linear16 : _swap16;
+    _convert24 = (alis.platform.is_little_endian == is_host_le()) ? _linear24 : _swap24;
     _convert32 = (alis.platform.is_little_endian == is_host_le()) ? _linear32 : _swap32;
+}
+
+u16 read16(const u8 *ptr) {
+    return _convert16(*((u16*)ptr));
+}
+
+u32 read24(const u8 *ptr, u8 is_le) {
+    // return _convert24(*((u32*)ptr));
+    // return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
+    
+    // WORKING, TODO: less dirty, use fptrs
+    u32 result = 0;
+    // memcpy((u8 *)&result, ptr, 3);
+    result = (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16);
+
+    // byteswap
+    if (is_le != is_host_le())
+    {
+        result = (((result >> 24) & 0xff) | ((result <<  8) & 0xff0000) | ((result >>  8) & 0xff00)) >> 8;
+    }
+    
+    // extend
+    if (result > 0x7FFFFF)
+    {
+        result = (result << 8) & 0xff;
+    }
+
+    return result;
+    
+}
+
+u32 read32(const u8 *ptr) {
+    return _convert32(*((u32*)ptr));
+}
+
+u16 swap16(const u8 *ptr) {
+    return _convert16(*((u16*)ptr));
+}
+
+u32 swap32(const u8 *ptr) {
+    return _convert32(*((u32*)ptr));
 }
 
 u8 xread8(u32 offset) {
@@ -601,31 +643,16 @@ s32 xread32(u32 offset) {
     return (s32)result;
 }
 
-void xwrite8(u32 offset, u8 value) {
-    debug(EDebugVerbose, " [%.2x => %.6x]", value, offset);
-    *(u8 *)(alis.mem + offset) = value;
-}
-
-
 u8 * get_vram(s16 offset) {
     debug(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
 u16 xswap16(u16 value) {
-    // u16 result = value;
-    // return alis.platform.is_little_endian == is_host_le() ? result : (result <<  8) | (result >>  8);
     return _convert16(value);
 }
 
-u32 xswap24(u32 value) {
-    u32 result = value;
-    return alis.platform.is_little_endian == is_host_le() ? result : (((result >> 24) & 0xff) | ((result <<  8) & 0xff0000) | ((result >>  8) & 0xff00)) >> 8;
-}
-
 u32 xswap32(u32 value) {
-    // u32 result = value;
-    // return alis.platform.is_little_endian == is_host_le() ? result : ((result >> 24) & 0xff) | ((result <<  8) & 0xff0000) | ((result >>  8) & 0xff00) | ((result << 24) & 0xff000000);
     return _convert32(value);
 }
 
@@ -634,14 +661,19 @@ u8 * xreadptr(u32 offset) {
     return (u8 *)(alis.mem + offset);
 }
 
+void xwrite8(u32 offset, u8 value) {
+    debug(EDebugVerbose, " [%.2x => %.6x]", value, offset);
+    *(u8 *)(alis.mem + offset) = value;
+}
+
 void xwrite16(u32 offset, s16 value) {
     debug(EDebugVerbose, " [%.4x => %.6x]", value, offset);
-    *(s16 *)(alis.mem + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
+    *(s16 *)(alis.mem + offset) = _convert16(value);//swap16((u8 *)&value);
 }
 
 void xwrite32(u32 offset, s32 value) {
     debug(EDebugVerbose, " [%.8x => %.6x]", value, offset);
-    *(s32 *)(alis.mem + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
+    *(s32 *)(alis.mem + offset) = _convert32(value);//swap32((u8 *)&value);
 }
 
 void xadd8(s32 offset, s8 value) {
@@ -700,32 +732,32 @@ s32 xpop32(void) {
 //     return *(alis.mem + offset);
 // }
 
-s16 vread16(u32 offset) {
-    s16 result = swap16((alis.mem + offset), alis.platform.is_little_endian);
-    debug(EDebugInfo, " [%.4x <= %.6x]", result, offset);
-    return result;
-}
+// s16 vread16(u32 offset) {
+//     s16 result = swap16((alis.mem + offset));
+//     debug(EDebugInfo, " [%.4x <= %.6x]", result, offset);
+//     return result;
+// }
 
-s32 vread32(u32 offset) {
-    s32 result = swap32((alis.mem + offset), alis.platform.is_little_endian);
-    debug(EDebugInfo, " [%.8x <= %.6x]", result, offset);
-    return result;
-}
+// s32 vread32(u32 offset) {
+//     s32 result = swap32((alis.mem + offset));
+//     debug(EDebugInfo, " [%.8x <= %.6x]", result, offset);
+//     return result;
+// }
 
-void vwrite8(u32 offset, u8 value) {
-    debug(EDebugInfo, " [%.2x => %.6x]", value, offset);
-    *(u8 *)(alis.mem + offset) = value;
-}
+// void vwrite8(u32 offset, u8 value) {
+//     debug(EDebugInfo, " [%.2x => %.6x]", value, offset);
+//     *(u8 *)(alis.mem + offset) = value;
+// }
 
-void vwrite16(u32 offset, s16 value) {
-    debug(EDebugInfo, " [%.4x => %.6x]", value, offset);
-    *(s16 *)(alis.mem + offset) = swap16((u8 *)&value, alis.platform.is_little_endian);
-}
+// void vwrite16(u32 offset, s16 value) {
+//     debug(EDebugInfo, " [%.4x => %.6x]", value, offset);
+//     *(s16 *)(alis.mem + offset) = swap16((u8 *)&value);
+// }
 
-void vwrite32(u32 offset, s32 value) {
-    debug(EDebugInfo, " [%.8x => %.6x]", value, offset);
-    *(s32 *)(alis.mem + offset) = swap32((u8 *)&value, alis.platform.is_little_endian);
-}
+// void vwrite32(u32 offset, s32 value) {
+//     debug(EDebugInfo, " [%.8x => %.6x]", value, offset);
+//     *(s32 *)(alis.mem + offset) = swap32((u8 *)&value);
+// }
 
 #pragma mark -
 #pragma mark finding resources in the script
@@ -733,12 +765,12 @@ void vwrite32(u32 offset, s32 value) {
 s32 adresdei(s32 idx)
 {
     u8 *addr = alis.mem + get_0x14_script_org_offset(alis.main->vram_org);
-    s32 l = read32(addr + 0xe, alis.platform.is_little_endian);
-    s32 e = read16(addr + l + 4, alis.platform.is_little_endian);
+    s32 l = read32(addr + 0xe);
+    s32 e = read16(addr + l + 4);
     if (e > idx)
     {
-        s32 a = read32(addr + l, alis.platform.is_little_endian) + l + idx * 4;
-        return read32(addr + a, alis.platform.is_little_endian) + a;
+        s32 a = read32(addr + l) + l + idx * 4;
+        return read32(addr + a) + a;
     }
 
     return 0xf;
@@ -750,12 +782,12 @@ s32 adresdes(s32 idx)
         return adresdei(idx);
     
     u8 *addr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-    s32 l = read32(addr + 0xe, alis.platform.is_little_endian);
-    s32 e = read16(addr + l + 4, alis.platform.is_little_endian);
+    s32 l = read32(addr + 0xe);
+    s32 e = read16(addr + l + 4);
     if (e > idx)
     {
-        s32 a = read32(addr + l, alis.platform.is_little_endian) + l + idx * 4;
-        return read32(addr + a, alis.platform.is_little_endian) + a;
+        s32 a = read32(addr + l) + l + idx * 4;
+        return read32(addr + a) + a;
     }
 
     return 0xf;
@@ -764,8 +796,8 @@ s32 adresdes(s32 idx)
 void adresform(s16 idx)
 {
     u8 *addr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-    s32 l = read32(addr + 0xe, alis.platform.is_little_endian);
-    if (idx - read16(addr + l + 10, alis.platform.is_little_endian) < 0)
+    s32 l = read32(addr + 0xe);
+    if (idx - read16(addr + l + 10) < 0)
     {
         
     }
@@ -774,12 +806,12 @@ void adresform(s16 idx)
 s32 adresmui(s32 idx)
 {
     u8 *addr = alis.mem + get_0x14_script_org_offset(alis.main->vram_org);
-    s32 l = read32(addr + 0xe, alis.platform.is_little_endian);
-    s32 e = read16(addr + 0x10 + l, alis.platform.is_little_endian);
+    s32 l = read32(addr + 0xe);
+    s32 e = read16(addr + 0x10 + l);
     if (e > idx)
     {
-        s32 a = read32(addr + 0xc + l, alis.platform.is_little_endian) + l + idx * 4;
-        return read32(addr + a, alis.platform.is_little_endian) + a;
+        s32 a = read32(addr + 0xc + l) + l + idx * 4;
+        return read32(addr + a) + a;
     }
 
     return 0x11;
@@ -791,12 +823,12 @@ s32 adresmus(s32 idx)
         return adresmui(idx);
 
     u8 *addr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-    s32 l = read32(addr + 0xe, alis.platform.is_little_endian);
-    s32 e = read16(addr + 0x10 + l, alis.platform.is_little_endian);
+    s32 l = read32(addr + 0xe);
+    s32 e = read16(addr + 0x10 + l);
     if (e > idx)
     {
-        s32 a = read32(addr + 0xc + l, alis.platform.is_little_endian) + l + idx * 4;
-        return read32(addr + a, alis.platform.is_little_endian) + a;
+        s32 a = read32(addr + 0xc + l) + l + idx * 4;
+        return read32(addr + a) + a;
     }
 
     return 0x11;

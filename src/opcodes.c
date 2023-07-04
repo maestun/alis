@@ -976,12 +976,12 @@ static void cdefsc(void) {
         *ptr = script_read8();
     
     set_scr_to_next(scridx, 0);
-//    set_scr_newx(scridx, swap16(get_scr_newx(scridx), alis.platform.is_little_endian));
-//    set_scr_newy(scridx, swap16(get_scr_newy(scridx), alis.platform.is_little_endian));
-//    set_scr_width(scridx, swap16((u8 *)&(scridx->width), alis.platform.is_little_endian));
-//    set_scr_height(scridx, swap16((u8 *)&(scridx->height), alis.platform.is_little_endian));
-//    set_scr_unknown0x0a(scridx, swap16((u8 *)&(scridx->unknown0x0a), alis.platform.is_little_endian));
-//    set_scr_unknown0x0c(scridx, swap16((u8 *)&(scridx->unknown0x0c), alis.platform.is_little_endian));
+//    set_scr_newx(scridx, swap16(get_scr_newx(scridx)));
+//    set_scr_newy(scridx, swap16(get_scr_newy(scridx)));
+//    set_scr_width(scridx, swap16((u8 *)&(scridx->width)));
+//    set_scr_height(scridx, swap16((u8 *)&(scridx->height)));
+//    set_scr_unknown0x0a(scridx, swap16((u8 *)&(scridx->unknown0x0a)));
+//    set_scr_unknown0x0c(scridx, swap16((u8 *)&(scridx->unknown0x0c)));
     set_scr_unknown0x2a(scridx, 0);
     set_scr_unknown0x2c(scridx, 0);
     set_scr_unknown0x2e(scridx, 0);
@@ -1737,7 +1737,7 @@ static void csend(void) {
     if ((get_0x24_scan_inter(script->vram_org) & 1) != 0)
         goto CSENDEXIT;
     
-    s16 offset = swap16((alis.mem + get_0x14_script_org_offset(script->vram_org) + 0x16), alis.platform.is_little_endian);
+    s16 offset = swap16((alis.mem + get_0x14_script_org_offset(script->vram_org) + 0x16));
     s16 old_vacc = get_0x1c_scan_clr(script->vram_org);
     s16 new_vacc;
 
@@ -3104,19 +3104,19 @@ static void cshrink(void) {
     u8 *data = alis.mem + alis.script->data_org + addr;
     if (*data == 0 || *data == 2)
     {
-        width = (swap16(data + 2, alis.platform.is_little_endian) + 1) >> 1;
+        width = (read16(data + 2) + 1) >> 1;
     }
     else if (*data == 0x1a || *data == 0x18)
     {
-        width = swap16(data + 2, alis.platform.is_little_endian) + 1;
+        width = read16(data + 2) + 1;
     }
     else if (*data == 0x16 || *data == 0x14 || *data == 0x1e || *data == 0x1c)
     {
-        width = swap16(data + 2, alis.platform.is_little_endian) + 1;
+        width = read16(data + 2) + 1;
     }
     else if (*data == 0x12 && *data == 0x10)
     {
-        width = (swap16(data + 2, alis.platform.is_little_endian) + 1) >> 1;
+        width = (read16(data + 2) + 1) >> 1;
     }
     else
     {
@@ -3125,7 +3125,7 @@ static void cshrink(void) {
     
     if (*(u16 *)(data + 4) != 0)
     {
-        s16 height = swap16(data + 4, alis.platform.is_little_endian) + 1;
+        s16 height = swap16(data + 4) + 1;
         s32 bits = width * height;
         
         u32 offset = get_0x14_script_org_offset(alis.script->vram_org);

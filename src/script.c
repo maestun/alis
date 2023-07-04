@@ -65,7 +65,7 @@ int search_insert(u32 *nums, u32 size, int target_id) {
         
     while(start <= end) {
         int mid = start + (end - start) / 2;
-        int current_id = read16(alis.mem + nums[mid], alis.platform.is_little_endian);
+        int current_id = read16(alis.mem + nums[mid]);
         if (current_id == target_id)
             return mid;
         
@@ -80,7 +80,7 @@ int search_insert(u32 *nums, u32 size, int target_id) {
 
 sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     
-    s16 id = swap16((data + 0), alis.platform.is_little_endian);
+    s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
     if (insert > 0 && insert < alis.nbprog)
     {
@@ -90,34 +90,34 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
             script->sz = data_sz;
             
             // script data
-            script->header.id = swap16((data + 0), alis.platform.is_little_endian);
+            script->header.id = swap16((data + 0));
             
             if (alis.platform.kind == EPlatformPC)
             {
-                // script->header.w_0x1700 = swap16((data + 4), alis.platform.is_little_endian);
+                // script->header.w_0x1700 = swap16((data + 4));
                 script->header.unknown01 = *(data + 4);
                 script->header.unknown02 = *(data + 5);
-                script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+                script->header.code_loc_offset = swap16((data + 2));
             }
             else
             {
-                // script->header.w_0x1700 = swap16((data + 2), alis.platform.is_little_endian);
+                // script->header.w_0x1700 = swap16((data + 2));
                 script->header.unknown01 = *(data + 2);
                 script->header.unknown02 = *(data + 3);
-                script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+                script->header.code_loc_offset = swap16((data + 4));
             }
             
-            script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
-            script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
-            script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
-            script->header.w_unknown5 = swap16((data + 18), alis.platform.is_little_endian);
-            script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
-            script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
+            script->header.ret_offset = swap32((data + 6));
+            script->header.dw_unknown3 = swap32((data + 10));
+            script->header.dw_unknown4 = swap32((data + 14));
+            script->header.w_unknown5 = swap16((data + 18));
+            script->header.vram_alloc_sz = swap16((data + 20));
+            script->header.w_unknown7 = swap16((data + 22));
             memcpy(alis.mem + script->data_org, data, data_sz);
             
             for (int i = 0; i < alis.nbprog; i++)
             {
-                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
             }
             
             debug(EDebugInfo, "\n");
@@ -137,27 +137,27 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->sz = data_sz;
     
     // script data
-    script->header.id = swap16((data + 0), alis.platform.is_little_endian);
+    script->header.id = swap16((data + 0));
     
     if (alis.platform.kind == EPlatformPC)
     {
         script->header.unknown01 = *(data + 4);
         script->header.unknown02 = *(data + 5);
-        script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+        script->header.code_loc_offset = swap16((data + 2));
     }
     else
     {
         script->header.unknown01 = *(data + 2);
         script->header.unknown02 = *(data + 3);
-        script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+        script->header.code_loc_offset = swap16((data + 4));
     }
     
-    script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
-    script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
-    script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
-    script->header.w_unknown5 = swap16((data + 18), alis.platform.is_little_endian);
-    script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
-    script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
+    script->header.ret_offset = swap32((data + 6));
+    script->header.dw_unknown3 = swap32((data + 10));
+    script->header.dw_unknown4 = swap32((data + 14));
+    script->header.w_unknown5 = swap16((data + 18));
+    script->header.vram_alloc_sz = swap16((data + 20));
+    script->header.w_unknown7 = swap16((data + 22));
     
     script->vram_org = 0;
     script->vacc_off = 0;
@@ -183,7 +183,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
 
     for (int i = 0; i < alis.nbprog; i++)
     {
-        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
     }
     
     debug(EDebugInfo, "\n");
@@ -199,14 +199,14 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
 void  script_live(sAlisScript * script) {
     u8 *data = alis.mem + script->data_org;
 
-    s32 prevfin = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
+    s32 prevfin = swap16((data + 0x12)) + alis.finent;
 
-    alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(sScriptContext));
+    alis.finent = ((swap16((data + 0x16)) + (swap16((data + 0x12)) + alis.finent)) + sizeof(sScriptContext));
     
     script->vacc_off = (prevfin - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
     
-    u16 vram_length = swap16((data + 0x14), alis.platform.is_little_endian);
+    u16 vram_length = swap16((data + 0x14));
     memset(alis.mem + script->vram_org, 0, vram_length);
 
     s16 curent = alis.varD5;
@@ -406,7 +406,7 @@ u8 script_read8(void) {
  */
 u16 script_read16(void) {
     
-    u16 ret = read16(alis.mem + alis.script->pc, alis.platform.is_little_endian);
+    u16 ret = read16(alis.mem + alis.script->pc);
     alis.script->pc += 2;
     script_read_debug(ret, sizeof(u16));
     return ret;
