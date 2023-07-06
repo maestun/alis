@@ -302,8 +302,8 @@ sAlisScript * script_load(const char * script_path) {
         rewind(fp);
 
         // read header
-        u32 magic = fread32(fp, alis.platform.is_little_endian);
-        u16 check = fread16(fp, alis.platform.is_little_endian);
+        u32 magic = fread32(fp);
+        u16 check = fread16(fp);
         
         u32 depak_sz = input_sz;
         
@@ -332,7 +332,7 @@ sAlisScript * script_load(const char * script_path) {
         depak_sz = get_depacked_size(magic);
         u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
         
-        depak_sz = unpack_script(script_path, alis.platform.is_little_endian, &depak_buf);
+        depak_sz = unpack_script(script_path, &depak_buf);
         if (depak_sz > 0) {
             // unpacked, continue
             debug(EDebugInfo,
@@ -413,7 +413,7 @@ u16 script_read16(void) {
 }
 
 u32 script_read24(void) {
-    u32 ret = read24(alis.mem + alis.script->pc, alis.platform.is_little_endian);
+    u32 ret = read24(alis.mem + alis.script->pc);
     alis.script->pc += 3;
     script_read_debug(ret, sizeof(u32));
     return ret;

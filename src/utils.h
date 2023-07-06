@@ -34,13 +34,13 @@ u32         reverse_bytes_32(s32 value);
 // u16         fread16_old(FILE * fp, sPlatform pl);
 // u32         fread32_old(FILE * fp, sPlatform pl);
 u16         read16(const u8 *ptr);
-u32         read24(const u8 *ptr, u8 is_le);
+u32         read24(const u8 *ptr);
 u32         read32(const u8 *ptr);
 // u16         swap16_old(u16 num, sPlatform pl);
 // u32         swap32_old(u32 num, sPlatform pl);
 
-u16         fread16(FILE * fp, u8 is_le);
-u32         fread32(FILE * fp, u8 is_le);
+u16         fread16(FILE * fp);
+u32         fread32(FILE * fp);
 u16         swap16(const u8 *);
 // u32         swap24(const u8 *, u8 is_le);
 u32         swap32(const u8 *);

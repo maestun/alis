@@ -138,11 +138,11 @@ void alis_load_main(void) {
         fseek(fp, 6, SEEK_CUR);
         
         // read raw specs header
-        alis.specs.script_data_tab_len = fread16(fp, alis.platform.is_little_endian);
-        alis.specs.script_vram_tab_len = fread16(fp, alis.platform.is_little_endian);
-        alis.specs.unused = fread32(fp, alis.platform.is_little_endian);
-        alis.specs.max_allocatable_vram = fread32(fp, alis.platform.is_little_endian);
-        alis.specs.vram_to_data_offset = fread32(fp, alis.platform.is_little_endian);
+        alis.specs.script_data_tab_len = fread16(fp);
+        alis.specs.script_vram_tab_len = fread16(fp);
+        alis.specs.unused = fread32(fp);
+        alis.specs.max_allocatable_vram = fread32(fp);
+        alis.specs.vram_to_data_offset = fread32(fp);
         alis.specs.vram_to_data_offset += 3;
         alis.specs.vram_to_data_offset *= 0x28;
         
@@ -587,29 +587,11 @@ u16 read16(const u8 *ptr) {
     return _convert16(*((u16*)ptr));
 }
 
-u32 read24(const u8 *ptr, u8 is_le) {
-    // return _convert24(*((u32*)ptr));
-    // return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
-    
-    // WORKING, TODO: less dirty, use fptrs
+u32 read24(const u8 *ptr) {
     u32 result = 0;
-    // memcpy((u8 *)&result, ptr, 3);
     result = (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16);
-
-    // byteswap
-    if (is_le != is_host_le())
-    {
-        result = (((result >> 24) & 0xff) | ((result <<  8) & 0xff0000) | ((result >>  8) & 0xff00)) >> 8;
-    }
-    
-    // extend
-    if (result > 0x7FFFFF)
-    {
-        result = (result << 8) & 0xff;
-    }
-
-    return result;
-    
+    result = _convert24(result);
+    return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
 }
 
 u32 read32(const u8 *ptr) {
@@ -668,12 +650,12 @@ void xwrite8(u32 offset, u8 value) {
 
 void xwrite16(u32 offset, s16 value) {
     debug(EDebugVerbose, " [%.4x => %.6x]", value, offset);
-    *(s16 *)(alis.mem + offset) = _convert16(value);//swap16((u8 *)&value);
+    *(s16 *)(alis.mem + offset) = _convert16(value);
 }
 
 void xwrite32(u32 offset, s32 value) {
     debug(EDebugVerbose, " [%.8x => %.6x]", value, offset);
-    *(s32 *)(alis.mem + offset) = _convert32(value);//swap32((u8 *)&value);
+    *(s32 *)(alis.mem + offset) = _convert32(value);
 }
 
 void xadd8(s32 offset, s8 value) {

@@ -178,7 +178,7 @@ int is_host_le(void) {
 //                                             ((result << 24) & 0xff000000);
 // }
 
-u32 fread32(FILE* fp, u8 is_le) {
+u32 fread32(FILE* fp) {
     u32 v = 0;
     fread(&v, sizeof(u32), 1, fp);
     return swap32((u8 *)&v);
@@ -193,7 +193,7 @@ u32 fread32(FILE* fp, u8 is_le) {
 //                                             (result >>  8);
 // }
 
-u16 fread16(FILE* fp, u8 is_le) {
+u16 fread16(FILE* fp) {
     u16 v = 0;
     fread(&v, sizeof(u16), 1, fp);
     return swap16((u8 *)&v);

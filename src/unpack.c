@@ -263,7 +263,6 @@ u8 is_packed(u8 packer_kind) {
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed
 int unpack_script(const char* packed_file_path,
-                  u8 is_le,
                   u8** unpacked_buffer) {
     int ret = 0;
     FILE* pfp = fopen(packed_file_path, "rb");
@@ -274,11 +273,11 @@ int unpack_script(const char* packed_file_path,
         u32 packed_size = (u32)ftell(pfp);
         rewind(pfp);
 
-        u32 magic = fread32(pfp, is_le);
+        u32 magic = fread32(pfp);
         u8 packer_kind = magic >> 24;
 
         if(is_packed(packer_kind)) {
-            u16 is_main = fread16(pfp, is_le) == 0;
+            u16 is_main = fread16(pfp) == 0;
             u32 unpacked_size = (magic & 0x00ffffff);
             u8 dict[kPackedDictionarySize];
 

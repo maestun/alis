@@ -35,4 +35,4 @@ typedef enum {
 /// @param unpacked_data output buffer
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed
-int unpack_script(const char* packed_file_path, u8 is_le, u8** unpacked_data);
+int unpack_script(const char* packed_file_path, u8** unpacked_data);
