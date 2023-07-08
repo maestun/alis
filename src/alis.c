@@ -22,6 +22,7 @@
 #include "alis.h"
 #include "alis_private.h"
 #include "image.h"
+#include "mem.h"
 #include "sys/sys.h"
 #include "utils.h"
 
@@ -309,7 +310,7 @@ void alis_deinit(void) {
     // }
     
     //vram_deinit(alis.vram);
-    free(host.pixelbuf.data);
+    // free(host.pixelbuf.data);
     free(alis.mem);
 }
 
@@ -709,40 +710,22 @@ s32 xpop32(void) {
     return ret;
 }
 
-// u8 vread8(u32 offset) {
-//     // debug(EDebugInfo, " [%.2x <= %.6x]", *(u8 *)(alis.mem + offset), offset);
-//     return *(alis.mem + offset);
-// }
+u32 fread32(FILE* fp) {
+    u32 v = 0;
+    fread(&v, sizeof(u32), 1, fp);
+    return swap32((u8 *)&v);
+}
 
-// s16 vread16(u32 offset) {
-//     s16 result = swap16((alis.mem + offset));
-//     debug(EDebugInfo, " [%.4x <= %.6x]", result, offset);
-//     return result;
-// }
+u16 fread16(FILE* fp) {
+    u16 v = 0;
+    fread(&v, sizeof(u16), 1, fp);
+    return swap16((u8 *)&v);
+}
 
-// s32 vread32(u32 offset) {
-//     s32 result = swap32((alis.mem + offset));
-//     debug(EDebugInfo, " [%.8x <= %.6x]", result, offset);
-//     return result;
-// }
 
-// void vwrite8(u32 offset, u8 value) {
-//     debug(EDebugInfo, " [%.2x => %.6x]", value, offset);
-//     *(u8 *)(alis.mem + offset) = value;
-// }
-
-// void vwrite16(u32 offset, s16 value) {
-//     debug(EDebugInfo, " [%.4x => %.6x]", value, offset);
-//     *(s16 *)(alis.mem + offset) = swap16((u8 *)&value);
-// }
-
-// void vwrite32(u32 offset, s32 value) {
-//     debug(EDebugInfo, " [%.8x => %.6x]", value, offset);
-//     *(s32 *)(alis.mem + offset) = swap32((u8 *)&value);
-// }
-
-#pragma mark -
-#pragma mark finding resources in the script
+// =============================================================================
+#pragma mark - Finding resources in the script
+// =============================================================================
 
 s32 adresdei(s32 idx)
 {
@@ -863,63 +846,3 @@ s16 tabint(s16 offset, u8 *address)
     
     return result;
 }
-
-
-/**
- * @brief Returns a byte pointer on (vram+offset)
- *
- * @param offset position in vram
- * @return u8*
- */
-
-//void vram_setbit(s16 offset, u8 bit) {
-//    BIT_SET(*(u8 *)(alis.mem + alis.script->vram_org + offset), bit);
-//}
-//
-//void vram_clrbit(s16 offset, u8 bit) {
-//    BIT_CLR(*(u8 *)(alis.mem + alis.script->vram_org + offset), bit);
-//}
-//
-// =============================================================================
-// MARK: - Virtual RAM debug
-// =============================================================================
-// void vram_debug(void) {
-//     u8 width = 16;
-    
-//     printf("Stack Offset=0x%04x (word=0x%04x) (dword=0x%08x)\n",
-//            alis.script->vacc_off,
-//            (u16)(xread16(alis.script->vram_org + alis.script->vacc_off)),
-//            (u32)(xread32(alis.script->vram_org + alis.script->vacc_off)));
-
-//     printf("Virtual RAM:\n");
-    
-//     printf("       ");
-//     for(u8 j = 0; j < width; j++) {
-//         printf("  %x", j);
-//     }
-//     printf("\n");
-    
-//     for(u32 i = 0; i < kVirtualRAMSize; i += width) {
-//         printf("0x%04x: ", i);
-//         for(u8 j = 0; j < width; j++) {
-//             printf("%02x ", get_vram(0)[i + j]);
-//         }
-//         printf("\n");
-//     }
-// }
-
-// void vram_debug_addr(u16 addr) {
-//     u8 width = 16;
-//     printf("Virtual RAM:\n");
-    
-//     printf("       ");
-//     for(u8 j = 0; j < width; j++) {
-//         printf("  %x", j);
-//     }
-//     printf("\n");
-//     printf("0x%04x: ", addr);
-//     for(u32 j = addr; j < addr + width; j++) {
-//         printf("%02x ", (alis.mem + alis.script->vram_org)[j]);
-//     }
-// }
-

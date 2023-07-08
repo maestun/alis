@@ -26,6 +26,7 @@
 #include "alis.h"
 #include "alis_private.h"
 #include "debug.h"
+#include "mem.h"
 #include "screen.h"
 #include "utils.h"
 

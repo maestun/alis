@@ -20,6 +20,7 @@
 //
 
 #include "image.h"
+#include "mem.h"
 #include "screen.h"
 
 sScreen screen = { .ptscreen = 0 };

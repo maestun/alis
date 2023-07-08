@@ -23,6 +23,7 @@
 #include "alis_private.h"
 #include "debug.h"
 #include "image.h"
+#include "mem.h"
 #include "platform.h"
 #include "script.h"
 #include "unpack.h"

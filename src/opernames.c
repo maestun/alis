@@ -22,6 +22,7 @@
 #include "alis.h"
 #include "alis_private.h"
 #include "image.h"
+#include "mem.h"
 #include "utils.h"
 
 

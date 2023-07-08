@@ -10,7 +10,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": ["/Users/olivier/dev/atari/alis/data/ishar/atari/"],
+            "args": ["/Users/olivier/dev/atari/alis/data/ishar/falcon/"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

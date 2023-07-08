@@ -20,6 +20,7 @@
 //
 
 #include "alis.h"
+#include "mem.h"
 #include "unpack.h"
 #include "utils.h"
 

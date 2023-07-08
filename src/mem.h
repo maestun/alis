@@ -19,28 +19,45 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#include "utils.h"
+#pragma once
 
-char * strlower(char * str) {
-    char * ptr = str;
-    if(ptr) {
-        for ( ; *ptr; ++ptr)
-            *ptr = tolower(*ptr);
-    }
-    return str;
-}
+#include "config.h"
 
-char * strupper(char * str) {
-    char * ptr = str;
-    if(ptr) {
-        for ( ; *ptr; ++ptr)
-            *ptr = toupper(*ptr);
-    }
-    return str;
-}
+u16         read16(const u8 *ptr);
+u32         read24(const u8 *ptr);
+u32         read32(const u8 *ptr);
+u16         fread16(FILE * fp);
+u32         fread32(FILE * fp);
+u16         swap16(const u8 *);
+u32         swap32(const u8 *);
 
-int is_host_le(void) {
-    static unsigned int x = 1;
-    char* c = (char*)&x;
-    return (int)*c;
-}
+
+u16             xswap16(u16 value);
+u32             xswap32(u32 value);
+
+u8              xread8(u32 offset);
+s16             xread16(u32 offset);
+s32             xread32(u32 offset);
+
+void            xwrite8(u32 offset, u8 value);
+void            xwrite16(u32 offset, s16 value);
+void            xwrite32(u32 offset, s32 value);
+
+void            xadd8(s32 offset, s8 value);
+void            xadd16(s32 offset, s16 value);
+void            xadd32(s32 offset, s32 add);
+
+void            xsub8(s32 offset, s8 value);
+void            xsub16(s32 offset, s16 value);
+void            xsub32(s32 offset, s32 sub);
+
+void            xpush32(s32 value);
+s32             xpeek32(void);
+s32             xpop32(void);
+
+
+#define vread16 xread16
+#define vread32 xread32
+#define vwrite8 xwrite8
+#define vwrite16 xwrite16
+#define vwrite32 xwrite32

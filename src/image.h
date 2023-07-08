@@ -21,9 +21,7 @@
 
 #pragma once
 
-#include "alis.h"
-#include "alis_private.h"
-#include "utils.h"
+#include "config.h"
 
 // to be consistent with old code
 

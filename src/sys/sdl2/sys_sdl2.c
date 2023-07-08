@@ -19,9 +19,12 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#include "../sys.h"
-#include "image.h"
 #include <SDL2/SDL.h>
+
+#include "../sys.h"
+#include "alis.h"
+#include "image.h"
+#include "utils.h"
 
 u8 joystick0 = 0;
 u8 joystick1 = 0;
