@@ -3890,8 +3890,29 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
     }
 }
 
+static int sample_idx = 0;
 void runson(void)
 {
+    if(alis.typeson == 0x80) {
+        // pcm sample
+        char name[32] = "";
+        sprintf(name, "samples/%d.raw", sample_idx++);
+        u8 *data = malloc(alis.longsam);
+
+        u8 *addr = alis.mem + alis.startsam;
+        memcpy(data, addr, alis.longsam);
+
+        FILE* fp = fopen(name, "wb");
+        fwrite(data, 1, alis.longsam, fp);
+        fclose(fp);
+        free(data);
+
+        sys_play_sample((s16*)addr, alis.longsam);
+    }
+    else {
+        printf("type son %d", alis.typeson);
+    }
+
 //    s8 *a3;
 //
 //    s8 cVar1 = alis.priorson;

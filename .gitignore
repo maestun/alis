@@ -2,5 +2,8 @@ DerivedData/
 .DS_Store
 build
 **/xcuserdata
-.vscode/
+tools/Steem.SSE.4.0.2.Debug.Win64.DD/steem.log
+.vscode/launch.json
 data/
+samples/*
+!samples/pcm2wav.sh

@@ -360,6 +360,52 @@ u8 sys_fexists(char * path) {
 
 
 // =============================================================================
+#pragma mark - AUDIO
+// =============================================================================
+void sample_cb(void* userdata, Uint8* stream, int len) {
+    // Copy the PCM data to the stream
+    SDL_memcpy(stream, userdata, len);
+}
+
+void sys_play_sample(s16* pcm_data, u32 pcm_len) {
+    SDL_AudioSpec desiredSpec, obtainedSpec;
+    SDL_zero(desiredSpec);
+    desiredSpec.freq = 4096;
+    desiredSpec.format = AUDIO_S8;
+    desiredSpec.channels = 1;
+    desiredSpec.samples = 4096;
+    desiredSpec.callback = sample_cb;
+    desiredSpec.userdata = pcm_data;
+
+    SDL_OpenAudio(&desiredSpec, &obtainedSpec);
+    SDL_PauseAudio(0);
+    while (SDL_GetAudioStatus() == SDL_AUDIO_PLAYING) {
+        SDL_Delay(100);
+    }
+    SDL_CloseAudio();
+
+    // SDL_AudioSpec wavSpec;
+    // SDL_memset(&wavSpec, 0, sizeof(wavSpec)); /* or SDL_zero(want) */
+
+    // wavSpec.callback = sample_cb;
+    // wavSpec.userdata = pcm_data;
+    // wavSpec.format = AUDIO_S16;
+    // wavSpec.channels = 1;
+    // wavSpec.samples = 2048;
+
+    // if (SDL_OpenAudio(&wavSpec, NULL) < 0)     {
+    //     fprintf(stderr, "Could not open audio: %s\n", SDL_GetError());
+    // }
+
+}
+
+
+void sys_play_sine(u8* pcm_data) {
+    
+}
+
+
+// =============================================================================
 #pragma mark - MISC
 // =============================================================================
 void sys_set_time(u16 h, u16 m, u16 s) {
