@@ -76,7 +76,7 @@ u8      sys_fexists(char * path);
 // =============================================================================
 #pragma mark - AUDIO
 // =============================================================================
-void sys_play_sample(s8* pcm_data, u32 pcm_len, u8 pcm_vol, u8 pcm_speed);
+void sys_play_sample(s8* pcm_data, u32 pcm_len, u8 pcm_vol, u8 pcm_speed, u16 loop);
 void sys_play_wave(u16 freq, u16 len, u8 vol, u8 is_square);
 
 

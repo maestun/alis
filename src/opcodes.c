@@ -3915,7 +3915,7 @@ void runson(void) {
             fclose(fp);
             free(data);
 
-            sys_play_sample((s8*)(alis.mem + alis.audio.sample_addr), alis.audio.sample_len, alis.audio.sample_vol, alis.audio.sample_speed);
+            sys_play_sample((s8*)(alis.mem + alis.audio.sample_addr), alis.audio.sample_len, alis.audio.sound_vol, alis.audio.sample_speed, alis.audio.sample_loop);
         } break;
         default:
             debug(EDebugWarning, "Unknown audio type: %d", alis.audio.kind);

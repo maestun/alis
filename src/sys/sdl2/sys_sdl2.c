@@ -168,6 +168,7 @@ void sys_render(pixelbuf_t buffer) {
 
 void sys_deinit(void) {
  //   SDL_DestroyTexture(texture);
+    SDL_CloseAudio();
     SDL_DestroyRenderer(_renderer);
     SDL_DestroyWindow(_window);
     SDL_Quit();
@@ -366,7 +367,9 @@ typedef struct {
     s8 *    data;
     size_t  len;
     size_t  pos;
-    u8      finished;
+    u8      loop;
+    double  volume;
+    double  speed;
 } sSampleContext;
 
 typedef struct {
@@ -375,8 +378,9 @@ typedef struct {
     double  volume;
     size_t  sampleRate;
     size_t  position;
-    int     finished;
+    u8      finished;
 } sWaveContext;
+static sWaveContext _wave_sample_ctx;
 
 void play_sample_cb(void* userdata, Uint8* stream, int len) {
     sSampleContext * ctx = (sSampleContext *)userdata;
@@ -384,61 +388,45 @@ void play_sample_cb(void* userdata, Uint8* stream, int len) {
     size_t remaining_data = ctx->len - ctx->pos;
     size_t bytes_to_copy = SDL_min(len, remaining_data);
 
-    SDL_memcpy(stream, ctx->data + ctx->pos, bytes_to_copy);
-    ctx->pos += bytes_to_copy;
+    for(int i = 0; i < bytes_to_copy; i++) {
+        stream[i] = (Uint8)(ctx->data[ctx->pos + i] * ctx->volume);
+    }
+    ctx->pos += (size_t)(bytes_to_copy * ctx->speed);
 
     if (ctx->pos >= ctx->len) {
-        ctx->finished = 1;
+        
+        if(ctx->loop) {
+            ctx->pos = 0;
+        }
+        else {
+            free(ctx);
+            SDL_CloseAudio();
+        }
     }
 }
 
-// int play_sample_thr(void * data) {
-//     sSampleContext * ctx = (sSampleContext *)data;
-
-//     SDL_AudioSpec spec;
-//     spec.freq = 4100;
-//     spec.format = AUDIO_S8;
-//     spec.channels = 1;
-//     spec.samples = 512;
-//     spec.callback = play_sample_cb;
-//     spec.userdata = ctx;
-
-//     SDL_OpenAudio(&spec, &spec);
-//     SDL_PauseAudio(0);
-//     while(!ctx->finished) {
-//         SDL_Delay(100);
-//     }
-//     SDL_CloseAudio();
-//     return 0;
-// }
-
-void sys_play_sample(s8* pcm_data, u32 pcm_len, u8 pcm_vol, u8 pcm_speed) {
+void sys_play_sample(s8* pcm_data, u32 pcm_len, u8 pcm_vol, u8 pcm_speed, u16 loop) {
     
     // Set up the audio context
-    sSampleContext ctx;
-    ctx.data = pcm_data;
-    ctx.len = pcm_len;
-    ctx.pos = 0;
-    ctx.finished = 0;
-
-    // SDL_Thread* thr = SDL_CreateThread(play_sample_thr, "SampleThread", (void *)&ctx);
-    // SDL_WaitThread(thr, NULL);
+    sSampleContext * ctx = (sSampleContext *)malloc(sizeof(sSampleContext));
+    ctx->data = pcm_data;
+    ctx->len = pcm_len;
+    ctx->pos = 0;
+    ctx->volume = 1; // max volume == 0x7f ?
+    ctx->speed = 1 + (pcm_speed / 100.0);
+    ctx->loop = (loop > 1);
 
     SDL_AudioSpec spec;
+    SDL_zero(spec);
     spec.freq = 4100;
     spec.format = AUDIO_S8;
     spec.channels = 1;
     spec.samples = 512;
     spec.callback = play_sample_cb;
-    spec.userdata = &ctx;
+    spec.userdata = ctx;
 
     SDL_OpenAudio(&spec, &spec);
     SDL_PauseAudio(0);
-
-    while (!ctx.finished) {
-        SDL_Delay(1);
-    }
-    SDL_CloseAudio();
 }
 
 
