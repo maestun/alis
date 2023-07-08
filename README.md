@@ -1,15 +1,23 @@
-# ALIS - Actor Language Integrated System
+# ALIS
 
-**WORK IN PROGRESS**
-
-An attempt to reimplement the virtual machine used by the Silmarils game company.
+An attempt to reimplement the virtual machine made by the [Silmarils](https://en.wikipedia.org/wiki/Silmarils_(company)) videogame company. The name of this repo comes from [this interview](https://www.atarilegend.com/interviews/26).
 
 ## Build and run
+
+Tested on macOS and Ubuntu.
+
+Install the following packages on your system:
+
+- CMake
+- SDL2
 
 ```bash
 mkdir build && cd build
 cmake ..
+make
 ```
+
+You need to copy the original data files of the game you wish to run to a given folder.
 
 On case-sensitive systems you must rename all data files to lowercase:
 
@@ -19,90 +27,61 @@ cd data_path
 rename 'y/A-Z/a-z/' *
 ```
 
-
-Run the executable by passing the data path.
+Run the executable by passing the data path:
 
 ```bash
 ./alis data_path
 ```
 
-## The beginning
+## More info...
 
-Everything started while checking the files present on the Silmarils Trilogy CD-ROM that I bought a long time ago.
+### Development tools used for reversing
 
-Those games ran on a custom DOSBox engine, and since this project has a GPL license the source files were present.
-
-Some of those caught my attention, they were not part of the DOSBox sources, and looked like custom opcode tables.
-
-Since Silmarils was a company producing several games for all platforms of the 90's at a very fast pace, I thought
-that they were probably running on a custom virtual machine of some kind ([they did](https://www.youtube.com/watch?v=TKAg3JMLXzM)). 
-
-Time to reverse engineer !
-
-Since the Atari ST is the machine I grew up with (and its 68000 CPU is the easiest to understand IMHO), I decided to try with this version.
-
-## The tools
-
-- Ubuntu Linux machine, with wine installed
-- Steem SSE Debugger 4.0.2
+- Ubuntu Linux
+- Steem SSE Debugger
 - Pasti DLL
-- Ghidra 10+
+- Ghidra
 - Some custom python scripts
 
-## The Virtual Machine (VM)
+### Virtual Machine
 
-### The basics
-
-On the game disk, we'll find the main executable, and several compressed game files. These games files contain almost all of the game mechanics, the assets (sounds, graphics, messages, etc...), as well as the VM's code in a proprietary pseudo-assembly format.
+On a Silmarils game disk, you'll find the main executable (the VM), and several compressed game files. These games files contain almost all of the game mechanics, the assets (sounds, graphics, messages, etc...), as well as the VM's code in a proprietary pseudo-assembly format.
 
 The main executable contains:
 - all the system calls, that depend on the target's architecture
 - all the VM's opcodes. 
 - some jump (or lookup) tables, that are used to jump directly to an opcode implementation without the need for switch/case statements (optimization !)
 
-When loaded, the main executable initializes the target, loads and decompresses the main script file ("main.ao"), then start the VM's main loop which fetches the opcodes read from the decompressed script.
+When loaded, the main executable initializes the target, loads and decompresses the main script file ("main.XX"), then start the VM's main loop which fetches the opcodes read from the decompressed script.
 
-### VM architecture
+### Why ?
 
+When I was a kid in the nineties, I loved playing the Ishar series of games (or at least the two first episodes). I ran those games on my good old Atari ST, and was amazed of good looking and atmosphere-filled they were.
 
+Fast forward a good decade. I became a software developer, working with bloated'n'buggy enterprise software, and was super bored at work.
+I loved playing on my Gameboy Advance console, and was also trying to code for it.
+Hey, wouldn't it be cool to code a dungeon-crawling game like Ishar ? Oh, it'd be sooo cool to reuse those oldskool looking graphics !
+Okay, time to crack the inner workings of this old game, that should be that diffic... oh.
 
-### Error codes
+So yeah, I quickly realized that my knownledge was far from sufficient to grab the inner workings of these games.
+PC version, Atari version, Amiga version: none of the file formats were matching anything I knew of.
+I tried to reverse-engineer the games but was quickly overwhelmed by the amount of work to do.
 
-- 0x1: failed to open file
-- 0x2:
-- 0x3:
-- 0x4:
-- 0x5:
-- 0x6:
-- 0x7: failed to write to file
-- 0x8: failed to create file
-- 0x9: failed to delete file
-- 0xa:
-- 0xb:
-- 0xc:
-- 0xd: failed to read from file
-- 0xe: failed to close file
-- 0xf:
+I ended up coding a little demo (which you can still find [here](https://pdroms.de/files/nintendo-gameboyadvance-gba/ishar-advance-v0-0-alpha)), made using screenshots of the PC version of Ishar 1 and 2, captured using the DOSBox emulator (!).
+The demo didn't do much, you cound only crawl into a small dungeon and display the players' inventory.
+Since I didn't know anything about version control or making backups, when my computer was stolen I lost all my precious source code, which had taken forever to write.
 
+Sad ending, but at least:
+- I learned low-level and bare-metal coding in C
+- The demo embedded a primitive scripting system using .ini files, xml and lua (xml on a GBA... don't do that :)
+- I showed the demo to a friend who was starting a small company into the mobile development (in 2008, so that scene was quite the hype), who then offered me a much better paying job, and so much fun too !
 
-### Project structure
+### Now
 
-./alis
-VM source code
+Fast forward many more years, I've gained some coding experience and decided to finally understand how this Ishar games were really working !
 
-./data
-Data files to run with VM
+Luckily, when checking the files present on the Silmarils Trilogy CD-ROM that I bought a few years back, I ran into some C files that were not part of the DOSBox sources (but had to be shipped, do to the GPL license), and looked like custom opcode tables.
 
-./ghidra
-Ghidra projets for reversing
+Since Silmarils was a company producing several games for all platforms of the 90's at a very fast pace, I thought that they were probably running on a custom virtual machine of some kind ([yep, they did](https://www.youtube.com/watch?v=TKAg3JMLXzM)).
 
-./imgui
-Dear ImGui source code
-
-./macOS
-Platform dependencies
-
-./tools
-Other tools for reversing
-On macOS Catalina run the atari emulator with 'wine64 Debugger64DD.exe NODD'
-
+Time to reverse engineer !

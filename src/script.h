@@ -1,10 +1,25 @@
 //
-//  script.h
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#ifndef script_h
-#define script_h
+#pragma once
 
 #include "config.h"
 
@@ -183,7 +198,7 @@ void            script_read_bytes(u32 len, u8 * dest);
 void            script_read_until_zero(u8 * dest);
 void            script_jump(s32 offset);
 
-void            script_debug(sAlisScript * script);
+// void            script_debug(sAlisScript * script);
 
 u16 get_0x34_unknown(u32 vram);
 u8 get_0x32_unknown(u32 vram);
@@ -254,5 +269,3 @@ void set_0x04_cstart_csleep(u32 vram, u8 val);
 void set_0x03_xinv(u32 vram, u8 val);
 void set_0x02_unknown(u32 vram, u8 val);
 void set_0x01_cstart(u32 vram, u8 val);
-
-#endif /* script_h */

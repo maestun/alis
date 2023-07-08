@@ -1,13 +1,6 @@
 DerivedData/
 .DS_Store
-tools/pytools/*.log
-tools/pytools/*.txt
-tools/pytools/venv
-tools/pytools/__pycache__
-tools/pytools/__pycache__
-tools/pytools/venv
 build
 **/xcuserdata
-tools/Steem.SSE.4.0.2.Debug.Win64.DD/steem.log
-.vscode/launch.json
+.vscode/
 data/

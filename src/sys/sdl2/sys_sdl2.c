@@ -1,11 +1,30 @@
 //
-//  sys_sdl2.c
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#include "../sys.h"
-#include "image.h"
 #include <SDL2/SDL.h>
+
+#include "../sys.h"
+#include "alis.h"
+#include "image.h"
+#include "utils.h"
 
 u8 joystick0 = 0;
 u8 joystick1 = 0;
@@ -25,79 +44,6 @@ float           _scaleX;
 float           _scaleY;
 u32             _width = 320;
 u32             _height = 200;
-
-u8 io_inkey(void)
-{
-    SDL_PumpEvents();
-    
-    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
-    if (!currentKeyStates[button.scancode])
-    {
-        button.scancode = 0;
-        button.sym = 0;
-    }
-
-    return button.sym;
-}
-
-u8 io_shiftkey(void)
-{
-    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
-    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
-    {
-        shift = 0;
-    }
-
-    return shift;
-}
-
-u8 io_getkey(void)
-{
-    // wait for input
-    
-    u8 result = io_inkey();
-    while (result == 0)
-    {
-        result = io_inkey();
-    }
-    
-    // wait for user to release key
-    
-    u8 dummy;
-
-    do
-    {
-        dummy = io_inkey();
-    }
-    while (dummy != 0);
-    
-    return result;
-}
-
-u8 io_joy(u8 port)
-{
-    return port ? joystick0 : joystick1;
-}
-
-u8 io_joykey(u8 test)
-{
-    u8 result = 0;
-    
-    if (test == 0)
-    {
-        result = (joystick1 & 0x80) != 0;
-        if ((shift & 4) != 0)
-            result = result | 2;
-
-        if ((shift & 8) != 0)
-            result = result | 4;
-
-        if (button.sym == -0x1f)
-            result = result | 0x80;
-    }
-    
-    return result;
-}
 
 void sys_init(void) {
     _scaleX = _scale;
@@ -202,6 +148,96 @@ void sys_enable_mouse(u8 enable) {
 }
 
 
+u8 io_inkey(void)
+{
+    SDL_PumpEvents();
+    
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (!currentKeyStates[button.scancode])
+    {
+        button.scancode = 0;
+        button.sym = 0;
+    }
+
+    return button.sym;
+}
+
+u8 io_shiftkey(void) {
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
+    {
+        shift = 0;
+    }
+
+    return shift;
+}
+
+u8 io_getkey(void) {
+    // wait for input
+    
+    u8 result = io_inkey();
+    while (result == 0)
+    {
+        result = io_inkey();
+    }
+    
+    // wait for user to release key
+    
+    u8 dummy;
+
+    do
+    {
+        dummy = io_inkey();
+    }
+    while (dummy != 0);
+    
+    return result;
+}
+
+u8 io_joy(u8 port) {
+    return port ? joystick0 : joystick1;
+}
+
+u8 io_joykey(u8 test) {
+    u8 result = 0;
+    
+    if (test == 0)
+    {
+        result = (joystick1 & 0x80) != 0;
+        if ((shift & 4) != 0)
+            result = result | 2;
+
+        if ((shift & 8) != 0)
+            result = result | 4;
+
+        if (button.sym == -0x1f)
+            result = result | 0x80;
+    }
+    
+    return result;
+}
+
+char sys_get_key(void) {
+    sys_poll_event();
+    char result = io_inkey();
+    if ((char)result != 0)
+    {
+        while (io_inkey() != 0)
+        {
+            sys_poll_event();
+            sys_render(host.pixelbuf);
+            usleep(100);
+        }
+
+        return result;
+    }
+    
+    sys_render(host.pixelbuf);
+    usleep(100);
+    return sys_get_key();
+}
+
+
 // =============================================================================
 #pragma mark - FILE SYSTEM
 // =============================================================================
@@ -293,10 +329,9 @@ time_t sys_get_time(void) {
 
 u16 sys_get_model(void) {
     // TODO: make it configureable?
-    debug(EDebugWarning, "/* %s SIMULATED */", __FUNCTION__);
+    debug(EDebugInfo, "SIMULATED: %s", __FUNCTION__);
     // 0x456 = Atari STe / 1MB / Lowrez
     // 0x3f2 = Atari ST / 1MB / Lowrez
-    
     
     return 0x456;
 }

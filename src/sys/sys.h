@@ -1,19 +1,29 @@
 //
-//  sys.h
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#ifndef sys_h
-#define sys_h
+#pragma once
 
 #include "../config.h"
 #include "../debug.h"
 
-
-u8 io_inkey(void);
-u8 io_shiftkey(void);
-u8 io_joy(u8 port);
-u8 io_joykey(u8 test);
 
 // =============================================================================
 #pragma mark - LIFECYCLE
@@ -37,6 +47,11 @@ mouse_t sys_get_mouse(void);
 void    sys_set_mouse(u16 x, u16 y);
 void    sys_enable_mouse(u8 enable);
 
+u8      io_inkey(void);
+u8      io_shiftkey(void);
+u8      io_joy(u8 port);
+u8      io_joykey(u8 test);
+char    sys_get_key(void);
 
 // =============================================================================
 #pragma mark - GFX
@@ -65,6 +80,3 @@ void    sys_set_time(u16 h, u16 m, u16 s);
 time_t  sys_get_time(void);
 u16     sys_get_model(void);
 u16     sys_random(void);
-
-
-#endif /* sys_h */

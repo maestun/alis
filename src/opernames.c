@@ -1,14 +1,28 @@
 //
-//  opernames.c
-//  aodec
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
-//  Created by zlot on 05/02/2020.
-//  Copyright © 2020 zlot. All rights reserved.
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
 #include "alis.h"
 #include "alis_private.h"
 #include "image.h"
+#include "mem.h"
 #include "utils.h"
 
 
@@ -35,7 +49,7 @@ void oimmp(void) {
 void olocb(void) {
     // read word offset, copy extended byte from ram[offset] into r7
     s16 offset = script_read16();
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void olocw(void) {
@@ -51,12 +65,12 @@ void olocp(void) {
 }
 
 void oloctp(void) {
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 }
 
 void oloctc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void olocti(void) {
@@ -68,7 +82,7 @@ void olocti(void) {
 // then reads an extended byte from vram[offset] into r7
 void odirb(void) {
     u8 offset = script_read8();
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 // reads a byte offset from script,
@@ -94,7 +108,7 @@ void odirtp(void) {
 
 void odirtc(void) {
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = (s8)vread8(alis.script->vram_org + offset);
+    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void odirti(void) {
@@ -104,7 +118,7 @@ void odirti(void) {
 
 void omainb(void) {
     s16 offset = script_read16();
-    alis.varD7 = (s8)vread8(alis.basemain + offset);
+    alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 void omainw(void) {
@@ -126,7 +140,7 @@ void omaintp(void) {
 
 void omaintc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = (s8)vread8(alis.basemain + offset);
+    alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 void omainti(void) {
@@ -139,7 +153,7 @@ void ohimb(void) {
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
-    alis.varD7 = (s8)vread8(vram_addr + offset);
+    alis.varD7 = (s8)xread8(vram_addr + offset);
 }
 
 void ohimw(void) {
@@ -160,15 +174,15 @@ void ohimp(void) {
 }
 
 void ohimtp(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void ohimtc(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void ohimti(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // pop from accumulator into r6
@@ -334,7 +348,7 @@ void oinkey(void) {
 }
 
 void okeyon(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void ojoy(void) {
@@ -457,43 +471,21 @@ void omodel(void) {
     alis.varD7 = sys_get_model();
 }
 
-// TODO: place to approriate location
-char SYS_GetKey(void)
-{
-    sys_poll_event();
-    char result = io_inkey();
-    if ((char)result != 0)
-    {
-        while (io_inkey() != 0)
-        {
-            sys_poll_event();
-            sys_render(host.pixelbuf);
-            usleep(100);
-        }
-
-        return result;
-    }
-    
-    sys_render(host.pixelbuf);
-    usleep(100);
-    return SYS_GetKey();
-}
-
 void ogetkey(void) {
-    alis.varD7 = SYS_GetKey();
+    alis.varD7 = sys_get_key();
     debug(EDebugInfo, " [%d] ", alis.varD7);
 }
 
 void oleft(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void oright(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void omid(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void olen(void) {
@@ -510,7 +502,7 @@ void ostr(void) {
 }
 
 void osadd(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     readexec_opername_swap();
     
@@ -532,25 +524,25 @@ void osdiff(void) {
 }
 
 void osinfeg(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) <= 0 ? -1 : 0;
 }
 
 void ossupeg(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) >= 0 ? -1 : 0;
 }
 
 void osinf(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) < 0 ? -1 : 0;
 }
 
 void ossup(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) > 0 ? -1 : 0;
 }
@@ -567,7 +559,7 @@ void pop_sd6(void)
 }
 
 void ospile(void) {
-    debug(EDebugWarning, " /* CHECK */");
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
     u8 * tmp = alis.sd6;
     alis.sd6 = alis.sd7;
@@ -584,7 +576,7 @@ void ospile(void) {
 
 void oval(void) {
     // TODO: compute int value of bssChunk3 string -> d7 ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
     s8 cVar1;
     s8 bVar2;
@@ -666,12 +658,12 @@ void ochr(void) {
 
 void ochange(void) {
     // TODO: change le drive courant ??
-    debug(EDebugWarning, " /* STUBBED */");
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.varD7 = -1;
 }
 
 void ocountry(void) {
-    debug(EDebugWarning, " /* MISSING */");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void omip(void) {

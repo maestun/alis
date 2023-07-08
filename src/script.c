@@ -1,208 +1,33 @@
 //
-//  script.c
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
 #include "alis.h"
 #include "alis_private.h"
 #include "debug.h"
 #include "image.h"
+#include "mem.h"
 #include "platform.h"
 #include "script.h"
 #include "unpack.h"
 #include "utils.h"
-
-
-// TODO: for debugging
-// adresses où sont stockés les scripts dans Steem
-// attention, le header de kScriptHeaderLen bytes est inclus,
-// donc le code commence à (adresse + kScriptHeaderLen)
-typedef struct {
-    u16 id;
-    u8  name[kNameMaxLen];
-    u32 data_org;           // location of script data in host ram (code starts 24 bytes after)
-    u32 vram_org;           // location of script vram in host ram
-    u16 vacc_off;
-} sScriptDebug;
-sScriptDebug script_debug_data[kMaxScripts] = {
-    { 0x00, "MAIN", 0x2d278, 0x22690, 0xffac },
-    { 0x01, "", 0x00, 0x00, 0xffac },
-    { 0x02, "", 0x00, 0x00, 0xffac },
-    { 0x03, "", 0x00, 0x00, 0xffac },
-    { 0x04, "", 0x00, 0x00, 0xffac },
-    { 0x05, "", 0x00, 0x00, 0xffac },
-    { 0x06, "", 0x00, 0x00, 0xffac },
-    { 0x07, "", 0x00, 0x00, 0xffac },
-    { 0x08, "", 0x00, 0x00, 0xffac },
-    { 0x09, "", 0x00, 0x00, 0xffac },
-    { 0x0a, "", 0x00, 0x00, 0xffac },
-    { 0x0b, "", 0x00, 0x00, 0xffac },
-    { 0x0c, "", 0x00, 0x00, 0xffac },
-    { 0x0d, "", 0x00, 0x00, 0xffac },
-    { 0x0e, "", 0x00, 0x00, 0xffac },
-    { 0x0f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x10, "", 0x00, 0x00, 0xffac },
-    { 0x11, "", 0x00, 0x00, 0xffac },
-    { 0x12, "", 0x00, 0x00, 0xffac },
-    { 0x13, "", 0x00, 0x00, 0xffac },
-    { 0x14, "", 0x00, 0x00, 0xffac },
-    { 0x15, "", 0x00, 0x00, 0xffac },
-    { 0x16, "", 0x00, 0x00, 0xffac },
-    { 0x17, "", 0x00, 0x00, 0xffac },
-    { 0x18, "", 0x00, 0x00, 0xffac },
-    { 0x19, "", 0x00, 0x00, 0xffac },
-    { 0x1a, "", 0x00, 0x00, 0xffac },
-    { 0x1b, "", 0x00, 0x00, 0xffac },
-    { 0x1c, "", 0x00, 0x00, 0xffac },
-    { 0x1d, "", 0x00, 0x00, 0xffac },
-    { 0x1e, "", 0x00, 0x00, 0xffac },
-    { 0x1f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x20, "", 0x00, 0x00, 0xffac },
-    { 0x21, "", 0x00, 0x00, 0xffac },
-    { 0x22, "", 0x00, 0x00, 0xffac },
-    { 0x23, "", 0x00, 0x00, 0xffac },
-    { 0x24, "", 0x00, 0x00, 0xffac },
-    { 0x25, "", 0x00, 0x00, 0xffac },
-    { 0x26, "", 0x00, 0x00, 0xffac },
-    { 0x27, "", 0x00, 0x00, 0xffac },
-    { 0x28, "", 0x00, 0x00, 0xffac },
-    { 0x29, "", 0x00, 0x00, 0xffac },
-    { 0x2a, "", 0x00, 0x00, 0xffac },
-    { 0x2b, "", 0x00, 0x00, 0xffac },
-    { 0x2c, "", 0x00, 0x00, 0xffac },
-    { 0x2d, "", 0x00, 0x00, 0xffac },
-    { 0x2e, "", 0x00, 0x00, 0xffac },
-    { 0x2f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x30, "", 0x00, 0x00, 0xffac },
-    { 0x31, "", 0x00, 0x00, 0xffac },
-    { 0x32, "", 0x00, 0x00, 0xffac },
-    { 0x33, "", 0x00, 0x00, 0xffac },
-    { 0x34, "", 0x00, 0x00, 0xffac },
-    { 0x35, "", 0x00, 0x00, 0xffac },
-    { 0x36, "", 0x00, 0x00, 0xffac },
-    { 0x37, "", 0x00, 0x00, 0xffac },
-    { 0x38, "", 0x00, 0x00, 0xffac },
-    { 0x39, "", 0x00, 0x00, 0xffac },
-    { 0x3a, "", 0x00, 0x00, 0xffac },
-    { 0x3b, "", 0x00, 0x00, 0xffac },
-    { 0x3c, "", 0x00, 0x00, 0xffac },
-    { 0x3d, "", 0x00, 0x00, 0xffac },
-    { 0x3e, "", 0x00, 0x00, 0xffac },
-    { 0x3f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x40, "LOGO", 0x33568, 0x26976, 0xffac },
-    { 0x41, "", 0x00, 0x00, 0xffac },
-    { 0x42, "", 0x00, 0x00, 0xffac },
-    { 0x43, "", 0x00, 0x00, 0xffac },
-    { 0x44, "", 0x00, 0x00, 0xffac },
-    { 0x45, "", 0x00, 0x00, 0xffac },
-    { 0x46, "", 0x00, 0x00, 0xffac },
-    { 0x47, "", 0x00, 0x00, 0xffac },
-    { 0x48, "", 0x00, 0x00, 0xffac },
-    { 0x49, "", 0x00, 0x00, 0xffac },
-    { 0x4a, "", 0x00, 0x00, 0xffac },
-    { 0x4b, "", 0x00, 0x00, 0xffac },
-    { 0x4c, "", 0x00, 0x00, 0xffac },
-    { 0x4d, "", 0x00, 0x00, 0xffac },
-    { 0x4e, "", 0x00, 0x00, 0xffac },
-    { 0x4f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x50, "", 0x00, 0x00, 0xffac },
-    { 0x51, "", 0x00, 0x00, 0xffac },
-    { 0x52, "", 0x00, 0x00, 0xffac },
-    { 0x53, "", 0x00, 0x00, 0xffac },
-    { 0x54, "", 0x00, 0x00, 0xffac },
-    { 0x55, "", 0x00, 0x00, 0xffac },
-    { 0x56, "", 0x00, 0x00, 0xffac },
-    { 0x57, "", 0x00, 0x00, 0xffac },
-    { 0x58, "", 0x00, 0x00, 0xffac },
-    { 0x59, "", 0x00, 0x00, 0xffac },
-    { 0x5a, "", 0x00, 0x00, 0xffac },
-    { 0x5b, "", 0x00, 0x00, 0xffac },
-    { 0x5c, "", 0x00, 0x00, 0xffac },
-    { 0x5d, "", 0x00, 0x00, 0xffac },
-    { 0x5e, "", 0x00, 0x00, 0xffac },
-    { 0x5f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x60, "", 0x00, 0x00, 0xffac },
-    { 0x61, "", 0x00, 0x00, 0xffac },
-    { 0x62, "", 0x00, 0x00, 0xffac },
-    { 0x63, "", 0x00, 0x00, 0xffac },
-    { 0x64, "", 0x00, 0x00, 0xffac },
-    { 0x65, "", 0x00, 0x00, 0xffac },
-    { 0x66, "", 0x00, 0x00, 0xffac },
-    { 0x67, "", 0x00, 0x00, 0xffac },
-    { 0x68, "", 0x00, 0x00, 0xffac },
-    { 0x69, "", 0x00, 0x00, 0xffac },
-    { 0x6a, "", 0x00, 0x00, 0xffac },
-    { 0x6b, "", 0x00, 0x00, 0xffac },
-    { 0x6c, "", 0x00, 0x00, 0xffac },
-    { 0x6d, "", 0x00, 0x00, 0xffac },
-    { 0x6e, "", 0x00, 0x00, 0xffac },
-    { 0x6f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x70, "", 0x00, 0x00, 0xffac },
-    { 0x71, "", 0x00, 0x00, 0xffac },
-    { 0x72, "", 0x00, 0x00, 0xffac },
-    { 0x73, "", 0x00, 0x00, 0xffac },
-    { 0x74, "", 0x00, 0x00, 0xffac },
-    { 0x75, "", 0x00, 0x00, 0xffac },
-    { 0x76, "", 0x00, 0x00, 0xffac },
-    { 0x77, "", 0x00, 0x00, 0xffac },
-    { 0x78, "", 0x00, 0x00, 0xffac },
-    { 0x79, "", 0x00, 0x00, 0xffac },
-    { 0x7a, "", 0x00, 0x00, 0xffac },
-    { 0x7b, "", 0x00, 0x00, 0xffac },
-    { 0x7c, "", 0x00, 0x00, 0xffac },
-    { 0x7d, "", 0x00, 0x00, 0xffac },
-    { 0x7e, "", 0x00, 0x00, 0xffac },
-    { 0x7f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x80, "", 0x00, 0x00, 0xffac },
-    { 0x81, "", 0x00, 0x00, 0xffac },
-    { 0x82, "", 0x00, 0x00, 0xffac },
-    { 0x83, "", 0x00, 0x00, 0xffac },
-    { 0x84, "", 0x00, 0x00, 0xffac },
-    { 0x85, "", 0x00, 0x00, 0xffac },
-    { 0x86, "", 0x00, 0x00, 0xffac },
-    { 0x87, "", 0x00, 0x00, 0xffac },
-    { 0x88, "", 0x00, 0x00, 0xffac },
-    { 0x89, "", 0x00, 0x00, 0xffac },
-    { 0x8a, "", 0x00, 0x00, 0xffac },
-    { 0x8b, "", 0x00, 0x00, 0xffac },
-    { 0x8c, "", 0x00, 0x00, 0xffac },
-    { 0x8d, "", 0x00, 0x00, 0xffac },
-    { 0x8e, "", 0x00, 0x00, 0xffac },
-    { 0x8f, "", 0x00, 0x00, 0xffac },
-    
-    { 0x90, "", 0x00, 0x00, 0xffac },
-    { 0x91, "", 0x00, 0x00, 0xffac },
-    { 0x92, "", 0x00, 0x00, 0xffac },
-    { 0x93, "", 0x00, 0x00, 0xffac },
-    { 0x94, "", 0x00, 0x00, 0xffac },
-    { 0x95, "", 0x00, 0x00, 0xffac },
-    { 0x96, "", 0x00, 0x00, 0xffac },
-    { 0x97, "", 0x00, 0x00, 0xffac },
-    { 0x98, "", 0x00, 0x00, 0xffac },
-    { 0x99, "", 0x00, 0x00, 0xffac },
-    { 0x9a, "", 0x00, 0x00, 0xffac },
-    { 0x9b, "", 0x00, 0x00, 0xffac },
-    { 0x9c, "", 0x00, 0x00, 0xffac },
-    { 0x9d, "", 0x00, 0x00, 0xffac },
-    { 0x9e, "", 0x00, 0x00, 0xffac },
-    { 0x9f, "", 0x00, 0x00, 0xffac },
-};
-
-
-static uint8_t * p_depak = NULL;
-static uint8_t * p_depak_end = NULL;
-static uint8_t * p_pak = NULL;
-static uint8_t * p_pak_end = NULL;
-static uint8_t * p_dic;
-
 
 // =============================================================================
 // MARK: - Depacker
@@ -241,7 +66,7 @@ int search_insert(u32 *nums, u32 size, int target_id) {
         
     while(start <= end) {
         int mid = start + (end - start) / 2;
-        int current_id = read16(alis.mem + nums[mid], alis.platform.is_little_endian);
+        int current_id = read16(alis.mem + nums[mid]);
         if (current_id == target_id)
             return mid;
         
@@ -256,7 +81,7 @@ int search_insert(u32 *nums, u32 size, int target_id) {
 
 sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     
-    s16 id = swap16((data + 0), alis.platform.is_little_endian);
+    s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
     if (insert > 0 && insert < alis.nbprog)
     {
@@ -266,34 +91,34 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
             script->sz = data_sz;
             
             // script data
-            script->header.id = swap16((data + 0), alis.platform.is_little_endian);
+            script->header.id = swap16((data + 0));
             
             if (alis.platform.kind == EPlatformPC)
             {
-                // script->header.w_0x1700 = swap16((data + 4), alis.platform.is_little_endian);
+                // script->header.w_0x1700 = swap16((data + 4));
                 script->header.unknown01 = *(data + 4);
                 script->header.unknown02 = *(data + 5);
-                script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+                script->header.code_loc_offset = swap16((data + 2));
             }
             else
             {
-                // script->header.w_0x1700 = swap16((data + 2), alis.platform.is_little_endian);
+                // script->header.w_0x1700 = swap16((data + 2));
                 script->header.unknown01 = *(data + 2);
                 script->header.unknown02 = *(data + 3);
-                script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+                script->header.code_loc_offset = swap16((data + 4));
             }
             
-            script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
-            script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
-            script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
-            script->header.w_unknown5 = swap16((data + 18), alis.platform.is_little_endian);
-            script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
-            script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
+            script->header.ret_offset = swap32((data + 6));
+            script->header.dw_unknown3 = swap32((data + 10));
+            script->header.dw_unknown4 = swap32((data + 14));
+            script->header.w_unknown5 = swap16((data + 18));
+            script->header.vram_alloc_sz = swap16((data + 20));
+            script->header.w_unknown7 = swap16((data + 22));
             memcpy(alis.mem + script->data_org, data, data_sz);
             
             for (int i = 0; i < alis.nbprog; i++)
             {
-                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
             }
             
             debug(EDebugInfo, "\n");
@@ -313,27 +138,27 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->sz = data_sz;
     
     // script data
-    script->header.id = swap16((data + 0), alis.platform.is_little_endian);
+    script->header.id = swap16((data + 0));
     
     if (alis.platform.kind == EPlatformPC)
     {
         script->header.unknown01 = *(data + 4);
         script->header.unknown02 = *(data + 5);
-        script->header.code_loc_offset = swap16((data + 2), alis.platform.is_little_endian);
+        script->header.code_loc_offset = swap16((data + 2));
     }
     else
     {
         script->header.unknown01 = *(data + 2);
         script->header.unknown02 = *(data + 3);
-        script->header.code_loc_offset = swap16((data + 4), alis.platform.is_little_endian);
+        script->header.code_loc_offset = swap16((data + 4));
     }
     
-    script->header.ret_offset = swap32((data + 6), alis.platform.is_little_endian);
-    script->header.dw_unknown3 = swap32((data + 10), alis.platform.is_little_endian);
-    script->header.dw_unknown4 = swap32((data + 14), alis.platform.is_little_endian);
-    script->header.w_unknown5 = swap16((data + 18), alis.platform.is_little_endian);
-    script->header.vram_alloc_sz = swap16((data + 20), alis.platform.is_little_endian);
-    script->header.w_unknown7 = swap16((data + 22), alis.platform.is_little_endian);
+    script->header.ret_offset = swap32((data + 6));
+    script->header.dw_unknown3 = swap32((data + 10));
+    script->header.dw_unknown4 = swap32((data + 14));
+    script->header.w_unknown5 = swap16((data + 18));
+    script->header.vram_alloc_sz = swap16((data + 20));
+    script->header.w_unknown7 = swap16((data + 22));
     
     script->vram_org = 0;
     script->vacc_off = 0;
@@ -359,7 +184,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
 
     for (int i = 0; i < alis.nbprog; i++)
     {
-        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i], alis.platform.is_little_endian), alis.atprog_ptr[i]);
+        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
     }
     
     debug(EDebugInfo, "\n");
@@ -375,14 +200,14 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
 void  script_live(sAlisScript * script) {
     u8 *data = alis.mem + script->data_org;
 
-    s32 prevfin = swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent;
+    s32 prevfin = swap16((data + 0x12)) + alis.finent;
 
-    alis.finent = ((swap16((data + 0x16), alis.platform.is_little_endian) + (swap16((data + 0x12), alis.platform.is_little_endian) + alis.finent)) + sizeof(sScriptContext));
+    alis.finent = ((swap16((data + 0x16)) + (swap16((data + 0x12)) + alis.finent)) + sizeof(sScriptContext));
     
     script->vacc_off = (prevfin - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
     
-    u16 vram_length = swap16((data + 0x14), alis.platform.is_little_endian);
+    u16 vram_length = swap16((data + 0x14));
     memset(alis.mem + script->vram_org, 0, vram_length);
 
     s16 curent = alis.varD5;
@@ -478,8 +303,8 @@ sAlisScript * script_load(const char * script_path) {
         rewind(fp);
 
         // read header
-        u32 magic = fread32(fp, alis.platform.is_little_endian);
-        u16 check = fread16(fp, alis.platform.is_little_endian);
+        u32 magic = fread32(fp);
+        u16 check = fread16(fp);
         
         u32 depak_sz = input_sz;
         
@@ -508,7 +333,7 @@ sAlisScript * script_load(const char * script_path) {
         depak_sz = get_depacked_size(magic);
         u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
         
-        depak_sz = unpack_script(script_path, alis.platform.is_little_endian, &depak_buf);
+        depak_sz = unpack_script(script_path, &depak_buf);
         if (depak_sz > 0) {
             // unpacked, continue
             debug(EDebugInfo,
@@ -545,7 +370,7 @@ sAlisScript * script_load(const char * script_path) {
 void script_unload(sAlisScript * script) {
 //    free(script->ram);
 //    free(script->data);
-    free(script);
+    // free(script);
 }
 
 
@@ -582,14 +407,14 @@ u8 script_read8(void) {
  */
 u16 script_read16(void) {
     
-    u16 ret = read16(alis.mem + alis.script->pc, alis.platform.is_little_endian);
+    u16 ret = read16(alis.mem + alis.script->pc);
     alis.script->pc += 2;
     script_read_debug(ret, sizeof(u16));
     return ret;
 }
 
 u32 script_read24(void) {
-    u32 ret = read24(alis.mem + alis.script->pc, alis.platform.is_little_endian);
+    u32 ret = read24(alis.mem + alis.script->pc);
     alis.script->pc += 3;
     script_read_debug(ret, sizeof(u32));
     return ret;
@@ -612,28 +437,28 @@ void script_jump(s32 offset) {
 }
 
 
-void script_debug(sAlisScript * script) {
+// void script_debug(sAlisScript * script) {
     
-    printf("\n-- SCRIPT --\n'%s' (0x%02x)\nHeader:\n",
-           script->name,
-           script->header.id);
+//     debug(EDebugInfo, "\n-- SCRIPT --\n'%s' (0x%02x)\nHeader:\n",
+//            script->name,
+//            script->header.id);
     
-    // total header len is located in header, also add sizeof(script_id)
-    u8 header_len = script->header.code_loc_offset + sizeof(u16) /* script ID length */;
+//     // total header len is located in header, also add sizeof(script_id)
+//     u8 header_len = script->header.code_loc_offset + sizeof(u16) /* script ID length */;
     
-//    for(int i = 0; i < header_len; i++) {
-//        printf("%02x ", script->data_org[i]);
-//    }
+// //    for(int i = 0; i < header_len; i++) {
+// //        printf("%02x ", script->data_org[i]);
+// //    }
     
-    u8 code = *(alis.mem + alis.script->pc++);//*(script->pc);
-    printf("\nDATA ORG: 0x%06x\nCODE ORG: 0x%06x\nPC OFFSET: 0x%04x\nPC BYTE: 0x%02x ('%s')\n",
-           script->data_org,
-           script->data_org + header_len,
-           alis.script->pc,
-           // script_pc(script),
-           code,
-           opcodes[code].name);
-}
+//     u8 code = *(alis.mem + alis.script->pc++);//*(script->pc);
+//     debug(EDebugInfo, "\nDATA ORG: 0x%06x\nCODE ORG: 0x%06x\nPC OFFSET: 0x%04x\nPC BYTE: 0x%02x ('%s')\n",
+//            script->data_org,
+//            script->data_org + header_len,
+//            alis.script->pc,
+//            // script_pc(script),
+//            code,
+//            opcodes[code].name);
+// }
 
 u16 get_0x34_unknown(u32 vram)                          { return xread16(vram - 0x34); }
 u8 get_0x32_unknown(u32 vram)                           { return xread8(vram - 0x32); }

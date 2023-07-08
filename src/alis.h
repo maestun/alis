@@ -1,12 +1,25 @@
 //
-//  alis_vm.h
-//  lc3vm
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#ifndef alis_vm_h
-#define alis_vm_h
-
-#include <sys/time.h>
+#pragma once
 
 #include "config.h"
 #include "debug.h"
@@ -74,7 +87,7 @@ typedef struct {
 typedef struct __attribute__((packed)) {
     u32         vram_offset;
     u16         offset;
-} sScriptLoc ;
+} sScriptLoc;
 
 // =============================================================================
 // MARK: - VM
@@ -299,6 +312,8 @@ typedef struct {
     
     struct timeval  time;
 
+    u8              swap_endianness;
+
 } sAlisVM;
 
 typedef struct {
@@ -317,55 +332,19 @@ extern sHost host;
 // =============================================================================
 
 void            alis_init(sPlatform platform);
-u8              alis_main(void);
+u8              alis_start(void);
 void            alis_deinit(void);
 void            alis_start_script(sAlisScript * script);
 void            alis_error(int errnum, ...);
-void            alis_debug(void);
 void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
 
+void            vram_init(void);
 u8 *            get_vram(s16 offset);
-
-u16             xswap16(u16 value);
-u32             xswap24(u32 value);
-u32             xswap32(u32 value);
-
-u8              xread8(u32 offset);
-s16             xread16(u32 offset);
-s32             xread32(u32 offset);
-
-void            xwrite8(u32 offset, u8 value);
-void            xwrite16(u32 offset, s16 value);
-void            xwrite32(u32 offset, s32 value);
-
-void            xadd8(s32 offset, s8 value);
-void            xadd16(s32 offset, s16 value);
-void            xadd32(s32 offset, s32 add);
-
-void            xsub8(s32 offset, s8 value);
-void            xsub16(s32 offset, s16 value);
-void            xsub32(s32 offset, s32 sub);
-
-void            xpush32(s32 value);
-s32             xpeek32(void);
-s32             xpop32(void);
-
-u8              vread8(u32 offset);
-s16             vread16(u32 offset);
-s32             vread32(u32 offset);
-
-void            vwrite8(u32 offset, u8 value);
-void            vwrite16(u32 offset, s16 value);
-void            vwrite32(u32 offset, s32 value);
-
 
 int             adresdes(s32 idx);
 int             adresmus(s32 idx);
 
-
 s16             tabint(s16 offset, u8 *address);
 s16             tabchar(s16 offset, u8 *address);
 s16             tabstring(s16 offset, u8 *address);
-
-#endif /* alis_vm_h */

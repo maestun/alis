@@ -19,44 +19,35 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#include "debug.h"
+#pragma once
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#include "config.h"
 
-static char* debug_colors[] = {
-    ANSI_COLOR_RED,
-    ANSI_COLOR_RED,
-    ANSI_COLOR_YELLOW,
-    ANSI_COLOR_GREEN,
-    ANSI_COLOR_CYAN
-};
+#define kMainScriptName ("main")
 
-static char* debug_prefix[] = {
-    "\x1b[1m[FATAL]",
-    "[ERROR]",
-    "[WARNING]",
-    "[INFO]",
-    "[VERBOSE]"
-};
+typedef enum {
+    EPlatformAtari = 0,
+    EPlatformFalcon,
+    EPlatformAmiga,
+    EPlatformAmigaAGA,
+    EPlatformMac,
+    EPlatformPC,
+    EPlatformUnknown
+} EPlatform;
 
-#ifndef DISABLE_DEBUG
-void debug(EDebugLevel level, char * format, ...) {
-    if(level <= DEBUG_LEVEL) {
-        va_list arg;
-        va_start(arg, format);
-        printf("%s%s ", debug_colors[level], debug_prefix[level]);
-        vprintf(format, arg);
-        printf("%s", ANSI_COLOR_RESET);
-        fflush(stdout);
-        va_end(arg);
-    }
-}
-#else
-void debug(EDebugLevel level, char * format, ...) {}
-#endif
+typedef struct {
+    EPlatform   kind;
+    char        desc[kDescMaxLen];  // platform description
+    char        ext[4];             // script file extension
+    u32         ram_sz;             // size of ram, in bytes
+    u32         video_ram_sz;       // size of video ram, in bytes
+    u16         width;              // screen info
+    u16         height;
+    u8          bpp;
+    u8          is_little_endian;
+    char        path[kPathMaxLen];  // path to scripts
+    char        main[kPathMaxLen];  // path to main script
+} sPlatform;
+
+sPlatform*  pl_guess(const char* folder_path);
+int         pl_supported(sPlatform* platform);

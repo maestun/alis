@@ -19,44 +19,20 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#include "debug.h"
+#pragma once
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#include "config.h"
 
-static char* debug_colors[] = {
-    ANSI_COLOR_RED,
-    ANSI_COLOR_RED,
-    ANSI_COLOR_YELLOW,
-    ANSI_COLOR_GREEN,
-    ANSI_COLOR_CYAN
-};
+typedef enum {
+    EUnpackErrorInput = -1,
+    EUnpackErrorOutput = -2,
+    EUnpackErrorFormat = -3
+} EUnpackError;
 
-static char* debug_prefix[] = {
-    "\x1b[1m[FATAL]",
-    "[ERROR]",
-    "[WARNING]",
-    "[INFO]",
-    "[VERBOSE]"
-};
-
-#ifndef DISABLE_DEBUG
-void debug(EDebugLevel level, char * format, ...) {
-    if(level <= DEBUG_LEVEL) {
-        va_list arg;
-        va_start(arg, format);
-        printf("%s%s ", debug_colors[level], debug_prefix[level]);
-        vprintf(format, arg);
-        printf("%s", ANSI_COLOR_RESET);
-        fflush(stdout);
-        va_end(arg);
-    }
-}
-#else
-void debug(EDebugLevel level, char * format, ...) {}
-#endif
+/// @brief Unpacks a script file to buffer
+/// @param packed_file_path full path to packed file
+/// @param is_le zero if file to unpack is big-endian encoded
+/// @param unpacked_data output buffer
+/// @return unpacked file size if success, a negative value if error, or
+/// zero if the input file is not packed
+int unpack_script(const char* packed_file_path, u8** unpacked_data);

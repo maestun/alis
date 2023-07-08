@@ -19,44 +19,45 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#include "debug.h"
+#pragma once
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#include "config.h"
 
-static char* debug_colors[] = {
-    ANSI_COLOR_RED,
-    ANSI_COLOR_RED,
-    ANSI_COLOR_YELLOW,
-    ANSI_COLOR_GREEN,
-    ANSI_COLOR_CYAN
-};
+u16         read16(const u8 *ptr);
+u32         read24(const u8 *ptr);
+u32         read32(const u8 *ptr);
+u16         fread16(FILE * fp);
+u32         fread32(FILE * fp);
+u16         swap16(const u8 *);
+u32         swap32(const u8 *);
 
-static char* debug_prefix[] = {
-    "\x1b[1m[FATAL]",
-    "[ERROR]",
-    "[WARNING]",
-    "[INFO]",
-    "[VERBOSE]"
-};
 
-#ifndef DISABLE_DEBUG
-void debug(EDebugLevel level, char * format, ...) {
-    if(level <= DEBUG_LEVEL) {
-        va_list arg;
-        va_start(arg, format);
-        printf("%s%s ", debug_colors[level], debug_prefix[level]);
-        vprintf(format, arg);
-        printf("%s", ANSI_COLOR_RESET);
-        fflush(stdout);
-        va_end(arg);
-    }
-}
-#else
-void debug(EDebugLevel level, char * format, ...) {}
-#endif
+u16             xswap16(u16 value);
+u32             xswap32(u32 value);
+
+u8              xread8(u32 offset);
+s16             xread16(u32 offset);
+s32             xread32(u32 offset);
+
+void            xwrite8(u32 offset, u8 value);
+void            xwrite16(u32 offset, s16 value);
+void            xwrite32(u32 offset, s32 value);
+
+void            xadd8(s32 offset, s8 value);
+void            xadd16(s32 offset, s16 value);
+void            xadd32(s32 offset, s32 add);
+
+void            xsub8(s32 offset, s8 value);
+void            xsub16(s32 offset, s16 value);
+void            xsub32(s32 offset, s32 sub);
+
+void            xpush32(s32 value);
+s32             xpeek32(void);
+s32             xpop32(void);
+
+
+#define vread16 xread16
+#define vread32 xread32
+#define vwrite8 xwrite8
+#define vwrite16 xwrite16
+#define vwrite32 xwrite32
