@@ -38,7 +38,7 @@ SDL_Window *    _window;
 SDL_Event       _event;
 Uint32 *        _pixels;
 SDL_Texture *   _texture;
-float           _scale = 2;
+float           _scale = 3; // TODO: as cli parameter
 float           _aspect_ratio = 1.2;
 float           _scaleX;
 float           _scaleY;
@@ -362,46 +362,156 @@ u8 sys_fexists(char * path) {
 // =============================================================================
 #pragma mark - AUDIO
 // =============================================================================
-void sample_cb(void* userdata, Uint8* stream, int len) {
-    // Copy the PCM data to the stream
-    SDL_memcpy(stream, userdata, len);
+typedef struct {
+    s8 *    data;
+    size_t  len;
+    size_t  pos;
+    u8      finished;
+} sSampleContext;
+
+typedef struct {
+    double  frequency;
+    double  duration;
+    double  volume;
+    size_t  sampleRate;
+    size_t  position;
+    int     finished;
+} sWaveContext;
+
+void play_sample_cb(void* userdata, Uint8* stream, int len) {
+    sSampleContext * ctx = (sSampleContext *)userdata;
+
+    size_t remaining_data = ctx->len - ctx->pos;
+    size_t bytes_to_copy = SDL_min(len, remaining_data);
+
+    SDL_memcpy(stream, ctx->data + ctx->pos, bytes_to_copy);
+    ctx->pos += bytes_to_copy;
+
+    if (ctx->pos >= ctx->len) {
+        ctx->finished = 1;
+    }
 }
 
-void sys_play_sample(s16* pcm_data, u32 pcm_len) {
+// int play_sample_thr(void * data) {
+//     sSampleContext * ctx = (sSampleContext *)data;
+
+//     SDL_AudioSpec spec;
+//     spec.freq = 4100;
+//     spec.format = AUDIO_S8;
+//     spec.channels = 1;
+//     spec.samples = 512;
+//     spec.callback = play_sample_cb;
+//     spec.userdata = ctx;
+
+//     SDL_OpenAudio(&spec, &spec);
+//     SDL_PauseAudio(0);
+//     while(!ctx->finished) {
+//         SDL_Delay(100);
+//     }
+//     SDL_CloseAudio();
+//     return 0;
+// }
+
+void sys_play_sample(s8* pcm_data, u32 pcm_len, u8 pcm_vol, u8 pcm_speed) {
+    
+    // Set up the audio context
+    sSampleContext ctx;
+    ctx.data = pcm_data;
+    ctx.len = pcm_len;
+    ctx.pos = 0;
+    ctx.finished = 0;
+
+    // SDL_Thread* thr = SDL_CreateThread(play_sample_thr, "SampleThread", (void *)&ctx);
+    // SDL_WaitThread(thr, NULL);
+
+    SDL_AudioSpec spec;
+    spec.freq = 4100;
+    spec.format = AUDIO_S8;
+    spec.channels = 1;
+    spec.samples = 512;
+    spec.callback = play_sample_cb;
+    spec.userdata = &ctx;
+
+    SDL_OpenAudio(&spec, &spec);
+    SDL_PauseAudio(0);
+
+    while (!ctx.finished) {
+        SDL_Delay(1);
+    }
+    SDL_CloseAudio();
+}
+
+
+void sineWaveCallback(void* userdata, Uint8* stream, int len)
+{
+    sWaveContext* waveContext = (sWaveContext*)userdata;
+    double angularFrequency = 2.0 * M_PI * waveContext->frequency;
+    double samplesPerCycle = waveContext->sampleRate / waveContext->frequency;
+    double samplesPerWave = waveContext->duration * waveContext->sampleRate;
+    double amplitude = waveContext->volume * 127.0;
+
+    for (size_t i = 0; i < len; i++) {
+        double wavePosition = (waveContext->position + i) / samplesPerCycle;
+        double sample = sin(angularFrequency * wavePosition) * amplitude;
+
+        stream[i] = (Uint8)(sample + 128);
+
+        waveContext->position++;
+        if (waveContext->position >= samplesPerWave) {
+            waveContext->finished = 1;
+            break;
+        }
+    }
+}
+
+void squareWaveCallback(void* userdata, Uint8* stream, int len)
+{
+    sWaveContext* waveContext = (sWaveContext*)userdata;
+
+    double period = 1.0 / waveContext->frequency;
+    double samplesPerCycle = waveContext->sampleRate * period;
+    double samplesPerWave = waveContext->duration * waveContext->sampleRate;
+    double amplitude = waveContext->volume * 127.0;
+
+    for (size_t i = 0; i < len; i++) {
+        double wavePosition = (waveContext->position + i) / samplesPerCycle;
+        double sample = wavePosition - floor(wavePosition);
+        sample = (sample < 0.5) ? amplitude : -amplitude;
+
+        stream[i] = (Uint8)(sample + 128);
+
+        waveContext->position++;
+        if (waveContext->position >= samplesPerWave) {
+            waveContext->finished = 1;
+            break;
+        }
+    }
+}
+
+void sys_play_wave(u16 freq, u16 len, u8 vol, u8 is_square) {
+    sWaveContext waveContext;
+    waveContext.frequency = freq;
+    waveContext.duration = len / 1000.0;
+    waveContext.volume = vol;
+    waveContext.sampleRate = 44100;
+    waveContext.position = 0;
+    waveContext.finished = 0;
+
     SDL_AudioSpec desiredSpec, obtainedSpec;
     SDL_zero(desiredSpec);
-    desiredSpec.freq = 4096;
+    desiredSpec.freq = 44100;
     desiredSpec.format = AUDIO_S8;
     desiredSpec.channels = 1;
     desiredSpec.samples = 4096;
-    desiredSpec.callback = sample_cb;
-    desiredSpec.userdata = pcm_data;
+    desiredSpec.callback = is_square ? squareWaveCallback : sineWaveCallback;
+    desiredSpec.userdata = &waveContext;
 
     SDL_OpenAudio(&desiredSpec, &obtainedSpec);
     SDL_PauseAudio(0);
-    while (SDL_GetAudioStatus() == SDL_AUDIO_PLAYING) {
+    while (!waveContext.finished) {
         SDL_Delay(100);
     }
     SDL_CloseAudio();
-
-    // SDL_AudioSpec wavSpec;
-    // SDL_memset(&wavSpec, 0, sizeof(wavSpec)); /* or SDL_zero(want) */
-
-    // wavSpec.callback = sample_cb;
-    // wavSpec.userdata = pcm_data;
-    // wavSpec.format = AUDIO_S16;
-    // wavSpec.channels = 1;
-    // wavSpec.samples = 2048;
-
-    // if (SDL_OpenAudio(&wavSpec, NULL) < 0)     {
-    //     fprintf(stderr, "Could not open audio: %s\n", SDL_GetError());
-    // }
-
-}
-
-
-void sys_play_sine(u8* pcm_data) {
-    
 }
 
 

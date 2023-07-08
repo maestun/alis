@@ -1591,111 +1591,111 @@ static void ctiming(void) {
 static void czap(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    alis.audio.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    alis.audio.sound_priority = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    alis.audio.sound_vol = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    alis.audio.sound_freq = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
-    if (alis.volson == 0)
+    alis.audio.sound_vol = alis.varD7;
+    if (alis.audio.sound_vol == 0)
     {
         return;
     }
     
     readexec_opername();
-    alis.dvolson = 0;
-    alis.typeson = 1;
-    alis.dfreqson = alis.varD7;
+    alis.audio.dsound_vol = 0;
+    alis.audio.kind = 1;
+    alis.audio.dsound_freq = alis.varD7;
     runson();
 }
 
 static void cexplode(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    alis.audio.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    alis.audio.sound_priority = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    alis.audio.sound_vol = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    alis.audio.sound_freq = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
-    if (alis.volson == 0)
+    alis.audio.sound_vol = alis.varD7;
+    if (alis.audio.sound_vol == 0)
     {
         return;
     }
     
-    alis.dfreqson = 0;
-    u32 vol32 = ((u32)alis.volson << 8) / (u32)alis.volson;
+    alis.audio.dsound_freq = 0;
+    u32 vol32 = ((u32)alis.audio.sound_vol << 8) / (u32)alis.audio.sound_vol;
     s16 vol16 = (s16)vol32;
     if (vol32 == 0)
     {
         vol16 = 1;
     }
     
-    alis.dvolson = -vol16;
-    alis.typeson = 3;
+    alis.audio.dsound_vol = -vol16;
+    alis.audio.kind = 3;
     runson();
 }
 
 static void cding(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    alis.audio.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    alis.audio.sound_priority = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    alis.audio.sound_vol = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    alis.audio.sound_freq = alis.varD7;
     readexec_opername();
-    alis.longson = alis.varD7;
-    if (alis.longson == 0)
+    alis.audio.sound_len = alis.varD7;
+    if (alis.audio.sound_len == 0)
     {
         return;
     }
     
-    alis.dfreqson = 0;
-    u32 tmpa = ((u32)alis.volson << 8) / (u32)alis.longson;
-    u32 tmpb = ((u32)alis.volson << 8) % (u32)alis.longson;
+    alis.audio.dsound_freq = 0;
+    u32 tmpa = ((u32)alis.audio.sound_vol << 8) / (u32)alis.audio.sound_len;
+    u32 tmpb = ((u32)alis.audio.sound_vol << 8) % (u32)alis.audio.sound_len;
     u32 newdvolson = tmpa == 0 ? 1 : tmpb << 0x10 | tmpa;
 
-    alis.dvolson = -(s16)newdvolson;
-    alis.typeson = 1;
+    alis.audio.dsound_vol = -(s16)newdvolson;
+    alis.audio.kind = 1;
     runson();
 }
 
 static void cnoise(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    alis.audio.pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    alis.audio.sound_priority = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    alis.audio.sound_vol = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    alis.audio.sound_freq = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
-    if (alis.volson == 0)
+    alis.audio.sound_vol = alis.varD7;
+    if (alis.audio.sound_vol == 0)
     {
         return;
     }
     
-    alis.dfreqson = 0;
-    u32 vol32 = ((u32)alis.volson << 8) / (u32)alis.volson;
+    alis.audio.dsound_freq = 0;
+    u32 vol32 = ((u32)alis.audio.sound_vol << 8) / (u32)alis.audio.sound_vol;
     s16 vol16 = (s16)vol32;
     if (vol32 == 0)
     {
         vol16 = 1;
     }
     
-    alis.dvolson = -vol16;
-    alis.typeson = 2;
+    alis.audio.dsound_vol = -vol16;
+    alis.audio.kind = 2;
     runson();
 }
 
@@ -2147,25 +2147,33 @@ static void csound(void) {
     alis.flagmain = 0;
     readexec_opername();
     u8 index = alis.varD7;
+    debug(EDebugWarning, "\n- index %02x", index);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    alis.audio.sound_priority = alis.varD7;
+    debug(EDebugWarning, "\n- priority %02x", alis.varD7);
     readexec_opername();
-    alis.volson = alis.varD7;
+    alis.audio.sound_vol = alis.varD7;
+    debug(EDebugWarning, "\n- volume %02x", alis.varD7);
     readexec_opername();
-    alis.loopsam = alis.varD7;
+    alis.audio.sample_loop = alis.varD7;
+    debug(EDebugWarning, "\n- loop %04x", alis.varD7);
     readexec_opername();
-    alis.speedsam = alis.varD7;
+    alis.audio.sample_speed = alis.varD7;
+    debug(EDebugWarning, "\n- speed %02x", alis.varD7);
     
     s32 addr = adresmus(index);
     s8 type = xread8(alis.script->data_org + addr);
+    debug(EDebugWarning, "\n- type %04x", type);
     if (type == 1 || type == 2)
     {
-        if (alis.speedsam == 0)
-            alis.speedsam = xread8(alis.script->data_org + addr + 1);
+        if (alis.audio.sample_speed == 0)
+            alis.audio.sample_speed = xread8(alis.script->data_org + addr + 1);
 
-        alis.longsam = xread32(alis.script->data_org + addr + 2) - 0x10;
-        alis.startsam = alis.script->data_org + addr + 0x10;
-        alis.typeson = 0x80;
+        alis.audio.sample_len = xread32(alis.script->data_org + addr + 2) - 0x10;
+        alis.audio.sample_addr = alis.script->data_org + addr + 0x10;
+        debug(EDebugWarning, "\n- len %08x", alis.audio.sample_len);
+        debug(EDebugWarning, "\n- addr %08x", alis.audio.sample_addr);
+        alis.audio.kind = 0x80;
         runson();
     }
 }
@@ -2791,7 +2799,7 @@ static void cautobase(void) {
 
 static void cquality(void) {
     readexec_opername();
-    alis.vquality = alis.varD7;
+    alis.audio.vquality = alis.varD7;
 }
 
 static void chsprite(void) {
@@ -3890,28 +3898,30 @@ void shrinkprog(s32 start, s32 length, u16 script_id)
     }
 }
 
-static int sample_idx = 0;
-void runson(void)
-{
-    if(alis.typeson == 0x80) {
-        // pcm sample
-        char name[32] = "";
-        sprintf(name, "samples/%d.raw", sample_idx++);
-        u8 *data = malloc(alis.longsam);
+static int _sample_idx = 0;
+void runson(void) {
+    switch(alis.audio.kind) {
+        case 0x1: {// cding
+            sys_play_wave(alis.audio.sound_freq, alis.audio.sound_len, alis.audio.sound_vol, 1);
+        } break;
+        case 0x80: {// csound
+            char name[32] = "";
+            sprintf(name, "samples/%d.raw", _sample_idx++);
+            u8 *data = malloc(alis.audio.sample_len);
+            u8 *addr = alis.mem + alis.audio.sample_addr;
+            memcpy(data, addr, alis.audio.sample_len);
+            FILE* fp = fopen(name, "wb");
+            fwrite(data, 1, alis.audio.sample_len, fp);
+            fclose(fp);
+            free(data);
 
-        u8 *addr = alis.mem + alis.startsam;
-        memcpy(data, addr, alis.longsam);
-
-        FILE* fp = fopen(name, "wb");
-        fwrite(data, 1, alis.longsam, fp);
-        fclose(fp);
-        free(data);
-
-        sys_play_sample((s16*)addr, alis.longsam);
+            sys_play_sample((s8*)(alis.mem + alis.audio.sample_addr), alis.audio.sample_len, alis.audio.sample_vol, alis.audio.sample_speed);
+        } break;
+        default:
+            debug(EDebugWarning, "Unknown audio type: %d", alis.audio.kind);
+            break;
     }
-    else {
-        printf("type son %d", alis.typeson);
-    }
+
 
 //    s8 *a3;
 //
@@ -3970,7 +3980,7 @@ void runson(void)
 //
 //runson10:
 //
-//    if (alis.typeson < 0)
+//    if (alis.sound.kind < 0)
 //    {
 //        gosound(a3);
 //    }
@@ -3978,7 +3988,7 @@ void runson(void)
 //    {
 //        a3[0] = -0x80;
 //        a3[1] = cVar1;
-//        a3[2] = alis.typeson;
+//        a3[2] = alis.sound_type;
 //        *(u16 *)(a3 + 0xa) = alis.freqson;
 //        *(u16 *)(a3 + 0xc) = alis.dfreqson;
 //        a3[6] = alis.volson;

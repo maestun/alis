@@ -288,27 +288,37 @@ typedef struct {
     u16             openmode;
     
     // sound
-    u8              volson;
-    u8              typeson;
-    u8              pereson;
-    u8              priorson;
-    u16             freqson;
-    u16             longson;
-    u16             dfreqson;
-    u16             dvolson;
-    u8              volsam;
-    u8              speedsam;
-    u16             loopsam;
-    u32             startsam;
-    u32             longsam;
-    u16             freqsam;
-    u16             vquality;
-    
-    // misc
-    u8              fswitch;
-    u8              ctiming;
-    u8              cstopret;
-    u16             random_number;
+    struct {
+        u8  kind;
+        
+        u8  sound_vol;
+        u8  pereson; // ???
+        u8  sound_priority;
+        u16 sound_freq;
+        u16 sound_len;
+        
+        u16 dsound_freq;
+        u16 dsound_vol;
+
+        u8  sample_vol;
+        u8  sample_speed;
+        u16 sample_loop;
+        u32 sample_addr;
+        u32 sample_len;
+        u16 sample_freq;
+
+        u16 vquality; // ???
+    } audio;
+
+    // unknown variables
+    u8          _cstopret;
+    u8          _callentity;
+    u8          fswitch;
+    u8          _ctiming;
+//    s16         _a6_minus_1a; // used by cforme
+//    u16         _a6_minus_16;
+    u16         _random_number;
+//    u8          _xinvon; // (-0x3,A6)
     
     struct timeval  time;
 
