@@ -31,7 +31,6 @@ typedef enum {
 
 /// @brief Unpacks a script file to buffer
 /// @param packed_file_path full path to packed file
-/// @param is_le zero if file to unpack is big-endian encoded
 /// @param unpacked_data output buffer
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed

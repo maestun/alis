@@ -141,7 +141,7 @@ typedef struct {
     sScriptLoc *    atent_ptr;
     u32 *           atprog_ptr;
 
-    u8              nmode;
+//    u8              nmode;
     u8              automode;
             
     u8              fallent;

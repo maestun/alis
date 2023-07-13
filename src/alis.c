@@ -27,7 +27,11 @@
 #include "utils.h"
 
 
-extern u8 mpalet[1024];
+extern u8 *ampalet;
+extern u8 *atpalet;
+
+extern u8 mpalet[768 * 4];
+extern u8 tpalet[768 * 4];
 
 sAlisVM alis;
 sHost host;
@@ -215,12 +219,15 @@ void alis_init(sPlatform platform) {
     alis.platform = platform;
     vram_init();
 
-    alis.nmode = 0; // 0 = atari 16 colors
-                    // 3 = mono
-                    // 8 = falcon 256 colors
+//    alis.nmode = 0; // 0 = atari 16 colors
+//                    // 3 = mono
+//                    // 8 = falcon 256 colors
 
     alis.restart_loop = 0;
     alis.automode = 0;
+    
+    memset(tpalet, 0, 768 * 4);
+    memset(mpalet, 0, 768 * 4);
 
     // init virtual ram
     alis.mem = malloc(sizeof(u8) * kHostRAMSize);
@@ -229,6 +236,8 @@ void alis_init(sPlatform platform) {
     image.spritemem = (u8 *)malloc(1024 * 1024);
     memset(image.spritemem, 0x0, 1024 * 1024);
 
+    // NOTE: cswitching is never called for older games
+    alis.fswitch = 1;
     alis.flagmain = 0;
     
     alis.fallent = 0;
@@ -290,8 +299,8 @@ void alis_init(sPlatform platform) {
     host.pixelbuf.h = alis.platform.height;
     host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
     memset(host.pixelbuf.data, 0x0, host.pixelbuf.w * host.pixelbuf.h);
-    host.pixelbuf.palette = mpalet;
-    memset(host.pixelbuf.palette, 0xff, 256 * 3);
+    host.pixelbuf.palette = ampalet;
+    memset(host.pixelbuf.palette, 0xff, 768);
 
     // load main script
     alis_load_main();
@@ -578,7 +587,7 @@ static u32 _linear32(u32 value) {
     return value;
 }
 
-void vram_init() {
+void vram_init(void) {
     _convert16 = (alis.platform.is_little_endian == is_host_le()) ? _linear16 : _swap16;
     _convert24 = (alis.platform.is_little_endian == is_host_le()) ? _linear24 : _swap24;
     _convert32 = (alis.platform.is_little_endian == is_host_le()) ? _linear32 : _swap32;

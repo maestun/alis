@@ -62,13 +62,20 @@ sImage image = {
 
 u8 tvmode = 0;
 
-u8 svpalet[1024];
-u8 svpalet2[1024];
-u8 tpalet[1024];
-u8 mpalet[1024];
-float dpalet[1024];
+u8 svpalet[768];
+u8 svpalet2[768];
+u8 tpalet[768 * 4];
+u8 mpalet[768 * 4];
+float dpalet[768];
+
+u8 *atpalet = tpalet;
+u8 *ampalet = mpalet;
 
 u8 *dkpalet = 0;
+
+u8 flinepal = 0;
+s16 firstpal[64];
+s16 tlinepal[64] = { 0, 0, 0xff, 0 };
 
 u8 palc = 0;
 u8 palt = 0;
@@ -78,8 +85,8 @@ u8 fdarkpal = 0;
 u8 thepalet = 0;
 u8 defpalet = 0;
 
-s16 *ptabfen = 0;
 s16 tabfen[640];
+s16 *ptabfen = tabfen;
 
 s32 bufrvb;
 
@@ -88,8 +95,6 @@ s32 mousflag;
 s16 oldacx;
 s16 oldacy;
 s16 oldacz;
-
-s8 nmode = 0;
 
 u8 *bufpack = 0;
 
@@ -222,29 +227,14 @@ void topalet(void)
 
     if (palc == 1)
     {
-        memcpy(mpalet, tpalet, 1024);
+        memcpy(ampalet, atpalet, 768);
     }
     else
     {
-        for (s32 i = 0; i < 1024; i++)
+        for (s32 i = 0; i < 768; i++)
         {
-            if (mpalet[i] == tpalet[i])
-            {
-                continue;
-            }
-            
-            if (mpalet[i] < tpalet[i])
-            {
-                mpalet[i] += dpalet[i];
-                if (mpalet[i] + dpalet[i] > tpalet[i])
-                    mpalet[i] = tpalet[i];
-            }
-            else if (mpalet[i] > tpalet[i])
-            {
-                mpalet[i] -= dpalet[i];
-                if (mpalet[i] - dpalet[i] < tpalet[i])
-                    mpalet[i] = tpalet[i];
-            }
+            if (ampalet[i] != atpalet[i])
+                ampalet[i] = atpalet[i] + dpalet[i] * palc;
         }
     }
     
@@ -253,16 +243,11 @@ void topalet(void)
 
 void topalette(u8 *paldata, s32 duration)
 {
+    selpalet();
+
     s16 colors = paldata[1];
     if (colors == 0) // 4 bit palette
     {
-        if (thepalet != 0)
-        {
-            thepalet = 0;
-            defpalet = 0;
-            return;
-        }
-        
         palc = 0;
         u8 *palptr = &paldata[2];
 
@@ -271,18 +256,18 @@ void topalette(u8 *paldata, s32 duration)
         {
             for (s32 i = 0; i < 16; i++)
             {
-                tpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
-                tpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
-                tpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
+                atpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
+                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
+                atpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
             }
         }
         else
         {
             for (s32 i = 0; i < 16; i++)
             {
-                tpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
-                tpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
-                tpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
+                atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
+                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
+                atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
             }
         }
     }
@@ -292,7 +277,7 @@ void topalette(u8 *paldata, s32 duration)
         u8 offset = paldata[2];
         if (fdarkpal == 0)
         {
-            memcpy(tpalet + (offset * 3), paldata + 4, colors * 3);
+            memcpy(atpalet + (offset * 3), paldata + 4, colors * 3);
         }
         else
         {
@@ -305,48 +290,48 @@ void topalette(u8 *paldata, s32 duration)
     
     if (duration != 0)
     {
-        for (s32 i = 0; i < 256 * 3; i++)
+        selpalet();
+
+        for (s32 i = 0; i < 768; i++)
         {
-            dpalet[i] = abs(tpalet[i] - mpalet[i]) / duration;
+            dpalet[i] = (ampalet[i] - atpalet[i]) / (float)duration;
         }
 
-        topalet();
         palt = 1;
         palt0 = 1;
         palc = duration;
     }
     else
     {
-        memcpy(mpalet, tpalet, 256 * 3);
+        memcpy(ampalet, atpalet, 768);
         ftopal = 0xff;
     }
 }
 
 void toblackpal(s16 duration)
 {
-    if (nmode == 1 || nmode == 5 || nmode == 3 || nmode == 10)
-    {
-        return;
-    }
-    
-    memset(tpalet, 0, 256 * 4);
+    selpalet();
+
+    memset(atpalet, 0, 768);
     
     thepalet = 0;
     defpalet = 0;
+
     if (duration == 0)
     {
-        memset(mpalet, 0, 256 * 4);
+        memset(ampalet, 0, 768);
         ftopal = 0xff;
         palc = 0;
     }
     else
     {
-        for (s32 i = 0; i < 256 * 3; i++)
+        selpalet();
+
+        for (s32 i = 0; i < 768; i++)
         {
-            dpalet[i] = abs(tpalet[i] - mpalet[i]) / (float)duration;
+            dpalet[i] = (ampalet[i] - atpalet[i]) / (float)duration;
         }
 
-        topalet();
         palt = 1;
         palt0 = 1;
         palc = duration;
@@ -358,35 +343,131 @@ void savepal(s16 mode)
     if (mode < 0 && -3 < mode)
     {
         u8 *tgt = (mode != -1) ? svpalet2 : svpalet;
-        memcpy(tgt, tpalet, 1024);
+        memcpy(tgt, atpalet, 768);
     }
 }
 
 void restorepal(s16 mode, s32 duration)
 {
     u8 *src = (mode != -1) ? svpalet2 : svpalet;
-    memcpy(tpalet, src, 1024);
+    memcpy(tpalet, src, 768);
 
     thepalet = 0;
     defpalet = 0;
     
     if (duration == 0)
     {
-        memcpy(mpalet, src, 1024);
+        memcpy(mpalet, src, 768);
         ftopal = 0xff;
         palc = 0;
     }
     else
     {
-        for (s32 i = 0; i < 256 * 3; i++)
+        for (s32 i = 0; i < 768; i++)
         {
-            dpalet[i] = abs(tpalet[i] - mpalet[i]) / (float)duration;
+            dpalet[i] = (mpalet[i] - tpalet[i]) / (float)duration;
         }
 
         topalet();
         palt = 1;
         palt0 = 1;
         palc = duration;
+    }
+}
+
+void selpalet(void)
+{
+    s16 offset = thepalet * 768;
+    ampalet = mpalet + offset;
+    atpalet = tpalet + offset;
+}
+
+void linepal(void)
+{
+    s32 begline = 0xc6;
+    s16 endline = 0x2f;
+
+    s16 line;
+    s16 dummy;
+    
+    s16 *tlinepal_ptr = tlinepal;
+    s16 *palentry = firstpal;
+    
+    for (int i = 0; i < 4; i++)
+    {
+        line = tlinepal_ptr[0];
+        if (200 < line)
+            break;
+        
+        dummy = line == 0 ? line : ((u16)(line * begline) >> 8) + endline;
+        
+        palentry[0] = dummy;
+        palentry[1] = line;
+        *(u8 **)&(palentry[2]) = mpalet + (tlinepal_ptr[3] * 768);
+
+        tlinepal_ptr += 2;
+        palentry += 2 + (sizeof(u8 *) >> 1);
+    }
+    
+    *(s16 *)(palentry + 0) = 0xff;
+    *(s16 *)(palentry + 2) = 0;
+    *(u8 **)(palentry + 4) = mpalet;
+}
+
+void setlinepalet(s16 line, s16 palidx) {
+    
+    if (line < 0)
+    {
+        flinepal = 0;
+        tlinepal[0] = 0;
+        tlinepal[1] = 0;
+        tlinepal[2] = 0xff;
+        tlinepal[3] = 0;
+        linepal();
+        return;
+    }
+    
+    if (199 <= line)
+    {
+        line = 199;
+    }
+
+    s16 *tlinepal_ptr = tlinepal;
+    s16 *prevtlpal_ptr;
+    
+    do
+    {
+        prevtlpal_ptr = tlinepal_ptr;
+        if (line == prevtlpal_ptr[0])
+        {
+            if (palidx == prevtlpal_ptr[1])
+                return;
+            
+            prevtlpal_ptr[1] = palidx;
+            flinepal = 1;
+            linepal();
+            return;
+        }
+        
+        tlinepal_ptr = prevtlpal_ptr + 2;
+    }
+    while (prevtlpal_ptr[0] < 200);
+    
+    if (tlinepal - prevtlpal_ptr < 0)
+    {
+        do
+        {
+            prevtlpal_ptr = tlinepal_ptr;
+            prevtlpal_ptr[0] = prevtlpal_ptr[-2];
+            prevtlpal_ptr[1] = prevtlpal_ptr[-1];
+            tlinepal_ptr = prevtlpal_ptr - 2;
+        }
+        while ((s16)(line - prevtlpal_ptr[0]) < 0);
+        
+        prevtlpal_ptr[0] = line;
+        prevtlpal_ptr[1] = palidx;
+        flinepal = 1;
+        linepal();
     }
 }
 
@@ -610,6 +691,35 @@ u8 searchelem(s16 *curidx, s16 *previdx)
             
             *previdx = *curidx;
             *curidx = cursprvar->to_next;
+        }
+        while (*curidx != 0);
+    }
+    
+    return 0;
+}
+
+s8 searchtete(s16 *curidx, s16 *previdx)
+{
+    *previdx = 0;
+    *curidx = get_0x18_unknown(alis.script->vram_org);
+    if (*curidx != 0)
+    {
+        s16 screenid = get_0x16_screen_id(alis.script->vram_org);
+        
+        do
+        {
+            sSprite *sprite = SPRITE_VAR(*curidx);
+            s16 sprscid = sprite->screen_id;
+            if (sprscid <= screenid)
+            {
+                if (screenid == sprscid)
+                    return screenid == sprscid;
+                
+                break;
+            }
+            
+            *previdx = *curidx;
+            *curidx = sprite->to_next;
         }
         while (*curidx != 0);
     }

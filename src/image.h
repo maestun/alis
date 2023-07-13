@@ -94,6 +94,7 @@ void inisprit(void);
 
 void createlem(s16 *curidx, s16 *previdx);
 u8 searchelem(s16 *curidx, s16 *previdx);
+s8 searchtete(s16 *curidx, s16 *previdx);
 void killelem(s16 *curidx, s16 *previdx);
 
 void put(u16 idx);
@@ -110,6 +111,10 @@ void toblackpal(s16 duration);
 
 void savepal(s16 mode);
 void restorepal(s16 mode, s32 duration);
+
+void selpalet(void);
+
+void setlinepalet(s16 start, s16 palidx);
 
 s16 debprotf(s16 d2w);
 

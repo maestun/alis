@@ -124,7 +124,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
             debug(EDebugInfo, "\n");
 
             script->pc = script->pc_org = 0;
-            debug(EDebugInfo, " (10NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
+            debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 
             debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
             return script;
@@ -190,7 +190,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     debug(EDebugInfo, "\n");
 
     script->pc = script->pc_org = 0;
-    debug(EDebugInfo, " (11NAME: %s VACC: 0x%x, PC: 0x%x) ", script->name, script->vacc_off, script->pc);
+    debug(EDebugInfo, " (NAME: %s VACC: 0x%x, PC: 0x%x) ", script->name, script->vacc_off, script->pc);
 
     debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
@@ -306,7 +306,7 @@ sAlisScript * script_load(const char * script_path) {
         u32 magic = fread32(fp);
         u16 check = fread16(fp);
         
-        u32 depak_sz = input_sz;
+        s32 depak_sz = input_sz;
         
         // TODO: check if this was already loaded, if so use cache
         
@@ -335,20 +335,16 @@ sAlisScript * script_load(const char * script_path) {
         
         depak_sz = unpack_script(script_path, &depak_buf);
         if (depak_sz > 0) {
-            // unpacked, continue
-            debug(EDebugInfo,
-                  "Depacking done in %ld bytes (~%d%% packing ratio)\n",
-                  depak_sz, 100 - (100 * pak_sz) / depak_sz);
-            
             // init script
             script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
         }
         else {
 
-            // not packed !!
-            debug(EDebugFatal,
-                  "Unpacked scripts are not supported: '%s'\n",
-                  script_path);
+            // not packed, still might be script
+
+            // TODO: read header, select proper offset (it changes for main/normal script, older/newer etc)
+            // init script
+            script = script_init(strrchr(script_path, kPathSeparator) + 1, pak_buf + 14, pak_sz - 14);
         }
 
         // cleanup

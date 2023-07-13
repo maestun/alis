@@ -45,6 +45,9 @@ float           _scaleY;
 u32             _width = 320;
 u32             _height = 200;
 
+extern u8       flinepal;
+extern s16      firstpal[64];
+
 void sys_init(void) {
     _scaleX = _scale;
     _scaleY = _scale * _aspect_ratio;
@@ -105,12 +108,42 @@ u8 sys_poll_event(void) {
 
 void sys_render(pixelbuf_t buffer) {
     
-    for (int px = 0; px < buffer.w * buffer.h; px++)
+    if (flinepal == 0)
     {
-        int index = buffer.data[px];
-        _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
+        for (int px = 0; px < buffer.w * buffer.h; px++)
+        {
+            int index = buffer.data[px];
+            _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
+        }
     }
-    
+    else
+    {
+        s16 *palentry = firstpal + 2 + (sizeof(u8 *) >> 1);
+        s16 line = palentry[1];
+
+        for (int y = 0; y < line; y++)
+        {
+            s32 px = y * buffer.w;
+            for (int x = 0; x < buffer.w; x++, px++)
+            {
+                int index = buffer.data[px];
+                _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
+            }
+        }
+        
+        u8 *palette = *(u8 **)&(firstpal[2]);
+
+        for (int y = line; y < buffer.h; y++)
+        {
+            s32 px = y * buffer.w;
+            for (int x = 0; x < buffer.w; x++, px++)
+            {
+                int index = buffer.data[px];
+                _pixels[px] = (u32)(0xff000000 + (palette[index * 3 + 0] << 16) + (palette[index * 3 + 1] << 8) + (palette[index * 3 + 2] << 0));
+            }
+        }
+    }
+
     SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
 
     // render

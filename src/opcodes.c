@@ -41,6 +41,7 @@
 #pragma mark - Experimental
 // ============================================================================
 
+extern u8 ftopal;
 extern u8 thepalet;
 extern u8 defpalet;
 
@@ -778,15 +779,36 @@ static void cputnat(void) {
 }
 
 static void cerase(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    short curidx = 0;
+    short previdx = 0;
+
+    if (searchtete(&curidx, &previdx))
+    {
+        s16 screenid = get_0x16_screen_id(alis.script->vram_org);
+
+        do
+        {
+            killelem(&curidx, &previdx);
+            if (curidx == 0)
+            {
+                alis.ferase = 0;
+                return;
+            }
+        }
+        while (screenid == SPRITE_VAR(curidx)->screen_id);
+    }
+    
+    alis.ferase = 0;
 }
 
 static void cerasen(void) {
     readexec_opername_saveD7();
     image.numelem = alis.varD7;
     
-    u16 curidx = 0;
-    u16 previdx = 0;
+    s16 curidx = 0;
+    s16 previdx = 0;
 
     while (1)
     {
@@ -833,8 +855,8 @@ static void cclosesc(void) {
 }
 
 static void cerasall(void) {
-    u16 tmpidx = 0;
-    u16 curidx = get_0x18_unknown(alis.script->vram_org);
+    s16 tmpidx = 0;
+    s16 curidx = get_0x18_unknown(alis.script->vram_org);
     while (curidx)
     {
         killelem((s16*)&curidx, (s16*)&tmpidx);
@@ -1455,7 +1477,11 @@ static void cviewmat(void) {
 }
 
 static void corient(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    readexec_opername();
+    u16 off = alis.varD7 * 3;
+    s32 addr = get_0x20_set_vect(alis.script->vram_org) == 0 ? 0x17493 : get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org) + 1;
+    memcpy(alis.mem + alis.script->vram_org + 0x9, alis.mem + (addr + off), 3);
 }
 
 static void csend(void) {
@@ -1547,10 +1573,6 @@ static void cpalette(void) {
     }
     else
     {
-        if (alis.nmode != 1 && alis.nmode != 5)
-        {
-        }
-        
         s32 addr = adresdes(palidx);
         u8 *paldata = alis.mem + alis.script->data_org + addr;
         topalette(paldata, 0);
@@ -1803,7 +1825,10 @@ static void cboxf(void) {
 }
 
 static void cink(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    readexec_opername();
+    
+    // TODO: ...
 }
 
 static void cpset(void) {
@@ -1878,11 +1903,18 @@ static void csetmouse(void) {
 }
 
 static void cdefvect(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    s16 offset = script_read8();
+    offset += offset * 2;
+    offset += 3;
+    
+    alis.script->pc += offset;
 }
 
 static void csetvect(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    s16 value = script_read16();
+    set_0x20_set_vect(alis.script->vram_org, value);
 }
 
 static void capproach(void) {
@@ -2454,7 +2486,10 @@ static void cfont(void) {
 }
 
 static void cpaper(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    readexec_opername();
+    
+    // TODO: ...
 }
 
 // fade-out to black
@@ -2773,6 +2808,11 @@ static void cselpalet(void) {
 static void clinepalet(void) {
     readexec_opername();
     readexec_opername_saveD6();
+    
+    if (alis.platform.bpp != 8)
+    {
+        setlinepalet(alis.varD7, alis.varD6);
+    }
 }
 
 static void cautomode(void) {
@@ -2790,8 +2830,8 @@ static void ccancel(void) {
 static void ccancall(void) {
     alis.ferase = 1;
     
-    u16 tmpidx = 0;
-    u16 curidx = get_0x18_unknown(alis.script->vram_org);
+    s16 tmpidx = 0;
+    s16 curidx = get_0x18_unknown(alis.script->vram_org);
     while (curidx)
     {
         killelem((s16*)&curidx, (s16*)&tmpidx);
