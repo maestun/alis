@@ -50,7 +50,7 @@ void sys_init(void) {
     _scaleY = _scale * _aspect_ratio;
     
     SDL_Init(SDL_INIT_VIDEO);
-    _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, 0);
+    _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
@@ -97,6 +97,16 @@ u8 sys_poll_event(void) {
             }
             break;
         }
+		case SDL_WINDOWEVENT:
+		{
+			if (_event.window.event == SDL_WINDOWEVENT_RESIZED)
+			{
+				_scaleX = (float)_event.window.data1 / _width;
+				_scaleY = (float)_event.window.data2 / _height;
+				
+				//SDL_RenderSetScale(_renderer, _scaleX, _scaleY);
+			}
+		}
     };
 
     return running;
