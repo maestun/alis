@@ -342,9 +342,25 @@ sAlisScript * script_load(const char * script_path) {
 
             // not packed, still might be script
 
-            // TODO: read header, select proper offset (it changes for main/normal script, older/newer etc)
-            // init script
-            script = script_init(strrchr(script_path, kPathSeparator) + 1, pak_buf + 14, pak_sz - 14);
+            u8 type = magic >> 24;
+            depak_sz = (magic & 0x00ffffff);
+            
+            if (/*type == 01  && */depak_sz == input_sz) {
+                
+                s32 shrink = (HEADER_MAGIC_SZ + HEADER_CHECK_SZ + HEADER_DIC_SZ);
+                if(is_main(check)) {
+                    shrink += HEADER_MAIN_SZ;
+                }
+
+                // init script
+                script = script_init(strrchr(script_path, kPathSeparator) + 1, pak_buf + shrink, pak_sz - shrink);
+            }
+            else {
+                debug(EDebugFatal,
+                      "Failed to open script at path '%s'\n",
+                      script_path);
+                exit(-1);
+            }
         }
 
         // cleanup
@@ -357,8 +373,10 @@ sAlisScript * script_load(const char * script_path) {
         debug(EDebugFatal,
               "Failed to open script at path '%s'\n",
               script_path);
+        exit(-1);
 
     }
+    
     return script;
 }
 

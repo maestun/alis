@@ -27,6 +27,9 @@
 const u8 kPackerKindOld = 0x81;
 const u8 kPackerKindOldInterlaced = 0x80;
 const u8 kPackerKindNew = 0xa1;
+const u8 kPackerKindNewInterlaced = 0xa0;
+const u8 kPackerKindMac = 0xc1;
+const u8 kPackerKindMacInterlaced = 0xc0;
 const u8 kPackedHeaderSize = 6;
 const u8 kPackedDictionarySize = 8;
 const u8 kVMSpecsSize = 16;
@@ -254,7 +257,11 @@ u32 unpack_new(u8* ptr_packed,
 u8 is_packed(u8 packer_kind) {
     return packer_kind == kPackerKindOld || 
            packer_kind == kPackerKindOldInterlaced || 
-           packer_kind == kPackerKindNew;
+           packer_kind == kPackerKindNew ||
+           packer_kind == kPackerKindNewInterlaced ||
+           packer_kind == kPackerKindMac ||
+           packer_kind == kPackerKindMacInterlaced
+    ;
 }
 
 /// @brief Unpacks a script file to buffer
@@ -317,12 +324,31 @@ int unpack_script(const char* packed_file_path,
                 unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
                 // depak(packed_buffer, unpacked_buffer, packed_size, unpacked_size, dict);
             }
+            else if (packer_kind == kPackerKindNewInterlaced) {
+                debug(EDebugFatal, "Unpacker not yet implemented (New Interlaced)\n");
+                free(unpacked_buffer);
+                free(packed_buffer);
+                return EUnpackErrorFormat;
+            }
+            else if (packer_kind == kPackerKindMac) {
+                debug(EDebugFatal, "Unpacker not yet implemented (Mac)\n");
+                free(unpacked_buffer);
+                free(packed_buffer);
+                return EUnpackErrorFormat;
+            }
+            else if (packer_kind == kPackerKindMacInterlaced) {
+                debug(EDebugFatal, "Unpacker not yet implemented (Mac Interlaced)\n");
+                free(unpacked_buffer);
+                free(packed_buffer);
+                return EUnpackErrorFormat;
+            }
             else if (packer_kind == kPackerKindOld) {
                 unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 0);
             }
             else if (packer_kind == kPackerKindOldInterlaced) {
                 unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
             }
+
             debug(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n",
                     packed_file_path, packed_size, unpacked_size, 
                     100 - (int)((packed_size * 100) / unpacked_size),
