@@ -201,8 +201,39 @@ u8 io_inkey(void)
         button.scancode = 0;
         button.sym = 0;
     }
+    
+    switch (button.sym) {
+        case SDLK_ESCAPE:       return 0x1b;
+            
+        case SDLK_UP:           return 0xc8;
+        case SDLK_DOWN:         return 0xd0;
+        case SDLK_LEFT:         return 0xcb;
+        case SDLK_RIGHT:        return 0xcd;
+        
+        case SDLK_KP_0:         return 48;
+        case SDLK_KP_1:         return 49;
+        case SDLK_KP_2:         return 50;
+        case SDLK_KP_3:         return 51;
+        case SDLK_KP_4:         return 52;
+        case SDLK_KP_5:         return 53;
+        case SDLK_KP_6:         return 54;
+        case SDLK_KP_7:         return 55;
+        case SDLK_KP_8:         return 56;
+        case SDLK_KP_9:         return 57;
+            
+        case SDLK_F1:           return 0xbb;
+        case SDLK_F2:           return 0xbc;
+        case SDLK_F3:           return 0xbd;
+        case SDLK_F4:           return 0xbe;
+        case SDLK_F5:           return 0xbf;
+        case SDLK_F6:           return 0xc0;
+        case SDLK_F7:           return 0xc1;
+        case SDLK_F8:           return 0xc2;
+        case SDLK_F9:           return 0xc3;
+        case SDLK_F10:          return 0xc4;
 
-    return button.sym;
+        default:                return button.sym;
+    }
 }
 
 u8 io_shiftkey(void) {
