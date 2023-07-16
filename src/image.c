@@ -248,22 +248,22 @@ void topalette(u8 *paldata, s32 duration)
         u8 *palptr = &paldata[2];
 
         s16 to = 0;
-        if (alis.platform.kind == EPlatformAtari || alis.platform.kind == EPlatformPC)
-        {
-            for (s32 i = 0; i < 16; i++)
-            {
-                atpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
-                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
-                atpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
-            }
-        }
-        else
+        if (alis.platform.kind == EPlatformAmiga)
         {
             for (s32 i = 0; i < 16; i++)
             {
                 atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
                 atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
                 atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
+            }
+        }
+        else
+        {
+            for (s32 i = 0; i < 16; i++)
+            {
+                atpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
+                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
+                atpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
             }
         }
     }

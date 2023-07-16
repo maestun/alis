@@ -377,10 +377,9 @@ sAlisScriptData * script_load(const char * script_path) {
         }
     }
     else {
-        debug(EDebugFatal,
+        debug(EDebugWarning,
               "Failed to open script at path '%s'\n",
               script_path);
-        exit(-1);
     }
     
     return script;

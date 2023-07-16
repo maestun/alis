@@ -326,19 +326,16 @@ int unpack_script(const char* packed_file_path,
             }
             else if (packer_kind == kPackerKindNewInterlaced) {
                 debug(EDebugFatal, "Unpacker not yet implemented (New Interlaced)\n");
-                free(unpacked_buffer);
                 free(packed_buffer);
                 return EUnpackErrorFormat;
             }
             else if (packer_kind == kPackerKindMac) {
                 debug(EDebugFatal, "Unpacker not yet implemented (Mac)\n");
-                free(unpacked_buffer);
                 free(packed_buffer);
                 return EUnpackErrorFormat;
             }
             else if (packer_kind == kPackerKindMacInterlaced) {
                 debug(EDebugFatal, "Unpacker not yet implemented (Mac Interlaced)\n");
-                free(unpacked_buffer);
                 free(packed_buffer);
                 return EUnpackErrorFormat;
             }
