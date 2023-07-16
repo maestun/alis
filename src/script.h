@@ -172,23 +172,28 @@ typedef struct {
 
     // offset to script data
     u32             data_org;
+} sAlisScriptData;
+
+typedef struct {
+    
+    char *          name;
+
+    sAlisScriptData *   data;
     
     // each script has its own virtual context and memory
     u32             vram_org;
     s16             vacc_off;
-    
-    // sScriptContext *context;
-    
+
     u8              running;
-    u32             pc_org; // offset in memory
     u32             pc;     // offset in memory
-} sAlisScript;
+    u32             pc_org; // offset in memory
+} sAlisScriptLive;
 
 
-sAlisScript *   script_load(const char * script_path);
-void            script_unload(sAlisScript * script);
+sAlisScriptData *   script_load(const char * script_path);
+void            script_unload(sAlisScriptData * script);
 
-void            script_live(sAlisScript * script);
+sAlisScriptLive *script_live(sAlisScriptData * script);
 
 // read data from script, these will increase the virtual program counter
 u8              script_read8(void);
@@ -198,7 +203,7 @@ void            script_read_bytes(u32 len, u8 * dest);
 void            script_read_until_zero(u8 * dest);
 void            script_jump(s32 offset);
 
-// void            script_debug(sAlisScript * script);
+// void            script_debug(sAlisScriptData * script);
 
 u16 get_0x34_unknown(u32 vram);
 u8 get_0x32_unknown(u32 vram);
@@ -267,5 +272,5 @@ void set_0x0a_vacc_offset(u32 vram, u16 val);
 void set_0x08_script_ret_offset(u32 vram, u32 val);
 void set_0x04_cstart_csleep(u32 vram, u8 val);
 void set_0x03_xinv(u32 vram, u8 val);
-void set_0x02_unknown(u32 vram, u8 val);
-void set_0x01_cstart(u32 vram, u8 val);
+void set_0x02_wait_cycles(u32 vram, u8 val);
+void set_0x01_wait_count(u32 vram, u8 val);

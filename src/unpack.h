@@ -29,6 +29,10 @@ typedef enum {
     EUnpackErrorFormat = -3
 } EUnpackError;
 
+extern const u8 kPackedHeaderSize;
+extern const u8 kPackedDictionarySize;
+extern const u8 kVMSpecsSize;
+
 /// @brief Unpacks a script file to buffer
 /// @param packed_file_path full path to packed file
 /// @param unpacked_data output buffer

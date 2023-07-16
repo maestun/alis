@@ -226,12 +226,12 @@ typedef struct {
     
     // SCRIPTS
     // global table containing all depacked scripts
-    sAlisScript *   live_scripts[kMaxScripts];
-    sAlisScript *   loaded_scripts[kMaxScripts];
+    sAlisScriptLive * live_scripts[kMaxScripts];
+    sAlisScriptData * loaded_scripts[kMaxScripts];
 
     // pointer to current script
-    sAlisScript *   script;
-    sAlisScript *   main;
+    sAlisScriptLive * script;
+    sAlisScriptLive * main;
         
     // virtual registers
     s16             varD6;
@@ -334,7 +334,7 @@ extern sHost host;
 void            alis_init(sPlatform platform);
 u8              alis_start(void);
 void            alis_deinit(void);
-void            alis_start_script(sAlisScript * script);
+void            alis_start_script(sAlisScriptData * script);
 void            alis_error(int errnum, ...);
 void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
@@ -344,6 +344,7 @@ u8 *            get_vram(s16 offset);
 
 int             adresdes(s32 idx);
 int             adresmus(s32 idx);
+int             adresform(s16 idx);
 
 s16             tabint(s16 offset, u8 *address);
 s16             tabchar(s16 offset, u8 *address);

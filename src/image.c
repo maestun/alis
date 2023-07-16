@@ -50,6 +50,7 @@
 #endif
 
 sImage image = {
+    .backprof = 0,
     .numelem = 0,
     .invert_x = 0,
     .depx = 0,
@@ -125,7 +126,6 @@ u8 sback;
 u8 wback;
 s8 cback;
 u8 pback;
-s16 backprof = 0;
 s16 clipx1;
 s16 clipy1;
 s16 clipx2;
@@ -165,10 +165,6 @@ u8 insid = 0;
 u8 spag = 0;
 u8 wpag = 0;
 u8 *backmap;
-s32 backx1;
-s32 backx2;
-s16 backy1;
-s16 backy2;
 u32 timeclock = 0;
 
 
@@ -515,7 +511,7 @@ void log_sprites(void)
                 lastidx = curidx;
                 sprite = SPRITE_VAR(curidx);
 
-                sAlisScript *script = ENTSCR(sprite->script_ent);
+                sAlisScriptLive *script = ENTSCR(sprite->script_ent);
                 
                 s32 addr = 0;
                 s32 index = -1;
@@ -528,13 +524,13 @@ void log_sprites(void)
                     s32 l = read32(ptr + 0xe);
                     s32 e = read16(ptr + l + 4);
                     
-                    sAlisScript *prev = alis.script;
+                    sAlisScriptLive *prev = alis.script;
                     alis.script = script;
                     
                     for (s32 i = 0; i < e; i++)
                     {
                         addr = adresdes(i);
-                        if (sprite->data == addr + script->data_org)
+                        if (sprite->data == addr + script->data->data_org)
                         {
                             index = i;
                             break;
@@ -805,7 +801,7 @@ void delprec(s16 elemidx)
 void killelem(s16 *curidx, s16 *previdx)
 {
     sSprite *cursprvar = SPRITE_VAR(*curidx);
-//    sAlisScript *s = ENTSCR(cursprvar->script_ent);
+//    sAlisScriptLive *s = ENTSCR(cursprvar->script_ent);
 //    u8 *resourcedata = alis.mem + cursprvar->data;
 //    s16 width = read16(resourcedata + 2);
 //    s16 height = read16(resourcedata + 4);
@@ -882,7 +878,7 @@ void put(u16 idx)
 void putin(u16 idx)
 {
     s32 addr = adresdes(idx);
-    u8 *resourcedata = alis.mem + (alis.flagmain != 0 ? alis.main->data_org : alis.script->data_org) + addr;
+    u8 *resourcedata = alis.mem + (alis.flagmain != 0 ? alis.main->data->data_org : alis.script->data->data_org) + addr;
 //    s16 width = read16(resourcedata + 2);
 //    s16 height = read16(resourcedata + 4);
 //    printf(" putin: %d x %d ", width, height);
@@ -973,7 +969,7 @@ void putin(u16 idx)
         addr = adresdes(idx);
 
         sSprite *cursprvar = SPRITE_VAR(newidx);
-        cursprvar->data       = (alis.flagmain != 0 ? alis.main->data_org : alis.script->data_org) + addr;
+        cursprvar->data       = (alis.flagmain != 0 ? alis.main->data->data_org : alis.script->data->data_org) + addr;
         cursprvar->flaginvx   = (u8)image.invert_x;
         cursprvar->depx       = image.oldcx + image.depx;
         cursprvar->depy       = image.oldcy + image.depy;
@@ -1254,7 +1250,7 @@ s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
     s16 newd1  =  idx1sprvar->newd;
     s8 cordspr1 = idx1sprvar->cordspr;
     s8 numelem1 = idx1sprvar->numelem;
-    if (wback != 0 && elemidx1 != image.backsprite && backprof <= newd1)
+    if (wback != 0 && elemidx1 != image.backsprite && image.backprof <= newd1)
     {
         pback = 1;
     }
@@ -1671,7 +1667,7 @@ s16 iremplink(s16 scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
     addlink(elemidx1);
     
     sSprite *elem1sprvar = SPRITE_VAR(elemidx1);
-    if (wback != 0 && backprof <= elem1sprvar->newd)
+    if (wback != 0 && image.backprof <= elem1sprvar->newd)
     {
         pback = 1;
         return inouvlink(scene, elemidx1, elemidx2, elemidx3);
@@ -1706,7 +1702,7 @@ s16 iefflink(s16 elemidx1, s16 elemidx2)
     elem1sprvar->to_next = image.libsprit;
     
     image.libsprit = elemidx1;
-    if (wback != 0 && backprof <= elem1sprvar->newd)
+    if (wback != 0 && image.backprof <= elem1sprvar->newd)
     {
         pback = 1;
     }
@@ -1730,22 +1726,22 @@ void clrfen(void)
 
 void clipback(void)
 {
-    if (clipy1 < ((s16 *)(&backx1))[1])
+    if (clipy1 < ((s16 *)(&image.backx1))[1])
     {
-        if (clipy2 < ((s16 *)(&backx1))[1])
+        if (clipy2 < ((s16 *)(&image.backx1))[1])
         {
             return;
         }
     }
     else
     {
-        if (clipy2 <= ((s16 *)(&backx2))[1])
+        if (clipy2 <= ((s16 *)(&image.backx2))[1])
         {
             cback = 1;
             return;
         }
         
-        if (((s16 *)(&backx2))[1] < clipy1)
+        if (((s16 *)(&image.backx2))[1] < clipy1)
         {
             return;
         }
@@ -1775,12 +1771,12 @@ void destofen(sSprite *sprite)
     s32 height = sprite->height + 1;
 
 //     s16 spridx = (u8 *)sprite - SPRITEMEM_PTR;
-//    sAlisScript *s = ENTSCR(sprite->script_ent);
+//    sAlisScriptLive *s = ENTSCR(sprite->script_ent);
 //    alis.script = s;
 //
 //    s16 index = -1;
 //
-//    sAlisScript *prevscript = alis.script;
+//    sAlisScriptLive *prevscript = alis.script;
 //
 //    s32 addr = 0;
 //
@@ -2063,17 +2059,17 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                                     if ((wback != 0) && (pback != 0))
                                     {
                                         wlogic = backmap;
-                                        wlogx1 = backx1;
-                                        wlogx2 = backx2;
-                                        wlogy1 = backy1;
-                                        wlogy2 = backy2;
+                                        wlogx1 = image.backx1;
+                                        wlogx2 = image.backx2;
+                                        wlogy1 = image.backy1;
+                                        wlogy2 = image.backy2;
                                         wloglarg = backlarg;
                                         
-                                        if (clipy1 <= backx1)
-                                            clipy1 = backx1;
+                                        if (clipy1 <= image.backx1)
+                                            clipy1 = image.backx1;
 
-                                        if (backx2 <= clipy2)
-                                            clipy2 = backx2;
+                                        if (image.backx2 <= clipy2)
+                                            clipy2 = image.backx2;
 
                                         sprite = SPRITE_VAR(tmpidx);
                                         while (true)
@@ -2104,10 +2100,10 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                                         goto fenetre31;
 
                                     wlogic = backmap;
-                                    wlogx1 = backx1;
-                                    wlogx2 = backx2;
-                                    wlogy1 = backy1;
-                                    wlogy2 = backy2;
+                                    wlogx1 = image.backx1;
+                                    wlogx2 = image.backx2;
+                                    wlogy1 = image.backy1;
+                                    wlogy2 = image.backy2;
                                     wloglarg = backlarg;
                                 }
                             }
@@ -2264,8 +2260,8 @@ affiscin:
                             isback = wback == 0;
                             if (!isback)
                             {
-                                isback = backprof == SPRITE_VAR(elemidx1)->newd;
-                                if (backprof <= SPRITE_VAR(elemidx1)->newd)
+                                isback = image.backprof == SPRITE_VAR(elemidx1)->newd;
+                                if (image.backprof <= SPRITE_VAR(elemidx1)->newd)
                                 {
                                     pback = 1;
                                     isback = false;

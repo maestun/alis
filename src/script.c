@@ -35,14 +35,14 @@
 
 // byte 0 -> magic
 // byte 1..3 -> depacked size (24 bits)
-#define HEADER_MAGIC_SZ     (sizeof(u32))
+//#define HEADER_MAGIC_SZ     (sizeof(u32))
 // byte 4..5 -> main script if zero
-#define HEADER_CHECK_SZ     (sizeof(u16))
+//#define HEADER_CHECK_SZ     (sizeof(u16))
 // if main: byte 6..21 -> main header
-#define HEADER_MAIN_SZ      (16 * sizeof(u8))
+//#define HEADER_MAIN_SZ      (16 * sizeof(u8))
 // if main: byte 22..29 -> dic
 // if not main: byte 6..13 -> dic
-#define HEADER_DIC_SZ       (2 * sizeof(u32))
+//#define HEADER_DIC_SZ       (2 * sizeof(u32))
 
 u8 is_packedx(u32 magic) {
     return ((magic >> 24) & 0xf0) == 0xa0;
@@ -79,13 +79,13 @@ int search_insert(u32 *nums, u32 size, int target_id) {
     return start;
 }
 
-sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
+sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
     
     s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
     if (insert > 0 && insert < alis.nbprog)
     {
-        sAlisScript *script = alis.loaded_scripts[insert];
+        sAlisScriptData *script = alis.loaded_scripts[insert];
         if (script->header.id == id)
         {
             script->sz = data_sz;
@@ -123,7 +123,6 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
             
             debug(EDebugInfo, "\n");
 
-            script->pc = script->pc_org = 0;
             debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 
             debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
@@ -132,8 +131,8 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     }
     
     // init script
-    sAlisScript * script = (sAlisScript *)malloc(sizeof(sAlisScript));
-    memset(script, 0, sizeof(sAlisScript));
+    sAlisScriptData * script = (sAlisScriptData *)malloc(sizeof(sAlisScriptData));
+    memset(script, 0, sizeof(sAlisScriptData));
     strcpy(script->name, name);
     script->sz = data_sz;
     
@@ -159,11 +158,7 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     script->header.w_unknown5 = swap16((data + 18));
     script->header.vram_alloc_sz = swap16((data + 20));
     script->header.w_unknown7 = swap16((data + 22));
-    
-    script->vram_org = 0;
-    script->vacc_off = 0;
     script->data_org = alis.finprog;
-
     memcpy(alis.mem + script->data_org, data, data_sz);
 
     // get insert point
@@ -188,18 +183,21 @@ sAlisScript * script_init(char * name, u8 * data, u32 data_sz) {
     }
     
     debug(EDebugInfo, "\n");
-
-    script->pc = script->pc_org = 0;
-    debug(EDebugInfo, " (NAME: %s VACC: 0x%x, PC: 0x%x) ", script->name, script->vacc_off, script->pc);
-
     debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
     return script;
 }
 
-void  script_live(sAlisScript * script) {
-    u8 *data = alis.mem + script->data_org;
+sAlisScriptLive *script_live(sAlisScriptData * prog) {
+    
+    sAlisScriptLive *script = (sAlisScriptLive *)malloc(sizeof(sAlisScriptLive));
+    memset(script, 0, sizeof(sAlisScriptLive));
+    
+    script->name        = prog->name;
+    script->data        = prog;
 
+    u8 *data = alis.mem + script->data->data_org;
+    
     s32 prevfin = swap16((data + 0x12)) + alis.finent;
 
     alis.finent = ((swap16((data + 0x16)) + (swap16((data + 0x12)) + alis.finent)) + sizeof(sScriptContext));
@@ -221,12 +219,12 @@ void  script_live(sAlisScript * script) {
     set_0x0a_vacc_offset(script->vram_org, script->vacc_off);
     set_0x1c_scan_clr(script->vram_org, script->vacc_off);
     set_0x1e_scan_clr(script->vram_org, script->vacc_off);
-    set_0x08_script_ret_offset(script->vram_org, script->data_org + script->header.code_loc_offset + 2);
-    set_0x10_script_id(script->vram_org, script->header.id);
-    set_0x14_script_org_offset(script->vram_org, script->data_org);
-    set_0x2e_script_header_word_2(script->vram_org, script->header.unknown01);
-    set_0x02_unknown(script->vram_org, 1);
-    set_0x01_cstart(script->vram_org, 1);
+    set_0x08_script_ret_offset(script->vram_org, script->data->data_org + script->data->header.code_loc_offset + 2);
+    set_0x10_script_id(script->vram_org, script->data->header.id);
+    set_0x14_script_org_offset(script->vram_org, script->data->data_org);
+    set_0x2e_script_header_word_2(script->vram_org, script->data->header.unknown01);
+    set_0x02_wait_cycles(script->vram_org, 1);
+    set_0x01_wait_count(script->vram_org, 1);
     set_0x04_cstart_csleep(script->vram_org, 0xff);
     set_0x1a_cforme(script->vram_org, 0xffff);
     set_0x0e_script_ent(script->vram_org, alis.dernent);
@@ -248,7 +246,7 @@ void  script_live(sAlisScript * script) {
     set_0x30_unknown(script->vram_org, 0);
 
     //set_0x2d_calign(script->vram_org, script->header.unknown02);
-
+    
     script->pc = script->pc_org = get_0x08_script_ret_offset(script->vram_org);
     
     s16 nextent = xswap16(alis.atent_ptr[caller_idx].offset);
@@ -261,6 +259,7 @@ void  script_live(sAlisScript * script) {
     alis.nbent ++;
 
     debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off, script->pc_org);
+    return script;
 }
 
 
@@ -288,9 +287,11 @@ void  script_live(sAlisScript * script) {
  0...23     24      header bytes
  24...xx    ?       unpacked data (1st word is ID, must be zero)
  */
-sAlisScript * script_load(const char * script_path) {
+sAlisScriptData * script_load(const char * script_path) {
     
-    sAlisScript * script = NULL;
+    sAlisScriptData * script = NULL;
+    
+    s32 depak_sz = -1;
     
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
@@ -306,82 +307,87 @@ sAlisScript * script_load(const char * script_path) {
         u32 magic = fread32(fp);
         u16 check = fread16(fp);
         
-        s32 depak_sz = input_sz;
-        
+        // alloc and depack
+        depak_sz = get_depacked_size(magic);
+        u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
+
         // TODO: check if this was already loaded, if so use cache
         
         // decrunch if needed
-        u32 pak_sz = input_sz - HEADER_MAGIC_SZ - HEADER_CHECK_SZ - HEADER_DIC_SZ;
-        if(is_main(check)) {
-            debug(EDebugInfo, "Main script detected.\n");
-            
-            // skip vm specs
-            fseek(fp, HEADER_MAIN_SZ, SEEK_CUR);
-            pak_sz -= HEADER_MAIN_SZ;
-        }
+        s8 type = magic >> 24;
+        if (type < 0)
+        {
+            debug(EDebugInfo, "Depacking...\n");
 
-        // read dictionary
-        u8 dic[HEADER_DIC_SZ];
-        fread(dic, sizeof(u8), HEADER_DIC_SZ, fp);
-        
-        // read file into buffer
-        u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
-        fread(pak_buf, sizeof(u8), pak_sz, fp);
-        
-        // alloc and depack
-        debug(EDebugInfo, "Depacking...\n");
-        depak_sz = get_depacked_size(magic);
-        u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
-        
-        depak_sz = unpack_script(script_path, &depak_buf);
-        if (depak_sz > 0) {
-            // init script
-            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+            u32 pak_sz = input_sz - kPackedHeaderSize - kPackedDictionarySize;
+            if(is_main(check)) {
+                debug(EDebugInfo, "Main script detected.\n");
+                
+                // skip vm specs
+                fseek(fp, kVMSpecsSize, SEEK_CUR);
+                pak_sz -= kVMSpecsSize;
+            }
+
+            // read dictionary
+            u8 dic[kPackedDictionarySize];
+            fread(dic, sizeof(u8), kPackedDictionarySize, fp);
+            
+            // read file into buffer
+            u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
+            fread(pak_buf, sizeof(u8), pak_sz, fp);
+
+            depak_sz = unpack_script(script_path, &depak_buf);
+            if (depak_sz > 0) {
+                script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+            }
+
+            // cleanup
+            free(pak_buf);
         }
         else {
 
+            debug(EDebugInfo, "Loading...\n");
+
             // not packed, still might be script
 
-            u8 type = magic >> 24;
-            depak_sz = (magic & 0x00ffffff);
-            
-            if (/*type == 01  && */depak_sz == input_sz) {
-                
-                s32 shrink = (HEADER_MAGIC_SZ + HEADER_CHECK_SZ + HEADER_DIC_SZ);
-                if(is_main(check)) {
-                    shrink += HEADER_MAIN_SZ;
-                }
+            s32 seekto = kPackedHeaderSize;
+            if(is_main(check))
+                seekto += kVMSpecsSize;
 
-                // init script
-                script = script_init(strrchr(script_path, kPathSeparator) + 1, pak_buf + shrink, pak_sz - shrink);
-            }
-            else {
-                debug(EDebugFatal,
-                      "Failed to open script at path '%s'\n",
-                      script_path);
-                exit(-1);
-            }
+            if (type == 1)
+                seekto += kPackedDictionarySize;
+            
+            depak_sz -= seekto;
+
+            fseek(fp, seekto, SEEK_SET);
+            fread(depak_buf, sizeof(u8), depak_sz, fp);
+
+            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
         }
 
         // cleanup
         free(depak_buf);
-        free(pak_buf);
-
         fclose(fp);
+        
+        if (depak_sz < 0) {
+            debug(EDebugFatal,
+                  "Failed to unpack script at path '%s'\n",
+                  script_path);
+            exit(-1);
+        }
     }
     else {
         debug(EDebugFatal,
               "Failed to open script at path '%s'\n",
               script_path);
         exit(-1);
-
     }
     
     return script;
 }
 
 
-void script_unload(sAlisScript * script) {
+void script_unload(sAlisScriptData * script) {
 //    free(script->ram);
 //    free(script->data);
     // free(script);
@@ -451,7 +457,7 @@ void script_jump(s32 offset) {
 }
 
 
-// void script_debug(sAlisScript * script) {
+// void script_debug(sAlisScriptData * script) {
     
 //     debug(EDebugInfo, "\n-- SCRIPT --\n'%s' (0x%02x)\nHeader:\n",
 //            script->name,
@@ -506,8 +512,8 @@ u16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 
 u32 get_0x08_script_ret_offset(u32 vram)                { return xread32(vram - 0x8); }
 u8 get_0x04_cstart_csleep(u32 vram)                     { return xread8(vram - 0x4); }
 u8 get_0x03_xinv(u32 vram)                              { return xread8(vram - 0x3); }
-u8 get_0x02_wait_cycles(u32 vram)                           { return xread8(vram - 0x2); }
-u8 get_0x01_wait_count(u32 vram)                            { return xread8(vram - 0x1); }
+u8 get_0x02_wait_cycles(u32 vram)                       { return xread8(vram - 0x2); }
+u8 get_0x01_wait_count(u32 vram)                        { return xread8(vram - 0x1); }
 
 void set_0x34_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x34, val); }
 void set_0x32_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x32, val); }
@@ -541,5 +547,5 @@ void set_0x0a_vacc_offset(u32 vram, u16 val)            { xwrite16(vram - 0x0a, 
 void set_0x08_script_ret_offset(u32 vram, u32 val)      { xwrite32(vram - 0x08, val); }
 void set_0x04_cstart_csleep(u32 vram, u8 val)           { xwrite8(vram - 0x04, val); }
 void set_0x03_xinv(u32 vram, u8 val)                    { xwrite8(vram - 0x03, val); }
-void set_0x02_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x02, val); }
-void set_0x01_cstart(u32 vram, u8 val)                  { xwrite8(vram - 0x01, val); }
+void set_0x02_wait_cycles(u32 vram, u8 val)             { xwrite8(vram - 0x02, val); }
+void set_0x01_wait_count(u32 vram, u8 val)              { xwrite8(vram - 0x01, val); }

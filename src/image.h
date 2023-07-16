@@ -75,6 +75,12 @@ typedef struct {
     s16 oldcx;
     s16 oldcy;
     s16 oldcz;
+    
+    s16 backprof;
+    s16 backx1;
+    s16 backx2;
+    s16 backy1;
+    s16 backy2;
 
     s32 basesprite;
     u16 libsprit;

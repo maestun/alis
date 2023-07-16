@@ -69,7 +69,7 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
 }
 
 alisRet readexec_opcode(void) {
-    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc/* - alis.script->pc_org*/);
+    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
     return readexec(opcodes, "opcode", 0);
 }
 
@@ -200,8 +200,8 @@ void alis_load_main(void) {
         fclose(fp);
 
         // load main scripts as an usual script...
-        alis.main = script_load(alis.platform.main);
-        script_live(alis.main);
+        sAlisScriptData *script = script_load(alis.platform.main);
+        alis.main = script_live(script);
         alis.basemain = alis.main->vram_org;
 
         alis.dernent = xswap16(alis.atent_ptr[0].offset);
@@ -463,7 +463,7 @@ void alis_main(void) {
                 set_0x04_cstart_csleep(alis.script->vram_org, 1);
             }
             
-            set_0x01_cstart(alis.script->vram_org, get_0x01_wait_count(alis.script->vram_org) - 1);
+            set_0x01_wait_count(alis.script->vram_org, get_0x01_wait_count(alis.script->vram_org) - 1);
             debug(EDebugInfo, "\n %s %s [%.2x, %.2x] ", get_0x01_wait_count(alis.script->vram_org) == 0 ? "RUNNING" : "WAITING", alis.script->name, get_0x01_wait_count(alis.script->vram_org), get_0x02_wait_cycles(alis.script->vram_org));
             if (get_0x01_wait_count(alis.script->vram_org) == 0)
             {
@@ -500,7 +500,7 @@ void alis_main(void) {
                 
                 updtcoord(vram_addr);
                 
-                set_0x01_cstart(alis.script->vram_org, get_0x02_wait_cycles(alis.script->vram_org));
+                set_0x01_wait_count(alis.script->vram_org, get_0x02_wait_cycles(alis.script->vram_org));
                 alis.acc = alis.acc_org;
             }
         }
@@ -767,14 +767,14 @@ s32 adresdes(s32 idx)
     return 0xf;
 }
 
-void adresform(s16 idx)
+s32 adresform(s16 idx)
 {
+    // TODO: fix this
     u8 *addr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-    s32 l = read32(addr + 0xe);
-    if (idx - read16(addr + l + 10) < 0)
-    {
-        
-    }
+    addr += read32(addr + 0xe);
+    addr += read32(addr + 0x6);
+    addr += read16(addr + (idx * 2));
+    return (s32)(addr - alis.mem);
 }
 
 s32 adresmui(s32 idx)
