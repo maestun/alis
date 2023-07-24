@@ -168,7 +168,9 @@ typedef struct {
     u32             sz;
 
     // read from depacked file
-    sScriptHeader   header;
+    sScriptHeader    header;
+    
+    u8              type;
 
     // offset to script data
     u32             data_org;
@@ -190,7 +192,7 @@ typedef struct {
 } sAlisScriptLive;
 
 
-sAlisScriptData *   script_load(const char * script_path);
+sAlisScriptData *script_load(const char * script_path);
 void            script_unload(sAlisScriptData * script);
 
 sAlisScriptLive *script_live(sAlisScriptData * script);

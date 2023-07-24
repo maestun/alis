@@ -79,7 +79,7 @@ int search_insert(u32 *nums, u32 size, int target_id) {
     return start;
 }
 
-sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
+sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
     
     s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
@@ -89,6 +89,7 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
         if (script->header.id == id)
         {
             script->sz = data_sz;
+            script->type = type;
             
             // script data
             script->header.id = swap16((data + 0));
@@ -135,6 +136,7 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
     memset(script, 0, sizeof(sAlisScriptData));
     strcpy(script->name, name);
     script->sz = data_sz;
+    script->type = type;
     
     // script data
     script->header.id = swap16((data + 0));
@@ -338,7 +340,7 @@ sAlisScriptData * script_load(const char * script_path) {
 
             depak_sz = unpack_script(script_path, &depak_buf);
             if (depak_sz > 0) {
-                script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+                script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz, type);
             }
 
             // cleanup
@@ -362,7 +364,7 @@ sAlisScriptData * script_load(const char * script_path) {
             fseek(fp, seekto, SEEK_SET);
             fread(depak_buf, sizeof(u8), depak_sz, fp);
 
-            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz, type);
         }
 
         // cleanup

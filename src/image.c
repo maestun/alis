@@ -1750,6 +1750,7 @@ void clipback(void)
     cback = -1;
     return;
 }
+u8 data[1024 * 1024];
 
 void destofen(sSprite *sprite)
 {
@@ -1771,7 +1772,7 @@ void destofen(sSprite *sprite)
     s32 height = sprite->height + 1;
 
 //     s16 spridx = (u8 *)sprite - SPRITEMEM_PTR;
-//    sAlisScriptLive *s = ENTSCR(sprite->script_ent);
+    sAlisScriptLive *s = ENTSCR(sprite->script_ent);
 //    alis.script = s;
 //
 //    s16 index = -1;
@@ -1903,22 +1904,62 @@ void destofen(sSprite *sprite)
         {
             // ST image
             
-            clear = bitmap[0] == 0 ? 0 : -1;
-            
-            at = bitmap + 6;
-            
-            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+            if ((s->data->type & 1) == 0)
             {
-                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                // bitplanes
+                
+                u8 pixels[16];
+                at = bitmap + 6;
+
+                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
-                    s16 wh = (flip ? (width - (w + 1)) : w) / 2;
-                    color = *(at + wh + h * (width / 2));
-                    color = 0 + w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                    if (color != clear)
+                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    for (s32 w = bmpx1; w < bmpx1 + bmpx2;)
                     {
-                        tgt = logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                        *tgt = color;
+                        int bat = (6 + ((flip ? width - (w + 1) : w) / 2) + h * width / 2);
+
+                        memset(pixels, 0, 16);
+                        for (int i = 0; i < 8; i++)
+                        {
+                            u32 rot = (7 - i);
+                            u32 mask = 1 << rot;
+                            pixels[8 + i] = (((bitmap[bat + 1] & mask) >> rot) << 0) | (((bitmap[bat + 3] & mask) >> rot) << 1) | (((bitmap[bat + 5] & mask) >> rot) << 2);
+                            pixels[0 + i] = (((bitmap[bat + 0] & mask) >> rot) << 0) | (((bitmap[bat + 2] & mask) >> rot) << 1) | (((bitmap[bat + 4] & mask) >> rot) << 2);
+                        }
+
+                        int beg = w - ((w / 16) * 16);
+                        int end = min(16, (bmpx1 + bmpx2) - w);
+                        
+                        for (int i = beg; i < end; i++)
+                        {
+                            if (pixels[i] != clear)
+                                *tgt = pixels[i];
+                            
+                            tgt++;
+                            w++;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                clear = bitmap[0] == 0 ? 0 : -1;
+                
+                at = bitmap + 6;
+                
+                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                {
+                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                    {
+                        s16 wh = (flip ? (width - (w + 1)) : w) / 2;
+                        color = *(at + wh + h * (width / 2));
+                        color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                        if (color != clear)
+                        {
+                            tgt = logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                            *tgt = color;
+                        }
                     }
                 }
             }
@@ -1943,7 +1984,7 @@ void destofen(sSprite *sprite)
                 {
                     s16 wh = (flip ? (width - (w + 1)) : w) / 2;
                     color = *(at + wh + h * (width / 2));
-                    color = 0 + w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                    color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
                     if (color != clear)
                         *tgt = palidx + color;
                 }
