@@ -923,11 +923,14 @@ void putin(u16 idx)
             image.depz = curdepz + z;
             
             if (curelem < 0)
+            {
+                curelem = curelem & 0x7fff;
                 *((u8 *)(&image.invert_x)) ^= 1;
+            }
             
             alis.fmuldes = 1;
 
-            putin((u8)curelem);
+            putin(curelem);
 
             image.depx = x;
             image.depy = y;
@@ -1750,7 +1753,6 @@ void clipback(void)
     cback = -1;
     return;
 }
-u8 data[1024 * 1024];
 
 void destofen(sSprite *sprite)
 {
@@ -1772,7 +1774,7 @@ void destofen(sSprite *sprite)
     s32 height = sprite->height + 1;
 
 //     s16 spridx = (u8 *)sprite - SPRITEMEM_PTR;
-    sAlisScriptLive *s = ENTSCR(sprite->script_ent);
+//    sAlisScriptLive *s = ENTSCR(sprite->script_ent);
 //    alis.script = s;
 //
 //    s16 index = -1;
