@@ -187,6 +187,69 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
     debug(EDebugInfo, "\n");
     debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
+    if ((script->type & 1) == 0)
+    {
+        data = alis.mem + script->data_org;
+        s32 l = read32(data + 0xe);
+
+        // convert images if needed
+        
+        u8 pixels[16];
+        
+        s32 sprites = read16(data + l + 4);
+        
+        for (s32 i = 0; i < sprites; i++)
+        {
+            s32 a = read32(data + l) + l + i * 4;
+            u32 at = read32(data + a) + a;
+            u8 *bitmap = data + at;
+            
+            if (bitmap[0] == 0 || bitmap[0] == 2)
+            {
+                u16 width = read16(bitmap + 2) + 1;
+                u16 height = read16(bitmap + 4) + 1;
+                
+                at = 6;
+                
+                for (int b = 0; b < width * height; b+=16)
+                {
+                    memset(pixels, 0, 16);
+                    for (int c = 0; c < 8; c++)
+                    {
+                        uint32_t rot = (7 - c);
+                        uint32_t mask = 1 << rot;
+                        pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2);
+                        pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2);
+                    }
+                    
+                    for (int d = 0; d < 8; d++)
+                    {
+                        bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
+                    }
+                }
+            }
+        }
+    
+        // convert samples
+    
+        s32 samples = read16(data + l + 0x10);
+        
+        for (s32 i = 0; i < samples; i++)
+        {
+            s32 a = read32(data + 0xc + l) + l + i * 4;
+            s32 at = read32(data + a) + a;
+            
+            u8 *sample = data + at;
+            if (sample[0] == 1 || sample[0] == 2)
+            {
+                if (sample[6] == 1)
+                {
+                    // TODO:
+                }
+            }
+        }
+    }
+    
     return script;
 }
 

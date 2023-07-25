@@ -1565,11 +1565,8 @@ static void cnearent(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     alis.fview = 0;
-    
     readexec_opername();
-    u16 val = alis.varD7;
-    alis.valnorme = (u32)val * (u32)val;
-    
+    alis.valnorme = (u32)alis.varD7 * (u32)alis.varD7;
     readexec_opername();
     s16 entidx = alis.varD7;
     s16 tabidx = 0;
@@ -1600,7 +1597,32 @@ static void cnearmat(void) {
 }
 
 static void cviewent(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    alis.fview = 1;
+    readexec_opername();
+    alis.valnorme = (u32)alis.varD7 * (u32)alis.varD7;
+    readexec_opername();
+    alis.valchamp = alis.varD7;
+    readexec_opername();
+    s16 entidx = alis.varD7;
+    s16 tabidx = 0;
+
+    u32 src_vram = alis.script->vram_org;
+    u32 tgt_vram = alis.atent + entidx;
+    
+    if (xread16(tgt_vram + 6) == xread16(src_vram + 6))
+    {
+        u8 result = calcnear(src_vram, tgt_vram);
+        if (!result)
+        {
+            alis.tablent[tabidx++] = entidx;
+        }
+    }
+    
+    alis.tablent[tabidx] = -1;
+    alis.fallent = 0;
+    crstent();
 }
 
 static void cviewtyp(void) {
