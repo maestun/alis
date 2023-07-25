@@ -94,10 +94,8 @@ u8 sys_poll_event(void) {
             {
                 shift = 1;
             }
-            else
-            {
-                button = _event.key.keysym;
-            }
+
+            button = _event.key.keysym;
             break;
         }
 		case SDL_WINDOWEVENT:
@@ -238,7 +236,7 @@ u8 io_inkey(void)
 
 u8 io_shiftkey(void) {
     const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
-    if (shift && (!currentKeyStates[KMOD_RSHIFT] || !currentKeyStates[KMOD_LSHIFT]))
+    if (shift && !currentKeyStates[SDL_SCANCODE_LSHIFT] && !currentKeyStates[SDL_SCANCODE_RSHIFT])
     {
         shift = 0;
     }
