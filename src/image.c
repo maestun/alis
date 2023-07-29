@@ -530,7 +530,7 @@ void log_sprites(void)
                     for (s32 i = 0; i < e; i++)
                     {
                         addr = adresdes(i);
-                        if (sprite->data == addr + script->data->data_org)
+                        if (sprite->data == addr)
                         {
                             index = i;
                             break;
@@ -547,10 +547,10 @@ void log_sprites(void)
                 u8 type = 0;
                 s16 width = -1;
                 s16 height = -1;
-                u32 spnewad = sprite->newad & 0xffffff;
+                u32 spnewad = sprite->newad;
                 if (spnewad)
                 {
-                    bitmap = (alis.mem + spnewad);
+                    bitmap = (alis.mem + spnewad + xread32(spnewad));
                     if (bitmap)
                     {
                         if (bitmap[0] == 1)
@@ -877,16 +877,12 @@ void put(u16 idx)
 
 void putin(u16 idx)
 {
-    s32 addr = adresdes(idx);
-    u8 *resourcedata = alis.mem + (alis.flagmain != 0 ? alis.main->data->data_org : alis.script->data->data_org) + addr;
-//    s16 width = read16(resourcedata + 2);
-//    s16 height = read16(resourcedata + 4);
-//    printf(" putin: %d x %d ", width, height);
-
     s16 x = image.depx;
     s16 z = image.depz;
     s16 y = image.depy;
     
+    s32 addr = adresdes(idx);
+    u8 *resourcedata = alis.mem + addr + xread32(addr);
     if (resourcedata[0] > 0x80)
     {
         if (resourcedata[0] == 0xfe)
@@ -972,7 +968,7 @@ void putin(u16 idx)
         addr = adresdes(idx);
 
         sSprite *cursprvar = SPRITE_VAR(newidx);
-        cursprvar->data       = (alis.flagmain != 0 ? alis.main->data->data_org : alis.script->data->data_org) + addr;
+        cursprvar->data       = addr;
         cursprvar->flaginvx   = (u8)image.invert_x;
         cursprvar->depx       = image.oldcx + image.depx;
         cursprvar->depy       = image.oldcy + image.depy;
@@ -1387,38 +1383,40 @@ void deptopix(s16 scene, s16 elemidx)
             
             tmpdepx = (s16)(((s32)tmpdepx << (cred & 0x3f)) / (s32)tmpdepz);
             tmpdepy = (s16)(((s32)tmpdepy << (cred & 0x3f)) / (s32)tmpdepz);
-            s16 scridx = (tmpdepz >> (elemsprvar->credon_off & 0x3f)) + (s16)elemsprvar->creducing;
-            if (scridx < 0)
+            offset = (tmpdepz >> (elemsprvar->credon_off & 0x3f)) + (s8)elemsprvar->creducing;
+            if (offset < 0)
             {
                 offset = 0;
             }
             else
             {
-                if (get_scr_clinking(scene) < scridx)
+                int clink = (s8)xread8(alis.basemain + scene + 0x1e);
+                if (clink < offset)
                 {
-                    scridx = get_scr_clinking(scene);
+                    offset = clink;
                 }
                 
-                offset = scridx << 2;
+                offset <<= 2;
             }
         }
         
         tmpdepx = (tmpdepx >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0a(scene);
         tmpdepy = (tmpdepy >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0c(scene);
 
-        newad = (elemsprvar->data & 0xffffff) + offset;
-        u8 *spritedata = (alis.mem + newad);
-        if (spritedata[0] == '\x03')
+        newad = elemsprvar->data + offset;
+        
+        u8 *spritedata = (alis.mem + newad + xread32(newad));
+        if (spritedata[0] == 3)
         {
             tmpdepx += (elemsprvar->flaginvx ? -1 : 1) * read16(spritedata + 4);
             tmpdepy += read16(spritedata + 6);
             if (spritedata[1] != 0)
             {
-                newf = newf ^ 1;
+                newf ^= 1;
             }
             
-            newad = (newad + (read16(spritedata + 2) << 2));
-            spritedata = (alis.mem + newad);
+            newad += read16(spritedata + 2) << 2;
+            spritedata = alis.mem + newad + xread32(newad);
         }
         
         newl = read16(spritedata + 2);
@@ -1756,11 +1754,10 @@ void clipback(void)
 
 void destofen(sSprite *sprite)
 {
-    u32 spnewad = sprite->newad & 0xffffff;
-    if (spnewad == 0)
+    if (sprite->newad == 0)
         return;
     
-    u8 *bitmap = (alis.mem + spnewad);
+    u8 *bitmap = (alis.mem + sprite->newad + xread32(sprite->newad));
     if (*bitmap < 0)
         return;
 
@@ -1790,7 +1787,7 @@ void destofen(sSprite *sprite)
 //    for (s32 i = 0; i < e; i++)
 //    {
 //        addr = adresdes(i);
-//        if (sprite->data == addr + s->data_org)
+//        if (sprite->data == addr)
 //        {
 //            index = i;
 //            break;

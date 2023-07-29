@@ -38,7 +38,7 @@ static void cnul(void) {
  */
 static void slocb(void) {
     s16 offset = script_read16();
-    vwrite8(alis.script->vram_org + offset, alis.varD7);
+    xwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
 /**
@@ -47,7 +47,7 @@ static void slocb(void) {
  */
 static void slocw(void) {
     s16 offset = script_read16();
-    vwrite16(alis.script->vram_org + offset, alis.varD7);
+    xwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
 /**
@@ -72,7 +72,7 @@ static void sloctc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-    vwrite8(alis.script->vram_org + offset, alis.varD7);
+    xwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
@@ -80,7 +80,7 @@ static void slocti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-    vwrite16(alis.script->vram_org + offset, alis.varD7);
+    xwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
 
@@ -89,7 +89,7 @@ static void slocti(void) {
  * 
  */
 static void sdirb(void) {
-    vwrite8(alis.script->vram_org + script_read8(), (u8)alis.varD7);
+    xwrite8(alis.script->vram_org + script_read8(), (u8)alis.varD7);
 }
 
 /**
@@ -99,7 +99,7 @@ static void sdirb(void) {
 static void sdirw(void) {
     
     u8 offset = script_read8();
-    vwrite16(alis.script->vram_org + offset, alis.varD7);
+    xwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
 /**
@@ -122,26 +122,26 @@ static void sdirtc(void) {
     s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-    vwrite8(alis.script->vram_org + offset, alis.varD7);
+    xwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
 static void sdirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-    vwrite16(alis.script->vram_org + offset, alis.varD7);
+    xwrite16(alis.script->vram_org + offset, alis.varD7);
 }
 
 static void smainb(void) {
     s16 offset = script_read16();
 //    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
-    vwrite8(alis.basemain + offset, (u8)alis.varD7);
+    xwrite8(alis.basemain + offset, (u8)alis.varD7);
 }
 
 static void smainw(void) {
     s16 offset = script_read16();
 //    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
-    vwrite16(alis.basemain + offset, (s16)alis.varD7);
+    xwrite16(alis.basemain + offset, (s16)alis.varD7);
 }
 
 static void smainp(void) {
@@ -160,34 +160,34 @@ static void smaintc(void) {
     s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-    vwrite8(alis.basemain + offset, (u8)alis.varD7);
+    xwrite8(alis.basemain + offset, (u8)alis.varD7);
 }
 
 static void smainti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
     alis.varD7 = *(alis.acc);
     alis.acc++;
-    vwrite16(alis.basemain + offset, (s16)alis.varD7);
+    xwrite16(alis.basemain + offset, (s16)alis.varD7);
 }
 
 static void shimb(void) {
     s16 offset = script_read16();
-    s16 ent = vread16(alis.script->vram_org + offset);
+    s16 ent = xread16(alis.script->vram_org + offset);
 
     s32 vram = xread32(alis.atent + ent);
 
     s16 offset2 = script_read16();
-    vwrite8(vram + offset2, (u8)alis.varD7);
+    xwrite8(vram + offset2, (u8)alis.varD7);
 }
 
 static void shimw(void) {
     s16 offset = script_read16();
-    s16 ent = vread16(alis.script->vram_org + offset);
+    s16 ent = xread16(alis.script->vram_org + offset);
 
     s32 vram = xread32(alis.atent + ent);
 
     s16 offset2 = script_read16();
-    vwrite16(vram + offset2, (s16)alis.varD7);
+    xwrite16(vram + offset2, (s16)alis.varD7);
 }
 
 static void shimp(void) {

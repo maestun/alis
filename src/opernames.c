@@ -55,7 +55,7 @@ void olocb(void) {
 void olocw(void) {
     // read word offset, copy word from ram[offset] into r7
     s16 offset = script_read16();
-    alis.varD7 = vread16(alis.script->vram_org + offset);
+    alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
 void olocp(void) {
@@ -75,7 +75,7 @@ void oloctc(void) {
 
 void olocti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
-    alis.varD7 = vread16(alis.script->vram_org + offset);
+    alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
 // reads a byte offset from script,
@@ -89,7 +89,7 @@ void odirb(void) {
 // then reads a word from vram[offset] into r7
 void odirw(void) {
     u8 offset = script_read8();
-    alis.varD7 = vread16(alis.script->vram_org + offset);
+    alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
 // reads a byte offset from script,
@@ -113,7 +113,7 @@ void odirtc(void) {
 
 void odirti(void) {
     s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
-    alis.varD7 = vread16(alis.script->vram_org + offset);
+    alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
 void omainb(void) {
@@ -123,7 +123,7 @@ void omainb(void) {
 
 void omainw(void) {
     s16 offset = script_read16();
-    alis.varD7 = vread16(alis.basemain + offset);
+    alis.varD7 = xread16(alis.basemain + offset);
 }
 
 void omainp(void) {
@@ -145,11 +145,11 @@ void omaintc(void) {
 
 void omainti(void) {
     s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
-    alis.varD7 = vread16(alis.basemain + offset);
+    alis.varD7 = xread16(alis.basemain + offset);
 }
 
 void ohimb(void) {
-    u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
+    u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
@@ -157,15 +157,15 @@ void ohimb(void) {
 }
 
 void ohimw(void) {
-    u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
+    u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
-    alis.varD7 = vread16(vram_addr + offset);
+    alis.varD7 = xread16(vram_addr + offset);
 }
 
 void ohimp(void) {
-    u16 entry = vread16(alis.script->vram_org + (s16)script_read16());
+    u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();

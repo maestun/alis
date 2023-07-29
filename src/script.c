@@ -418,9 +418,6 @@ sAlisScriptData * script_load(const char * script_path) {
             s32 seekto = kPackedHeaderSize;
             if(is_main(check))
                 seekto += kVMSpecsSize;
-
-            if (type == 1)
-                seekto += kPackedDictionarySize;
             
             depak_sz -= seekto;
 

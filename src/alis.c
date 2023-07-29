@@ -738,13 +738,13 @@ u16 fread16(FILE* fp) {
 
 s32 adresdei(s32 idx)
 {
-    u8 *addr = alis.mem + get_0x14_script_org_offset(alis.main->vram_org);
-    s32 l = read32(addr + 0xe);
-    s32 e = read16(addr + l + 4);
+    u32 addr = get_0x14_script_org_offset(alis.main->vram_org);
+    s32 l = xread32(addr + 0xe);
+    s32 e = xread16(addr + l + 4);
     if (e > idx)
     {
-        s32 a = read32(addr + l) + l + idx * 4;
-        return read32(addr + a) + a;
+        s32 a = xread32(addr + l) + l + idx * 4;
+        return addr + a;
     }
 
     return 0xf;
@@ -755,13 +755,13 @@ s32 adresdes(s32 idx)
     if (alis.flagmain != 0)
         return adresdei(idx);
     
-    u8 *addr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-    s32 l = read32(addr + 0xe);
-    s32 e = read16(addr + l + 4);
+    u32 addr = get_0x14_script_org_offset(alis.script->vram_org);
+    s32 l = xread32(addr + 0xe);
+    s32 e = xread16(addr + l + 4);
     if (e > idx)
     {
-        s32 a = read32(addr + l) + l + idx * 4;
-        return read32(addr + a) + a;
+        s32 a = xread32(addr + l) + l + idx * 4;
+        return addr + a;
     }
 
     return 0xf;
