@@ -1021,121 +1021,126 @@ s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf);
 // TODO: cleanup
 s32 traitfirm(s32 vram, s32 a3, s32 a4, s32 d0)
 {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    s16 uVar1;
-    u8 bVar2;
-    u16 uVar3;
-    s16 sVar4;
-    s16 sVar5;
-    s16 sVar6;
-    s16 sVar7;
-    s16 sVar8;
-    s16 sVar9;
-    s16 sVar10;
+    u16 result;
+    
+    s16 tmpx1;
+    s16 tmpy1;
+    s16 tmpz1;
+    s16 tmpx2;
+    s16 tmpy2;
+    s16 tmpz2;
 
     s32 a2 = a4 + xread16(a4 + d0 * 2);
-    s32 puVar11 = a2 + 2;
+    s32 a2b = a2 + 2;
     if (-1 < xread16(a2))
     {
         if (xread16(a2) == 0)
         {
-            if ((xread16(puVar11) & alis.matmask) == 0)
+            result = xread16(a2b) & alis.matmask;
+            if (result == 0)
                 return 1;
-
+            
             alis.goodmat = xread16(a2 + 2);
-            sVar4 = (s8)xread8(a2 + 2);
+            
+            tmpx1 = (s8)xread8(a2 + 4);
+            tmpy1 = (s8)xread8(a2 + 5);
+            tmpz1 = (s8)xread8(a2 + 6);
             if (get_0x03_xinv(vram) != 0)
-                sVar4 = -sVar4;
-
-            sVar4 += xread16(vram + 0);
-            sVar5 = (s8)xread8(a2 + 5) + xread16(vram + 2);
-            sVar7 = (s8)xread8(a2 + 3) + xread16(vram + 4);
-            sVar8 = (s8)xread8(a2 + 7);
+                tmpx1 = -tmpx1;
+            
+            tmpx1 += xread16(vram + 0);
+            tmpy1 += xread16(vram + 2);
+            tmpz1 += xread16(vram + 4);
+            
+            tmpx2 = (s8)xread8(a2 + 7);
+            tmpy2 = (s8)xread8(a2 + 8);
+            tmpz2 = (s8)xread8(a2 + 9);
             if (get_0x03_xinv(vram) != 0)
-                sVar8 = -sVar8;
-
-            sVar8 += sVar4;
-            sVar9 = (s8)xread8(a2 + 4) + sVar5;
-            sVar10 = (s8)xread8(a2 + 9) + sVar7;
+                tmpx2 = -tmpx2;
+            
+            tmpx2 += tmpx1;
+            tmpy2 += tmpy1;
+            tmpz2 += tmpz1;
         }
         else
         {
-            if ((s8)xread8(a2) != 1)
+            if (xread8(a2) != 1)
                 return 1;
-
-            if ((xread16(puVar11) & alis.matmask) == 0)
+            
+            result = xread16(a2b) & alis.matmask;
+            if (result == 0)
                 return 1;
-
+            
             alis.goodmat = xread16(a2 + 2);
-            sVar4 = xread16(a2 + 4);
+            
+            tmpx1 = xread16(a2 + 4);
+            tmpy1 = xread16(a2 + 6);
+            tmpz1 = xread16(a2 + 8);
             if (get_0x03_xinv(vram) != 0)
-                sVar4 = -sVar4;
+                tmpx1 = -tmpx1;
+            
+            tmpx1 += xread16(vram + 0);
+            tmpy1 += xread16(vram + 2);
+            tmpz1 += xread16(vram + 4);
 
-            sVar4 += xread16(vram + 0);
-            sVar5 = xread16(a2 + 6) + xread16(vram + 2);
-            sVar7 = xread16(a2 + 8) + xread16(vram + 4);
-            sVar8 = xread16(a2 + 10);
+            tmpx2 = xread16(a2 + 0xa);
+            tmpy2 = xread16(a2 + 0xc);
+            tmpz2 = xread16(a2 + 0xe);
             if (get_0x03_xinv(vram) != 0)
-                sVar8 = -sVar8;
-
-            sVar8 += sVar4;
-            sVar9 = xread16(a2 + 12) + sVar5;
-            sVar10 = xread16(a2 + 14) + sVar7;
+                tmpx2 = -tmpx2;
+            
+            tmpx2 += tmpx1;
+            tmpy2 += tmpy1;
+            tmpz2 += tmpz1;
         }
-
-        sVar6 = sVar5;
-        if (sVar9 <= sVar5)
+        
+        s16 tmp = tmpy1;
+        if (tmpy2 <= tmpy1)
         {
-            sVar6 = sVar9;
-            sVar9 = sVar5;
+            tmp = tmpy2;
+            tmpy2 = tmpy1;
         }
-
-        if ((py1 <= sVar9) && (sVar6 <= py2))
+        
+        if ((py1 <= tmpy2) && (tmp <= py2))
         {
-            sVar5 = sVar7;
-            if (sVar10 <= sVar7)
+            tmp = tmpz1;
+            if (tmpz2 <= tmpz1)
             {
-                sVar5 = sVar10;
-                sVar10 = sVar7;
+                tmp = tmpz2;
+                tmpz2 = tmpz1;
             }
-
-            if ((pz1 <= sVar10) && (sVar5 <= pz2))
+            
+            if ((pz1 <= tmpz2) && (tmp <= pz2))
             {
-                sVar5 = sVar4;
-                if (sVar8 <= sVar4)
+                tmp = tmpx1;
+                if (tmpx2 <= tmpx1)
                 {
-                    sVar5 = sVar8;
-                    sVar8 = sVar4;
+                    tmp = tmpx2;
+                    tmpx2 = tmpx1;
                 }
-
-                if ((px1 <= sVar8) && (sVar5 <= px2))
+                
+                if ((px1 <= tmpx2) && (tmp <= px2))
                     return 0;
             }
         }
-
+        
         return 1;
     }
 
-    bVar2 = xread8(a2 + 1);
-    uVar3 = (u16)bVar2;
-    if (bVar2 != 0)
+    u16 length = xread8(a2 + 1);
+    result = length ? 1 : 0;
+    
+    for (int i = 0; i < length; i++, a2b += 2)
     {
-        uVar3 = bVar2 - 1;
-        do
+        if (-1 < (d0 = xread16(a2b)))
         {
-            uVar1 = xread16(puVar11);
-            if ((-1 < uVar1) && (uVar3 = traitfirm(vram, a3, a4, uVar1)))
-                return uVar3;
-
-            uVar3 --;
-            puVar11 = puVar11 + 1;
+            result = traitfirm(vram, a3, a4, d0);
+            if (!result)
+                return result;
         }
-        while (uVar3 != 0xffff);
-
-        uVar3 = 1;
     }
 
-    return uVar3;
+    return result;
 }
 
 // TODO: cleanup
@@ -1269,25 +1274,17 @@ s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
     s32 a2b = a2 + 2;
     if (xread16(a2) < 0)
     {
-        u8 result = xread8(a2 + 1) != 0 ? 1 : 0;
-        if (result)
+        u16 length = xread8(a2 + 1);
+        u8 result = length ? 1 : 0;
+        
+        for (int i = 0; i < length; i++, a2b += 2)
         {
-            s16 length = xread8(a2 + 1) - 1;
-            
-            do
+            if (-1 < (d0 = xread16(a2b)))
             {
-                d0 = xread16(a2b);
-                a2b += 2;
-                if (-1 < d0)
-                {
-                    result = traitfirm(vram, a3nxt, a4, d0);
-                    if (!result)
-                        return result;
-                }
-                
-                length --;
+                result = traitfirm(vram, a3nxt, a4, d0);
+                if (!result)
+                    return result;
             }
-            while (length != -1);
         }
         
         return result;
