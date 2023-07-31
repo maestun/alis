@@ -3130,15 +3130,187 @@ static void cshrink(void) {
 }
 
 static void cdefmap(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    u32 mapram = alis.script->vram_org;
+    
+    s16 offset = script_read16();
+    if (offset == 0)
+    {
+        offset = script_read16();
+        mapram = alis.basemain;
+    }
+    
+    mapram += offset;
+    
+    readexec_opername();
+    xwrite8(mapram - 0x50, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x4e, alis.varD7);
+    xwrite16(mapram - 0x4c, get_0x0e_script_ent(alis.script->vram_org));
+    readexec_opername();
+    xwrite16(mapram - 0x4a, alis.varD7);
+    xwrite16(mapram - 0x48, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x48, alis.varD7 - 1 + xread16(mapram - 0x48));
+    readexec_opername();
+    xwrite16(mapram - 0x44, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x42, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x40, alis.varD7);
+    xwrite8(mapram - 0x4f, 0);
+    xwrite32(mapram - 0x2c, 4);
+    xwrite8(mapram - 0x28, 0x7f);
 }
 
 static void csetmap(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    u32 mapram = alis.script->vram_org;
+    
+    s16 offset = script_read16();
+    if (offset == 0)
+    {
+        offset = script_read16();
+        mapram = alis.basemain;
+    }
+    
+    mapram += offset;
+    
+    readexec_opername();
+    xwrite16(mapram - 0x3e, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x3c, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x3a, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x38, alis.varD7);
+    xwrite16(mapram - 0x26, (u16)alis.varD7 - 1U);
+    xwrite16(mapram - 0x3e, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3e));
+    readexec_opername();
+    xwrite16(mapram - 0x36, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x34, alis.varD7);
+    xwrite16(mapram - 0x24, (u16)alis.varD7 - 1U);
+    xwrite16(mapram - 0x3a, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3a));
+}
+
+void putmap(s16 spridx, s32 bitmap)
+{
+    sSprite *sprite = SPRITE_VAR(spridx);
+    sprite->data = bitmap;
+    sprite->flaginvx = image.invert_x;
+    sprite->clinking = get_0x2a_clinking(alis.script->vram_org);
+    sprite->script_ent = (get_0x2c_calign(alis.script->vram_org) << 8) | get_0x2d_calign(alis.script->vram_org);
+    sprite->cordspr = get_0x2b_cordspr(alis.script->vram_org);
+    sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
+    sprite->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
+    if (-1 < (s8)sprite->credon_off)
+    {
+        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
+        if ((s8)sprite->credon_off < 0)
+        {
+            u32 scridx = get_0x16_screen_id(alis.script->vram_org) + alis.basemain;
+            sprite->creducing = 0;
+            sprite->credon_off = xread8(alis.basemain + scridx + 0x1f);
+        }
+    }
+    
+    sprite->depx = image.oldcx + image.depx;
+    sprite->depy = image.oldcy + image.depy;
+    sprite->depz = image.oldcz + image.depz;
+    
+    if (alis.fmuldes == 0)
+    {
+        s16 newidx;
+        s16 oldidx;
+
+        if (!searchelem(&newidx, &oldidx))
+        {
+            return;
+        }
+        
+        do
+        {
+            sSprite *cursprite = SPRITE_VAR(newidx);
+            while (cursprite->state == 0)
+            {
+                killelem(&newidx, &oldidx);
+                if (newidx == 0)
+                {
+                    alis.fadddes = 0;
+                    return;
+                }
+                
+                if (!testnum(&newidx))
+                {
+                    alis.fadddes = 0;
+                    return;
+                }
+            }
+        }
+        while (nextnum(&newidx, &oldidx));
+    }
+    
+    alis.fadddes = 0;
+    return;
 }
 
 static void cputmap(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    u32 mapram = alis.script->vram_org;
+    
+    s16 offset = script_read16();
+    if (offset == 0)
+    {
+        offset = script_read16();
+        mapram = alis.basemain;
+    }
+    
+    mapram += offset;
+    
+    readexec_opername();
+    xwrite16(mapram - 0x32, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x30, alis.varD7);
+    readexec_opername();
+    xwrite16(mapram - 0x2e, alis.varD7);
+    readexec_opername();
+    image.numelem = (u8)alis.varD7;
+    u32 uVar3 = xread16(mapram - 0x2e);
+    u16 uVar1 = xread16(mapram - 0x40);
+    u16 uVar2 = uVar3 % uVar1;
+    xwrite16(mapram - 0x22, (s16)uVar2);
+    alis.fmuldes = 0;
+    
+    s16 newidx = 0;
+    s16 oldidx = 0;
+    if (!searchelem(&newidx, &oldidx))
+    {
+        createlem(&newidx, &oldidx);
+    }
+    
+    sSprite *sprite = SPRITE_VAR(newidx);
+    if (-1 < sprite->state)
+    {
+        sprite->state = 2;
+    }
+    
+    putmap(newidx, mapram - 0x2c);
+    
+    if (searchelem(&newidx, &oldidx))
+    {
+        sSprite *sprite = SPRITE_VAR(newidx);
+        sprite->credon_off = 0xff;
+        sprite->flaginvx = 0;
+        sprite->chsprite = 0;
+        sprite->depx = xread16(mapram - 0x3e);
+        sprite->depy = xread16(mapram - 0x3c);
+        sprite->depz = xread16(mapram - 0x3a);
+    }
 }
 
 static void csavepal(void) {

@@ -102,6 +102,8 @@ void createlem(s16 *curidx, s16 *previdx);
 u8 searchelem(s16 *curidx, s16 *previdx);
 s8 searchtete(s16 *curidx, s16 *previdx);
 void killelem(s16 *curidx, s16 *previdx);
+u8 testnum(s16 *curidx);
+u8 nextnum(s16 *curidx, s16 *previdx);
 
 void put(u16 idx);
 void put_char(s8 character);
