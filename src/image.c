@@ -965,6 +965,7 @@ void putin(u16 idx)
 
         sSprite *cursprvar = SPRITE_VAR(newidx);
         cursprvar->data       = addr;
+        cursprvar->newad      = 0;
         cursprvar->flaginvx   = (u8)image.invert_x;
         cursprvar->depx       = image.oldcx + image.depx;
         cursprvar->depy       = image.oldcy + image.depy;
@@ -1411,7 +1412,7 @@ void deptopix(s16 scene, s16 elemidx)
                 newf ^= 1;
             }
             
-            newad += read16(spritedata + 2) << 2;
+            newad += (s16)(read16(spritedata + 2) << 2);
             spritedata = alis.mem + newad + xread32(newad);
         }
         
@@ -2223,6 +2224,9 @@ void destofen(sSprite *sprite)
             drawmap(sprite, sprite->newad + xread32(sprite->newad));
             break;
         }
+            
+        default:
+            debug(EDebugError, "UNKNOWN RESOURCE TYPE: %d", bitmap[0]);
     }
 }
 
