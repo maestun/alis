@@ -26,12 +26,15 @@
 #include "platform.h"
 #include "script.h"
 #include "sys/sys.h"
-// #include "vram.h"
 
+#ifndef max
+# define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
 
-// #define kVMHeaderLen            (16 * sizeof(u8))
-// #define kHostRAMSize            (1024 * 1024 * sizeof(u8))
-// #define kVirtualRAMSize         (0xffff * sizeof(u8))
+#ifndef min
+# define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+
 #define kHostRAMSize            (1024 * 1024)
 #define kVirtualRAMSize         (0xffff * sizeof(u8))
 

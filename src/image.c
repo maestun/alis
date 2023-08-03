@@ -31,14 +31,6 @@
 #include "utils.h"
 
 
-#ifndef max
-# define max(a,b)            (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-# define min(a,b)            (((a) < (b)) ? (a) : (b))
-#endif
-
 #define FRAME_TICKS (1000000 / 50) // 25 fps looks about right in logo animation
 
 #define DEBUG_CHECK 0
@@ -170,6 +162,7 @@ u32 timeclock = 0;
 
 void tdarkpal(u8 *paldata)
 {
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
     // TODO: ...
 //    u32 color;
 //    u32 *in_A1;
@@ -339,7 +332,7 @@ void savepal(s16 mode)
     if (mode < 0 && -3 < mode)
     {
         u8 *tgt = (mode != -1) ? svpalet2 : svpalet;
-        memcpy(tgt, atpalet, 768);
+        memcpy(tgt, tpalet, 768);
     }
 }
 
@@ -373,9 +366,12 @@ void restorepal(s16 mode, s32 duration)
 
 void selpalet(void)
 {
-    s16 offset = thepalet * 768;
-    ampalet = mpalet + offset;
-    atpalet = tpalet + offset;
+    if (alis.platform.bpp != 8)
+    {
+        s16 offset = thepalet * 64 * 3;
+        ampalet = mpalet + offset;
+        atpalet = tpalet + offset;
+    }
 }
 
 void linepal(void)
@@ -399,7 +395,7 @@ void linepal(void)
         
         palentry[0] = dummy;
         palentry[1] = line;
-        *(u8 **)&(palentry[2]) = mpalet + (tlinepal_ptr[3] * 768);
+        *(u8 **)&(palentry[2]) = mpalet + (tlinepal_ptr[1] * 64 * 3);
 
         tlinepal_ptr += 2;
         palentry += 2 + (sizeof(u8 *) >> 1);

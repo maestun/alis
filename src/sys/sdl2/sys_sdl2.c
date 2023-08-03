@@ -126,28 +126,28 @@ void sys_render(pixelbuf_t buffer) {
     }
     else
     {
-        s16 *palentry = firstpal + 2 + (sizeof(u8 *) >> 1);
-        s16 line = palentry[1];
+        s16 *palentry = firstpal;
 
-        for (int y = 0; y < line; y++)
+        for (int i = 0; i < 3; i++)
         {
-            s32 px = y * buffer.w;
-            for (int x = 0; x < buffer.w; x++, px++)
-            {
-                int index = buffer.data[px];
-                _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
-            }
-        }
-        
-        u8 *palette = *(u8 **)&(firstpal[2]);
+            s16 unk1 = palentry[0];
+            if (unk1 == 0xff)
+                break;
 
-        for (int y = line; y < buffer.h; y++)
-        {
-            s32 px = y * buffer.w;
-            for (int x = 0; x < buffer.w; x++, px++)
+            s16 y1 = palentry[1];
+            u8 *palette = *(u8 **)&(palentry[2]);
+            
+            palentry += 2 + (sizeof(u8 *) >> 1);
+            s16 y2 = palentry[0] == 0xff ? 200 : min(palentry[1], 200);
+
+            for (int y = y1; y < y2; y++)
             {
-                int index = buffer.data[px];
-                _pixels[px] = (u32)(0xff000000 + (palette[index * 3 + 0] << 16) + (palette[index * 3 + 1] << 8) + (palette[index * 3 + 2] << 0));
+                s32 px = y * buffer.w;
+                for (int x = 0; x < buffer.w; x++, px++)
+                {
+                    int index = buffer.data[px];
+                    _pixels[px] = (u32)(0xff000000 + (palette[index * 3 + 0] << 16) + (palette[index * 3 + 1] << 8) + (palette[index * 3 + 2] << 0));
+                }
             }
         }
     }
