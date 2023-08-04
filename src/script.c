@@ -375,6 +375,7 @@ sAlisScriptData * script_load(const char * script_path) {
         // alloc and depack
         depak_sz = get_depacked_size(magic);
         u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
+        memset(depak_buf, 0, depak_sz);
 
         // TODO: check if this was already loaded, if so use cache
         
@@ -398,7 +399,9 @@ sAlisScriptData * script_load(const char * script_path) {
             fread(dic, sizeof(u8), kPackedDictionarySize, fp);
             
             // read file into buffer
-            u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8));
+            // NOTE: unpacker actualy reads past loaded data, adding few bytes is easy hacky "fix"
+            u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8) + 16);
+            memset(depak_buf, 0, pak_sz + 16);
             fread(pak_buf, sizeof(u8), pak_sz, fp);
 
             depak_sz = unpack_script(script_path, &depak_buf);

@@ -196,7 +196,7 @@ u32 unpack_new(u8* ptr_packed,
 
     s16 counter = 0;
     __unpack_counter = 0;
-    u8* ptr_unpacked_end = ptr_unpacked + unpacked_sz - 1;
+    u8* ptr_unpacked_end = ptr_unpacked + unpacked_sz;
     d7 = 0;
     while(ptr_unpacked < ptr_unpacked_end) {
         // loop
@@ -324,26 +324,16 @@ int unpack_script(const char* packed_file_path,
                 unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
                 // depak(packed_buffer, unpacked_buffer, packed_size, unpacked_size, dict);
             }
-            else if (packer_kind == kPackerKindNewInterlaced) {
-                debug(EDebugFatal, "Unpacker not yet implemented (New Interlaced)\n");
-                free(packed_buffer);
-                return EUnpackErrorFormat;
-            }
-            else if (packer_kind == kPackerKindMac) {
-                debug(EDebugFatal, "Unpacker not yet implemented (Mac)\n");
-                free(packed_buffer);
-                return EUnpackErrorFormat;
-            }
-            else if (packer_kind == kPackerKindMacInterlaced) {
-                debug(EDebugFatal, "Unpacker not yet implemented (Mac Interlaced)\n");
-                free(packed_buffer);
-                return EUnpackErrorFormat;
-            }
             else if (packer_kind == kPackerKindOld) {
                 unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 0);
             }
             else if (packer_kind == kPackerKindOldInterlaced) {
                 unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
+            }
+            else if (packer_kind == kPackerKindNewInterlaced || packer_kind == kPackerKindMac || packer_kind == kPackerKindMacInterlaced) {
+                debug(EDebugFatal, "Unpacker not yet implemented\n");
+                free(packed_buffer);
+                return EUnpackErrorFormat;
             }
 
             debug(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n",
