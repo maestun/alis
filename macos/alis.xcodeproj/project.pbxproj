@@ -62,6 +62,7 @@
 		68AC2DA22A5F52B60046C6EB /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		68AC2DA52A5F52EF0046C6EB /* unpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unpack.h; sourceTree = "<group>"; };
 		68AC2DA62A5F52EF0046C6EB /* unpack.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = unpack.c; sourceTree = "<group>"; };
+		68F3BDE42A7F2F64008E516A /* mem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mem.h; sourceTree = "<group>"; };
 		8B28A6802507C5A600E3F0FF /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		8B28A6822507C5AA00E3F0FF /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		8B7D7B27256D40C400DAA932 /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = ../../../../../../../Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
@@ -156,6 +157,7 @@
 				68AC2DA22A5F52B60046C6EB /* platform.h */,
 				6808EE03297069760045BA8A /* image.h */,
 				6808EE04297069760045BA8A /* image.c */,
+				68F3BDE42A7F2F64008E516A /* mem.h */,
 				8B9C402B250A2A8F00C947F9 /* main.c */,
 				685EBE232A52033800E4F465 /* screen.h */,
 				685EBE242A52033800E4F465 /* screen.c */,

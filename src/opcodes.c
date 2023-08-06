@@ -1032,7 +1032,9 @@ s32 traitfirm(s32 vram, s32 a3, s32 a4, s32 d0)
 
     s32 a2 = a4 + xread16(a4 + d0 * 2);
     s32 a2b = a2 + 2;
-    if (-1 < xread16(a2))
+
+    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(a2) : xread16(a2);
+    if (-1 < test)
     {
         if (xread16(a2) == 0)
         {
@@ -1272,7 +1274,8 @@ s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
     }
     
     s32 a2b = a2 + 2;
-    if (xread16(a2) < 0)
+    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(a2) : xread16(a2);
+    if (test < 0)
     {
         u16 length = xread8(a2 + 1);
         u8 result = length ? 1 : 0;
@@ -1928,8 +1931,22 @@ static void cfreadb(void) {
 
     u16 length = script_read16();
 
-    // NOTE: *.fic files in all platforms are identical, some byteswaping should be needed
     fread(alis.mem + addr, length, 1, alis.fp);
+    
+    // NOTE: *.fic files in all platforms are identical, for PC we have to do byteswaping
+    
+    if (alis.platform.kind == EPlatformPC)
+    {
+        u8 bytes = *(alis.mem + addr - 2);
+        if (bytes == 2)
+        {
+            for (int i = 0; i < length; i += 2)
+            {
+                u16 *val = (u16 *)(alis.mem + addr + i);
+                *val = (*val <<  8) | (*val >>  8);;
+            }
+        }
+    }
 }
 
 static void cfwriteb(void) {
@@ -1945,6 +1962,8 @@ static void cfwriteb(void) {
     }
 
     u16 length = script_read16();
+    
+    // TODO: handle byteswaping if needed
 
     fwrite(alis.mem + addr, length, 1, alis.fp);
 }
