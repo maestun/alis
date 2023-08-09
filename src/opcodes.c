@@ -1,21 +1,21 @@
 //
 // Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy 
-// of this software and associated documentation files (the “Software”), 
-// to deal in the Software without restriction, including without limitation 
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-// and/or sell copies of the Software, and to permit persons to whom the 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the “Software”),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in 
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
@@ -795,7 +795,7 @@ static void ckill(void) {
 
 static void cstopret(void) {
     // never seen in ishar execution (boot2game)
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);                                     
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 static void cexit(void) {
@@ -1438,10 +1438,10 @@ void clipform(void) {
                         return;
                     }
 
-                    int index = (int)((alis.ptrent - alis.tablent) / 2);
+                    int index = (int)(alis.ptrent - alis.tablent);
                     alis.matent[index] = alis.goodmat;
                     alis.tablent[index] = entidx;
-                    alis.ptrent += 2;
+                    alis.ptrent ++;
                     atforme += 2;
 
                     if (alis.fallent == 0)
@@ -1459,7 +1459,7 @@ void clipform(void) {
     if (alis.witmov == 0)
     {
         // NOTE: matent!!!
-        int index = (int)((alis.ptrent - alis.tablent) / 2);
+        int index = (int)(alis.ptrent - alis.tablent);
         alis.matent[index] = 0;
         alis.tablent[index] = -1;
         alis.ptrent++;
@@ -1534,7 +1534,7 @@ static void cftstset(void) {
 static void cpredent(void) {
     if (alis.ptrent != alis.tablent)
     {
-        alis.ptrent -= 2;
+        alis.ptrent --;
         alis.varD7 = *alis.ptrent;
     }
     else
@@ -3074,7 +3074,7 @@ static void cscrolpage(void) {
 }
 
 static void cmatent(void) {
-    int index = (int)((alis.ptrent - alis.tablent) / 2);
+    int index = (int)(alis.ptrent - alis.tablent) - 1;
     alis.varD7 = alis.matent[index];
     cstore_continue();
 }
