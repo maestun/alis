@@ -50,7 +50,13 @@ sImage image = {
     .depz = 0,
     .oldcx = 0,
     .oldcy = 0,
-    .oldcz = 0
+    .oldcz = 0,
+    .spag = 0,
+    .wpag = 0,
+    .sback = 0,
+    .wback = 0,
+    .cback = 0,
+    .pback = 0
 };
 
 u8 tvmode = 0;
@@ -94,7 +100,6 @@ u8 *bufpack = 0;
 u8 timing = 0;
 s8 fmouse = 0xff;
 s16 fonum = 0xffff;
-u8 sback = 0;
 
 u32 newad;
 s16 newx;
@@ -114,10 +119,6 @@ s16 fenx1;
 s16 feny1;
 s16 fenx2;
 s16 feny2;
-u8 sback;
-u8 wback;
-s8 cback;
-u8 pback;
 s16 clipx1;
 s16 clipy1;
 s16 clipx2;
@@ -154,8 +155,6 @@ s16 logy1 = 0;
 s16 logy2 = 0xc7;
 s16 loglarg = 0xa0; // 0x50 for st
 u8 insid = 0;
-u8 spag = 0;
-u8 wpag = 0;
 u8 *backmap;
 u32 timeclock = 0;
 
@@ -338,6 +337,8 @@ void savepal(s16 mode)
 
 void restorepal(s16 mode, s32 duration)
 {
+    // TODO: not used in some games (Metal Mutant, ...)
+
     u8 *src = (mode != -1) ? svpalet2 : svpalet;
     memcpy(tpalet, src, 768);
 
@@ -445,7 +446,8 @@ void setlinepalet(s16 line, s16 palidx) {
     }
     while (prevtlpal_ptr[0] < 200);
     
-    if (tlinepal - prevtlpal_ptr < 0)
+    // check whether we are not using too many palettes
+    if (prevtlpal_ptr - (tlinepal + 8) < 0)
     {
         do
         {
@@ -1246,9 +1248,9 @@ s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
     s16 newd1  =  idx1sprvar->newd;
     s8 cordspr1 = idx1sprvar->cordspr;
     s8 numelem1 = idx1sprvar->numelem;
-    if (wback != 0 && elemidx1 != image.backsprite && image.backprof <= newd1)
+    if (image.wback != 0 && elemidx1 != image.backsprite && image.backprof <= newd1)
     {
-        pback = 1;
+        image.pback = 1;
     }
 
     s16 previdx3 = elemidx3;
@@ -1665,9 +1667,9 @@ s16 iremplink(s16 scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
     addlink(elemidx1);
     
     sSprite *elem1sprvar = SPRITE_VAR(elemidx1);
-    if (wback != 0 && image.backprof <= elem1sprvar->newd)
+    if (image.wback != 0 && image.backprof <= elem1sprvar->newd)
     {
-        pback = 1;
+        image.pback = 1;
         return inouvlink(scene, elemidx1, elemidx2, elemidx3);
     }
     
@@ -1700,9 +1702,9 @@ s16 iefflink(s16 elemidx1, s16 elemidx2)
     elem1sprvar->to_next = image.libsprit;
     
     image.libsprit = elemidx1;
-    if (wback != 0 && image.backprof <= elem1sprvar->newd)
+    if (image.wback != 0 && image.backprof <= elem1sprvar->newd)
     {
-        pback = 1;
+        image.pback = 1;
     }
     
     return elemidx2;
@@ -1735,7 +1737,7 @@ void clipback(void)
     {
         if (clipy2 <= ((s16 *)(&image.backx2))[1])
         {
-            cback = 1;
+            image.cback = 1;
             return;
         }
         
@@ -1745,8 +1747,7 @@ void clipback(void)
         }
     }
     
-    cback = -1;
-    return;
+    image.cback = -1;
 }
 
 void drawmap(sSprite *sprite, uint mapaddr)
@@ -1790,6 +1791,8 @@ void drawmap(sSprite *sprite, uint mapaddr)
             
             mapheight ++;
         }
+        
+        s32 addy = alis.platform.kind == EPlatformPC ? 0 : 1;
 
         for (int mh = mapheight; mh >= 0; mh--)
         {
@@ -1806,7 +1809,7 @@ void drawmap(sSprite *sprite, uint mapaddr)
                     u8 *at = bitmap + 6;
 
                     s16 posx1 = (mapwidth - mw) * tilex;
-                    s16 posy1 = ((mapheight - mh) - 1) * tiley + (((tiley - 1) - height) / 2);
+                    s16 posy1 = ((mapheight - mh) - addy) * tiley + (((tiley - addy) - height) / 2);
 
                     u8 flip = 0;
                     u8 color = 0;
@@ -2181,7 +2184,8 @@ void destofen(sSprite *sprite)
             // 8 bit image
             
             palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
-            clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
+            clear = bitmap[0] == bitmap[7];
+//            clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
 
             at = bitmap + 8;
 
@@ -2275,7 +2279,7 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                     {
                         if ((get_scr_numelem(scridx) & 2U) == 0)
                         {
-                            cback = 0;
+                            image.cback = 0;
                             if ((get_scr_numelem(scridx) & 4U) != 0)
                             {
                                 clipback();
@@ -2286,11 +2290,11 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                                 clrfen();
                             }
 
-                            if (cback)
+                            if (image.cback)
                             {
-                                if (cback < 0)
+                                if (image.cback < 0)
                                 {
-                                    if ((wback != 0) && (pback != 0))
+                                    if ((image.wback != 0) && (image.pback != 0))
                                     {
                                         wlogic = backmap;
                                         wlogx1 = image.backx1;
@@ -2330,7 +2334,7 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                                 }
                                 else
                                 {
-                                    if (pback == 0)
+                                    if (image.pback == 0)
                                         goto fenetre31;
 
                                     wlogic = backmap;
@@ -2349,7 +2353,7 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                                 if (tmpidx == 0)
                                     break;
 
-                                if ((sback != 0) && (tmpidx == image.backsprite))
+                                if (image.sback != 0 && tmpidx == image.backsprite)
                                 {
                                     wlogic = logic;
                                     wlogx1 = logx1;
@@ -2404,7 +2408,7 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
         {
             if (alis.fswitch != 0)
             {
-                if (wpag == 0)
+                if (image.wpag == 0)
                 {
                     memfen();
                 }
@@ -2412,7 +2416,7 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                 return;
             }
 
-            if (wpag == 0)
+            if (image.wpag == 0)
             {
                 fentotv();
             }
@@ -2430,6 +2434,82 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
 //        }
     }
 }
+
+void scrolpage(void)
+{
+//    int *piVar1;
+//    short sVar2;
+//
+//    paglogic = (int *)0x0;
+//    pagphysic = addr_physic_vram_start;
+//    piVar1 = io_malloc();
+//    if (piVar1 != (int *)0x0)
+//    {
+//        pagphysic = (int *)(((int)piVar1 - 1U | 0xff) + 1);
+//        paglogic = piVar1;
+//        transfen((byte *)addr_physic_vram_start,(byte *)pagphysic);
+//    }
+//
+//    vtiming = 0;
+//    pagcalc();
+//
+//    if (image.pagdx != 0)
+//    {
+//        hbar_calc();
+//    }
+//    if (image.pagdy != 0)
+//    {
+//        vbar_calc();
+//    }
+//
+//    sVar2 = image.pagcount - 1;
+//    if (-1 < sVar2)
+//    {
+//        do
+//        {
+//            pagscroll();
+//            if (image.pagdx != 0)
+//            {
+//                hpagbar();
+//            }
+//
+//            if (image.pagdy != 0)
+//            {
+//                vpagbar();
+//            }
+//
+//            piVar1 = pagphysic;
+//            if (paglogic != (int *)0x0)
+//            {
+//                pagphysic = addr_physic_vram_start;
+//                addr_physic_vram_start = piVar1;
+//                setphysic();
+//                waitphysic();
+//            }
+//            sVar2 = sVar2 + -1;
+//        }
+//        while (sVar2 != -1);
+//
+//        if (paglogic != (int *)0x0)
+//        {
+//            if (paglogic == addr_physic_vram_start)
+//            {
+//                transfen((byte *)addr_physic_vram_start,(byte *)pagphysic);
+//                addr_physic_vram_start = pagphysic;
+//                setphysic();
+//                waitphysic();
+//            }
+//
+//            io_mfree();
+//        }
+//    }
+//
+//    if (pagcount != 0x14)
+//    {
+//        transfen((byte *)addr_physic_vram_start,logic);
+//    }
+}
+
 
 void affiscr(s16 scene, s16 elemidx3)
 {
@@ -2454,15 +2534,15 @@ void affiscr(s16 scene, s16 elemidx3)
     
     if ((get_scr_numelem(scene) & 2) == 0 || (get_scr_state(scene) & 0x80U) == 0)
     {
-        wback = (get_scr_numelem(scene) & 4) != 0;
-        wpag = 0;
+        image.wback = (get_scr_numelem(scene) & 4) != 0;
+        image.wpag = 0;
         if ((get_scr_state(scene) & 0x20U) != 0)
         {
-            wpag = 1;
-            spag --;
-            if (spag == 0)
+            image.wpag = 1;
+            image.spag --;
+            if (image.spag == 0)
             {
-                wpag = -1;
+                image.wpag = -1;
             }
         }
         
@@ -2482,7 +2562,7 @@ affiscin:
                 if (state != 0)
                 {
                     joints = 0;
-                    pback = 0;
+                    image.pback = 0;
                     if (state == 2)
                     {
                         tmpidx1 = elemidx1;
@@ -2491,13 +2571,13 @@ affiscin:
 //                        printf(" [if (state == 2) %.6x] ", tmpidx3);
                         if (tmpidx3 < 0)
                         {
-                            isback = wback == 0;
+                            isback = image.wback == 0;
                             if (!isback)
                             {
                                 isback = image.backprof == SPRITE_VAR(elemidx1)->newd;
                                 if (image.backprof <= SPRITE_VAR(elemidx1)->newd)
                                 {
-                                    pback = 1;
+                                    image.pback = 1;
                                     isback = false;
                                 }
                             }
@@ -2688,21 +2768,21 @@ affiscin:
         elemidx1 = get_scr_to_next(elemidx1);
     }
     
-    if ((alis.fswitch == 0) && (wpag == 0))
+    if ((alis.fswitch == 0) && (image.wpag == 0))
     {
         fentotv();
     }
     
   affiscr1:
     
-    if (wpag < 0)
+    if (image.wpag < 0)
     {
         set_scr_state(scene, get_scr_state(scene) & 0xdf);
         fenx1 = get_scr_newx(scene);
         feny1 = get_scr_newy(scene);
         fenx2 = get_scr_newx(scene) + get_scr_width(scene);
         feny2 = get_scr_newy(scene) + get_scr_height(scene);
-        // scrolpage(a0,CONCAT22(uVar2,feny2));
+        scrolpage();
     }
     
     set_scr_state(scene, get_scr_state(scene) & 0x7f);

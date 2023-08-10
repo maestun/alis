@@ -119,14 +119,14 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
             
             for (int i = 0; i < alis.nbprog; i++)
             {
-                debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
+                debug(EDebugVerbose, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
             }
             
-            debug(EDebugInfo, "\n");
+            debug(EDebugVerbose, "\n");
 
-            debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
+            debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 
-            debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
+            debug(EDebugVerbose, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
             return script;
         }
     }
@@ -194,42 +194,45 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
 
         // convert images if needed
         
-        u8 pixels[16];
-        
-        s32 sprites = read16(data + l + 4);
-        
-        for (s32 i = 0; i < sprites; i++)
+        if (alis.platform.kind != EPlatformPC)
         {
-            s32 a = read32(data + l) + l + i * 4;
-            u32 at = read32(data + a) + a;
-            u8 *bitmap = data + at;
+            u8 pixels[16];
             
-            if (bitmap[0] == 0 || bitmap[0] == 2)
+            s32 sprites = read16(data + l + 4);
+            
+            for (s32 i = 0; i < sprites; i++)
             {
-                u16 width = read16(bitmap + 2) + 1;
-                u16 height = read16(bitmap + 4) + 1;
+                s32 a = read32(data + l) + l + i * 4;
+                u32 at = read32(data + a) + a;
+                u8 *bitmap = data + at;
                 
-                at = 6;
-                
-                for (int b = 0; b < width * height; b+=16)
+                if (bitmap[0] == 0 || bitmap[0] == 2)
                 {
-                    memset(pixels, 0, 16);
-                    for (int c = 0; c < 8; c++)
-                    {
-                        uint32_t rot = (7 - c);
-                        uint32_t mask = 1 << rot;
-                        pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2);
-                        pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2);
-                    }
+                    u16 width = read16(bitmap + 2) + 1;
+                    u16 height = read16(bitmap + 4) + 1;
                     
-                    for (int d = 0; d < 8; d++)
+                    at = 6;
+                    
+                    for (int b = 0; b < width * height; b+=16)
                     {
-                        bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
+                        memset(pixels, 0, 16);
+                        for (int c = 0; c < 8; c++)
+                        {
+                            uint32_t rot = (7 - c);
+                            uint32_t mask = 1 << rot;
+                            pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2);
+                            pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2);
+                        }
+                        
+                        for (int d = 0; d < 8; d++)
+                        {
+                            bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
+                        }
                     }
                 }
             }
         }
-    
+        
         // convert samples
     
         s32 samples = read16(data + l + 0x10);
@@ -279,7 +282,7 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     int caller_idx = curent / sizeof(sScriptLoc);
     int script_idx = alis.dernent / sizeof(sScriptLoc);
 
-    debug(EDebugInfo, " add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
+    debug(EDebugVerbose, " add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
 
     set_0x0a_vacc_offset(script->vram_org, script->vacc_off);
     set_0x1c_scan_clr(script->vram_org, script->vacc_off);
@@ -323,7 +326,7 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     alis.finent += vram_length;
     alis.nbent ++;
 
-    debug(EDebugInfo, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off, script->pc_org);
+    debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off, script->pc_org);
     return script;
 }
 

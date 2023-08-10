@@ -90,6 +90,18 @@ typedef struct {
     s32 tvsprite;
     s32 texsprite;
     s32 atexsprite;
+    
+    s8 spag;
+    s8 wpag;
+    s16 pagdx;
+    s16 pagdy;
+    s16 pagcount;
+    
+    u8 sback;
+    u8 wback;
+    s8 cback;
+    u8 pback;
+
 } sImage;
 
 extern sImage image;

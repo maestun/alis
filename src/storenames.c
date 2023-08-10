@@ -56,14 +56,14 @@ static void slocw(void) {
  */
 static void slocp(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
 // Store at LOCation with offseT: Pointer
 static void sloctp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.script->vram_org);
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)alis.mem + alis.script->vram_org + offset, (char *)alis.oldsd7);
 }
 
@@ -108,13 +108,13 @@ static void sdirw(void) {
  */
 static void sdirp(void) {
     u8 offset = script_read8();
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
 static void sdirtp(void) {
     s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 

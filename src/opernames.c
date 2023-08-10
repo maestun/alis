@@ -43,7 +43,7 @@ void oimmw(void) {
 void oimmp(void) {
     // reads null-terminated data into bssChunk3
     script_read_until_zero(alis.sd7);
-    debug(EDebugWarning, " [\"%s\" <= sd7]", (char *)alis.sd7);
+    debug(EDebugVerbose, " [\"%s\" <= sd7]", (char *)alis.sd7);
 }
 
 void olocb(void) {
@@ -60,12 +60,14 @@ void olocw(void) {
 
 void olocp(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void oloctp(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    s16 offset = tabstring(script_read16(), alis.mem + alis.script->vram_org);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
+    strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void oloctc(void) {
@@ -96,13 +98,13 @@ void odirw(void) {
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
 void odirp(void) {
     u8 offset = script_read8();
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtp(void) {
     s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy((char *)alis.sd7, (char *)get_vram(offset));
 }
 
@@ -128,13 +130,13 @@ void omainw(void) {
 
 void omainp(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
+    debug(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
     strcpy((char *)alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 void omaintp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
     strcpy((char *)alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
@@ -169,7 +171,7 @@ void ohimp(void) {
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
     strcpy((char *)alis.sd7, (char *)(alis.mem + vram_addr + offset));
 }
 
@@ -553,7 +555,7 @@ void ospushacc(void) {
 
 void pop_sd6(void)
 {
-    debug(EDebugWarning, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
     strcpy((char *)alis.sd6, (char *)alis.acc);
     alis.acc += (s32)strlen((char *)alis.sd6) / 2;
 }
@@ -576,63 +578,64 @@ void ospile(void) {
 
 void oval(void) {
     // TODO: compute int value of bssChunk3 string -> d7 ??
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+//    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
-    s8 cVar1;
-    s8 bVar2;
+    s16 result = 0;
+    u8 flip = 0;
     
-    s16 sVar3 = 0;
-    u8 neg = 0;
     if (alis.sd7[0] != 0)
     {
         u8 *string = alis.sd7;
 
-        neg = alis.sd7[0] == 0x2d;
-        if (neg)
+        flip = alis.sd7[0] == 0x2d;
+        if (flip)
         {
             string ++;
         }
+        
+        s8 c1;
+        s8 c2;
         
         if (*string == 0x24)
         {
             while (1)
             {
                 string ++;
-                bVar2 = *string;
-                if (bVar2 == 0 || (bVar2 - 0x30) < 0)
+                c2 = *string;
+                if (c2 == 0 || (c2 - 0x30) < 0)
                     break;
                 
-                if (bVar2 < 0x3a)
+                if (c2 < 0x3a)
                 {
-                    cVar1 = bVar2 - 0x30;
+                    c1 = c2 - 0x30;
                 }
                 else
                 {
-                    bVar2 = bVar2 & 0xdf;
-                    if (bVar2 + 0xbf < 0 || 0x46 < bVar2)
+                    c2 = c2 & 0xdf;
+                    if (c2 + 0xbf < 0 || 0x46 < c2)
                         break;
                     
-                    cVar1 = bVar2 - 0x37;
+                    c1 = c2 - 0x37;
                 }
                 
-                sVar3 = sVar3 * 0x10 + cVar1;
+                result = result * 0x10 + c1;
             }
         }
         else
         {
             while (1)
             {
-                bVar2 = *string;
-                if ((bVar2 == 0 || (bVar2 - 0x30) < 0) || 0x39 < bVar2)
+                c2 = *string;
+                if ((c2 == 0 || (c2 - 0x30) < 0) || 0x39 < c2)
                     break;
                 
-                sVar3 = sVar3 * 10 + (bVar2 - 0x30);
+                result = result * 10 + (c2 - 0x30);
                 string ++;
             }
         }
     }
 
-    alis.varD7 = neg ? -sVar3 : sVar3;
+    alis.varD7 = flip ? -result : result;
 }
 
 void oexistf(void) {
