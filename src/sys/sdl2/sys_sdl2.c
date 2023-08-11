@@ -405,7 +405,17 @@ u16 sys_get_model(void) {
     // 0x456 = Atari STe / 1MB / Lowrez
     // 0x3f2 = Atari ST / 1MB / Lowrez
     
-    return 0x456;
+    // on PC, there are only 4 correct values (mono, cga, ega, vga?)
+    // 0x7d0 + 0, 0x7d0 + 1, 0x7d0 + 2, 0x7d0 + 4
+
+    if (alis.platform.kind == EPlatformPC)
+    {
+        return 0x7d4;
+    }
+    else
+    {
+        return 0x456;
+    }
 }
 
 
