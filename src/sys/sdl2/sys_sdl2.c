@@ -407,15 +407,18 @@ u16 sys_get_model(void) {
     
     // on PC, there are only 4 correct values (mono, cga, ega, vga?)
     // 0x7d0 + 0, 0x7d0 + 1, 0x7d0 + 2, 0x7d0 + 4
-
-    if (alis.platform.kind == EPlatformPC)
-    {
-        return 0x7d4;
-    }
-    else
-    {
-        return 0x456;
-    }
+    
+    // TODO: find all values
+    switch (alis.platform.kind) {
+            
+        case EPlatformAmiga:        return 0xbb8;
+//        case EPlatformAmigaAGA:     // ???
+        case EPlatformAtari:        return 0x456;
+        case EPlatformFalcon:       return 0x1388;
+//        case EPlatformMac:          // ???
+        case EPlatformPC:           return 0x7d4; // (I2 7d0 - 7d4, I3 0x7ee - 7f2)
+        default:                    return 0x456;
+    };
 }
 
 

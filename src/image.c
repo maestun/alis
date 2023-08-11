@@ -2184,8 +2184,10 @@ void destofen(sSprite *sprite)
             // 8 bit image
             
             palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
-            clear = bitmap[0] == bitmap[7];
-//            clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
+            // Ishar 1
+//            clear = bitmap[0] == bitmap[7];
+            // Ishar 2
+            clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
 
             at = bitmap + 8;
 
