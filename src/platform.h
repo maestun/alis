@@ -23,7 +23,25 @@
 
 #include "config.h"
 
-#define kMainScriptName ("main")
+#define kMainScriptName         ("main")
+
+// try to identify game using unique script name
+
+#define kMadShowScriptName      ("roulette")
+#define kTarghanScriptName      ("targhan")
+#define kWindsurfScriptName     ("wwilly")
+#define kMayaScriptName         ("itikal")
+#define kColoradoScriptName     ("apaches")
+#define kStarbladeScriptName    ("animcity")
+#define kBostonScriptName       ("bobop")
+#define kArboreaScriptName      ("shamnir")
+#define kMutantScriptName       ("mutant")
+#define kTransarticaScriptName  ("mamesc")
+#define kStormMasterScriptName  ("sharkaan")
+#define kBunnyBricksScriptName  ("balles")
+#define kIshar_IScriptName      ("rampart")
+#define kIshar_IIScriptName     ("elmtair5")
+#define kIshar_IIIScriptName    ("moltus")
 
 typedef enum {
     EPlatformAtari = 0,
@@ -32,11 +50,40 @@ typedef enum {
     EPlatformAmigaAGA,
     EPlatformMac,
     EPlatformPC,
+    EPlatformAmstradCPC,
     EPlatformUnknown
 } EPlatform;
 
+typedef enum {
+    EGameManhattanDealers,      // Manhattan Dealers (most likely not gonna work)
+    EGameMadShow,               // Mad Show
+    EGameTarghan,               // Targhan
+    EGameWindsurfWilly,         // Windsurf Willy
+    EGameLeFéticheMaya,         // Le Fétiche Maya
+    EGameColorado,              // Colorado
+    EGameStarblade,             // Starblade
+    EGameCrystalsOfArborea,     // Crystals of Arborea
+    EGameMetalMutant,           // Metal Mutant
+    EGameBostonBombClub,        // Boston Bomb Club
+    EGameXyphoesFantasy,        // Xyphoes Fantasy
+    EGameStormMaster,           // Storm Master
+    EGameIshar_I,               // Ishar I
+    EGameIshar_II,              // Ishar II
+    EGameIshar_III,             // Ishar III
+    EGameBunnyBricks,           // Bunny Bricks
+    EGameTransartica,           // Transartica
+    EGameRobinsonsRequiem,      // Robinson’s Requiem
+    EGameAsghan,                // Asghan (anything past this likely use new engine)
+    EGameDeus,                  // Deus
+    EGameTournamentOfWarriors,  // Tournament of Warriors
+    EGameTimeWarriors,          // Time Warriors
+    EGameUnknown
+
+} EGame;
+
 typedef struct {
     EPlatform   kind;
+    EGame       game;
     char        desc[kDescMaxLen];  // platform description
     char        ext[4];             // script file extension
     u32         ram_sz;             // size of ram, in bytes

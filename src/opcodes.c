@@ -3191,7 +3191,7 @@ static void clinepalet(void) {
     readexec_opername();
     readexec_opername_saveD6();
 
-    if (alis.platform.bpp != 8)
+    if (alis.platform.bpp != 8 && !(alis.platform.game == EGameMetalMutant && alis.platform.kind == EPlatformPC))
     {
         setlinepalet(alis.varD7, alis.varD6);
     }

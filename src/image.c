@@ -337,7 +337,11 @@ void savepal(s16 mode)
 
 void restorepal(s16 mode, s32 duration)
 {
-    // TODO: not used in some games (Metal Mutant, ...)
+    // not used in some games (Metal Mutant, ...)
+    if (alis.platform.game == EGameMetalMutant)
+    {
+        return;
+    }
 
     u8 *src = (mode != -1) ? svpalet2 : svpalet;
     memcpy(tpalet, src, 768);

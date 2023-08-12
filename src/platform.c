@@ -25,13 +25,14 @@
 #include "utils.h"
 
 static sPlatform platforms[] = {
-    { EPlatformAtari,       "Atari ST/STe", "AO", 0x100000, 0x8000, 320, 200, 5, 0, "" },
-    { EPlatformFalcon,      "Atari Falcon", "FO", 0x400000, 0xfa00, 320, 200, 8, 0, "" },
-    { EPlatformAmiga,       "Amiga",        "CO", 0x100000, 0x8000, 320, 200, 5, 0, "" },
-    { EPlatformAmigaAGA,    "Amiga AGA",    "DO", 0x400000, 0xfa00, 320, 200, 8, 0, "" },
-    { EPlatformMac,         "Macintosh",    "MO",        0,      0, 320, 200, 5, 0, "" },
-    { EPlatformPC,          "MS/DOS",       "IO",        0,      0, 320, 200, 8, 1, "" },
-    { EPlatformUnknown,     "Unknown",      "??",        0,      0,   0,   0, 0, 0, "" },
+    { EPlatformAtari,       EGameUnknown, "Atari ST/STe", "AO", 0x100000, 0x8000, 320, 200, 5, 0, "" },
+    { EPlatformFalcon,      EGameUnknown, "Atari Falcon", "FO", 0x400000, 0xfa00, 320, 200, 8, 0, "" },
+    { EPlatformAmiga,       EGameUnknown, "Amiga",        "CO", 0x100000, 0x8000, 320, 200, 5, 0, "" },
+    { EPlatformAmigaAGA,    EGameUnknown, "Amiga AGA",    "DO", 0x400000, 0xfa00, 320, 200, 8, 0, "" },
+    { EPlatformMac,         EGameUnknown, "Macintosh",    "MO",        0,      0, 320, 200, 5, 0, "" },
+    { EPlatformPC,          EGameUnknown, "MS/DOS",       "IO",        0,      0, 320, 200, 8, 1, "" },
+    { EPlatformAmstradCPC,  EGameUnknown, "Amstrad CPC",  "??",        0,      0, 320, 200, 2, 1, "" },
+    { EPlatformUnknown,     EGameUnknown, "Unknown",      "??",        0,      0,   0,   0, 0, 0, "" },
 };
 
 
@@ -85,25 +86,139 @@ sPlatform* pl_guess(const char * path) {
                 }
             }
         }
+        
+        closedir(dir);
+        dir = opendir(path);
+
+        while ((ent = readdir(dir)) != NULL) {
+            if(ent->d_type == DT_REG) {
+                // try to identify game
+                if(!strncasecmp(ent->d_name, kMadShowScriptName, strlen(kMadShowScriptName))) {
+                    
+                    platform->game = EGameMadShow;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kTarghanScriptName, strlen(kTarghanScriptName))) {
+                    
+                    platform->game = EGameTarghan;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kWindsurfScriptName, strlen(kWindsurfScriptName))) {
+                    
+                    platform->game = EGameWindsurfWilly;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kMayaScriptName, strlen(kMayaScriptName))) {
+                    
+                    platform->game = EGameLeFéticheMaya;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kColoradoScriptName, strlen(kColoradoScriptName))) {
+                    
+                    platform->game = EGameColorado;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kStarbladeScriptName, strlen(kStarbladeScriptName))) {
+                    
+                    platform->game = EGameStarblade;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kBostonScriptName, strlen(kBostonScriptName))) {
+                    
+                    platform->game = EGameBostonBombClub;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kArboreaScriptName, strlen(kArboreaScriptName))) {
+                    
+                    platform->game = EGameCrystalsOfArborea;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kMutantScriptName, strlen(kMutantScriptName))) {
+                    
+                    platform->game = EGameMetalMutant;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kTransarticaScriptName, strlen(kTransarticaScriptName))) {
+                    
+                    platform->game = EGameTransartica;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kStormMasterScriptName, strlen(kStormMasterScriptName))) {
+                    
+                    platform->game = EGameStormMaster;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kBunnyBricksScriptName, strlen(kBunnyBricksScriptName))) {
+                    
+                    platform->game = EGameBunnyBricks;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kIshar_IScriptName, strlen(kIshar_IScriptName))) {
+                    
+                    platform->game = EGameIshar_I;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kIshar_IIScriptName, strlen(kIshar_IIScriptName))) {
+                    
+                    platform->game = EGameIshar_II;
+                    break;
+                }
+                else if(!strncasecmp(ent->d_name, kIshar_IIIScriptName, strlen(kIshar_IIIScriptName))) {
+                    
+                    platform->game = EGameIshar_III;
+                    break;
+                }
+            }
+        }
+
         closedir(dir);
     }
     else {
-        // this might be a script file path
-        FILE* fp = fopen(path, "r");
-        if(fp != NULL) {
-            fclose(fp);
-            sPlatform* pf = pl_get(path);
-            if(pf->kind != EPlatformUnknown) {
-                platform = pf;
-                // strcpy(platform->main, path);
-                // char * ptr = strrchr(path, kPathSeparator[0]);
-                // *++ptr = 0;
-                // strcpy(platform->path, path);
-            }
-        }
-        else {
-            debug(EDebugError,"%s is not a valid data path.", path);
-        }
+        debug(EDebugError,"%s is not a valid data path.", path);
     }
+//    else {
+//        // this might be a script file path
+//        FILE* fp = fopen(path, "r");
+//        if(fp != NULL) {
+//            fclose(fp);
+//            sPlatform* pf = pl_get(path);
+//            if(pf->kind != EPlatformUnknown) {
+//                platform = pf;
+//                // strcpy(platform->main, path);
+//                // char * ptr = strrchr(path, kPathSeparator[0]);
+//                // *++ptr = 0;
+//                // strcpy(platform->path, path);
+//            }
+//        }
+//        else {
+//            debug(EDebugError,"%s is not a valid data path.", path);
+//        }
+//    }
+    
+    switch (platform->game) {
+            
+        case EGameMadShow:
+        case EGameTarghan:
+        case EGameLeFéticheMaya:
+        case EGameColorado:
+        case EGameStarblade:
+        case EGameCrystalsOfArborea:
+        case EGameMetalMutant:
+        case EGameBostonBombClub:
+        case EGameStormMaster:
+        case EGameWindsurfWilly:
+            platform->bpp = 4;
+        case EGameTransartica:
+        case EGameBunnyBricks:
+        case EGameIshar_I:
+        case EGameIshar_II:
+        case EGameIshar_III:
+            // NOP, depending on platform
+            break;
+            
+        default:
+            break;
+    };
+    
     return platform;
 }
