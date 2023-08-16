@@ -313,6 +313,8 @@ typedef struct {
     u8              cstopret;
     u16             random_number;
     
+    s8              vprotect;
+    
     struct timeval  time;
 
     u8              swap_endianness;

@@ -433,9 +433,8 @@ static void cleave(void) {
 }
 
 static void cprotect(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
-    // alis.vprotect = alis.varD7;
+    alis.vprotect = alis.varD7;
 }
 
 static void casleep(void) {
@@ -504,24 +503,20 @@ static void cswitching(void) {
     alis.fswitch = 1;
 }
 
-void get_vector(void)
+void get_vector(s16 *x, s16 *y, s16 *z)
 {
     readexec_opername();
     
     s16 index = alis.varD7;
     s32 frmidx = adresform(index);
     
-    s16 x = 0;
-    u32 y = 0;
-    u16 z = 0;
-
     u8 *form = alis.mem + frmidx;
     u8 bVar1 = form[0];
     if (bVar1 == 0)
     {
-        x = (s16)form[4] + ((s16)form[7] >> 1);
-        z = (s16)form[5] + ((s16)form[8] >> 1);
-        y = (s16)form[6] + ((s16)form[9] >> 1);
+        *x = (s16)form[4] + ((s16)form[7] >> 1);
+        *z = (s16)form[5] + ((s16)form[8] >> 1);
+        *y = (s16)form[6] + ((s16)form[9] >> 1);
     }
     else
     {
@@ -536,34 +531,28 @@ void get_vector(void)
         
         if (bVar1 == 1)
         {
-            x = *(s16 *)(form + 4) + (*(s16 *)(form + 0xa) >> 1);
-            z = *(s16 *)(form + 6) + (*(s16 *)(form + 0xc) >> 1);
-            y = *(s16 *)(form + 8) + (*(s16 *)(form + 0xe) >> 1);
+            *x = *(s16 *)(form + 4) + (*(s16 *)(form + 0xa) >> 1);
+            *z = *(s16 *)(form + 6) + (*(s16 *)(form + 0xc) >> 1);
+            *y = *(s16 *)(form + 8) + (*(s16 *)(form + 0xe) >> 1);
         }
         else
         {
-            x = *(s16 *)(form + 2);
-            z = *(s16 *)(form + 4);
-            y = *(s16 *)(form + 6);
+            *x = *(s16 *)(form + 2);
+            *z = *(s16 *)(form + 4);
+            *y = *(s16 *)(form + 6);
         }
     }
     
     if (0x14 < get_0x2e_script_header_word_2(alis.script->vram_org) && get_0x03_xinv(alis.script->vram_org) != 0)
     {
-        x = -x;
+        *x = -*x;
     }
-    
-    alis.wcx = x;
-    alis.wcy = y;
-    alis.wcz = z;
-
-//      return CONCAT24(sVar5,uVar4 & 0xffff | (uint)uVar3 << 0x10);
 }
 
 static void cwlive(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
-    get_vector();
+    get_vector(&alis.wcx, &alis.wcy, &alis.wcz);
     
     alis.varD7 = -1;
     
@@ -1015,353 +1004,92 @@ s16 px2;
 s16 py2;
 s16 pz2;
 
-s32 multiform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0);
-s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf);
+s32 multiform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform);
+s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
+s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
+s32 monofirm(s32 ent_vram, s32 ent_formedata);
 
-// TODO: cleanup
-s32 traitfirm(s32 vram, s32 a3, s32 a4, s32 d0)
+u8 multifirm(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 a4)
 {
-    u16 result;
+    u16 length = xread8(ent_formedata - 1);
+    u8 result = length ? 1 : 0;
     
-    s16 tmpx1;
-    s16 tmpy1;
-    s16 tmpz1;
-    s16 tmpx2;
-    s16 tmpy2;
-    s16 tmpz2;
-
-    s32 a2 = a4 + xread16(a4 + d0 * 2);
-    s32 a2b = a2 + 2;
-
-    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(a2) : xread16(a2);
-    if (-1 < test)
+    for (int i = 0; i < length; i++, ent_formedata += 2)
     {
-        if (xread16(a2) == 0)
+        s32 forme = xread16(ent_formedata);
+        if (-1 < forme)
         {
-            result = xread16(a2b) & alis.matmask;
-            if (result == 0)
-                return 1;
-            
-            alis.goodmat = xread16(a2 + 2);
-            
-            tmpx1 = (s8)xread8(a2 + 4);
-            tmpy1 = (s8)xread8(a2 + 5);
-            tmpz1 = (s8)xread8(a2 + 6);
-            if (get_0x03_xinv(vram) != 0)
-                tmpx1 = -tmpx1;
-            
-            tmpx1 += xread16(vram + 0);
-            tmpy1 += xread16(vram + 2);
-            tmpz1 += xread16(vram + 4);
-            
-            tmpx2 = (s8)xread8(a2 + 7);
-            tmpy2 = (s8)xread8(a2 + 8);
-            tmpz2 = (s8)xread8(a2 + 9);
-            if (get_0x03_xinv(vram) != 0)
-                tmpx2 = -tmpx2;
-            
-            tmpx2 += tmpx1;
-            tmpy2 += tmpy1;
-            tmpz2 += tmpz1;
-        }
-        else
-        {
-            if (xread8(a2) != 1)
-                return 1;
-            
-            result = xread16(a2b) & alis.matmask;
-            if (result == 0)
-                return 1;
-            
-            alis.goodmat = xread16(a2 + 2);
-            
-            tmpx1 = xread16(a2 + 4);
-            tmpy1 = xread16(a2 + 6);
-            tmpz1 = xread16(a2 + 8);
-            if (get_0x03_xinv(vram) != 0)
-                tmpx1 = -tmpx1;
-            
-            tmpx1 += xread16(vram + 0);
-            tmpy1 += xread16(vram + 2);
-            tmpz1 += xread16(vram + 4);
-
-            tmpx2 = xread16(a2 + 0xa);
-            tmpy2 = xread16(a2 + 0xc);
-            tmpz2 = xread16(a2 + 0xe);
-            if (get_0x03_xinv(vram) != 0)
-                tmpx2 = -tmpx2;
-            
-            tmpx2 += tmpx1;
-            tmpy2 += tmpy1;
-            tmpz2 += tmpz1;
-        }
-        
-        s16 tmp = tmpy1;
-        if (tmpy2 <= tmpy1)
-        {
-            tmp = tmpy2;
-            tmpy2 = tmpy1;
-        }
-        
-        if ((py1 <= tmpy2) && (tmp <= py2))
-        {
-            tmp = tmpz1;
-            if (tmpz2 <= tmpz1)
-            {
-                tmp = tmpz2;
-                tmpz2 = tmpz1;
-            }
-            
-            if ((pz1 <= tmpz2) && (tmp <= pz2))
-            {
-                tmp = tmpx1;
-                if (tmpx2 <= tmpx1)
-                {
-                    tmp = tmpx2;
-                    tmpx2 = tmpx1;
-                }
-                
-                if ((px1 <= tmpx2) && (tmp <= px2))
-                    return 0;
-            }
-        }
-        
-        return 1;
-    }
-
-    u16 length = xread8(a2 + 1);
-    result = length ? 1 : 0;
-    
-    for (int i = 0; i < length; i++, a2b += 2)
-    {
-        if (-1 < (d0 = xread16(a2b)))
-        {
-            result = traitfirm(vram, a3, a4, d0);
+            result = traitfirm(ent_vram, formedata, a4, forme + forme);
             if (!result)
                 return result;
         }
     }
-
-    return result;
-}
-
-// TODO: cleanup
-s32 traitform(s32 vram, s32 a2, s32 a4, s32 d0)
-{
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
-    d0 = d0 * 2;
-    s32 a3 = xread16(alis.baseform + d0) + alis.baseform;
-    if (xread16(a3) < 0)
-    {
-        return multiform(vram, a2, a3, a4, d0);
-    }
-    
-    return monoform(vram, a2, a3, a4, d0, xread16(a3) == 0);
-}
-
-// TODO: cleanup
-s32 multiform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0)
-{
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
-    s8 test = xread8(a3 - 1);
-    u8 result = test == 0;
-    if (!result)
-    {
-        s16 length = xread8(a3 - 1) - 1;
-        
-        do
-        {
-            d0 = xread16(a3);
-            if (-1 < d0)
-            {
-                result = traitform(vram, a2, a4, d0);
-                if (result)
-                {
-                    return result;
-                }
-            }
-            
-            length --;
-            a3 += 2;
-        }
-        while (length != -1);
-        
-        result = 1;
-    }
     
     return result;
 }
 
-// TODO: cleanup
-s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
+s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 forme)
 {
-    s16 frmx;
-    s16 frmy;
-    s16 frmz;
-
-    s32 a3nxt;
-    
-    if (zf)
-    {
-        frmx = (s8)xread8(a3 + 2);
-        frmy = (s8)xread8(a3 + 3);
-        frmz = (s8)xread8(a3 + 4);
-        if (get_0x03_xinv(alis.script->vram_org) != 0)
-            frmx = -frmx;
-
-        frmx += alis.wcx;
-        frmy += alis.wcy;
-        frmz += alis.wcz;
-        px2 = (s8)xread8(a3 + 5);
-        py2 = (s8)xread8(a3 + 6);
-        pz2 = (s8)xread8(a3 + 7);
-        a3nxt = a3 + 8;
-        if (get_0x03_xinv(alis.script->vram_org) != 0)
-            px2 = -px2;
-
-        px2 += frmx;
-        py2 += frmy;
-        pz2 += frmz;
-    }
-    else
-    {
-        if (xread8(a3 - 2) != 1)
-            return 1;
-
-        frmx = xread16(a3 + 2);
-        frmy = xread16(a3 + 4);
-        frmz = xread16(a3 + 6);
-        if (get_0x03_xinv(alis.script->vram_org) != 0)
-            frmx = -frmx;
-
-        frmx += alis.wcx;
-        frmy += alis.wcy;
-        frmz += alis.wcz;
-        
-        px2 = xread16(a3 + 8);
-        py2 = xread16(a3 + 0xa);
-        pz2 = xread16(a3 + 0xc);
-        a3nxt = a3 + 0xe;
-        if (get_0x03_xinv(alis.script->vram_org) != 0)
-            px2 = -px2;
-
-        px2 += frmx;
-        py2 += frmy;
-        pz2 += frmz;
-    }
-    
-    py1 = frmy;
-    if (py2 <= frmy)
-    {
-        py1 = py2;
-        py2 = frmy;
-    }
-    
-    pz1 = frmz;
-    if (pz2 <= frmz)
-    {
-        pz1 = pz2;
-        pz2 = frmz;
-    }
-    
-    px1 = frmx;
-    if (px2 <= frmx)
-    {
-        px1 = px2;
-        px2 = frmx;
-    }
-    
-    s32 a2b = a2 + 2;
-    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(a2) : xread16(a2);
+    s32 ent_formedata = xread16(ent_baseform + forme) + ent_baseform;
+    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(ent_formedata) : xread16(ent_formedata);
     if (test < 0)
     {
-        u16 length = xread8(a2 + 1);
-        u8 result = length ? 1 : 0;
-        
-        for (int i = 0; i < length; i++, a2b += 2)
-        {
-            if (-1 < (d0 = xread16(a2b)))
-            {
-                result = traitfirm(vram, a3nxt, a4, d0);
-                if (!result)
-                    return result;
-            }
-        }
-        
-        return result;
+        return multifirm(ent_vram, ent_formedata + 2, formedata, ent_baseform);
     }
+    
+    return monofirm(ent_vram, ent_formedata + 2);
+}
 
-    u16 result;
-
-    s16 tmpx1;
-    s16 tmpy1;
-    s16 tmpz1;
-    s16 tmpx2;
-    s16 tmpy2;
-    s16 tmpz2;
-
-    if (xread16(a2) == 0)
+s32 monofirm(s32 ent_vram, s32 ent_formedata)
+{
+    s16 tmpx1, tmpy1, tmpz1, tmpx2, tmpy2, tmpz2;
+    
+    u16 result = xread16(ent_formedata) & alis.matmask;
+    if (result == 0)
+        return 1;
+    
+    u8 bits = xread8(ent_formedata - 2);
+    if (bits == 0)
     {
-        result = xread16(a2b) & alis.matmask;
-        if (result == 0)
-            return 1;
+        tmpx1 = (s8)xread8(ent_formedata + 2);
+        tmpy1 = (s8)xread8(ent_formedata + 3);
+        tmpz1 = (s8)xread8(ent_formedata + 4);
         
-        alis.goodmat = xread16(a2 + 2);
-        
-        tmpx1 = (s8)xread8(a2 + 4);
-        tmpy1 = (s8)xread8(a2 + 5);
-        tmpz1 = (s8)xread8(a2 + 6);
-        if (get_0x03_xinv(vram) != 0)
-            tmpx1 = -tmpx1;
-        
-        tmpx1 += xread16(vram + 0);
-        tmpy1 += xread16(vram + 2);
-        tmpz1 += xread16(vram + 4);
-        
-        tmpx2 = (s8)xread8(a2 + 7);
-        tmpy2 = (s8)xread8(a2 + 8);
-        tmpz2 = (s8)xread8(a2 + 9);
-        if (get_0x03_xinv(vram) != 0)
-            tmpx2 = -tmpx2;
-        
-        tmpx2 += tmpx1;
-        tmpy2 += tmpy1;
-        tmpz2 += tmpz1;
+        tmpx2 = (s8)xread8(ent_formedata + 5);
+        tmpy2 = (s8)xread8(ent_formedata + 6);
+        tmpz2 = (s8)xread8(ent_formedata + 7);
+    }
+    else if (bits == 1)
+    {
+        tmpx1 = xread16(ent_formedata + 2);
+        tmpy1 = xread16(ent_formedata + 4);
+        tmpz1 = xread16(ent_formedata + 6);
+
+        tmpx2 = xread16(ent_formedata + 0x8);
+        tmpy2 = xread16(ent_formedata + 0xa);
+        tmpz2 = xread16(ent_formedata + 0xc);
     }
     else
     {
-        if (xread8(a2) != 1)
-            return 1;
-        
-        result = xread16(a2b) & alis.matmask;
-        if (result == 0)
-            return 1;
-        
-        alis.goodmat = xread16(a2 + 2);
-        
-        tmpx1 = xread16(a2 + 4);
-        tmpy1 = xread16(a2 + 6);
-        tmpz1 = xread16(a2 + 8);
-        if (get_0x03_xinv(vram) != 0)
-            tmpx1 = -tmpx1;
-        
-        tmpx1 += xread16(vram + 0);
-        tmpy1 += xread16(vram + 2);
-        tmpz1 += xread16(vram + 4);
+        return 1;
+    }
 
-        tmpx2 = xread16(a2 + 0xa);
-        tmpy2 = xread16(a2 + 0xc);
-        tmpz2 = xread16(a2 + 0xe);
-        if (get_0x03_xinv(vram) != 0)
-            tmpx2 = -tmpx2;
-        
-        tmpx2 += tmpx1;
-        tmpy2 += tmpy1;
-        tmpz2 += tmpz1;
+    alis.goodmat = xread16(ent_formedata);
+
+    if (get_0x03_xinv(ent_vram) != 0)
+    {
+        tmpx1 = -tmpx1;
+        tmpx2 = -tmpx2;
     }
     
+    tmpx1 += xread16(ent_vram + 0);
+    tmpy1 += xread16(ent_vram + 2);
+    tmpz1 += xread16(ent_vram + 4);
+
+    tmpx2 += tmpx1;
+    tmpy2 += tmpy1;
+    tmpz2 += tmpz1;
+
     s16 tmp = tmpy1;
     if (tmpy2 <= tmpy1)
     {
@@ -1395,16 +1123,132 @@ s32 monoform(s32 vram, s32 a2, s32 a3, s32 a4, s32 d0, u8 zf)
     return 1;
 }
 
-// check for clicked object
+s32 traitform(s32 ent_vram, s32 ent_formedata, s32 ent_baseform, s32 ent_wforme2x)
+{
+    s32 formedata = xread16(alis.baseform + ent_wforme2x) + alis.baseform;
+    if (xread16(formedata) < 0)
+    {
+        return multiform(ent_vram, ent_formedata + 2, formedata, ent_baseform);
+    }
+    
+    return monoform(ent_vram, ent_formedata + 2, formedata, ent_baseform, ent_wforme2x);
+}
+
+s32 multiform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform)
+{
+    s8 test = xread8(formedata - 1);
+    u8 result = test == 0;
+    if (!result)
+    {
+        s16 length = xread8(formedata - 1);
+        for (int i = 0; i < length; i++, formedata+=2)
+        {
+            s32 wforme = xread16(formedata);
+            if (-1 < wforme)
+            {
+                result = traitform(ent_vram, ent_formedata, ent_baseform, wforme + wforme);
+                if (result)
+                {
+                    return result;
+                }
+            }
+        }
+        
+        result = 1;
+    }
+    
+    return result;
+}
+
+s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s32 ent_wforme2x)
+{
+    s16 frmx, frmy, frmz;
+    
+    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(ent_formedata) : xread16(ent_formedata);
+    
+    u8 bits = xread8(formedata - 2);
+    if (bits == 0)
+    {
+        frmx = (s8)xread8(formedata + 2);
+        frmy = (s8)xread8(formedata + 3);
+        frmz = (s8)xread8(formedata + 4);
+
+        px2 = (s8)xread8(formedata + 5);
+        py2 = (s8)xread8(formedata + 6);
+        pz2 = (s8)xread8(formedata + 7);
+        formedata += 8;
+    }
+    else if (bits == 1)
+    {
+        frmx = xread16(formedata + 2);
+        frmy = xread16(formedata + 4);
+        frmz = xread16(formedata + 6);
+
+        px2 = xread16(formedata + 0x8);
+        py2 = xread16(formedata + 0xa);
+        pz2 = xread16(formedata + 0xc);
+        formedata += 0xe;
+    }
+    else
+    {
+        return 1;
+    }
+
+    if (get_0x03_xinv(alis.script->vram_org) != 0)
+    {
+        frmx = -frmx;
+        px2 = -px2;
+    }
+    
+    frmx += alis.wcx;
+    frmy += alis.wcy;
+    frmz += alis.wcz;
+
+    px2 += frmx;
+    py2 += frmy;
+    pz2 += frmz;
+
+    py1 = frmy;
+    if (py2 <= frmy)
+    {
+        py1 = py2;
+        py2 = frmy;
+    }
+    
+    pz1 = frmz;
+    if (pz2 <= frmz)
+    {
+        pz1 = pz2;
+        pz2 = frmz;
+    }
+    
+    px1 = frmx;
+    if (px2 <= frmx)
+    {
+        px1 = px2;
+        px2 = frmx;
+    }
+    
+    ent_formedata += 2;
+    if (test < 0)
+    {
+        return multifirm(ent_vram, ent_formedata, formedata, ent_baseform);
+    }
+    
+    return monofirm(ent_vram, ent_formedata);
+}
+
+// check for intersected object
 
 void clipform(void) {
+    
     alis.ptrent = alis.tablent;
     if (-1 < alis.wforme)
     {
         s32 val = get_0x14_script_org_offset(alis.script->vram_org);
         s32 addr = xread32(val + 0xe) + val;
         alis.baseform = xread32(addr + 6) + addr;
-        s32 atforme = xread16(alis.baseform + alis.wforme * 2) + alis.baseform;
+        s32 formedata = xread16(alis.baseform + alis.wforme * 2) + alis.baseform;
         s16 entidx = 0;
 
         do
@@ -1412,22 +1256,21 @@ void clipform(void) {
             s32 ent_vram = xread32(alis.atent + entidx);
             if (xread16(ent_vram + 6) == xread16(alis.script->vram_org + 6) && -1 < get_0x1a_cforme(ent_vram) && alis.script->vram_org != ent_vram)
             {
-                s32 val2 = get_0x14_script_org_offset(ent_vram);
-                s32 addr2 = xread32(val2 + 0xe) + val2;
-                s32 a4 = xread32(addr2 + 6) + addr2;
-                s32 forme = get_0x1a_cforme(ent_vram) * 2;
-                s8 test = xread8(atforme);
-                s32 a2 = xread16(a4 + forme) + a4;
+                s32 ent_val = get_0x14_script_org_offset(ent_vram);
+                s32 ent_addr = xread32(ent_val + 0xe) + ent_val;
+                s32 ent_baseform = xread32(ent_addr + 6) + ent_addr;
+                s32 ent_wforme2x = get_0x1a_cforme(ent_vram) * 2;
+                s32 ent_formedata = xread16(ent_baseform + ent_wforme2x) + ent_baseform;
                 
                 s32 result = 0;
 
-                if (test < 0)
+                if (xread8(formedata) < 0)
                 {
-                    result = multiform(ent_vram, a2, atforme + 2, a4, forme);
+                    result = multiform(ent_vram, ent_formedata, formedata + 2, ent_baseform);
                 }
                 else
                 {
-                    result = monoform(ent_vram, a2, atforme + 2, a4, forme, test == 0);
+                    result = monoform(ent_vram, ent_formedata, formedata + 2, ent_baseform, ent_wforme2x);
                 }
                 
                 if (!result)
@@ -1442,7 +1285,7 @@ void clipform(void) {
                     alis.matent[index] = alis.goodmat;
                     alis.tablent[index] = entidx;
                     alis.ptrent ++;
-                    atforme += 2;
+                    formedata += 2;
 
                     if (alis.fallent == 0)
                     {
@@ -2305,9 +2148,9 @@ static void cescape(void) {
 }
 
 static void cvtstmov(void) {
-    alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread8(alis.script->vram_org + 0);
-    alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread8(alis.script->vram_org + 2);
-    alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread8(alis.script->vram_org + 4);
+    alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
+    alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
+    alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
     readexec_opername();
     alis.matmask = alis.varD7;
     alis.wforme = get_0x1a_cforme(alis.script->vram_org);
@@ -2316,9 +2159,9 @@ static void cvtstmov(void) {
 }
 
 static void cvftstmov(void) {
-    alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread8(alis.script->vram_org + 0);
-    alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread8(alis.script->vram_org + 2);
-    alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread8(alis.script->vram_org + 4);
+    alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
+    alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
+    alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
     readexec_opername();
     alis.matmask = alis.varD7;
     readexec_opername();
@@ -3157,7 +3000,16 @@ static void cbackstar(void) {
 }
 
 static void cstarring(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
 }
 
 static void cengine(void) {

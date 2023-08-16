@@ -151,6 +151,8 @@ void alis_load_main(void) {
         alis.specs.vram_to_data_offset += 3;
         alis.specs.vram_to_data_offset *= 0x28;
         
+        alis.vprotect = 0;
+        
         // set the location of scripts' vrams table
         alis.atprog = ALIS_VM_RAM_ORG;
         alis.atprog_ptr = (u32 *)(alis.mem + alis.atprog);

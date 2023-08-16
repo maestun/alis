@@ -79,8 +79,27 @@ int search_insert(u32 *nums, u32 size, int target_id) {
     return start;
 }
 
+void protect(void)
+{
+  if (alis.vprotect != 0)
+  {
+    u8 *workbuffptr = alis.buffer;
+//    uVar1 = FUN_0000f00e();
+//    if ((short)uVar1 == 0) {
+      alis.basemain = alis.atprog;
+//    }
+  }
+    alis.vprotect = 0;
+}
+
+void debprot(void)
+{
+    protect();
+}
+
 sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
     
+//    debprot();
     s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
     if (insert > 0 && insert < alis.nbprog)
