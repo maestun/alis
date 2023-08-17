@@ -510,36 +510,34 @@ void get_vector(s16 *x, s16 *y, s16 *z)
     s16 index = alis.varD7;
     s32 frmidx = adresform(index);
     
-    u8 *form = alis.mem + frmidx;
-    u8 bVar1 = form[0];
-    if (bVar1 == 0)
+    u8 test = xread8(frmidx);
+    if (test == 0)
     {
-        *x = (s16)form[4] + ((s16)form[7] >> 1);
-        *z = (s16)form[5] + ((s16)form[8] >> 1);
-        *y = (s16)form[6] + ((s16)form[9] >> 1);
+        *x = (s16)xread8(frmidx + 4) + ((s16)xread8(frmidx + 7) >> 1);
+        *z = (s16)xread8(frmidx + 5) + ((s16)xread8(frmidx + 8) >> 1);
+        *y = (s16)xread8(frmidx + 6) + ((s16)xread8(frmidx + 9) >> 1);
+    }
+    else if ((char)test < 0)
+    {
+        // SYS_PrintError();
+        alis.wcx = 0;
+        alis.wcy = 0;
+        alis.wcz = 0;
+        return;
     }
     else
     {
-        if ((char)bVar1 < 0)
+        if (test == 1)
         {
-            // SYS_PrintError();
-            alis.wcx = 0;
-            alis.wcy = 0;
-            alis.wcz = 0;
-            return;
-        }
-        
-        if (bVar1 == 1)
-        {
-            *x = *(s16 *)(form + 4) + (*(s16 *)(form + 0xa) >> 1);
-            *z = *(s16 *)(form + 6) + (*(s16 *)(form + 0xc) >> 1);
-            *y = *(s16 *)(form + 8) + (*(s16 *)(form + 0xe) >> 1);
+            *x = xread16(frmidx + 4) + (xread16(frmidx + 0xa) >> 1);
+            *z = xread16(frmidx + 6) + (xread16(frmidx + 0xc) >> 1);
+            *y = xread16(frmidx + 8) + (xread16(frmidx + 0xe) >> 1);
         }
         else
         {
-            *x = *(s16 *)(form + 2);
-            *z = *(s16 *)(form + 4);
-            *y = *(s16 *)(form + 6);
+            *x = xread16(frmidx + 2);
+            *z = xread16(frmidx + 4);
+            *y = xread16(frmidx + 6);
         }
     }
     
@@ -2841,7 +2839,7 @@ static void cscmap(void) {
 }
 
 static void cscdump(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugInfo, "MISSING (NOP?): %s", __FUNCTION__);
 }
 
 static void cfindcla(void) {
@@ -3020,7 +3018,7 @@ static void cengine(void) {
 }
 
 static void cautobase(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugInfo, "MISSING (NOP?): %s", __FUNCTION__);
 }
 
 static void cquality(void) {
@@ -3029,7 +3027,43 @@ static void cquality(void) {
 }
 
 static void chsprite(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+
+    readexec_opername();
+    set_0x2f_chsprite(alis.script->vram_org, (s8)alis.varD7);
+    if ((s8)alis.varD7 == 9)
+    {
+        s16 entmov = get_0x0e_script_ent(alis.script->vram_org);
+        readexec_opername();
+        s8 citmov = (s8)alis.varD7;
+        if (citmov == 0)
+        {
+            citmov = 1;
+        }
+        
+        s8 citmov0 = citmov;
+        readexec_opername();
+        s16 mitmov = alis.varD7;
+        readexec_opername();
+        s16 spritmov = get_0x18_unknown(alis.script->vram_org);
+        s16 sitmov = 0xff;
+        s16 ritmov = 0;
+        s16 fitmov = 1;
+        return;
+    }
+    
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+
+    if (get_0x2f_chsprite(alis.script->vram_org) != 0)
+    {
+        return;
+    }
+    
+    s16 fitmov = 0;
+    s16 entmov = 0xffff;
+    s16 spritmov = 0;
 }
 
 static void cselpalet(void) {
@@ -3157,9 +3191,11 @@ static void cshrink(void) {
         return;
     }
     
-    if (*(u16 *)(data + 4) != 0)
+    s16 height = read16(data + 4);
+    if (height != 0)
     {
-        s16 height = swap16(data + 4) + 1;
+        height += 1;
+        
         s32 bits = width * height;
         
         u32 offset = get_0x14_script_org_offset(alis.script->vram_org);
