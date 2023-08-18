@@ -2695,8 +2695,60 @@ static void ctoblack(void) {
     toblackpal(duration);
 }
 
+extern u8 mpalet[768 * 4];
+
+s16 subcol(s16 change, s16 component)
+{
+    s16 result = (component & 0xf) - (change & 0xf);
+    if (result < 0)
+        return 0;
+    
+    if (result < 8)
+        return result;
+    
+    return 7;
+}
+
+s16 addcol(s16 change, s16 component)
+{
+    s16 result = (component & 0xf) + (change & 0xf);
+    if (result < 0)
+        return 0;
+    
+    if (result < 8)
+        return result;
+    
+    return 7;
+}
+
 static void cmovcolor(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    readexec_opername();
+    readexec_opername_saveD6();
+
+    s16 index = alis.varD7;
+    s16 change = alis.varD6;
+
+    if (alis.platform.bpp == 4)
+    {
+        if (change < 0)
+        {
+            change = -change;
+ 
+            mpalet[index * 3 + 0] = subcol(change       , mpalet[index * 3 + 0] >> 5) << 5;
+            mpalet[index * 3 + 0] = subcol(change >> 4  , mpalet[index * 3 + 0] >> 5) << 5;
+            mpalet[index * 3 + 0] = subcol(change >> 8  , mpalet[index * 3 + 0] >> 5) << 5;
+        }
+        else
+        {
+            mpalet[index * 3 + 0] = addcol(change       , mpalet[index * 3 + 0] >> 5) << 5;
+            mpalet[index * 3 + 0] = addcol(change >> 4  , mpalet[index * 3 + 0] >> 5) << 5;
+            mpalet[index * 3 + 0] = addcol(change >> 8  , mpalet[index * 3 + 0] >> 5) << 5;
+        }
+        
+        ftopal = 0xff;
+        thepalet = 0;
+        defpalet = 0;
+    }
 }
 
 // fade-in to palette

@@ -25,11 +25,11 @@
 #include "utils.h"
 
 static sPlatform platforms[] = {
-    { EPlatformAtari,       EGameUnknown, "Atari ST/STe", "AO", 0x100000, 0x8000, 320, 200, 5, 0, "" },
+    { EPlatformAtari,       EGameUnknown, "Atari ST/STe", "AO", 0x100000, 0x8000, 320, 200, 4, 0, "" },
     { EPlatformFalcon,      EGameUnknown, "Atari Falcon", "FO", 0x400000, 0xfa00, 320, 200, 8, 0, "" },
-    { EPlatformAmiga,       EGameUnknown, "Amiga",        "CO", 0x100000, 0x8000, 320, 200, 5, 0, "" },
+    { EPlatformAmiga,       EGameUnknown, "Amiga",        "CO", 0x100000, 0x8000, 320, 200, 4, 0, "" },
     { EPlatformAmigaAGA,    EGameUnknown, "Amiga AGA",    "DO", 0x400000, 0xfa00, 320, 200, 8, 0, "" },
-    { EPlatformMac,         EGameUnknown, "Macintosh",    "MO",        0,      0, 320, 200, 5, 0, "" },
+    { EPlatformMac,         EGameUnknown, "Macintosh",    "MO",        0,      0, 320, 200, 4, 0, "" },
     { EPlatformPC,          EGameUnknown, "MS/DOS",       "IO",        0,      0, 320, 200, 8, 1, "" },
     { EPlatformAmstradCPC,  EGameUnknown, "Amstrad CPC",  "??",        0,      0, 320, 200, 2, 1, "" },
     { EPlatformUnknown,     EGameUnknown, "Unknown",      "??",        0,      0,   0,   0, 0, 0, "" },
