@@ -261,15 +261,32 @@ void topalette(u8 *paldata, s32 duration)
     }
     else // 8 bit palette
     {
-        palc = 0;
-        u8 offset = paldata[2];
-        if (fdarkpal == 0)
+        if (alis.platform.kind == EPlatformAmiga)
         {
-            memcpy(atpalet + (offset * 3), paldata + 4, colors * 3);
+            palc = 0;
+            u8 *palptr = &paldata[2];
+
+            s16 to = 0;
+
+            for (s32 i = 0; i < 32; i++)
+            {
+                atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
+                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
+                atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
+            }
         }
         else
         {
-            tdarkpal(paldata);
+            palc = 0;
+            u8 offset = paldata[2];
+            if (fdarkpal == 0)
+            {
+                memcpy(atpalet + (offset * 3), paldata + 4, colors * 3);
+            }
+            else
+            {
+                tdarkpal(paldata);
+            }
         }
     }
     
@@ -2159,26 +2176,57 @@ void destofen(sSprite *sprite)
         case 0x10:
         case 0x12:
         {
-            // 4 bit image
-
-            palidx = bitmap[6];
-            clear = bitmap[0] == 0x10 ? bitmap[7] : -1;
-            
-            at = bitmap + 8;
-
-            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+            if (alis.platform.kind == EPlatformAmiga && alis.platform.game == EGameColorado)
             {
-                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                // 5 bit image
+                
+                clear = -1;
+                
+                u32 planesize = (width * height) / 8;
+                
+                u8 c0, c1, c2, c3, c4;
+                
+                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
-                    s16 wh = (flip ? (width - (w + 1)) : w) / 2;
-                    color = *(at + wh + h * (width / 2));
-                    color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                    if (color != clear)
-                        *tgt = palidx + color;
+                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                    {
+                        s16 wh = (flip ? (width - (w + 1)) : w);
+                        s32 idx = (wh + h * width) / 8;
+                        c0 = *(at + idx);
+                        c1 = *(at + (idx += planesize));
+                        c2 = *(at + (idx += planesize));
+                        c3 = *(at + (idx += planesize));
+                        c4 = *(at + (idx += planesize));
+                        
+                        int bit = 7 - (wh % 8);
+                        
+                        color = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3 | ((c4 >> bit) & 1) << 4;
+                        if (color != clear)
+                            *tgt = color;
+                    }
                 }
             }
-            
+            else
+            {
+                // 4 bit image
+                palidx = bitmap[6];
+                clear = bitmap[0] == 0x10 ? bitmap[7] : -1;
+                at = bitmap + 8;
+                
+                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                {
+                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                    {
+                        s16 wh = (flip ? (width - (w + 1)) : w) / 2;
+                        color = *(at + wh + h * (width / 2));
+                        color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                        if (color != clear)
+                            *tgt = palidx + color;
+                    }
+                }
+            }
             break;
         }
             

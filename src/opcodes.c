@@ -193,11 +193,15 @@ s16 putdata[][4] = {
     { 0x0074, 0x0000, 0x0079, 0x03 },
     { 0x0074, 0x0000, 0x0079, 0x02 }};
 
+u8 vstandard[256];
+
 #pragma mark - additions
 
 void shrinkprog(s32 start, s32 length, u16 script_id);
 void killent(u16 d0w, u16 d5w);
 void runson(void);
+void sviewtyp(void);
+
 
 // ============================================================================
 #pragma mark - Opcodes
@@ -548,8 +552,6 @@ void get_vector(s16 *x, s16 *y, s16 *z)
 }
 
 static void cwlive(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     get_vector(&alis.wcx, &alis.wcy, &alis.wcz);
     
     alis.varD7 = -1;
@@ -1384,15 +1386,15 @@ static void cpredent(void) {
     cstore_continue();
 }
 
-u8 calcnear(u32 source, u32 target)
+u8 calcnear(u32 source, u32 target, s32 *val)
 {
-    s16 wcx = xread16(target + 0) - xread16(source + 0);
-    s16 wcz = xread16(target + 2) - xread16(source + 2);
-    s16 wcy = xread16(target + 4) - xread16(source + 4);
-    s32 val = (s32)wcx * (s32)wcx + (s32)wcz * (s32)wcz + (s32)wcy * (s32)wcy;
-    if (val <= alis.valnorme && (alis.fview == 0 || val <= (s32)((s8)xread8(source + 0x9) * wcx + (s8)xread8(source + 0xa) * wcz + (s8)xread8(source + 0xb) * wcy) * (s32)alis.valchamp))
+    s32 wcx = xread16(target + 0) - xread16(source + 0);
+    s32 wcy = xread16(target + 2) - xread16(source + 2);
+    s32 wcz = xread16(target + 4) - xread16(source + 4);
+    *val = (wcx * wcx) + (wcy * wcy) + (wcz * wcz);
+    if (*val <= alis.valnorme && (alis.fview == 0 || *val <= ((s8)xread8(source + 0x9) * wcx + (s8)xread8(source + 0xa) * wcy + (s8)xread8(source + 0xb) * wcz) * (s32)alis.valchamp))
     {
-        return val;
+        return 1;
     }
     
     return 0;
@@ -1413,7 +1415,8 @@ static void cnearent(void) {
     
     if (xread16(tgt_vram + 6) == xread16(src_vram + 6))
     {
-        u8 result = calcnear(src_vram, tgt_vram);
+        s32 tmp;
+        u8 result = calcnear(src_vram, tgt_vram, &tmp);
         if (!result)
         {
             alis.tablent[tabidx++] = entidx;
@@ -1458,6 +1461,11 @@ static void cneartyp(void) {
     readexec_opername();
     alis.valnorme = (u32)alis.varD7 * (u32)alis.varD7;
     readexec_opername();
+    sviewtyp();
+}
+
+void sviewtyp(void)
+{
     s16 id = alis.varD7;
     if (id < 0)
         id &= 0xff;
@@ -1480,18 +1488,19 @@ static void cneartyp(void) {
 
         if (id == get_0x10_script_id(tgt_vram) && xread16(tgt_vram + 6) == xread16(src_vram + 6) && src_vram != tgt_vram)
         {
-            u8 result = calcnear(src_vram, tgt_vram);
+            s32 value = 0;
+            u8 result = calcnear(src_vram, tgt_vram, &value);
             if (!result)
             {
                 if (alis.fallent == 0)
                 {
-                    if (((s32 *)alis.buffer)[bufidx - 1] <= result)
+                    if (((s32 *)alis.buffer)[bufidx - 1] <= value)
                         goto LAB_00015d44;
                     
                     bufidx --;
                 }
                 
-                ((s32 *)alis.buffer)[bufidx] = result;
+                ((s32 *)alis.buffer)[bufidx] = value;
                 alis.tablent[bufidx] = entidx;
 
                 bufidx ++;
@@ -1510,6 +1519,19 @@ LAB_00015d44:
             }
             
             alis.fallent = 0;
+            
+            printf("\nbuffer\n");
+            for (int b = 0; b < bufidx + 2; b ++)
+            {
+                printf("0x%.8x\n", ((u32 *)alis.buffer)[b]);
+            }
+            
+            printf("\ntablent\n");
+            for (int b = 0; b < bufidx + 2; b ++)
+            {
+                printf("0x%.4x\n", (u16)alis.tablent[b]);
+            }
+
             crstent();
             return;
         }
@@ -1538,7 +1560,8 @@ static void cviewent(void) {
 
     if (xread16(tgt_vram + 6) == xread16(src_vram + 6))
     {
-        u8 result = calcnear(src_vram, tgt_vram);
+        s32 tmp;
+        u8 result = calcnear(src_vram, tgt_vram, &tmp);
         if (!result)
         {
             alis.tablent[tabidx++] = entidx;
@@ -1551,7 +1574,15 @@ static void cviewent(void) {
 }
 
 static void cviewtyp(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    alis.fview = 1;
+    readexec_opername();
+    alis.valnorme = (u32)alis.varD7 * (u32)alis.varD7;
+    readexec_opername();
+    alis.valchamp = alis.varD7;
+    readexec_opername();
+    sviewtyp();
 }
 
 static void cviewmat(void) {
@@ -1559,11 +1590,10 @@ static void cviewmat(void) {
 }
 
 static void corient(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
-    u16 off = alis.varD7 * 3;
-    s32 addr = get_0x20_set_vect(alis.script->vram_org) == 0 ? 0x17493 : get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org) + 1;
-    memcpy(alis.mem + alis.script->vram_org + 0x9, alis.mem + (addr + off), 3);
+    u16 offset = alis.varD7 * 3;
+    u8 *address = get_0x20_set_vect(alis.script->vram_org) == 0 ? vstandard + 1 : alis.mem + get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org) + 1;
+    memcpy(alis.mem + alis.script->vram_org + 0x9, (address + offset), 3);
 }
 
 static void csend(void) {
@@ -2035,12 +2065,10 @@ static void cdefvect(void) {
 }
 
 static void csetvect(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     s16 value = script_read16();
     set_0x20_set_vect(alis.script->vram_org, value);
 }
 
-u8 vstandard[256];
 u8 *deb_approach(s32 offset, s16 *wcx, s16 *wcy, s16 *wcz)
 {
     offset = xread32(alis.atent + offset);
@@ -2048,16 +2076,7 @@ u8 *deb_approach(s32 offset, s16 *wcx, s16 *wcy, s16 *wcz)
     *wcy = xread16(offset + 2) - xread16(alis.script->vram_org + 2);
     *wcz = xread16(offset + 4) - xread16(alis.script->vram_org + 4);
     
-    u8 *address;
-    
-    if (get_0x20_set_vect(alis.script->vram_org) == 0)
-    {
-        address = vstandard;
-    }
-    else
-    {
-        address = alis.mem + get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org);
-    }
+    u8 *address = get_0x20_set_vect(alis.script->vram_org) == 0 ? vstandard : alis.mem + get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org);
 
     alis.varD7 = *address;
     xwrite8(alis.script->vram_org + 0x8, *address);
