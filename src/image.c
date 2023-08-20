@@ -2180,8 +2180,8 @@ void destofen(sSprite *sprite)
             {
                 // 5 bit image
                 
-                clear = -1;
-                
+                clear = bitmap[0] == 0x10 ? 0 : -1;
+
                 u32 planesize = (width * height) / 8;
                 
                 u8 c0, c1, c2, c3, c4;

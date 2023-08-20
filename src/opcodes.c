@@ -195,12 +195,27 @@ s16 putdata[][4] = {
 
 u8 vstandard[256];
 
+s16 px1;
+s16 py1;
+s16 pz1;
+
+s16 px2;
+s16 py2;
+s16 pz2;
+
 #pragma mark - additions
 
+void clivin(void);
 void shrinkprog(s32 start, s32 length, u16 script_id);
 void killent(u16 d0w, u16 d5w);
 void runson(void);
 void sviewtyp(void);
+void putval(s16 d7w);
+
+s32 multiform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform);
+s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
+s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
+s32 monofirm(s32 ent_vram, s32 ent_formedata);
 
 
 // ============================================================================
@@ -242,11 +257,9 @@ static void csub(void) {
 }
 
 static void cvprint(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.charmode = 0;
     readexec_opername_saveD7();
-
-    // TODO: ...
+    putval(alis.varD7);
 }
 
 static void csprinti(void) {
@@ -555,72 +568,7 @@ static void cwlive(void) {
     get_vector(&alis.wcx, &alis.wcy, &alis.wcz);
     
     alis.varD7 = -1;
-    
-    s16 id = script_read16();
-    if (id != -1)
-    {
-        s16 index = debprotf(id);
-        if (index != -1)
-        {
-            sAlisScriptData *prog = alis.loaded_scripts[index];
-            sAlisScriptLive *script = script_live(prog);
-            
-            u8 *prev_vram = alis.mem + alis.script->vram_org;
-            u8 *next = alis.mem + script->vram_org;
-            memcpy(next, prev_vram, 8);
-            
-            xadd16(script->vram_org + 0, alis.wcx);
-            xadd16(script->vram_org + 2, alis.wcz);
-            xadd16(script->vram_org + 4, alis.wcy);
-            
-            *(u8 *)(next + 0x9) = *(u8 *)(prev_vram + 0x9);
-            *(u8 *)(next + 0xa) = *(u8 *)(prev_vram + 0xa);
-            *(u8 *)(next + 0xb) = *(u8 *)(prev_vram + 0xb);
-
-            *(s16 *)(alis.mem + script->vram_org - 0x28) = *(s16 *)(alis.mem + alis.script->vram_org - 0xe);
-            *(s16 *)(alis.mem + script->vram_org - 0x16) = *(s16 *)(alis.mem + alis.script->vram_org - 0x16);
-            *(s16 *)(alis.mem + script->vram_org - 0x22) = *(s16 *)(alis.mem + alis.script->vram_org - 0x22);
-            *(s16 *)(alis.mem + script->vram_org - 0x2a) = *(s16 *)(alis.mem + script->vram_org - 0xe);
-
-            // NOTE: just to show already running scripts
-            
-            debug(EDebugInfo, "\n");
-
-            u16 tent = 0;
-            u32 loop = alis.nbent;
-            for (int i = 0; i < loop; i++)
-            {
-                tent = alis.atent_ptr[i].offset;
-
-                sAlisScriptLive *s = alis.live_scripts[i];
-                if (s && s->vram_org)
-                {
-                    u32 datasize = sizeof(sScriptContext) + s->data->header.w_unknown5 + s->data->header.w_unknown7;
-                    s32 vramsize = s->data->header.vram_alloc_sz;
-                    s32 shrinkby = datasize + vramsize;
-                    
-                    debug(EDebugVerbose, "%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", script->vram_org == s->vram_org ? '*' : ' ', s->name, s->data->header.id, get_0x10_script_id(s->vram_org), xswap16(tent), s->vram_org, shrinkby);
-                }
-                else
-                {
-                    debug(EDebugVerbose, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
-                    loop++;
-                }
-            }
-            
-            debug(EDebugVerbose, "\n (NAME: %s, ID: 0x%x SZ: %d) \n", script->name, script->data->header.id, script->data->sz);
-
-            debug(EDebugVerbose, " [finent %.6x] \n", alis.finent);
-
-            if (alis.maxent < alis.nbent)
-            {
-                debug(EDebugFatal, "ERROR: Exceeded number of scripts slots!\n");
-                return;
-            }
-        }
-    }
-
-    cstore_continue();
+    clivin();
 }
 
 static void cunload(void) {
@@ -708,7 +656,11 @@ static void clive(void) {
     alis.wcz = 0;
     
     alis.varD7 = -1;
-    
+    clivin();
+}
+
+void clivin(void)
+{
     s16 id = script_read16();
     if (id != -1)
     {
@@ -995,19 +947,6 @@ static void cforme(void) {
 static void cdelforme(void) {
     set_0x1a_cforme(alis.script->vram_org, -1);
 }
-
-s16 px1;
-s16 py1;
-s16 pz1;
-
-s16 px2;
-s16 py2;
-s16 pz2;
-
-s32 multiform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform);
-s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
-s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
-s32 monofirm(s32 ent_vram, s32 ent_formedata);
 
 u8 multifirm(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 a4)
 {
@@ -1520,17 +1459,17 @@ LAB_00015d44:
             
             alis.fallent = 0;
             
-            printf("\nbuffer\n");
-            for (int b = 0; b < bufidx + 2; b ++)
-            {
-                printf("0x%.8x\n", ((u32 *)alis.buffer)[b]);
-            }
-            
-            printf("\ntablent\n");
-            for (int b = 0; b < bufidx + 2; b ++)
-            {
-                printf("0x%.4x\n", (u16)alis.tablent[b]);
-            }
+//            printf("\nbuffer\n");
+//            for (int b = 0; b < bufidx + 2; b ++)
+//            {
+//                printf("0x%.8x\n", ((u32 *)alis.buffer)[b]);
+//            }
+//            
+//            printf("\ntablent\n");
+//            for (int b = 0; b < bufidx + 2; b ++)
+//            {
+//                printf("0x%.4x\n", (u16)alis.tablent[b]);
+//            }
 
             crstent();
             return;
@@ -2915,14 +2854,13 @@ static void cscdump(void) {
 
 static void cfindcla(void) {
     readexec_opername();
-    s16 vacc_offset = alis.varD7;
     s32 tabidx = 0;
     s16 entidx = 0;
 
     do
     {
         u32 tgt_vram = xread32(alis.atent + entidx);
-        if ((char)vacc_offset == get_0x0c_vacc_offset(tgt_vram) && alis.script->vram_org != tgt_vram)
+        if ((char)alis.varD7 == (char)xread8(tgt_vram + 0xc) && alis.script->vram_org != tgt_vram)
         {
             alis.matent[tabidx] = 0;
             alis.tablent[tabidx] = entidx;

@@ -593,8 +593,8 @@ u16 get_0x16_screen_id(u32 vram)                        { return xread16(vram - 
 u32 get_0x14_script_org_offset(u32 vram)                { return xread32(vram - 0x14); }
 u16 get_0x10_script_id(u32 vram)                        { return xread16(vram - 0x10); }
 u16 get_0x0e_script_ent(u32 vram)                       { return xread16(vram - 0xe); }
-u16 get_0x0c_vacc_offset(u32 vram)                      { return xread16(vram - 0xc); }
-u16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 0xa); }
+s16 get_0x0c_vacc_offset(u32 vram)                      { return xread16(vram - 0xc); }
+s16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 0xa); }
 u32 get_0x08_script_ret_offset(u32 vram)                { return xread32(vram - 0x8); }
 u8 get_0x04_cstart_csleep(u32 vram)                     { return xread8(vram - 0x4); }
 u8 get_0x03_xinv(u32 vram)                              { return xread8(vram - 0x3); }
@@ -628,8 +628,8 @@ void set_0x16_screen_id(u32 vram, u16 val)              { xwrite16(vram - 0x16, 
 void set_0x14_script_org_offset(u32 vram, u32 val)      { xwrite32(vram - 0x14, val); }
 void set_0x10_script_id(u32 vram, u16 val)              { xwrite16(vram - 0x10, val); }
 void set_0x0e_script_ent(u32 vram, u16 val)             { xwrite16(vram - 0x0e, val); }
-void set_0x0c_vacc_offset(u32 vram, u16 val)            { xwrite16(vram - 0x0c, val); }
-void set_0x0a_vacc_offset(u32 vram, u16 val)            { xwrite16(vram - 0x0a, val); }
+void set_0x0c_vacc_offset(u32 vram, s16 val)            { xwrite16(vram - 0x0c, val); }
+void set_0x0a_vacc_offset(u32 vram, s16 val)            { xwrite16(vram - 0x0a, val); }
 void set_0x08_script_ret_offset(u32 vram, u32 val)      { xwrite32(vram - 0x08, val); }
 void set_0x04_cstart_csleep(u32 vram, u8 val)           { xwrite8(vram - 0x04, val); }
 void set_0x03_xinv(u32 vram, u8 val)                    { xwrite8(vram - 0x03, val); }
