@@ -217,6 +217,8 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
 s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
 s32 monofirm(s32 ent_vram, s32 ent_formedata);
 
+static void cret(void);
+
 
 // ============================================================================
 #pragma mark - Opcodes
@@ -434,18 +436,8 @@ static void cleave(void) {
         }
     }
     
-    if (alis.fseq == 0 && alis.saversp <= alis.script->vacc_off)
-    {
-        return;
-    }
-    
-    s32 new_pc = xread32(alis.script->vram_org + alis.script->vacc_off);
-    if (alis.script->vacc_off == get_0x0c_vacc_offset(alis.script->vram_org))
-    {
-        set_0x0c_vacc_offset(alis.script->vram_org, 0);
-    }
-    
-    alis.script->pc = new_pc;
+    cret();
+
     debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 }
 
@@ -3628,21 +3620,23 @@ static void cret(void) {
     if (alis.fseq == 0 && alis.saversp <= alis.script->vacc_off)
     {
         cstop();
-        return;
     }
-    
-    s32 offset = xpop32();
-    if (alis.script->vacc_off == get_0x0c_vacc_offset(alis.script->vram_org))
+    else
     {
-        set_0x0c_vacc_offset(alis.script->vram_org, 0);
+        s32 offset = xpeek32();
+        if (alis.script->vacc_off == get_0x0c_vacc_offset(alis.script->vram_org))
+        {
+            set_0x0c_vacc_offset(alis.script->vram_org, 0);
+        }
+        
+        if (alis.script->vacc_off >= -0x34)
+        {
+            debug(EDebugError, " VACC out of bounds!!! ");
+        }
+        
+        alis.script->vacc_off += sizeof(s32);
+        alis.script->pc = alis.script->pc_org + offset;
     }
-    
-    if (alis.script->vacc_off >= -0x34)
-    {
-        debug(EDebugError, " VACC out of bounds!!! ");
-    }
-    
-    alis.script->pc = alis.script->pc_org + offset;
 }
 
 static void cjsr(s32 offset) {
