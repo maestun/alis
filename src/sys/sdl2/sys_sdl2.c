@@ -23,6 +23,7 @@
 
 #include "../sys.h"
 #include "alis.h"
+#include "channel.h"
 #include "image.h"
 #include "utils.h"
 
@@ -45,8 +46,12 @@ float           _scaleY;
 u32             _width = 320;
 u32             _height = 200;
 
+SDL_AudioSpec *_audio_spec;
+
 extern u8       flinepal;
 extern s16      firstpal[64];
+
+void sys_audio_callback(void *userdata, Uint8 *stream, int len);
 
 void sys_init(void) {
     _scaleX = _scale;
@@ -63,6 +68,27 @@ void sys_init(void) {
     
     _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, _width, _height);
     SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
+    
+    SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
+
+    SDL_zero(*desired_spec);
+    desired_spec->freq = 44100;
+    desired_spec->format = AUDIO_U16;
+    desired_spec->channels = 1;
+    desired_spec->samples = 2646; // 60ms
+    desired_spec->callback = sys_audio_callback;
+    desired_spec->userdata = NULL;
+    
+    _audio_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
+    if (SDL_OpenAudio(desired_spec, _audio_spec) < 0 )
+    {
+      printf("Couldn't open audio: %s ", SDL_GetError());
+      exit(-1);
+    }
+
+    free(desired_spec);
+
+    SDL_PauseAudio(0);
 }
 
 
@@ -171,6 +197,173 @@ void sys_deinit(void) {
     SDL_Quit();
 }
 
+float interpolate_cubic(float x0, float x1, float x2, float x3, float t)
+{
+    float a0, a1, a2, a3;
+    a0 = x3 - x2 - x0 + x1;
+    a1 = x0 - x1 - a0;
+    a2 = x2 - x0;
+    a3 = x1;
+    return (a0 * (t * t * t)) + (a1 * (t * t)) + (a2 * t) + (a3);
+}
+
+float interpolate_hermite_4pt_3ox(float x0, float x1, float x2, float x3, float t)
+{
+    float c0 = x1;
+    float c1 = .5F * (x2 - x0);
+    float c2 = x0 - (2.5F * x1) + (2 * x2) - (.5F * x3);
+    float c3 = (.5F * (x3 - x0)) + (1.5F * (x1 - x2));
+    return (((((c3 * t) + c2) * t) + c1) * t) + c0;
+}
+
+float interpolate_hermite(float x0, float x1, float x2, float x3, float t)
+{
+    float diff = x1 - x2;
+    float c1 = x2 - x0;
+    float c3 = x3 - x0 + 3 * diff;
+    float c2 = -(2 * diff + c1 + c3);
+    return 0.5f * ((c3 * t + c2) * t + c1) * t + x1;
+}
+
+u16 audiobuff[4096];
+void sys_audio_callback(void *userdata, Uint8 *s, int length)
+{
+    // TODO: create chanels structure holding info about sounds to be played
+    // type: (smaple, sound, noise, ...)
+    // start: (playback start time, use it to calculate what to copy in to the stream)
+    // frequency: we will have to do some interpolation to play at correct speed
+    // ...
+    
+    memset(s, 0, length);
+    
+    u16 *strm = (u16 *)s;
+    length /= 2;
+    
+    for (int i = 0; i < 4; i++)
+    {
+        sChannel *ch = &channels[i];
+        
+        switch (ch->type)
+        {
+            case eChannelTypeSample:
+            {
+                float ratio = (float)(ch->freq) / (float)(_audio_spec->freq);
+                float volratio = ((float)(ch->volume) / 128.0) / 4;
+                
+                float smpidxf = 0;
+                float x0, x1, x2, x3, t, r;
+                
+                int smpidx = 0;
+                int played = 0;
+                for (played = 0; played < length; played++)
+                {
+                    // interpolation
+
+                    smpidxf = (ch->played + played) * ratio;
+                    smpidx = (int)smpidxf;
+                    if (smpidx >= ch->length)
+                    {
+                        if (ch->loop > 1)
+                        {
+                            length -= played;
+                            ch->loop--;
+                            ch->played = smpidx = played = 0;
+                        }
+                        else
+                        {
+                            ch->type = eChannelTypeNone;
+                            break;
+                        }
+                    }
+
+                    int i1 = (int)smpidxf;
+                    if (i1 >= ch->length)
+                        i1 = (ch->loop > 1) ? 0 : -1;
+
+                    int i2 = i1 + 1;
+                    if (i2 >= ch->length)
+                        i2 = (ch->loop > 1) ? 0 : -1;
+
+                    int i3 = i2 + 1;
+                    if (i3 >= ch->length)
+                        i3 = (ch->loop > 1) ? 0 : -1;
+
+                    int i0 = i1 - 1;
+                    if (i0 < 0)
+                        i0 = (ch->loop > 1) ? ch->length -1 : -1;
+
+                    x0 = (i0 >= 0) ? (s16)((ch->address[i0] | ch->address[i0] << 8) - 0x8000) : 0;
+                    x1 = (i1 >= 0) ? (s16)((ch->address[i1] | ch->address[i1] << 8) - 0x8000) : 0;
+                    x2 = (i2 >= 0) ? (s16)((ch->address[i2] | ch->address[i2] << 8) - 0x8000) : 0;
+                    x3 = (i3 >= 0) ? (s16)((ch->address[i3] | ch->address[i3] << 8) - 0x8000) : 0;
+
+                    t = smpidxf - (int)smpidxf;
+
+                    // r = interpolate_hermite(x0, x1, x2, x3, t);
+                    // r = interpolate_hermite_4pt_3ox(x0, x1, x2, x3, t);
+                    r = interpolate_cubic(x0, x1, x2, x3, t);
+
+                    s32 s0 = r * volratio;
+                    s32 s1 = strm[played] - 0x8000;
+                    strm[played] = (s0 + s1) + 0x8000;
+                    
+                    // no interpolation
+
+//                  smpidx = (ch->played + played) * ratio;
+//                  if (smpidx >= ch->length)
+//                  {
+//                      if (ch->loop > 1)
+//                      {
+//                          length -= played;
+//                          ch->loop--;
+//                          ch->played = smpidx = played = 0;
+//                      }
+//                      else
+//                      {
+//                          ch->type = eChannelTypeNone;
+//                          break;
+//                      }
+//                  }
+//
+//                  s32 s0 = ((ch->address[smpidx] | ch->address[smpidx] << 8) - 0x8000) * volratio;
+//                  s32 s1 = strm[played] - 0x8000;
+//                  strm[played] = (s0 + s1) + 0x8000;
+                }
+                
+                ch->played += played;
+            }
+                break;
+                
+            case eChannelTypeDing:
+            {
+//                double period = 1.0 / ch->freq;
+//                double samplesPerCycle = (double)(_audio_spec->freq) * period;
+//                double samplesPerWave = (ch->length / 1000.0) * (double)(_audio_spec->freq);
+//                double amplitude = ((double)(ch->volume)) / 1.0;
+//
+//                for (size_t i = 0; i < length; i++)
+//                {
+//                    double wavePosition = (ch->played + i) / samplesPerCycle;
+//                    double sample = wavePosition - floor(wavePosition);
+//                    sample = (sample < 0.5) ? amplitude : -amplitude;
+//
+//                    strm[i] += (u16)(0xFF | (u16)(sample + 0x80) << 8);
+//
+//                    ch->played++;
+//                    if (ch->played >= samplesPerWave)
+//                    {
+//                        ch->type = eChannelTypeNone;
+//                        break;
+//                    }
+//                }
+            }
+                break;
+                
+            default:
+                break;
+        }
+    }
+}
 
 // =============================================================================
 #pragma mark - I/O

@@ -2889,7 +2889,7 @@ void waitframe(void) {
     struct timeval now, start;
     gettimeofday(&start, NULL);
     
-    while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (alis.time.tv_sec * 1000000 + alis.time.tv_usec) < FRAME_TICKS * alis.ctiming)) {
+    while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (alis.time.tv_sec * 1000000 + alis.time.tv_usec) < FRAME_TICKS * alis.ctiming /* max(2, alis.ctiming) */)) {
         usleep(1000);
     }
 

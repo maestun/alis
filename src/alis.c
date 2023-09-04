@@ -610,6 +610,10 @@ u32 read32(const u8 *ptr) {
     return _convert32(*((u32*)ptr));
 }
 
+void write32(const u8 *ptr, u32 value) {
+    *((u32*)ptr) = _convert32(value);
+}
+
 u16 swap16(const u8 *ptr) {
     return _convert16(*((u16*)ptr));
 }

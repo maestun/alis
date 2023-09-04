@@ -292,7 +292,7 @@ typedef struct {
     
     // sound
     u8              volson;
-    u8              typeson;
+    s8              typeson;
     u8              pereson;
     u8              priorson;
     u16             freqson;

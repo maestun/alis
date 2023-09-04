@@ -21,6 +21,7 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "channel.h"
 #include "mem.h"
 #include "image.h"
 #include "screen.h"
@@ -1709,7 +1710,31 @@ static void cding(void) {
 
     alis.dvolson = -(s16)newdvolson;
     alis.typeson = 1;
-    runson();
+//    runson();
+    int channelidx = -1;
+    for (int i = 0; i < 4; i ++)
+    {
+        if (channels[i].type == eChannelTypeNone)
+        {
+            channelidx = i;
+            break;
+        }
+    }
+    
+    if (channelidx >= 0)
+    {
+        s8 freq = alis.speedsam;
+        if (freq < 0x1 || 0x14 < freq)
+            freq = 10;
+        
+        channels[channelidx].address = 0;
+        channels[channelidx].volume = alis.volson;
+        channels[channelidx].length = alis.longson;
+        channels[channelidx].freq = freq * 1000;
+        channels[channelidx].loop = 0;
+        channels[channelidx].played = 0;
+        channels[channelidx].type = eChannelTypeDing;
+    }
 }
 
 static void cnoise(void) {
@@ -2288,7 +2313,6 @@ static void clistent(void) {
 }
 
 static void csound(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.flagmain = 0;
     readexec_opername();
     u8 index = alis.varD7;
@@ -2311,12 +2335,36 @@ static void csound(void) {
         alis.longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
         alis.startsam = alis.script->data->data_org + addr + 0x10;
         alis.typeson = 0x80;
-        runson();
+//        runson();
+        
+        int channelidx = -1;
+        for (int i = 0; i < 4; i ++)
+        {
+            if (channels[i].type == eChannelTypeNone)
+            {
+                channelidx = i;
+                break;
+            }
+        }
+        
+        if (channelidx >= 0)
+        {
+            s8 freq = alis.speedsam;
+            if (freq < 0x1 || 0x14 < freq)
+                freq = 10;
+            
+            channels[channelidx].address = alis.mem + alis.startsam;
+            channels[channelidx].volume = alis.volson;
+            channels[channelidx].length = alis.longsam;
+            channels[channelidx].freq = freq * 1000;
+            channels[channelidx].loop = alis.loopsam;
+            channels[channelidx].played = 0;
+            channels[channelidx].type = eChannelTypeSample;
+        }
     }
 }
 
 static void cmsound(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.flagmain = 1;
     readexec_opername();
     s32 addr = adresmus(alis.varD7);
@@ -2339,6 +2387,31 @@ static void cmsound(void) {
     alis.longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
     alis.startsam = addr + 0x10;
 //    gosound();
+    
+    int channelidx = -1;
+    for (int i = 0; i < 4; i ++)
+    {
+        if (channels[i].type == eChannelTypeNone)
+        {
+            channelidx = i;
+            break;
+        }
+    }
+    
+    if (channelidx >= 0)
+    {
+        s8 freq = alis.speedsam;
+        if (freq < 0x1 || 0x14 < freq)
+            freq = 10;
+        
+        channels[channelidx].address = alis.mem + alis.startsam;
+        channels[channelidx].volume = alis.volson;
+        channels[channelidx].length = alis.longsam;
+        channels[channelidx].freq = freq * 1000;
+        channels[channelidx].loop = alis.loopsam;
+        channels[channelidx].played = 0;
+        channels[channelidx].type = eChannelTypeSample;
+    }
 }
 
 static void credon(void) {
@@ -2350,7 +2423,12 @@ static void credoff(void) {
 }
 
 static void cdelsound(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    for (int i = 0; i < 4; i++)
+    {
+        channels[i].type = eChannelTypeNone;
+    }
 }
 
 static void cwmov(void) {
@@ -2904,7 +2982,7 @@ static void cinstru(void) {
     {
         addr = adresmus(idx);
         u8 type = xread8(alis.script->data->data_org + addr);
-        if (((type != 1) && (type != 2)) && (type != 5))
+        if (type != 1 && type != 2 && type != 5)
         {
             return;
         }

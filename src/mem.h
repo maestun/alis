@@ -26,6 +26,8 @@
 u16         read16(const u8 *ptr);
 u32         read24(const u8 *ptr);
 u32         read32(const u8 *ptr);
+void        write32(const u8 *ptr, u32 value);
+
 u16         fread16(FILE * fp);
 u32         fread32(FILE * fp);
 u16         swap16(const u8 *);

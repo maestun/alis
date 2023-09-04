@@ -97,6 +97,47 @@ void debprot(void)
     protect();
 }
 
+void invdigit(u8 *sample)
+{
+    if (alis.platform.kind != EPlatformAtari)
+    {
+        u32 length = read32(sample + 2) - 0x10;
+        u8 *smpdata = sample + 0x10;
+        for (int i = 0; i < length; i++)
+        {
+            if (sample[0] == 2)
+                smpdata[i] *= 2;
+
+            smpdata[i] += 0x80;
+            if (smpdata[i] == 0)
+                smpdata[i] = 1;
+        }
+    }
+//
+//    u32 bitesize = read32(sample + 2) - 0x10;
+//    u8 *endptr = (u8 *)(sample + 0x10) + bitesize;
+//    u8 *begptr = (u8 *)(sample + 0x10);
+//
+//    s16 length = (s16)(bitesize >> 1);
+//
+//    for (int i = 0; i < length; i++)
+//    {
+//        endptr --;
+//        u8 tmp = *endptr;
+//        *endptr = *begptr;
+//        *begptr = tmp;
+//        begptr ++;
+//    }
+//
+//    *(u8 *)(sample + 0x10) = 0;
+}
+
+s8 tfibo[16] = {
+    0xDE, 0xEB, 0xF3, 0xF8,
+    0xFB, 0xFD, 0xFE, 0xFF,
+    0x01, 0x02, 0x03, 0x05,
+    0x08, 0x0D, 0x15, 0x22 };
+
 sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
     
 //    debprot();
@@ -107,35 +148,6 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
         sAlisScriptData *script = alis.loaded_scripts[insert];
         if (script->header.id == id)
         {
-            script->sz = data_sz;
-            script->type = type;
-            
-            // script data
-            script->header.id = swap16((data + 0));
-            
-            if (alis.platform.kind == EPlatformPC)
-            {
-                // script->header.w_0x1700 = swap16((data + 4));
-                script->header.unknown01 = *(data + 4);
-                script->header.unknown02 = *(data + 5);
-                script->header.code_loc_offset = swap16((data + 2));
-            }
-            else
-            {
-                // script->header.w_0x1700 = swap16((data + 2));
-                script->header.unknown01 = *(data + 2);
-                script->header.unknown02 = *(data + 3);
-                script->header.code_loc_offset = swap16((data + 4));
-            }
-            
-            script->header.ret_offset = swap32((data + 6));
-            script->header.dw_unknown3 = swap32((data + 10));
-            script->header.dw_unknown4 = swap32((data + 14));
-            script->header.w_unknown5 = swap16((data + 18));
-            script->header.vram_alloc_sz = swap16((data + 20));
-            script->header.w_unknown7 = swap16((data + 22));
-            memcpy(alis.mem + script->data_org, data, data_sz);
-            
             for (int i = 0; i < alis.nbprog; i++)
             {
                 debug(EDebugVerbose, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
@@ -251,27 +263,83 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
                 }
             }
         }
-        
+    }
+    
+    {
+        data = alis.mem + script->data_org;
+        s32 l = read32(data + 0xe);
+
         // convert samples
     
         s32 samples = read16(data + l + 0x10);
         
-        for (s32 i = 0; i < samples; i++)
+        s8 temp[1024 * 1024];
+        
+        for (s32 s = 0; s < samples; s++)
         {
-            s32 a = read32(data + 0xc + l) + l + i * 4;
+            s32 a = read32(data + 0xc + l) + l + s * 4;
             s32 at = read32(data + a) + a;
-            
+
             u8 *sample = data + at;
             if (sample[0] == 1 || sample[0] == 2)
             {
-                if (sample[6] == 1)
+                if (sample[6] == 1 && script->type & 1)
                 {
-                    // TODO:
+                    u32 fulllen = read32(sample + 2);
+                    s8 *smpdata = (s8 *)(sample + 0x10);
+
+                    s32 length = ((fulllen - 0x10) >> 1);
+                    memcpy(temp, smpdata, length);
+
+                    s8 newval = (u8)temp[0];
+                    s8 *smpptr0 = (s8 *)sample + 0x11;
+                    s8 *smpptr2 = smpptr0;
+                    smpptr2[-1] = newval;
+
+                    for (int i = 1; i < length; i++)
+                    {
+                        smpptr2 = smpptr0;
+                        smpptr2[0] = (newval += tfibo[(u8)temp[i] >> 4]);
+                        smpptr2[1] = (newval += tfibo[(u8)temp[i] & 0xf]);
+                        smpptr0 = smpptr2 + 2;
+                    }
+
+                    smpptr2[0] = 0;
+                    smpptr2[1] = 0;
+                    
+                    fulllen -= 2;
+                    write32(sample + 2, fulllen);
+                    
+                    if (sample[0] == 2)
+                    {
+                        if (read32(sample + 0xc) != 0)
+                        {
+                            smpptr0 = (s8 *)sample + read32(sample + 0xc) + 0x10;
+                            for (int i = 0; i < 8; i++)
+                            {
+                                smpptr0[i] = -1;
+                            }
+                        }
+                        
+                        s32 smplen = fulllen - 0x10;
+                        if (read32(sample + 0xc) != 0)
+                        {
+                            smplen = fulllen - 8;
+                        }
+                        
+                        smpptr0 = (s8 *)sample + smplen;
+                        for (int i = 0; i < 8; i++)
+                        {
+                            smpptr0[i] = -1;
+                        }
+                    }
                 }
+
+                invdigit(sample);
             }
         }
     }
-    
+
     return script;
 }
 
