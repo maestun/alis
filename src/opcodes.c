@@ -20,6 +20,7 @@
 //
 
 #include "alis.h"
+#include "audio.h"
 #include "alis_private.h"
 #include "channel.h"
 #include "mem.h"
@@ -209,7 +210,6 @@ s16 pz2;
 void clivin(void);
 void shrinkprog(s32 start, s32 length, u16 script_id);
 void killent(u16 d0w, u16 d5w);
-void runson(void);
 void sviewtyp(void);
 void putval(s16 d7w);
 
@@ -1633,138 +1633,100 @@ static void ctiming(void) {
 }
 
 static void czap(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    u8 priorson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    u8 volson = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    u16 freqson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
-    if (alis.volson == 0)
+    u16 longson = alis.varD7;
+    if (longson == 0)
     {
         return;
     }
     
     readexec_opername();
-    alis.dvolson = 0;
-    alis.typeson = 1;
-    alis.dfreqson = alis.varD7;
-    runson();
+    u16 dfreqson = alis.varD7;
+
+    playsound(eChannelTypeDingZap, pereson, priorson, volson, freqson, longson, 0, dfreqson);
 }
 
 static void cexplode(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    u8 priorson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    u8 volson = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    u16 freqson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
-    if (alis.volson == 0)
+    u16 longson = alis.varD7;
+    if (longson == 0)
     {
         return;
     }
     
-    alis.dfreqson = 0;
-    u32 vol32 = ((u32)alis.volson << 8) / (u32)alis.volson;
+    u32 vol32 = ((u32)volson << 8) / (u32)longson;
     s16 vol16 = (s16)vol32;
     if (vol32 == 0)
     {
         vol16 = 1;
     }
-    
-    alis.dvolson = -vol16;
-    alis.typeson = 3;
-    runson();
+
+    playsound(eChannelTypeExplode, pereson, priorson, volson, freqson, longson, -vol16, 0);
 }
 
 static void cding(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    u8 priorson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    s16 volson = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    u16 freqson = alis.varD7;
     readexec_opername();
-    alis.longson = alis.varD7;
-    if (alis.longson == 0)
+    u16 longson = alis.varD7;
+    if (longson == 0)
     {
         return;
     }
     
-    alis.dfreqson = 0;
-    u32 tmpa = ((u32)alis.volson << 8) / (u32)alis.longson;
-    u32 tmpb = ((u32)alis.volson << 8) % (u32)alis.longson;
+    u32 tmpa = ((u32)volson << 8) / (u32)longson;
+    u32 tmpb = ((u32)volson << 8) % (u32)longson;
     u32 newdvolson = tmpa == 0 ? 1 : tmpb << 0x10 | tmpa;
 
-    alis.dvolson = -(s16)newdvolson;
-    alis.typeson = 1;
-//    runson();
-    int channelidx = -1;
-    for (int i = 0; i < 4; i ++)
-    {
-        if (channels[i].type == eChannelTypeNone)
-        {
-            channelidx = i;
-            break;
-        }
-    }
-    
-    if (channelidx >= 0)
-    {
-        s8 freq = alis.speedsam;
-        if (freq < 0x1 || 0x14 < freq)
-            freq = 10;
-        
-        channels[channelidx].address = 0;
-        channels[channelidx].volume = alis.volson;
-        channels[channelidx].length = alis.longson;
-        channels[channelidx].freq = freq * 1000;
-        channels[channelidx].loop = 0;
-        channels[channelidx].played = 0;
-        channels[channelidx].type = eChannelTypeDing;
-    }
+    s16 dvolson = -(s16)newdvolson;
+
+    playsound(eChannelTypeDingZap, pereson, priorson, volson, freqson, longson, dvolson, 0);
 }
 
 static void cnoise(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
-    alis.pereson = get_0x0e_script_ent(alis.script->vram_org);
+    u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
-    alis.priorson = alis.varD7;
+    u8 priorson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    u8 volson = alis.varD7;
     readexec_opername();
-    alis.freqson = alis.varD7;
+    u16 freqson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
-    if (alis.volson == 0)
+    u16 longson = alis.varD7;
+    if (longson == 0)
     {
         return;
     }
     
-    alis.dfreqson = 0;
-    u32 vol32 = ((u32)alis.volson << 8) / (u32)alis.volson;
+    u32 vol32 = ((u32)volson << 8) / (u32)volson;
     s16 vol16 = (s16)vol32;
     if (vol32 == 0)
     {
         vol16 = 1;
     }
     
-    alis.dvolson = -vol16;
-    alis.typeson = 2;
-    runson();
+    u16 dvolson = -vol16;
+
+    playsound(eChannelTypeNoise, pereson, priorson, volson, freqson, longson, dvolson, 0);
 }
 
 static void cinitab(void) {
@@ -2231,56 +2193,61 @@ static void cmusic(void) {
     }
     else
     {
-//        alis.mupnote = addr + 6;
+        audio.muvolume = 0;
+
+        audio.mupnote = alis.script->data->data_org + addr + 6;
         readexec_opername();
-//        alis.muvolume = 0;
-//        alis.maxvolume = alis.maxvolume & 0xff | alis.varD7 << 8;
+        audio.maxvolume = (alis.varD7 << 8);
         readexec_opername();
-//        alis.mutempo = (u8)alis.varD7;
+        audio.mutempo = alis.varD7;
         readexec_opername();
-//        alis.muattac = alis.varD7 + 1;
+        audio.muattac = alis.varD7 + 1;
         readexec_opername();
-//        alis.muduree = (u16)alis.varD7;
+        audio.muduree = alis.varD7 + 1;
         readexec_opername();
-//        alis.muchute = alis.varD7 + 1;
-//
-//        if (muattac != 0)
-//        {
-//            alis.dattac = alis.maxvolume / alis.muattac;
-//        }
-//        if (alis.muchute != 0)
-//        {
-//            alis.dchute = alis.maxvolume / alis.muchute;
-//        }
-//
-//        alis.muvolume = *(u8 *)(&alis.maxvolume);
-//        gomusic();
-//        alis.mustate = 1;
+        audio.muchute = alis.varD7 + 2;
+
+        audio.dattac = 0;
+        audio.dchute = 0;
+        if (audio.muattac != 0)
+        {
+            audio.dattac = audio.maxvolume / audio.muattac;
+        }
+        if (audio.muchute != 0)
+        {
+            audio.dchute = audio.maxvolume / audio.muchute;
+        }
+
+        audio.muvolume = audio.maxvolume >> 8;
+        playmusic();
+        audio.mustate = 1;
     }
 }
 
 static void cdelmusic(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
-//    alis.muchute = alis.varD7;
-//    offmusic();
+    audio.muchute = alis.varD7;
+    f_offmusic();
 }
 
 static void ccadence(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
     readexec_opername();
-    
     s16 tempo = alis.varD7;
     if (tempo == 0)
         tempo = 1;
 
-//    alis.mutempo = (u8)tempo;
-//    tempmusic();
+    audio.mutempo = (u8)tempo;
+    audio.mutemp = (u8)((audio.mutempo * 6) / 0x20);
 }
 
 static void csetvolum(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    readexec_opername();
+    audio.muvolume = alis.varD7;
+    *(u8 *)&audio.maxvolume = alis.varD7;
+    audio.muvol = ((audio.muvolume) >> 1) + 1;
 }
 
 static void cxinv(void) {
@@ -2317,100 +2284,50 @@ static void csound(void) {
     readexec_opername();
     u8 index = alis.varD7;
     readexec_opername();
-    alis.priorson = alis.varD7;
+    u8 priorson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    u8 volson = alis.varD7;
     readexec_opername();
-    alis.loopsam = alis.varD7;
+    u16 loopsam = alis.varD7;
     readexec_opername();
-    alis.speedsam = alis.varD7;
+    u8 speedsam = alis.varD7;
     
     s32 addr = adresmus(index);
     s8 type = xread8(alis.script->data->data_org + addr);
     if (type == 1 || type == 2)
     {
-        if (alis.speedsam == 0)
-            alis.speedsam = xread8(alis.script->data->data_org + addr + 1);
+        if (speedsam == 0)
+            speedsam = xread8(alis.script->data->data_org + addr + 1);
 
-        alis.longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
-        alis.startsam = alis.script->data->data_org + addr + 0x10;
-        alis.typeson = 0x80;
-//        runson();
-        
-        int channelidx = -1;
-        for (int i = 0; i < 4; i ++)
-        {
-            if (channels[i].type == eChannelTypeNone)
-            {
-                channelidx = i;
-                break;
-            }
-        }
-        
-        if (channelidx >= 0)
-        {
-            s8 freq = alis.speedsam;
-            if (freq < 0x1 || 0x14 < freq)
-                freq = 10;
-            
-            channels[channelidx].address = alis.mem + alis.startsam;
-            channels[channelidx].volume = alis.volson;
-            channels[channelidx].length = alis.longsam;
-            channels[channelidx].freq = freq * 1000;
-            channels[channelidx].loop = alis.loopsam;
-            channels[channelidx].played = 0;
-            channels[channelidx].type = eChannelTypeSample;
-        }
+        u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
+        u32 startsam = alis.script->data->data_org + addr + 0x10;
+        playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam);
     }
 }
 
 static void cmsound(void) {
     alis.flagmain = 1;
     readexec_opername();
-    s32 addr = adresmus(alis.varD7);
+    u8 index = alis.varD7;
     readexec_opername();
-    alis.priorson = alis.varD7;
+    u8 priorson = alis.varD7;
     readexec_opername();
-    alis.volson = alis.varD7;
+    u8 volson = alis.varD7;
     readexec_opername();
-    alis.loopsam = alis.varD7;
+    u16 loopsam = alis.varD7;
     readexec_opername();
-    alis.speedsam = (s8)alis.varD7;
-
+    u8 speedsam = alis.varD7;
+    
+    s32 addr = adresmus(index);
     s8 type = xread8(alis.script->data->data_org + addr);
-    if (type != 1 && type != 2)
-        return;
-
-    if (alis.speedsam == 0)
-        alis.speedsam = xread8(alis.script->data->data_org + addr + 1);
-
-    alis.longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
-    alis.startsam = addr + 0x10;
-//    gosound();
-    
-    int channelidx = -1;
-    for (int i = 0; i < 4; i ++)
+    if (type == 1 || type == 2)
     {
-        if (channels[i].type == eChannelTypeNone)
-        {
-            channelidx = i;
-            break;
-        }
-    }
-    
-    if (channelidx >= 0)
-    {
-        s8 freq = alis.speedsam;
-        if (freq < 0x1 || 0x14 < freq)
-            freq = 10;
-        
-        channels[channelidx].address = alis.mem + alis.startsam;
-        channels[channelidx].volume = alis.volson;
-        channels[channelidx].length = alis.longsam;
-        channels[channelidx].freq = freq * 1000;
-        channels[channelidx].loop = alis.loopsam;
-        channels[channelidx].played = 0;
-        channels[channelidx].type = eChannelTypeSample;
+        if (speedsam == 0)
+            speedsam = xread8(alis.script->data->data_org + addr + 1);
+
+        u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
+        u32 startsam = alis.script->data->data_org + addr + 0x10;
+        playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam);
     }
 }
 
@@ -2961,43 +2878,67 @@ static void cviewcla(void) {
 }
 
 static void cinstru(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     alis.flagmain = 0;
     readexec_opername();
-    s16 instid = alis.varD7;
+    s16 tabidx = alis.varD7;
     readexec_opername();
-    s16 idx = alis.varD7;
+    s16 scridx = alis.varD7;
     readexec_opername();
     s16 instidx = alis.varD7;
 
     s32 addr;
 
-    if (idx < 0)
+    if (scridx < 0)
     {
         instidx = 0;
         addr = 0;
     }
     else
     {
-        addr = adresmus(idx);
+        addr = adresmus(scridx);
         u8 type = xread8(alis.script->data->data_org + addr);
         if (type != 1 && type != 2 && type != 5)
-        {
             return;
-        }
+        
+        addr += 0x10;
+    }
+
+    audio.tabinst[tabidx].address = alis.script->data->data_org + addr;
+    audio.tabinst[tabidx].unknown = instidx;
+}
+
+static void cminstru(void) {
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    alis.flagmain = 1;
+    readexec_opername();
+    s16 tabidx = alis.varD7;
+    readexec_opername();
+    s16 scridx = alis.varD7;
+    readexec_opername();
+    s16 instidx = alis.varD7;
+
+    s32 addr;
+
+    if (scridx < 0)
+    {
+        instidx = 0;
+        addr = 0;
+    }
+    else
+    {
+        addr = adresmus(scridx);
+        u8 type = xread8(alis.script->data->data_org + addr);
+        if (type != 1 && type != 2 && type != 5)
+            return;
         
         addr += 0x10;
     }
     
-    // TODO: implement
-//    s16 at = ((s16)instid & 0x1f) << 3;
-//    *(s32 *)(tabinst + at) = addr;
-//    *(u16 *)(tabinst + at + 4) = instidx;
-}
-
-static void cminstru(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    audio.tabinst[tabidx].address = addr;
+    audio.tabinst[tabidx].unknown = instidx;
 }
 
 static void cordspr(void) {
@@ -4436,83 +4377,4 @@ void shrinkprog(s32 start, s32 length, u16 id)
             }
         }
     }
-}
-
-void runson(void)
-{
-//    s8 *a3;
-//
-//    s8 cVar1 = alis.priorson;
-//    if (alis.priorson < 0)
-//    {
-//        a3 = &bcanal0;
-//        if (((alis.priorson == DAT_000205c1) || (a3 = &bcanal1, alis.priorson == DAT_000205d1)) || (a3 = &bcanal2, alis.priorson == DAT_000205e1))
-//            goto runson10;
-//
-//joined_r0x0001b270:
-//
-//        a3 = &bcanal3;
-//        if (alis.priorson == DAT_000205f1)
-//            goto runson10;
-//    }
-//    else
-//    {
-//        a3 = &bcanal0;
-//        if (((((s8)alis.pereson == DAT_000205ce) && (alis.priorson == DAT_000205c1)) || ((a3 = &bcanal1, alis.pereson == DAT_000205de && (alis.priorson == DAT_000205d1)))) || ((a3 = &bcanal2, alis.pereson == DAT_000205ee && (alis.priorson == DAT_000205e1))))
-//            goto runson10;
-//
-//        if (pereson == DAT_000205fe)
-//            goto joined_r0x0001b270;
-//    }
-//
-//    a3 = &bcanal0;
-//    s8 cVar2 = DAT_000205c1;
-//    if (DAT_000205d1 < DAT_000205c1)
-//    {
-//        a3 = &bcanal1;
-//        cVar2 = DAT_000205d1;
-//    }
-//
-//    if (DAT_000205e1 < cVar2)
-//    {
-//        a3 = &bcanal2;
-//        cVar2 = DAT_000205e1;
-//    }
-//
-//    if (DAT_000205f1 < cVar2)
-//    {
-//        a3 = &bcanal3;
-//        cVar2 = DAT_000205f1;
-//    }
-//
-//    if (((-1 < alis.priorson) && (cVar2 < 0)) && (cVar2 != -0x80))
-//    {
-//        return;
-//    }
-//
-//    if (alis.priorson < cVar2)
-//    {
-//        return;
-//    }
-//
-//runson10:
-//
-//    if (alis.typeson < 0)
-//    {
-//        gosound(a3);
-//    }
-//    else
-//    {
-//        a3[0] = -0x80;
-//        a3[1] = cVar1;
-//        a3[2] = alis.typeson;
-//        *(u16 *)(a3 + 0xa) = alis.freqson;
-//        *(u16 *)(a3 + 0xc) = alis.dfreqson;
-//        a3[6] = alis.volson;
-//        a3[7] = 0;
-//        *(u16 *)(a3 + 0x8) = alis.dvolson;
-//        *(u16 *)(a3 + 0x4) = alis.longson;
-//        *(s16 *)(a3 + 0xe) = alis.pereson;
-//        a3[0] = 2;
-//    }
 }

@@ -58,7 +58,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/falcon/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/amiga/"
@@ -74,7 +74,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar2/atari/"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar2/falcon/"
@@ -109,7 +109,23 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/arborea/amiga/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/arborea/dos/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/boston/atari/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/boston/amiga/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/boston/dos/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -125,7 +141,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/colorado/atari/FILES/"
+            argument = "/Users/gildor/Work/alis/data/colorado/atari/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -134,6 +150,10 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/lefetichemaya/amiga/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/lefetichemaya/atari/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -161,6 +181,14 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/requiem/atari/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/requiem/falcon/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/starblade/atari/"
             isEnabled = "NO">
          </CommandLineArgument>
@@ -170,6 +198,10 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/stormmaster/atari/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/stormmaster/amiga/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument

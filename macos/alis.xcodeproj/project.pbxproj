@@ -14,6 +14,9 @@
 		6808EE05297069760045BA8A /* image.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* image.c */; };
 		685EBE252A52033800E4F465 /* screen.c in Sources */ = {isa = PBXBuildFile; fileRef = 685EBE242A52033800E4F465 /* screen.c */; };
 		6879D5842A942A4F0067C22A /* channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5832A942A4F0067C22A /* channel.c */; };
+		6879D5932AADB5E40067C22A /* audio.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5922AADB5E30067C22A /* audio.c */; };
+		6879D5962AADFC260067C22A /* ayumi.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5942AADFC260067C22A /* ayumi.c */; };
+		6879D5992AB25B170067C22A /* emu2149.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5972AB25B160067C22A /* emu2149.c */; };
 		68AC2DA32A5F52B60046C6EB /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68AC2DA12A5F52B60046C6EB /* platform.c */; };
 		68AC2DA72A5F52EF0046C6EB /* unpack.c in Sources */ = {isa = PBXBuildFile; fileRef = 68AC2DA62A5F52EF0046C6EB /* unpack.c */; };
 		8B26B69B256D4F7500477B72 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B7D7B27256D40C400DAA932 /* SDL2.framework */; };
@@ -61,6 +64,12 @@
 		685EBE242A52033800E4F465 /* screen.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = screen.c; sourceTree = "<group>"; };
 		6879D5822A942A4F0067C22A /* channel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = channel.h; sourceTree = "<group>"; };
 		6879D5832A942A4F0067C22A /* channel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = channel.c; sourceTree = "<group>"; };
+		6879D5912AADB5E30067C22A /* audio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = audio.h; sourceTree = "<group>"; };
+		6879D5922AADB5E30067C22A /* audio.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = audio.c; sourceTree = "<group>"; };
+		6879D5942AADFC260067C22A /* ayumi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ayumi.c; path = ayumi/ayumi.c; sourceTree = "<group>"; };
+		6879D5952AADFC260067C22A /* ayumi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ayumi.h; path = ayumi/ayumi.h; sourceTree = "<group>"; };
+		6879D5972AB25B160067C22A /* emu2149.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = emu2149.c; path = emu2149/emu2149.c; sourceTree = "<group>"; };
+		6879D5982AB25B170067C22A /* emu2149.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = emu2149.h; path = emu2149/emu2149.h; sourceTree = "<group>"; };
 		68AC2DA12A5F52B60046C6EB /* platform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = platform.c; sourceTree = "<group>"; };
 		68AC2DA22A5F52B60046C6EB /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		68AC2DA52A5F52EF0046C6EB /* unpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unpack.h; sourceTree = "<group>"; };
@@ -150,6 +159,12 @@
 				8B9C400E250921E900C947F9 /* alis.h */,
 				0981CBD5250B470E0097F862 /* alis_private.h */,
 				8B9C400F250921E900C947F9 /* alis.c */,
+				6879D5912AADB5E30067C22A /* audio.h */,
+				6879D5922AADB5E30067C22A /* audio.c */,
+				6879D5942AADFC260067C22A /* ayumi.c */,
+				6879D5952AADFC260067C22A /* ayumi.h */,
+				6879D5972AB25B160067C22A /* emu2149.c */,
+				6879D5982AB25B170067C22A /* emu2149.h */,
 				6879D5822A942A4F0067C22A /* channel.h */,
 				6879D5832A942A4F0067C22A /* channel.c */,
 				8B9C402D250A2AEF00C947F9 /* config.h */,
@@ -232,7 +247,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				68AC2DA72A5F52EF0046C6EB /* unpack.c in Sources */,
+				6879D5932AADB5E40067C22A /* audio.c in Sources */,
 				0981CBD1250B46970097F862 /* storenames.c in Sources */,
+				6879D5962AADFC260067C22A /* ayumi.c in Sources */,
+				6879D5992AB25B170067C22A /* emu2149.c in Sources */,
 				0981CBD2250B46970097F862 /* addnames.c in Sources */,
 				6879D5842A942A4F0067C22A /* channel.c in Sources */,
 				8B9C4047250A721D00C947F9 /* sys_sdl2.c in Sources */,

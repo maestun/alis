@@ -21,6 +21,7 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "audio.h"
 #include "image.h"
 #include "mem.h"
 #include "sys/sys.h"
@@ -63,13 +64,15 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
-        debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+//        debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+        printf(" %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         return opcode.fptr();
     }
 }
 
 alisRet readexec_opcode(void) {
-    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+//    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+    printf("\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
     return readexec(opcodes, "opcode", 0);
 }
 
@@ -224,6 +227,8 @@ void alis_init(sPlatform platform) {
 //    alis.nmode = 0; // 0 = atari 16 colors
 //                    // 3 = mono
 //                    // 8 = falcon 256 colors
+    
+    memset(audio.tabinst, 0, sizeof(audio.tabinst));
 
     alis.restart_loop = 0;
     alis.automode = 0;

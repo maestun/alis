@@ -273,9 +273,6 @@ typedef struct {
     // helper: executed instructions count
     u32             icount;
     u8              restart_loop;
-        
-    // unknown vars
-    u32 DAT_000194fe;
     
     // virtual status register
     struct {
@@ -290,21 +287,6 @@ typedef struct {
     FILE *          fp;
     u16             openmode;
     
-    // sound
-    u8              volson;
-    s8              typeson;
-    u8              pereson;
-    u8              priorson;
-    u16             freqson;
-    u16             longson;
-    u16             dfreqson;
-    u16             dvolson;
-    u8              volsam;
-    u8              speedsam;
-    u16             loopsam;
-    u32             startsam;
-    u32             longsam;
-    u16             freqsam;
     u16             vquality;
     
     // misc

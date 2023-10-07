@@ -99,6 +99,24 @@ void debprot(void)
 
 void invdigit(u8 *sample)
 {
+    if (sample[0] == 2)
+    {
+        if (read32(sample + 0xc) != 0)
+        {
+            s16 length = (read32(sample + 2) - read32(sample + 0xc)) - 0x21;
+            if (-1 < length)
+            {
+                u8 *dst = sample + 0x10 + read32(sample + 0xc);
+                u8 *src = dst + 8;
+                memcpy(dst, src, length);
+            }
+            
+            write32(sample + 0xc, read32(sample + 0xc) - 0x10);
+        }
+        
+        write32(sample + 2, read32(sample + 2) - 0x10);
+    }
+    
     if (alis.platform.kind != EPlatformAtari)
     {
         u32 length = read32(sample + 2) - 0x10;

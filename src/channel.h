@@ -25,12 +25,11 @@
 #include "time.h"
 
 typedef enum {
-    eChannelTypeNone = 0,
-    eChannelTypeSample,
-    eChannelTypeDing,
-    eChannelTypeNose,
-    eChannelTypeExplosion,
-    eChannelTypeInstrument,
+    eChannelTypeNone        = 0,
+    eChannelTypeDingZap     = 1,
+    eChannelTypeNoise       = 2,
+    eChannelTypeExplode     = 3,
+    eChannelTypeSample      = 0x80,
 } eChannelType;
 
 typedef struct {
@@ -38,11 +37,14 @@ typedef struct {
     eChannelType type;
     u8 *address;
     u32 played;
-    u32 volume;
+    s16 volume;
     u32 length;
-    u32 freq;
+    s16 freq;
     u8 loop;
-    
+
+    s16 delta_volume;
+    s16 delta_freq;
+
 } sChannel;
 
 extern sChannel channels[4];
