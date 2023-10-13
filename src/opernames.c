@@ -363,7 +363,7 @@ void ojoy(void) {
 void oprnd(void) {
     u32 result = *(alis.acc);
     result = (u16)(result << 10 | result >> 6);
-    result = (u16)(result * 0x7ab7 + -0x77f);
+    result = (u16)(result * 0x7ab7 - 0x77f);
     result = (alis.varD7 & 0xffff) * result;
     alis.varD7 = result * 0x10000 | result >> 0x10;
     alis.acc++;

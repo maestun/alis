@@ -671,7 +671,7 @@ void inisprit(void)
     }
     while (cursprit < image.finsprit);
     
-    *(s16 *)(SPRITEMEM_PTR + cursprit + -0x24) = 0;
+    *(s16 *)(SPRITEMEM_PTR + cursprit - 0x24) = 0;
 }
 
 u8 searchelem(s16 *curidx, s16 *previdx)
@@ -2540,7 +2540,7 @@ void scrolpage(void)
 //                setphysic();
 //                waitphysic();
 //            }
-//            sVar2 = sVar2 + -1;
+//            sVar2 = sVar2 - 1;
 //        }
 //        while (sVar2 != -1);
 //

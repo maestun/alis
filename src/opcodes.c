@@ -2203,9 +2203,9 @@ static void cmusic(void) {
         readexec_opername();
         audio.muattac = alis.varD7 + 1;
         readexec_opername();
-        audio.muduree = alis.varD7 + 1;
+        audio.muduree = alis.varD7;
         readexec_opername();
-        audio.muchute = alis.varD7 + 2;
+        audio.muchute = alis.varD7 + 1;
 
         audio.dattac = 0;
         audio.dchute = 0;

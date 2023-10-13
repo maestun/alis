@@ -35,7 +35,7 @@ typedef struct {
     
     u16 data;
     u16 loop;
-    u32 addr;
+    u32 frqmod;
 
 } sAudioTrkfrq;
 
@@ -54,6 +54,9 @@ typedef struct {
     u16 unknown1;
     u16 unknown2;
     u16 unknown3;
+    
+    u32 length1;
+    u32 length2;
 
 } sAudioVoice;
 
@@ -103,7 +106,7 @@ typedef struct {
     u16 mubreak;
     u16 mutadata;
     u16 mutaloop;
-    s8 *muadresse;
+    s16 *muadresse;
     
 } sAudio;
 

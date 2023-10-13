@@ -125,29 +125,68 @@ void invdigit(u8 *sample)
         {
             if (sample[0] == 2)
                 smpdata[i] *= 2;
-
+            
             smpdata[i] += 0x80;
             if (smpdata[i] == 0)
                 smpdata[i] = 1;
         }
     }
-//
-//    u32 bitesize = read32(sample + 2) - 0x10;
-//    u8 *endptr = (u8 *)(sample + 0x10) + bitesize;
-//    u8 *begptr = (u8 *)(sample + 0x10);
-//
-//    s16 length = (s16)(bitesize >> 1);
-//
-//    for (int i = 0; i < length; i++)
+    //
+    //    u32 bitesize = read32(sample + 2) - 0x10;
+    //    u8 *endptr = (u8 *)(sample + 0x10) + bitesize;
+    //    u8 *begptr = (u8 *)(sample + 0x10);
+    //
+    //    s16 length = (s16)(bitesize >> 1);
+    //
+    //    for (int i = 0; i < length; i++)
+    //    {
+    //        endptr --;
+    //        u8 tmp = *endptr;
+    //        *endptr = *begptr;
+    //        *begptr = tmp;
+    //        begptr ++;
+    //    }
+    //
+    //    *(u8 *)(sample + 0x10) = 0;
+    
+    u32 length = read32(sample + 2) - 0x10;
+    u8 *smpbegptr = sample + 0x10;
+    u8 *smpendptr = smpbegptr + length - 1;
+    s16 loops = length >> 1;
+    
+    printf("\n%.8x | %.8x", smpendptr - alis.mem, smpbegptr - alis.mem);
+    printf("\n%.2x | %.2x", *smpendptr, *smpbegptr);
+    sleep(0);
+    
+//    for (int i = 0; i < loops; i++, smpbegptr++, smpendptr--)
 //    {
-//        endptr --;
-//        u8 tmp = *endptr;
-//        *endptr = *begptr;
-//        *begptr = tmp;
-//        begptr ++;
+//        u8 valb = *smpbegptr;
+//        u8 vale = *smpendptr;
+////        if (sample[0] == 2)
+////        {
+////            valb *= 2;
+////            vale *= 2;
+////        }
+////
+////        valb += 0x80;
+////        if (valb == 0)
+////        {
+////            valb = 1;
+////        }
+////
+////        vale += 0x80;
+////        if (vale == 0)
+////        {
+////            vale = 1;
+////        }
+//
+//        *smpendptr = valb;
+//        *smpbegptr = vale;
 //    }
 //
 //    *(u8 *)(sample + 0x10) = 0;
+    
+    *(u8 *)(sample + 0x10 + length - 1) = 0;
 }
 
 s8 tfibo[16] = {
