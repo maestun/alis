@@ -117,18 +117,32 @@ void invdigit(u8 *sample)
         write32(sample + 2, read32(sample + 2) - 0x10);
     }
     
-    if (alis.platform.kind != EPlatformAtari)
+    if (alis.platform.kind == EPlatformAtari)
     {
         u32 length = read32(sample + 2) - 0x10;
         u8 *smpdata = sample + 0x10;
         for (int i = 0; i < length; i++)
         {
-            if (sample[0] == 2)
-                smpdata[i] *= 2;
-            
-            smpdata[i] += 0x80;
-            if (smpdata[i] == 0)
-                smpdata[i] = 1;
+            if (smpdata[i] == 0xff)
+            {
+                u8 x = smpdata[i] + 0x80;
+                sleep(0);
+            }
+            else
+            {
+                if (sample[0] == 2)
+                    smpdata[i] *= 2;
+                
+                if (smpdata[i] == 0xff)
+                {
+                    u8 x = smpdata[i] + 0x80;
+                    sleep(0);
+                }
+                
+                smpdata[i] += 0x80;
+                if (smpdata[i] == 0)
+                    smpdata[i] = 1;
+            }
         }
     }
     //

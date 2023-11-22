@@ -23,6 +23,7 @@
 
 #include "../sys.h"
 #include "alis.h"
+#include "audio.h"
 #include "ayumi.h"
 #include "channel.h"
 #include "image.h"
@@ -263,9 +264,6 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
 
     memset(s, 0, length);
 
-    u16 *strm = (u16 *)s;
-    length /= 2;
-
     float ratio = 0;
     float volratio = 0;
 
@@ -283,216 +281,268 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
     float smpidxf = 0;
     float x0, x1, x2, x3, t, r;
 #endif
-    
+
     int smpidx = 0;
 
-    for (int p = 0; p < length; p++)
+    if (audio.muflag > 0)
     {
-        isr_counter += isr_step;
-        if (isr_counter >= 1)
+        int smprem = length;
+
+        int buflen = ((audio.mutaloop + 1) * 2);
+        float lenf = (float)length / (float)buflen;
+        int len = ceil(lenf);
+        
+        if (audio.smpidx)
         {
-            isr_counter -= 1;
-            update_ym = true;
-        }
-        else
-        {
-            update_ym = false;
+            int smpcopy = audio.smpidx;
+            
+            memcpy(s + smpidx, audio.muadresse + (buflen - audio.smpidx), smpcopy);
+            smpidx += smpcopy;
+            smprem -= smpcopy;
+            
+            audio.smpidx = 0;
         }
         
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < len; i++)
         {
-            sChannel *ch = &channels[i];
-            switch (ch->type)
+            f_soundrout();
+            
+            int smpcopy = min(buflen, smprem);
+            
+            memcpy(s + smpidx, audio.muadresse, smpcopy);
+            smpidx += smpcopy;
+            smprem -= smpcopy;
+            
+            audio.smpidx = buflen - smpcopy;
+        }
+    }
+    else
+    {
+        u16 *strm = (u16 *)s;
+        length /= 2;
+
+        for (int p = 0; p < length; p++)
+        {
+            isr_counter += isr_step;
+            if (isr_counter >= 1)
             {
-                case eChannelTypeSample:
-                {
-                    ratio = (float)(ch->freq) / (float)(_audio_spec->freq);
-                    volratio = ((float)(ch->volume) / 128.0) / 4;
-
-#if ALIS_SND_INTERPOLATE_TYPE > 0
-                    // interpolation
-
-                    smpidxf = ch->played * ratio;
-                    smpidx = (int)smpidxf;
-                    if (smpidx >= ch->length)
-                    {
-                        if (ch->loop > 1)
-                        {
-                            ch->loop--;
-                            ch->played = smpidx = 0;
-                        }
-                        else
-                        {
-                            ch->type = eChannelTypeNone;
-                            break;
-                        }
-                    }
-
-                    int i1 = (int)smpidxf;
-                    if (i1 >= ch->length)
-                        i1 = (ch->loop > 1) ? 0 : -1;
-
-                    int i2 = i1 + 1;
-                    if (i2 >= ch->length)
-                        i2 = (ch->loop > 1) ? 0 : -1;
-
-                    int i3 = i2 + 1;
-                    if (i3 >= ch->length)
-                        i3 = (ch->loop > 1) ? 0 : -1;
-
-                    int i0 = i1 - 1;
-                    if (i0 < 0)
-                        i0 = (ch->loop > 1) ? ch->length -1 : -1;
-
-                    x0 = (i0 >= 0) ? (s16)((ch->address[i0] | ch->address[i0] << 8) - 0x8000) : 0;
-                    x1 = (i1 >= 0) ? (s16)((ch->address[i1] | ch->address[i1] << 8) - 0x8000) : 0;
-                    x2 = (i2 >= 0) ? (s16)((ch->address[i2] | ch->address[i2] << 8) - 0x8000) : 0;
-                    x3 = (i3 >= 0) ? (s16)((ch->address[i3] | ch->address[i3] << 8) - 0x8000) : 0;
-
-                    t = smpidxf - (int)smpidxf;
-
-# if ALIS_SND_INTERPOLATE_TYPE == 1
-                    r = interpolate_cubic(x0, x1, x2, x3, t);
-# elif ALIS_SND_INTERPOLATE_TYPE == 2
-                    r = interpolate_hermite(x0, x1, x2, x3, t);
-# else // 3
-                    r = interpolate_hermite_4pt_3ox(x0, x1, x2, x3, t);
-# endif
-
-                    s32 s0 = r * volratio;
-#else
-                    // no interpolation
-
-                    smpidx = ch->played * ratio;
-                    if (smpidx >= ch->length)
-                    {
-                        if (ch->loop > 1)
-                        {
-                            ch->loop--;
-                            ch->played = smpidx = 0;
-                        }
-                        else
-                        {
-                            ch->type = eChannelTypeNone;
-                            break;
-                        }
-                    }
-
-                    s32 s0 = ((ch->address[smpidx] | ch->address[smpidx] << 8) - 0x8000) * volratio;
-#endif
-                    s32 s1 = strm[p] - 0x8000;
-                    strm[p] = (s0 + s1) + 0x8000;
-
-                    ch->played ++;
-                }
-                    break;
-
-                case eChannelTypeDingZap:
-                {
-                    if (i < 3 && update_ym)
-                    {
-                        if (ch->played >= ch->length)
-                        {
-                            if (ch->loop > 1)
-                            {
-                                ch->loop--;
-                                ch->played = smpidx = 0;
-                            }
-                            else
-                            {
-                                ch->type = eChannelTypeNone;
-                                ayumi_set_noise(_ym2149, 0);
-                                ayumi_set_tone(_ym2149, i, 0);
-                                ayumi_set_volume(_ym2149, i, 0);
-                                break;
-                            }
-                        }
-
-                        amplitude = ch->volume >> 8;
-                        amplitude = amplitude >> 3;
-                        amplitude = amplitude & 0xf;
-                        
-                        frequency = (ch->freq >> 3);
-                        
-                        ayumi_set_noise(_ym2149, 0);
-                        ayumi_set_tone(_ym2149, i, frequency);
-                        ayumi_set_mixer(_ym2149, i, tone_off, noise_off, envelope_on);
-                        ayumi_set_volume(_ym2149, i, amplitude);
-                        
-                        ch->volume += ch->delta_volume;
-                        if (0x7fff < ch->volume)
-                            ch->volume = 0x7fff;
-                        
-                        ch->freq += ch->delta_freq;
-                        if (ch->freq < 0)
-                            ch->freq = 0;
-                        
-                        ch->played ++;
-                    }
-                }
-                    break;
-                
-                case eChannelTypeNoise:
-                case eChannelTypeExplode:
-                {
-                    if (i < 3 && update_ym)
-                    {
-                        if (ch->played >= ch->length)
-                        {
-                            if (ch->loop > 1)
-                            {
-                                ch->loop--;
-                                ch->played = smpidx = 0;
-                            }
-                            else
-                            {
-                                ch->type = eChannelTypeNone;
-                                ayumi_set_noise(_ym2149, 0);
-                                ayumi_set_tone(_ym2149, i, 0);
-                                ayumi_set_volume(_ym2149, i, 0);
-                                break;
-                            }
-                        }
-
-                        amplitude = ch->volume >> 8;
-                        amplitude = amplitude >> 3;
-                        amplitude = amplitude & 0xf;
-                        
-                        frequency = (ch->freq >> 10);
-                        
-                        ayumi_set_noise(_ym2149, frequency);
-                        ayumi_set_mixer(_ym2149, i, 1, 0, envelope_on);
-                        ayumi_set_volume(_ym2149, i, amplitude);
-                        
-                        ch->volume += ch->delta_volume;
-                        if (0x7fff < ch->volume)
-                            ch->volume = 0x7fff;
-                        
-                        ch->freq += ch->delta_freq;
-                        if (ch->freq < 0)
-                            ch->freq = 0;
-                        
-                        ch->played ++;
-                    }
-                }
-                    break;
-
-                default:
-                    break;
+                isr_counter -= 1;
+                update_ym = true;
             }
+            else
+            {
+                update_ym = false;
+            }
+        
+            for (int i = 0; i < 4; i++)
+            {
+                sChannel *ch = &channels[i];
+                switch (ch->type)
+                {
+                    case eChannelTypeSample:
+                    {
+                        ratio = (float)(ch->freq) / (float)(_audio_spec->freq);
+                        volratio = ((float)(ch->volume) / 128.0) / 4;
+                        
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                        // interpolation
+                        
+                        smpidxf = ch->played * ratio;
+                        smpidx = (int)smpidxf;
+                        if (smpidx >= ch->length)
+                        {
+                            if (ch->loop > 1)
+                            {
+                                ch->loop--;
+                                ch->played = smpidx = 0;
+                            }
+                            else
+                            {
+                                ch->type = eChannelTypeNone;
+                                break;
+                            }
+                        }
+                        
+                        int i1 = (int)smpidxf;
+                        if (i1 >= ch->length)
+                            i1 = (ch->loop > 1) ? 0 : -1;
+                        
+                        int i2 = i1 + 1;
+                        if (i2 >= ch->length)
+                            i2 = (ch->loop > 1) ? 0 : -1;
+                        
+                        int i3 = i2 + 1;
+                        if (i3 >= ch->length)
+                            i3 = (ch->loop > 1) ? 0 : -1;
+                        
+                        int i0 = i1 - 1;
+                        if (i0 < 0)
+                            i0 = (ch->loop > 1) ? ch->length -1 : -1;
+                        
+                        
+//                        s8 sam = xread8(startsam1 + test3 - 0x10);
+//                        int total = audio.muadresse[index] + sam;
+//                        if (total < -32768)
+//                            total = -32768;
+//
+//                        if (total > 32767)
+//                            total = 32767;
+                        
+//                        x0 = (i0 >= 0) ? (s16)((ch->address[i0] | ch->address[i0] << 8) - 0x8000) : 0;
+//                        x1 = (i1 >= 0) ? (s16)((ch->address[i1] | ch->address[i1] << 8) - 0x8000) : 0;
+//                        x2 = (i2 >= 0) ? (s16)((ch->address[i2] | ch->address[i2] << 8) - 0x8000) : 0;
+//                        x3 = (i3 >= 0) ? (s16)((ch->address[i3] | ch->address[i3] << 8) - 0x8000) : 0;
+                        x0 = (i0 >= 0) ? (s16)(ch->address[i0] * 256) : 0;
+                        x1 = (i1 >= 0) ? (s16)(ch->address[i1] * 256) : 0;
+                        x2 = (i2 >= 0) ? (s16)(ch->address[i2] * 256) : 0;
+                        x3 = (i3 >= 0) ? (s16)(ch->address[i3] * 256) : 0;
+
+                        t = smpidxf - (int)smpidxf;
+                        
+# if ALIS_SND_INTERPOLATE_TYPE == 1
+                        r = interpolate_cubic(x0, x1, x2, x3, t);
+# elif ALIS_SND_INTERPOLATE_TYPE == 2
+                        r = interpolate_hermite(x0, x1, x2, x3, t);
+# else // 3
+                        r = interpolate_hermite_4pt_3ox(x0, x1, x2, x3, t);
+# endif
+                        
+                        s32 s0 = r * volratio;
+#else
+                        // no interpolation
+                        
+                        smpidx = ch->played * ratio;
+                        if (smpidx >= ch->length)
+                        {
+                            if (ch->loop > 1)
+                            {
+                                ch->loop--;
+                                ch->played = smpidx = 0;
+                            }
+                            else
+                            {
+                                ch->type = eChannelTypeNone;
+                                break;
+                            }
+                        }
+                        
+//                        s32 s0 = ((ch->address[smpidx] | ch->address[smpidx] << 8) - 0x8000) * volratio;
+                        s32 s0 = (ch->address[smpidx] * 256) * volratio;
+#endif
+                        s32 s1 = strm[p] - 0x8000;
+                        strm[p] = (s0 + s1) + 0x8000;
+                        
+                        ch->played ++;
+                    }
+                        break;
+                        
+                    case eChannelTypeDingZap:
+                    {
+                        if (i < 3 && update_ym)
+                        {
+                            if (ch->played >= ch->length)
+                            {
+                                if (ch->loop > 1)
+                                {
+                                    ch->loop--;
+                                    ch->played = smpidx = 0;
+                                }
+                                else
+                                {
+                                    ch->type = eChannelTypeNone;
+                                    ayumi_set_noise(_ym2149, 0);
+                                    ayumi_set_tone(_ym2149, i, 0);
+                                    ayumi_set_volume(_ym2149, i, 0);
+                                    break;
+                                }
+                            }
+                            
+                            amplitude = ch->volume >> 8;
+                            amplitude = amplitude >> 3;
+                            amplitude = amplitude & 0xf;
+                            
+                            frequency = (ch->freq >> 3);
+                            
+                            ayumi_set_noise(_ym2149, 0);
+                            ayumi_set_tone(_ym2149, i, frequency);
+                            ayumi_set_mixer(_ym2149, i, tone_off, noise_off, envelope_on);
+                            ayumi_set_volume(_ym2149, i, amplitude);
+                            
+                            ch->volume += ch->delta_volume;
+                            if (0x7fff < ch->volume)
+                                ch->volume = 0x7fff;
+                            
+                            ch->freq += ch->delta_freq;
+                            if (ch->freq < 0)
+                                ch->freq = 0;
+                            
+                            ch->played ++;
+                        }
+                    }
+                        break;
+                        
+                    case eChannelTypeNoise:
+                    case eChannelTypeExplode:
+                    {
+                        if (i < 3 && update_ym)
+                        {
+                            if (ch->played >= ch->length)
+                            {
+                                if (ch->loop > 1)
+                                {
+                                    ch->loop--;
+                                    ch->played = smpidx = 0;
+                                }
+                                else
+                                {
+                                    ch->type = eChannelTypeNone;
+                                    ayumi_set_noise(_ym2149, 0);
+                                    ayumi_set_tone(_ym2149, i, 0);
+                                    ayumi_set_volume(_ym2149, i, 0);
+                                    break;
+                                }
+                            }
+                            
+                            amplitude = ch->volume >> 8;
+                            amplitude = amplitude >> 3;
+                            amplitude = amplitude & 0xf;
+                            
+                            frequency = (ch->freq >> 10);
+                            
+                            ayumi_set_noise(_ym2149, frequency);
+                            ayumi_set_mixer(_ym2149, i, 1, 0, envelope_on);
+                            ayumi_set_volume(_ym2149, i, amplitude);
+                            
+                            ch->volume += ch->delta_volume;
+                            if (0x7fff < ch->volume)
+                                ch->volume = 0x7fff;
+                            
+                            ch->freq += ch->delta_freq;
+                            if (ch->freq < 0)
+                                ch->freq = 0;
+                            
+                            ch->played ++;
+                        }
+                    }
+                        break;
+                        
+                    default:
+                        break;
+                }
+            }
+            
+            ayumi_process(_ym2149);
+            
+            float test = _ym2149->right;
+            if (test != 0)
+            {
+                sleep(0);
+            }
+            
+            s32 s0 = _ym2149->right * SHRT_MAX;
+            s32 s1 = strm[p] - 0x8000;
+            strm[p] = (s0 + s1) + 0x8000;
         }
-        
-        ayumi_process(_ym2149);
-        
-        float test = _ym2149->right;
-        if (test != 0)
-        {
-            sleep(0);
-        }
-        
-        s32 s0 = _ym2149->right * SHRT_MAX;
-        s32 s1 = strm[p] - 0x8000;
-        strm[p] = (s0 + s1) + 0x8000;
     }
 }
 

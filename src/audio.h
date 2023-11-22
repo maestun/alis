@@ -55,8 +55,7 @@ typedef struct {
     u16 unknown2;
     u16 unknown3;
     
-    u32 length1;
-    u32 length2;
+    u32 sample;
 
 } sAudioVoice;
 
@@ -92,6 +91,7 @@ typedef struct {
     u16 mutype;
     u16 mufreq;
     u16 muchip;
+    u16 muopl2;
     u16 dattac;
     u16 dchute;
     
@@ -106,11 +106,17 @@ typedef struct {
     u16 mubreak;
     u16 mutadata;
     u16 mutaloop;
-    s16 *muadresse;
+    s16 muadresse[1024 * 1024];
+    
+    u32 frqmod;
+    u16 samples;
+    u32 smpidx;
     
 } sAudio;
 
 extern sAudio audio;
+
+void xgomusic(void);
 
 void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop);
 void playsound(eChannelType type, u8 pereson, u8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson);
@@ -119,3 +125,5 @@ void playmusic(void);
 void f_offmusic(void);
 void f_stopmusic(void);
 void f_onmusic(void);
+
+void f_soundrout(void);

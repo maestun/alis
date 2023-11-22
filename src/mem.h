@@ -57,6 +57,11 @@ void            xpush32(s32 value);
 s32             xpeek32(void);
 s32             xpop32(void);
 
+s16             xpcread16(u32 offset);
+s32             xpcread32(u32 offset);
+
+void            xpcwrite16(u32 offset, s16 value);
+void            xpcwrite32(u32 offset, s32 value);
 
 #define vread16 xread16
 #define vread32 xread32

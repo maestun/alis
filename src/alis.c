@@ -565,6 +565,10 @@ static fConvert16 _convert16;
 static fConvert32 _convert24;
 static fConvert32 _convert32;
 
+static fConvert16 _pcconvert16;
+static fConvert32 _pcconvert24;
+static fConvert32 _pcconvert32;
+
 static u16 _swap16(u16 value) {
     return (value <<  8) | (value >>  8);
 }
@@ -598,6 +602,10 @@ void vram_init(void) {
     _convert16 = (alis.platform.is_little_endian == is_host_le()) ? _linear16 : _swap16;
     _convert24 = (alis.platform.is_little_endian == is_host_le()) ? _linear24 : _swap24;
     _convert32 = (alis.platform.is_little_endian == is_host_le()) ? _linear32 : _swap32;
+
+    _pcconvert16 = (alis.platform.kind == EPlatformPC) ? ((alis.platform.is_little_endian == is_host_le()) ? _swap16 : _linear16) : _convert16;
+    _pcconvert24 = (alis.platform.kind == EPlatformPC) ? ((alis.platform.is_little_endian == is_host_le()) ? _swap24 : _linear24) : _convert24;
+    _pcconvert32 = (alis.platform.kind == EPlatformPC) ? ((alis.platform.is_little_endian == is_host_le()) ? _swap32 : _linear32) : _convert32;
 }
 
 u16 read16(const u8 *ptr) {
@@ -644,6 +652,31 @@ s32 xread32(u32 offset) {
     s32 result = _convert32(*ptr);
     debug(EDebugVerbose, " [%.4x <= %.6x]", result, offset);
     return (s32)result;
+}
+
+
+s16 xpcread16(u32 offset) {
+    u16* ptr = (u16*)(alis.mem + offset);
+    u16 result = _pcconvert16(*ptr);
+    debug(EDebugVerbose, " [%.4x <= %.6x]", result, offset);
+    return (s16)result;
+}
+
+s32 xpcread32(u32 offset) {
+    u32* ptr = (u32*)(alis.mem + offset);
+    s32 result = _pcconvert32(*ptr);
+    debug(EDebugVerbose, " [%.4x <= %.6x]", result, offset);
+    return (s32)result;
+}
+
+void xpcwrite16(u32 offset, s16 value) {
+    debug(EDebugVerbose, " [%.4x => %.6x]", value, offset);
+    *(s16 *)(alis.mem + offset) = _pcconvert16(value);
+}
+
+void xpcwrite32(u32 offset, s32 value) {
+    debug(EDebugVerbose, " [%.8x => %.6x]", value, offset);
+    *(s32 *)(alis.mem + offset) = _pcconvert32(value);
 }
 
 u8 * get_vram(s16 offset) {

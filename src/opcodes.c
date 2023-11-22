@@ -2174,8 +2174,6 @@ static void cfindtyp(void) {
 }
 
 static void cmusic(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
     alis.flagmain = 0;
     
     readexec_opername();
@@ -2183,15 +2181,46 @@ static void cmusic(void) {
     s32 addr = adresmus(idx);
 
     u8 type = xread8(alis.script->data->data_org + addr);
-    if (type != 4)
+    if (type == 0 || type == 3)
     {
+        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+        audio.muvolume = 0;
+
+        audio.mupnote = alis.script->data->data_org + addr + 6;
         readexec_opername();
+        audio.maxvolume = alis.varD7 << 8;
         readexec_opername();
+        audio.mutempo = (char)alis.varD7;
         readexec_opername();
+        audio.muattac = alis.varD7 + 1;
         readexec_opername();
+        audio.muduree = alis.varD7 + 1;
         readexec_opername();
+        audio.muchute = alis.varD7 + 2;
+        if (audio.muattac != 0)
+        {
+            audio.dattac = audio.maxvolume / audio.muattac;
+        }
+        
+        if (audio.muchute != 0)
+        {
+            audio.dchute = audio.maxvolume / audio.muchute;
+        }
+
+        u8 test = xread8(audio.mupnote - 6);
+        if (test == 0)
+        {
+            xgomusic();
+        }
+        else
+        {
+//            FUN_00015d60();
+        }
+
+        audio.mustate = 1;
+
     }
-    else
+    else if (type == 4)
     {
         audio.muvolume = 0;
 
@@ -2221,6 +2250,14 @@ static void cmusic(void) {
         audio.muvolume = audio.maxvolume >> 8;
         playmusic();
         audio.mustate = 1;
+    }
+    else
+    {
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
     }
 }
 
@@ -2878,8 +2915,6 @@ static void cviewcla(void) {
 }
 
 static void cinstru(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     alis.flagmain = 0;
     readexec_opername();
     s16 tabidx = alis.varD7;
@@ -2899,7 +2934,7 @@ static void cinstru(void) {
     {
         addr = adresmus(scridx);
         u8 type = xread8(alis.script->data->data_org + addr);
-        if (type != 1 && type != 2 && type != 5)
+        if (type != 1 && type != 2 && type != 5 && type != 6)
             return;
         
         addr += 0x10;
@@ -2910,8 +2945,6 @@ static void cinstru(void) {
 }
 
 static void cminstru(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     alis.flagmain = 1;
     readexec_opername();
     s16 tabidx = alis.varD7;
@@ -2931,7 +2964,7 @@ static void cminstru(void) {
     {
         addr = adresmus(scridx);
         u8 type = xread8(alis.script->data->data_org + addr);
-        if (type != 1 && type != 2 && type != 5)
+        if (type != 1 && type != 2 && type != 5 && type != 6)
             return;
         
         addr += 0x10;
