@@ -87,7 +87,7 @@ void sys_init(void) {
     desired_spec->freq = 44100;
     desired_spec->format = AUDIO_U16;
     desired_spec->channels = 1;
-    desired_spec->samples = 2646; // 60ms
+    desired_spec->samples = 0xff;//2646; // 60ms
     desired_spec->callback = sys_audio_callback;
     desired_spec->userdata = NULL;
     
@@ -254,6 +254,9 @@ float interpolate_hermite(float x0, float x1, float x2, float x3, float t)
     return 0.5f * ((c3 * t + c2) * t + c1) * t + x1;
 }
 
+static u32 samplelength = 0;
+static u8 *samplebuffer[1024 * 1024 * 4];
+
 void sys_audio_callback(void *userdata, Uint8 *s, int length)
 {
     // TODO: create chanels structure holding info about sounds to be played
@@ -288,28 +291,43 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
     {
         int smprem = length;
 
-        int buflen = ((audio.mutaloop + 1) * 2);
+        int buflen = audio.mutaloop * 2;
         float lenf = (float)length / (float)buflen;
         int len = ceil(lenf);
         
         if (audio.smpidx)
         {
-            int smpcopy = audio.smpidx;
+//            len --;
+            int smpcopy = min(audio.smpidx, smprem);
             
-            memcpy(s + smpidx, audio.muadresse + (buflen - audio.smpidx), smpcopy);
+            memcpy(s, (u8 *)audio.muadresse + (buflen - audio.smpidx), smpcopy);
+            
+//            u8 *src = (u8 *)audio.muadresse + (buflen - audio.smpidx);
+//            u8 *tgt = s;
+//
+//            for (int x = 0; x < smpcopy; x++)
+//                *tgt++ = *src++;
+
             smpidx += smpcopy;
             smprem -= smpcopy;
             
-            audio.smpidx = 0;
+            audio.smpidx -= smpcopy;
         }
         
-        for (int i = 0; i < len; i++)
+        for (int i = 0; i < len && smprem; i++)
         {
-            f_soundrout();
+            audio.soundrout();
             
             int smpcopy = min(buflen, smprem);
             
             memcpy(s + smpidx, audio.muadresse, smpcopy);
+            
+//            u8 *src = (u8 *)audio.muadresse;
+//            u8 *tgt = (u8 *)s + smpidx;
+//
+//            for (int x = 0; x < smpcopy; x++)
+//                *tgt++ = *src++;
+
             smpidx += smpcopy;
             smprem -= smpcopy;
             
@@ -544,6 +562,30 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
             strm[p] = (s0 + s1) + 0x8000;
         }
     }
+    
+//    // NOTE: just for checking
+//    
+//    u8 *src = (u8 *)s;
+//    u8 *tgt = (u8 *)samplebuffer + samplelength;
+//    
+//    for (int x = 0; x < length; x++)
+//        *tgt++ = *src++;
+//    
+//    samplelength += length;
+//
+//    if (samplelength >= 1024 * 1024 * 1)
+//    {
+//        FILE *f = fopen("/Users/gildor/Desktop/test.smp", "wb");
+//        if (f == NULL)
+//        {
+//            return;
+//        }
+//
+//        fwrite(samplebuffer, samplelength, 2, f);
+//        fclose(f);
+//
+//        samplelength = 0;
+//    }
 }
 
 // =============================================================================
