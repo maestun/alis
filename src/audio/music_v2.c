@@ -1,0 +1,691 @@
+//
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
+//
+// Permission is hereby granted, free of s8ge, to any person obtaining a copy
+// of this software and associated documentation files (the “Software”),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+
+#include "alis.h"
+#include "audio.h"
+#include "config.h"
+#include "mem.h"
+
+#include <SDL2/SDL.h>
+
+
+void mv2_soundrout(void);
+void mv2_calculfrq(void);
+void mv2_calculvol(void);
+u32 mv2_soundvoix(u32 noteat, sAudioVoice *voice);
+void mv2_checkport(u32 noteat, sAudioVoice *voice);
+void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx);
+void mv2_checkcom(u32 noteat, sAudioVoice *voice);
+void mv2_checkefft(sAudioVoice *voice);
+void mv2_soundcal(sAudioVoice *voice);
+void mv2_stopmusic(void);
+void mv2_onmusic(void);
+
+
+extern SDL_AudioSpec *_audio_spec;
+
+sAudioTrkfrq mv2_trkfrq[7] = {
+    { 0xB, 0xA3, 0x1B989B4 },
+    { 0x9, 0xC4, 0x16FF2C1 },
+    { 0x7, 0xF5, 0x1265EDE },
+    { 0x5, 0x149, 0xDB6E1E },
+    { 0x4, 0x19E, 0xAE3684 },
+    { 0x3, 0x1EB, 0x932DE7 },
+    { 0x2, 0x2A5, 0x6ACCF1 } };
+
+sAudioTrkfrq mv2_trkfrq_st[4] = {
+    { 0x52,  0x95, 0x1DDBD2B },     // 7 khz
+    { 0x3D,  0xC8, 0x1636423 },     // 10 khz
+    { 0x31,  0xF8, 0x11D7A68 },     // 12 khz
+    { 0x2E, 0x10A, 0x10BFFF8 } };   // 13 khz
+
+sAudioTrkfrq mv2_trkfrq_ste[5] = {
+    { 0x0,  0x7D, 0x23AF4D0 },   // 6 khz
+    { 0x1,  0xF9, 0x11D7A68 },   // 12 khz
+    { 0x2, 0x1F3,  0x91A6F1 },   // 25 khz
+    { 0x2, 0x1F3,  0x91A6F1 },   // 25 khz
+    { 0x4, 0x3E7,  0x48D378 } }; // 50 khz
+
+typedef struct {
+
+    sAudioInstrument *tinstrum;
+    sAudioVoice voices[4]; //
+    u32 tabfrq[0x358];
+    u16 defvolins;
+    u8 defvol[32];
+    s16 trkval[36];
+    s8 tabvol[0x4000 * 2];
+    s16 prevmufreq;
+    s16 prevmuvol;
+    u16 mutype;
+    u16 mufreq;
+    u16 muchip;
+    u16 muopl2;
+    u16 muptr;
+    u16 mumax;
+    u16 mucnt;
+    u16 mubufa;
+    u16 mubufc;
+    u16 muspeed;
+    u16 muvolgen;
+    u16 mubreak;
+    u16 mutadata;
+    u32 frqmod;
+    u16 samples;
+    
+} sMV2Audio;
+
+sMV2Audio mv2a;
+
+
+void mv2_gomusic(void)
+{
+    audio.muflag = 0;
+
+    mv2a.tinstrum = audio.tabinst;
+    
+    u8 chipinst = 0;
+    u8 opl2inst = 0;
+
+    sAudioInstrument *instrument = audio.tabinst;
+    for (s32 i = 0; i < 0x20; i++)
+    {
+        if (instrument->address != 0)
+        {
+            if (xread8(instrument->address - 0x10) == 5)
+                chipinst += 1;
+            
+            else if (xread8(instrument->address - 0x10) == 6)
+                opl2inst += 1;
+        }
+        
+        instrument ++;
+    }
+    
+    if (2 < chipinst)
+        mv2a.muchip = 1;
+    
+    if (2 < opl2inst)
+        mv2a.muopl2 = 1;
+    
+    mv2a.mutype = (2 >= chipinst);
+    mv2a.mutype = 4;// alis.vquality + 1;
+    audio.muvol = (audio.muvolume >> 1) + 1;
+    audio.mutemp = (u8)(((u32)audio.mutempo * 6) / 0x20);
+
+    // init
+    if (mv2a.mutype != 0)
+    {
+        // mv2a.tabvol = newaddr;
+        mv2a.prevmuvol = 0;
+        mv2a.prevmufreq = 0;
+        mv2_calculfrq();
+        mv2_calculvol();
+    }
+    
+    audio.soundrout = mv2_soundrout;
+
+    for (s32 i = 0; i < 0x20; i++)
+    {
+        mv2a.defvol[i] = 0x40;
+    }
+    
+    mv2a.mumax = xread8(audio.mupnote);
+    audio.mupnote += 2;
+    mv2a.mubreak = 0;
+    mv2a.muptr = 0;
+    mv2a.mucnt = 0;
+    mv2a.mubufa = audio.muattac;
+    mv2a.mubufc = audio.muchute;
+    mv2a.muspeed = 1;
+    
+    for (s32 i = 0; i < 4; i++)
+    {
+        mv2a.voices[i].freqsam = 0;
+        mv2a.voices[i].startsam1 = 0;
+        mv2a.voices[i].longsam1 = 0;
+        mv2a.voices[i].volsam = 0;
+        mv2a.voices[i].startsam2 = 0;
+        mv2a.voices[i].longsam2 = 0;
+        mv2a.voices[i].value = 0;
+        mv2a.voices[i].type = 0;
+        mv2a.voices[i].delta = 0;
+    }
+    
+    audio.smpidx = 0;
+    audio.muflag = 1;
+}
+
+void mv2_calculfrq(void)
+{
+    float ratio = 50000.0f / _audio_spec->freq;
+    mv2a.frqmod = ratio * 0x48D378;
+    mv2a.samples = 0x3E7 / ratio;
+
+    s16 freq = mv2a.mutype;
+    if (freq < 1)
+        freq = 1;
+    
+    if (freq > 4)
+        freq = 4;
+    
+    if (freq != mv2a.prevmufreq)
+    {
+        sAudioTrkfrq *freqdata = &mv2_trkfrq_ste[(freq - 1)];
+        mv2a.mutadata = freqdata->data;
+        audio.mutaloop = mv2a.samples + 1;
+        mv2a.prevmufreq = freq;
+        
+        s32 index = 0;
+        for (s32 i = 1; i < 0x358; i++, index++)
+        {
+            mv2a.tabfrq[index] = mv2a.frqmod / i;
+        }
+    }
+}
+
+void mv2_calculvol(void)
+{
+    if (mv2a.prevmuvol == 0)
+    {
+        mv2a.prevmuvol = -1;
+        
+//        // ST
+//        s16 *tabvolptr = (s16 *)(mv2_audio->tabvol + 0x4000);
+//        for (s32 x = 0x40; x != 0; x--)
+//        {
+//            s8 v = 0x3f;
+//            for (s32 y = 0x7f; y != -1; y--, v--)
+//            {
+//                tabvolptr --;
+//                *tabvolptr = ((s16)((s8)v * x >> 6) + 0x40) * 4;
+//            }
+//        }
+        // ste/falcon
+        s8 *tabvolptr = (s8 *)(mv2a.tabvol + 0x4000);
+        for (s32 x = 0x40; x > 0; x--)
+        {
+            for (s32 y = 0xff; y > -1; y--)
+            {
+                tabvolptr --;
+                *tabvolptr = (s8)(((s8)y * x) / 0x80);
+            }
+        }
+    }
+}
+
+void mv2_soundrout(void)
+{
+    u16 prevmuspeed = mv2a.muspeed;
+  
+    if (audio.muflag == 0)
+        return;
+  
+    u16 newvolgen = (u16)audio.muvol;
+    if (mv2a.mubreak == 0)
+    {
+        if (audio.muattac == 0)
+        {
+            if (audio.muduree == 0)
+            {
+                goto f_soundroutc;
+            }
+            
+            if (audio.muduree > 0)
+            {
+                audio.muduree--;
+            }
+        }
+        else
+        {
+            audio.muattac -= 1;
+            u16 tmpvol = ((u32)audio.muvol * (u32)audio.muattac) / (u32)mv2a.mubufa;
+            newvolgen = (tmpvol & 0xff00) | -((s8)tmpvol - audio.muvol);
+        }
+    }
+    else
+    {
+
+f_soundroutc:
+
+        if (audio.muchute != 0)
+        {
+            audio.muchute -= 1;
+            newvolgen = (u16)(((u32)audio.muvol * (u32)audio.muchute) / (u32)mv2a.mubufc);
+        }
+        else
+        {
+            mv2_stopmusic();
+            return;
+        }
+    }
+    
+    mv2a.muvolgen = newvolgen;
+    if (mv2a.muspeed != 0)
+    {
+        mv2a.muspeed -= 1;
+        if (mv2a.muspeed == 0 || (s16)prevmuspeed < 1)
+        {
+            mv2a.muspeed = audio.mutemp;
+
+            s16 prevmucnt = mv2a.mucnt;
+            if (-1 < (s16)(mv2a.mucnt - 0x40))
+            {
+                prevmucnt = 0;
+                mv2a.muptr += 1;
+            }
+            
+            mv2a.mucnt = prevmucnt + 1;
+            if (-1 < (s16)(mv2a.muptr - mv2a.mumax))
+            {
+                mv2a.muptr = 0;
+            }
+            
+            u32 noteat = ((prevmucnt * 0x10 + xread8(audio.mupnote + mv2a.muptr) * 0x400) + audio.mupnote + 0x84);
+            noteat = mv2_soundvoix(noteat, &mv2a.voices[0]);
+            noteat = mv2_soundvoix(noteat, &mv2a.voices[1]);
+            noteat = mv2_soundvoix(noteat, &mv2a.voices[2]);
+            noteat = mv2_soundvoix(noteat, &mv2a.voices[3]);
+        }
+        
+        mv2_checkefft(&mv2a.voices[0]);
+        mv2_checkefft(&mv2a.voices[1]);
+        mv2_checkefft(&mv2a.voices[2]);
+        mv2_checkefft(&mv2a.voices[3]);
+        
+        memset(audio.muadresse, 0, audio.mutaloop * 2);
+        
+        mv2_soundcal(&mv2a.voices[0]);
+        mv2_soundcal(&mv2a.voices[1]);
+        mv2_soundcal(&mv2a.voices[2]);
+        mv2_soundcal(&mv2a.voices[3]);
+    }
+}
+
+u32 mv2_soundvoix(u32 noteat, sAudioVoice *voice)
+{
+    u32 notedata = xpcread32(noteat);
+    if (notedata != 0)
+    {
+        voice->value = (s16)(notedata >> 0x10);
+        voice->type = (s8)(notedata >> 8);
+        voice->delta = (s8)notedata;
+    }
+    
+    u32 nextat = (noteat + 2);
+    s16 newfreq = xpcread16(noteat);
+    if (newfreq != 0)
+    {
+        u16 instidx = xread8(nextat);
+        instidx &= 0xf0;
+
+        if (BIT_CHK(newfreq, 0xc))
+        {
+            newfreq &= 0xfff;
+            instidx |= 0x100;
+        }
+        
+        instidx >>= 1;
+        instidx -= 8;
+        instidx >>= 3;
+
+        mv2_checkport(nextat, voice);
+        mv2_soundins(voice, newfreq, instidx);
+    }
+    
+    mv2_checkcom(nextat, voice);
+    return nextat + 2;
+}
+
+void mv2_checkport(u32 noteat, sAudioVoice *voice)
+{
+    u8 d2b = xread8(noteat) & 0xf;
+    if (d2b == 3 && voice->freqsam != 0 && -1 < (s16)(voice->freqsam - voice->value))
+    {
+        d2b = -xread8(noteat + 1);
+        voice->delta = d2b;
+    }
+}
+
+void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx)
+{
+    u32 sample = audio.tabinst[instidx].address;
+    s32 tval = audio.tabinst[instidx].unknown;
+    if (tval != 0)
+    {
+        tval += tval;
+        
+        s32 i = 0;
+        for (; i < 0x24; i++)
+        {
+            if (newfreq == mv2a.trkval[i])
+                break;
+        }
+        
+        newfreq = mv2a.trkval[i + tval];
+    }
+    
+    if ((s16)(newfreq - 0x71U) < 0)
+    {
+        newfreq = 0x71;
+    }
+    
+    if (0x357 < newfreq)
+    {
+        newfreq = 0x357;
+    }
+    
+//    mv2_audio->defvolins = instidx;
+    voice->freqsam = newfreq;
+    s16 type = sample == 0 ? -1 : xread8(sample - 0x10);
+    if (type == 2)
+    {
+        voice->sample = sample - 0x10;
+        voice->startsam1 = sample + 0x10;
+        voice->longsam1 = xread32(sample - 0xe) - 0x20;
+        voice->volsam = 0x40; // mv2_audio->defvol[(mv2_audio->defvolins) + 1];
+        voice->startsam2 = ((xread32(sample - 0xe) - 0x10) - xread32(sample - 4)) + sample;
+        voice->longsam2 = xread32(sample - 4) - xread32(sample - 8);
+    }
+//    else if (type == 5) // YM2149
+//    {
+//
+//    }
+//    else if (type == 5) // YM3812
+//    {
+//
+//    }
+    else
+    {
+        voice->startsam1 = 0;
+        voice->longsam1 = 0;
+        voice->volsam = 0;
+        voice->startsam2 = 0;
+        voice->longsam2 = 0;
+        voice->value = 0;
+        voice->type = 0;
+        voice->delta = 0;
+        voice->loopsam = 0;
+    }
+}
+
+void mv2_checkcom(u32 noteat, sAudioVoice *voice)
+{
+    u16 data = xread8(noteat + 1);
+
+    u8 type = xread8(noteat) & 0xf;
+    switch (type)
+    {
+        case 0xb:
+        {
+            mv2a.muptr = data - 1;
+            mv2a.mucnt = 0x40;
+            break;
+        }
+        case 0xc:
+        {
+            if (0x40 < data)
+                data = 0;
+            
+            voice->volsam = data;
+//            mv2_audio->defvol[xread8(noteat) >> 4] = (s8)data;
+            break;
+        }
+        case 0xd:
+        {
+            mv2a.mucnt = 0x40;
+            break;
+        }
+        case 0xf:
+        {
+            u32 newval = (audio.mutempo * (data & 0x1f)) / 0x20;
+            audio.mutemp = (u8)newval;
+            mv2a.muspeed = (u16)newval;
+            break;
+        }
+    };
+}
+
+void mv2_checkefft(sAudioVoice *voice)
+{
+    u16 newval = voice->value;
+    u16 delta = (u16)voice->delta;
+    u8 type = voice->type & 0xf;
+    switch (type)
+    {
+        case 0x1:
+            {
+                newval = voice->freqsam - delta;
+                if ((s16)(newval - 0x71) < 0)
+                {
+                    newval = 0x71;
+                    voice->value = 0;
+                    voice->type = 0;
+                    voice->delta = 0;
+                }
+                
+                voice->freqsam = newval;
+                break;
+            }
+            
+        case 0x2:
+            {
+                newval = voice->freqsam + delta;
+                if (-1 < (s16)(newval - 0x357))
+                {
+                    newval = 0x357;
+                    voice->value = 0;
+                    voice->type = 0;
+                    voice->delta = 0;
+                }
+                
+                voice->freqsam = newval;
+                break;
+            }
+            
+        case 0x3:
+            {
+                if ((s16)delta < 0)
+                {
+                    u16 newfreq = voice->freqsam + delta;
+                    if ((s16)(newfreq - newval) < 0)
+                    {
+                        newfreq = newval;
+                    }
+                    
+                    voice->freqsam = newfreq;
+                }
+                else
+                {
+                    u16 newfreq = voice->freqsam + delta;
+                    if (-1 < (s16)(newfreq - newval))
+                    {
+                        newfreq = newval;
+                    }
+                    
+                    voice->freqsam = newfreq;
+                }
+                break;
+            }
+
+        case 0x5:
+        case 0x6:
+        case 0xa:
+            {
+                if (delta >> 4 == 0)
+                {
+                    voice->volsam -= (delta & 0xf);
+                    if ((s16)voice->volsam < 0)
+                    {
+                        voice->volsam = 0;
+                    }
+                }
+                else
+                {
+                    voice->volsam = (delta >> 4) + voice->volsam;
+                    if (0x40 < voice->volsam)
+                    {
+                        voice->volsam = 0x40;
+                    }
+                }
+                break;
+            }
+    };
+}
+
+void mv2_offmusic(u32 much)
+{
+    audio.muchute = much;
+    if (audio.muchute == 0)
+    {
+        mv2_stopmusic();
+    }
+    else
+    {
+        audio.muvol = mv2a.muvolgen;
+        mv2a.mubufc = audio.muchute;
+        mv2a.mubreak = 1;
+    }
+}
+
+void mv2_stopmusic(void)
+{
+    audio.muflag = 0;
+//    mv2a.mubreak = 0;
+}
+
+void mv2_onmusic(void)
+{
+    mv2a.mubufa = audio.muattac;
+    audio.muflag = 1;
+}
+
+s16 f_volume(s16 volsam)
+{
+    // ST/STE
+    s16 volume = ((u16)(volsam * mv2a.muvolgen) >> 6) - 1;
+    
+    // Falcon
+//    s16 volume = ((u16)(volsam * ((u16)(mv2_audio->muvolgen + 1) >> 1)) >> 6) - 1;
+    return volume < 0 ? 0 : volume << 8;
+}
+
+// a1 - 0x16
+void f_updatevoice(sAudioVoice *voice, u32 smpstart, u32 smplength)
+{
+    if (voice->loopsam == 0)
+    {
+        voice->startsam1 = 0;
+        voice->longsam1 = 0;
+        voice->volsam = 0;
+        voice->startsam2 = 0;
+        voice->longsam2 = 0;
+        voice->value = 0;
+        voice->type = 0;
+        voice->delta = 0;
+        voice->loopsam = 0;
+    }
+    else
+    {
+        voice->startsam1 = smpstart;
+        voice->longsam1 = smplength;
+    }
+}
+
+void mv2_soundcal(sAudioVoice *voice)
+{
+    u32 freq;
+    s16 freqsam = voice->freqsam;
+    if (freqsam < 0)
+    {
+        freqsam = -freqsam;
+        freqsam = freqsam >> 2;
+        freq = mv2a.tabfrq[freqsam] >> 2;
+    }
+    else
+    {
+        freq = mv2a.tabfrq[freqsam];
+    }
+
+    u32 startsam1 = voice->startsam1;
+    u32 longsam1 = voice->longsam1;
+    u16 volsam = f_volume(voice->volsam);
+    u32 startsam2 = voice->startsam2;
+    u32 longsam2 = voice->longsam2 - 1;
+    u16 frqlo = freq & 0xffff;
+    u16 frqhi = freq >> 0x10;
+    if ((s32)longsam2 < 1)
+    {
+        longsam2 = 0;
+        freq = 0;
+    }
+
+    u16 prevlongsam1;
+    
+    u8 volsam2 = volsam >> 8;
+    
+    float volsamf = (float)volsam2 / (float)0x3f;
+    volsamf *= 64;
+
+    u16 frqto = 0;
+    bool frqnxt;
+    
+    u32 sample = voice->sample;
+    u32 lengthX = xread32(sample + 2) - 0x11;
+    u32 smpbegX = sample + 0x10;
+    u32 smpendX = smpbegX + lengthX;
+    
+    for (int index = 0; index < audio.mutaloop; index ++)
+    {
+        frqnxt = frqto < frqlo;
+        frqto -= frqlo;
+        
+        prevlongsam1 = (u16)longsam1;
+        
+        longsam1 -= (frqnxt + frqhi);
+        if (prevlongsam1 < frqhi || (frqnxt && prevlongsam1 == frqhi))
+        {
+            frqlo = freq & 0xffff;
+            frqhi = freq >> 0x10;
+            longsam1 = longsam2;
+            startsam1 = startsam2;
+            if (longsam2 == 0)
+                break;
+        }
+        
+        s32 test3 = smpendX - (startsam1 + longsam1);
+        s8 sam = xread8(startsam1 + test3 - 0x10);
+//        s8 sam = xread8(startsam1 + longsam1);
+
+        int total = audio.muadresse[index] + (sam * volsamf);
+        if (total < -32768)
+            total = -32768;
+        
+        if (total > 32767)
+            total = 32767;
+        
+        audio.muadresse[index] = total;
+    }
+
+    voice->longsam1 = longsam1;
+    voice->startsam1 = startsam1;
+}
+

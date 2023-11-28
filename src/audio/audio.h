@@ -60,24 +60,9 @@ typedef struct {
 } sAudioVoice;
 
 typedef struct {
-    
+
     sAudioInstrument tabinst[128];
-    sAudioInstrument *tinstrum;
     
-    u32 tabfrq[0x358];
-    
-    sAudioVoice voices[4];
-    
-    u16 defvolins;
-    u8 defvol[32];
-    s16 trkval[36];
-    
-    s8 tabvol[0x4000 * 2];
-    
-    s16 prevmufreq;
-    s16 prevmuvol;
-    
-    u16 muflag;
     u32 mupnote;
     u8 muvolume;
     u16 maxvolume;
@@ -88,42 +73,29 @@ typedef struct {
     u16 muattac;
     u16 muchute;
     s16 muduree;
-    u16 mutype;
-    u16 mufreq;
-    u16 muchip;
-    u16 muopl2;
     u16 dattac;
     u16 dchute;
-    
-    u16 muptr;
-    u16 mumax;
-    u16 mucnt;
-    u16 mubufa;
-    u16 mubufc;
-    u16 muvar;
-    u16 muspeed;
-    u16 muvolgen;
-    u16 mubreak;
-    u16 mutadata;
+
+    u16 muflag;
     u16 mutaloop;
-    s16 muadresse[1024 * 1024];
-    
-    u32 frqmod;
-    u16 samples;
+    s16 muadresse[0xffff];
     u32 smpidx;
+
+    void (*soundrout)(void);
     
 } sAudio;
 
 extern sAudio audio;
 
-void xgomusic(void);
-
 void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop);
 void playsound(eChannelType type, u8 pereson, u8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson);
-void playmusic(void);
 
-void f_offmusic(void);
-void f_stopmusic(void);
-void f_onmusic(void);
+// older music variant (atari st/amiga ishar and older)
 
-void f_soundrout(void);
+void mv1_gomusic(void);
+void mv1_offmusic(u32 much);
+
+// newer music variant (ishar 1 falcon/dos and later)
+
+void mv2_gomusic(void);
+void mv2_offmusic(u32 much);

@@ -64,15 +64,13 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
-//        debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
-        printf(" %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+        debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         return opcode.fptr();
     }
 }
 
 alisRet readexec_opcode(void) {
-//    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
-    printf("\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
     return readexec(opcodes, "opcode", 0);
 }
 

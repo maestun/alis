@@ -2183,7 +2183,6 @@ static void cmusic(void) {
     u8 type = xread8(alis.script->data->data_org + addr);
     if (type == 0 || type == 3)
     {
-        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
         audio.muvolume = 0;
 
         audio.mupnote = alis.script->data->data_org + addr + 6;
@@ -2207,14 +2206,14 @@ static void cmusic(void) {
             audio.dchute = audio.maxvolume / audio.muchute;
         }
 
-        u8 test = xread8(audio.mupnote - 6);
-        if (test == 0)
+        u8 type = xread8(audio.mupnote - 6);
+        if (type == 0)
         {
-            xgomusic();
+            mv1_gomusic();
         }
         else
         {
-//            FUN_00015d60();
+            debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
         }
 
         audio.mustate = 1;
@@ -2248,7 +2247,7 @@ static void cmusic(void) {
         }
 
         audio.muvolume = audio.maxvolume >> 8;
-        playmusic();
+        mv2_gomusic();
         audio.mustate = 1;
     }
     else
@@ -2258,18 +2257,26 @@ static void cmusic(void) {
         readexec_opername();
         readexec_opername();
         readexec_opername();
+        
+        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     }
 }
 
 static void cdelmusic(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
-    audio.muchute = alis.varD7;
-    f_offmusic();
+
+    u8 type = xread8(audio.mupnote - 6);
+    if (type == 0 || type == 3)
+    {
+        mv1_offmusic(alis.varD7);
+    }
+    else if (type == 4)
+    {
+        mv2_offmusic(alis.varD7);
+    }
 }
 
 static void ccadence(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
     s16 tempo = alis.varD7;
     if (tempo == 0)
@@ -2280,11 +2287,20 @@ static void ccadence(void) {
 }
 
 static void csetvolum(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
     audio.muvolume = alis.varD7;
     *(u8 *)&audio.maxvolume = alis.varD7;
     audio.muvol = ((audio.muvolume) >> 1) + 1;
+
+    if (audio.muattac != 0)
+    {
+        audio.dattac = audio.maxvolume / audio.muattac;
+    }
+    
+    if (audio.muchute != 0)
+    {
+        audio.dchute = audio.maxvolume / audio.muchute;
+    }
 }
 
 static void cxinv(void) {

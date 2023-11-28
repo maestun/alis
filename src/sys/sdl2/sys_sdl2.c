@@ -87,7 +87,7 @@ void sys_init(void) {
     desired_spec->freq = 44100;
     desired_spec->format = AUDIO_U16;
     desired_spec->channels = 1;
-    desired_spec->samples = 0xff;//2646; // 60ms
+    desired_spec->samples = desired_spec->freq / 50; // 20 ms
     desired_spec->callback = sys_audio_callback;
     desired_spec->userdata = NULL;
     
@@ -259,7 +259,7 @@ static u8 *samplebuffer[1024 * 1024 * 4];
 
 void sys_audio_callback(void *userdata, Uint8 *s, int length)
 {
-    // TODO: create chanels structure holding info about sounds to be played
+    // TODO: create channels structure holding info about sounds to be played
     // type: (smaple, sound, noise, ...)
     // start: (playback start time, use it to calculate what to copy in to the stream)
     // frequency: we will have to do some interpolation to play at correct speed
@@ -287,6 +287,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
 
     int smpidx = 0;
 
+    // TODO: mix music with the sounds
     if (audio.muflag > 0)
     {
         int smprem = length;
@@ -297,16 +298,9 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
         
         if (audio.smpidx)
         {
-//            len --;
             int smpcopy = min(audio.smpidx, smprem);
             
             memcpy(s, (u8 *)audio.muadresse + (buflen - audio.smpidx), smpcopy);
-            
-//            u8 *src = (u8 *)audio.muadresse + (buflen - audio.smpidx);
-//            u8 *tgt = s;
-//
-//            for (int x = 0; x < smpcopy; x++)
-//                *tgt++ = *src++;
 
             smpidx += smpcopy;
             smprem -= smpcopy;
@@ -322,12 +316,6 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
             
             memcpy(s + smpidx, audio.muadresse, smpcopy);
             
-//            u8 *src = (u8 *)audio.muadresse;
-//            u8 *tgt = (u8 *)s + smpidx;
-//
-//            for (int x = 0; x < smpcopy; x++)
-//                *tgt++ = *src++;
-
             smpidx += smpcopy;
             smprem -= smpcopy;
             
@@ -564,13 +552,13 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
     }
     
 //    // NOTE: just for checking
-//    
+//
 //    u8 *src = (u8 *)s;
 //    u8 *tgt = (u8 *)samplebuffer + samplelength;
-//    
+//
 //    for (int x = 0; x < length; x++)
 //        *tgt++ = *src++;
-//    
+//
 //    samplelength += length;
 //
 //    if (samplelength >= 1024 * 1024 * 1)

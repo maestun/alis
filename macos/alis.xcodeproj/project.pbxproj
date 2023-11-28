@@ -12,11 +12,12 @@
 		0981CBD3250B46970097F862 /* escnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCF250B46970097F862 /* escnames.c */; };
 		0981CBD4250B46970097F862 /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
 		6808EE05297069760045BA8A /* image.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* image.c */; };
+		6816E8042B15217600F0D314 /* music_v1.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E8032B15217600F0D314 /* music_v1.c */; };
+		6816E8072B15219400F0D314 /* music_v2.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E8062B15219400F0D314 /* music_v2.c */; };
+		6816E8162B158FF100F0D314 /* ayumi.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E80D2B158FD200F0D314 /* ayumi.c */; };
 		685EBE252A52033800E4F465 /* screen.c in Sources */ = {isa = PBXBuildFile; fileRef = 685EBE242A52033800E4F465 /* screen.c */; };
 		6879D5842A942A4F0067C22A /* channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5832A942A4F0067C22A /* channel.c */; };
 		6879D5932AADB5E40067C22A /* audio.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5922AADB5E30067C22A /* audio.c */; };
-		6879D5962AADFC260067C22A /* ayumi.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5942AADFC260067C22A /* ayumi.c */; };
-		6879D5992AB25B170067C22A /* emu2149.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5972AB25B160067C22A /* emu2149.c */; };
 		68AC2DA32A5F52B60046C6EB /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68AC2DA12A5F52B60046C6EB /* platform.c */; };
 		68AC2DA72A5F52EF0046C6EB /* unpack.c in Sources */ = {isa = PBXBuildFile; fileRef = 68AC2DA62A5F52EF0046C6EB /* unpack.c */; };
 		8B26B69B256D4F7500477B72 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B7D7B27256D40C400DAA932 /* SDL2.framework */; };
@@ -60,16 +61,26 @@
 		0981CBD5250B470E0097F862 /* alis_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = alis_private.h; sourceTree = "<group>"; };
 		6808EE03297069760045BA8A /* image.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = image.h; sourceTree = "<group>"; };
 		6808EE04297069760045BA8A /* image.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = image.c; sourceTree = "<group>"; };
+		6816E8032B15217600F0D314 /* music_v1.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v1.c; sourceTree = "<group>"; };
+		6816E8062B15219400F0D314 /* music_v2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v2.c; sourceTree = "<group>"; };
+		6816E80A2B158FD200F0D314 /* load_text.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = load_text.c; sourceTree = "<group>"; };
+		6816E80B2B158FD200F0D314 /* fym_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = fym_to_text.py; sourceTree = "<group>"; };
+		6816E80C2B158FD200F0D314 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		6816E80D2B158FD200F0D314 /* ayumi.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ayumi.c; sourceTree = "<group>"; };
+		6816E80E2B158FD200F0D314 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		6816E80F2B158FD200F0D314 /* load_text.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = load_text.h; sourceTree = "<group>"; };
+		6816E8102B158FD200F0D314 /* psg_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = psg_to_text.py; sourceTree = "<group>"; };
+		6816E8112B158FD200F0D314 /* afx_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = afx_to_text.py; sourceTree = "<group>"; };
+		6816E8122B158FD200F0D314 /* ayumi_render.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ayumi_render.c; sourceTree = "<group>"; };
+		6816E8132B158FD200F0D314 /* ayumi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ayumi.h; sourceTree = "<group>"; };
+		6816E8142B158FD200F0D314 /* ayumi_render_gui.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ayumi_render_gui.py; sourceTree = "<group>"; };
+		6816E8152B158FD200F0D314 /* ym_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ym_to_text.py; sourceTree = "<group>"; };
 		685EBE232A52033800E4F465 /* screen.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = screen.h; sourceTree = "<group>"; };
 		685EBE242A52033800E4F465 /* screen.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = screen.c; sourceTree = "<group>"; };
 		6879D5822A942A4F0067C22A /* channel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = channel.h; sourceTree = "<group>"; };
 		6879D5832A942A4F0067C22A /* channel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = channel.c; sourceTree = "<group>"; };
 		6879D5912AADB5E30067C22A /* audio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = audio.h; sourceTree = "<group>"; };
 		6879D5922AADB5E30067C22A /* audio.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = audio.c; sourceTree = "<group>"; };
-		6879D5942AADFC260067C22A /* ayumi.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ayumi.c; path = ayumi/ayumi.c; sourceTree = "<group>"; };
-		6879D5952AADFC260067C22A /* ayumi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ayumi.h; path = ayumi/ayumi.h; sourceTree = "<group>"; };
-		6879D5972AB25B160067C22A /* emu2149.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = emu2149.c; path = emu2149/emu2149.c; sourceTree = "<group>"; };
-		6879D5982AB25B170067C22A /* emu2149.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = emu2149.h; path = emu2149/emu2149.h; sourceTree = "<group>"; };
 		68AC2DA12A5F52B60046C6EB /* platform.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = platform.c; sourceTree = "<group>"; };
 		68AC2DA22A5F52B60046C6EB /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		68AC2DA52A5F52EF0046C6EB /* unpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unpack.h; sourceTree = "<group>"; };
@@ -106,6 +117,36 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		6816E8092B158FD200F0D314 /* ayumi */ = {
+			isa = PBXGroup;
+			children = (
+				6816E80A2B158FD200F0D314 /* load_text.c */,
+				6816E80B2B158FD200F0D314 /* fym_to_text.py */,
+				6816E80C2B158FD200F0D314 /* LICENSE */,
+				6816E80D2B158FD200F0D314 /* ayumi.c */,
+				6816E80E2B158FD200F0D314 /* README.md */,
+				6816E80F2B158FD200F0D314 /* load_text.h */,
+				6816E8102B158FD200F0D314 /* psg_to_text.py */,
+				6816E8112B158FD200F0D314 /* afx_to_text.py */,
+				6816E8122B158FD200F0D314 /* ayumi_render.c */,
+				6816E8132B158FD200F0D314 /* ayumi.h */,
+				6816E8142B158FD200F0D314 /* ayumi_render_gui.py */,
+				6816E8152B158FD200F0D314 /* ym_to_text.py */,
+			);
+			path = ayumi;
+			sourceTree = "<group>";
+		};
+		6816E8172B15902300F0D314 /* audio */ = {
+			isa = PBXGroup;
+			children = (
+				6879D5912AADB5E30067C22A /* audio.h */,
+				6879D5922AADB5E30067C22A /* audio.c */,
+				6816E8032B15217600F0D314 /* music_v1.c */,
+				6816E8062B15219400F0D314 /* music_v2.c */,
+			);
+			path = audio;
+			sourceTree = "<group>";
+		};
 		8B28A60F25076CC800E3F0FF = {
 			isa = PBXGroup;
 			children = (
@@ -154,17 +195,13 @@
 		8B9C400D250921E900C947F9 /* alis */ = {
 			isa = PBXGroup;
 			children = (
+				6816E8172B15902300F0D314 /* audio */,
+				6816E8092B158FD200F0D314 /* ayumi */,
 				8B7D7B13256D3ECA00DAA932 /* sys */,
 				0981CBCE250B46970097F862 /* addnames.c */,
 				8B9C400E250921E900C947F9 /* alis.h */,
 				0981CBD5250B470E0097F862 /* alis_private.h */,
 				8B9C400F250921E900C947F9 /* alis.c */,
-				6879D5912AADB5E30067C22A /* audio.h */,
-				6879D5922AADB5E30067C22A /* audio.c */,
-				6879D5942AADFC260067C22A /* ayumi.c */,
-				6879D5952AADFC260067C22A /* ayumi.h */,
-				6879D5972AB25B160067C22A /* emu2149.c */,
-				6879D5982AB25B170067C22A /* emu2149.h */,
 				6879D5822A942A4F0067C22A /* channel.h */,
 				6879D5832A942A4F0067C22A /* channel.c */,
 				8B9C402D250A2AEF00C947F9 /* config.h */,
@@ -249,8 +286,7 @@
 				68AC2DA72A5F52EF0046C6EB /* unpack.c in Sources */,
 				6879D5932AADB5E40067C22A /* audio.c in Sources */,
 				0981CBD1250B46970097F862 /* storenames.c in Sources */,
-				6879D5962AADFC260067C22A /* ayumi.c in Sources */,
-				6879D5992AB25B170067C22A /* emu2149.c in Sources */,
+				6816E8072B15219400F0D314 /* music_v2.c in Sources */,
 				0981CBD2250B46970097F862 /* addnames.c in Sources */,
 				6879D5842A942A4F0067C22A /* channel.c in Sources */,
 				8B9C4047250A721D00C947F9 /* sys_sdl2.c in Sources */,
@@ -258,12 +294,14 @@
 				8B9C402C250A2A8F00C947F9 /* main.c in Sources */,
 				8B9C401B250A2A5B00C947F9 /* alis.c in Sources */,
 				6808EE05297069760045BA8A /* image.c in Sources */,
+				6816E8162B158FF100F0D314 /* ayumi.c in Sources */,
 				685EBE252A52033800E4F465 /* screen.c in Sources */,
 				0981CBD4250B46970097F862 /* opernames.c in Sources */,
 				8B9C403B250A3E5200C947F9 /* script.c in Sources */,
 				8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */,
 				0981CBD3250B46970097F862 /* escnames.c in Sources */,
 				68AC2DA32A5F52B60046C6EB /* platform.c in Sources */,
+				6816E8042B15217600F0D314 /* music_v1.c in Sources */,
 				8B9C4044250A6AC200C947F9 /* debug.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
