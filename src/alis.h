@@ -49,7 +49,6 @@
 
 #define ENTSCR(x) alis.live_scripts[x / sizeof(sScriptLoc)]
 
-
 // =============================================================================
 // MARK: - ERROR CODES
 // =============================================================================
@@ -244,13 +243,13 @@ typedef struct {
     u16             varD5;
     
     // string buffers
-    u8 *            bsd7;
-    u8 *            bsd6;
-    u8 *            bsd7bis;
+    char *          bsd7;
+    char *          bsd6;
+    char *          bsd7bis;
     
-    u8 *            sd7;
-    u8 *            sd6;
-    u8 *            oldsd7;
+    char *          sd7;
+    char *          sd6;
+    char *          oldsd7;
 
     // data buffers
     u8              buffer[1024];

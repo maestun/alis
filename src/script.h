@@ -202,7 +202,7 @@ u8              script_read8(void);
 u16             script_read16(void);
 u32             script_read24(void);
 void            script_read_bytes(u32 len, u8 * dest);
-void            script_read_until_zero(u8 * dest);
+void            script_read_until_zero(char * dest);
 void            script_jump(s32 offset);
 
 // void            script_debug(sAlisScriptData * script);

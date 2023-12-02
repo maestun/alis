@@ -47,6 +47,8 @@ extern u8 ftopal;
 extern u8 thepalet;
 extern u8 defpalet;
 
+extern u8 mpalet[768 * 4];
+
 int putdataidx = 0;
 
 s16 putdata[][4] = {
@@ -226,7 +228,7 @@ static void cret(void);
 // ============================================================================
 
 static void cstore_continue(void) {
-    u8 *tmp = alis.sd7;
+    char *tmp = alis.sd7;
     alis.sd7 = alis.oldsd7;
     alis.oldsd7 = tmp;
     
@@ -427,12 +429,10 @@ static void cleave(void) {
     else
     {
         alis.script->vacc_off = get_0x0c_vacc_offset(alis.script->vram_org);
-        debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
         if (alis.script->vacc_off != 0)
         {
             set_0x0c_vacc_offset(alis.script->vram_org, 0);
-            alis.script->pc = xread32(alis.script->vram_org + alis.script->vacc_off);
-            debug(EDebugInfo, " (7NAME: %s, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vacc_off, alis.script->pc);
+            alis.script->pc = alis.script->pc_org + xpop32();
             return;
         }
     }
@@ -751,7 +751,7 @@ static void cload(void) {
         // not main script, depack and load into vm
         char path[kPathMaxLen] = {0};
         strcpy(path, alis.platform.path);
-        script_read_until_zero((u8 *)(path + strlen(alis.platform.path)));
+        script_read_until_zero((path + strlen(alis.platform.path)));
         strcpy(strrchr(path, '.') + 1, alis.platform.ext);
         script_load(strlower((char *)path));
     }
@@ -1624,7 +1624,33 @@ static void cpalette(void) {
 }
 
 static void cdefcolor(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    readexec_opername();
+    readexec_opername_saveD6();
+
+    u8 *rawcolor = (u8 *)&(alis.varD6);
+    
+    u8 r, g, b;
+    if (alis.platform.kind == EPlatformAmiga)
+    {
+        r = (rawcolor[0] & 0b00001111) << 4;
+        g = (rawcolor[1] >> 4) << 4;
+        b = (rawcolor[1] & 0b00001111) << 4;
+    }
+    else
+    {
+        r = (rawcolor[0] & 0b00000111) << 5;
+        g = (rawcolor[1] >> 4) << 5;
+        b = (rawcolor[1] & 0b00000111) << 5;
+    }
+    
+    s16 index = alis.varD7 * 3;
+    mpalet[index + 0] = r;
+    mpalet[index + 1] = g;
+    mpalet[index + 2] = b;
+    
+    setmpalet();
 }
 
 static void ctiming(void) {
@@ -1745,12 +1771,12 @@ static void cfopen(void) {
         readexec_opername_swap();
         readexec_opername();
 
-        strcat(path, (char *)alis.sd7);
+        strcat(path, alis.sd7);
         mode = alis.varD7;
     }
     else
     {
-        script_read_until_zero((u8 *)(path + strlen(alis.platform.path)));
+        script_read_until_zero((path + strlen(alis.platform.path)));
         mode = script_read16();
     }
 
@@ -1869,7 +1895,25 @@ static void cfwriteb(void) {
 }
 
 static void cplot(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    
+    readexec_opername();
+    readexec_opername_saveD6();
+    
+    alis.poldx = alis.varD7;
+    alis.poldy = alis.varD6;
+    
+//    SYS_PutPixel();
+}
+
+void io_drawline(short x1,short y1,short x2,short y2)
+{
+    // TODO: implement me
+}
+
+void io_boxf(short x1,short y1,short x2,short y2)
+{
+    // TODO: implement me
 }
 
 static void cdraw(void) {
@@ -1878,21 +1922,46 @@ static void cdraw(void) {
     readexec_opername();
     readexec_opername_saveD6();
     
-    s16 prevx = alis.poldx;
-    s16 prevy = alis.poldy;
+    s16 oldx = alis.poldx;
+    s16 oldy = alis.poldy;
     
     alis.poldx += alis.varD7;
     alis.poldy += alis.varD6;
     
-    // io_line(prevx, prevy);
+    io_drawline(oldx, oldy, alis.poldx, alis.poldy);
 }
 
 static void cbox(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    
+    readexec_opername();
+    readexec_opername_saveD6();
+    
+    s16 oldx = alis.poldx;
+    s16 oldy = alis.poldy;
+
+    alis.poldx += alis.varD7;
+    alis.poldy += alis.varD6;
+
+    io_drawline(oldx, oldy, alis.poldx, oldy);
+    io_drawline(oldx, oldy, oldx, alis.poldy);
+    io_drawline(alis.poldx, oldy, alis.poldx, alis.poldy);
+    io_drawline(oldx, alis.poldy, alis.poldx, alis.poldy);
 }
 
 static void cboxf(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    
+    readexec_opername();
+    readexec_opername_saveD6();
+    
+    s16 oldx = alis.poldx;
+    s16 oldy = alis.poldy;
+
+    alis.poldx += alis.varD7;
+    alis.poldy += alis.varD6;
+
+    io_boxf(oldx, oldy, alis.poldx, alis.poldy);
 }
 
 static void cink(void) {
@@ -1911,7 +1980,11 @@ static void cpmove(void) {
 }
 
 static void cpmode(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+
+    readexec_opername();
+    // u8 pmode = alis.varD7;
+    // io_mode(); sets pal line start
 }
 
 static void cpicture(void) {
@@ -2541,7 +2614,7 @@ void oval(void);
 void getval(void)
 {
     u8 c;
-    u8 *ptr = alis.sd7;
+    char *ptr = alis.sd7;
     while (1)
     {
         c = getchar();
@@ -2583,7 +2656,7 @@ static void cvinput(void) {
 void getstring(void)
 {
     u8 c;
-    u8 *ptr = alis.sd7;
+    char *ptr = alis.sd7;
     while (1)
     {
         c = getchar();
@@ -2626,7 +2699,7 @@ static void crunfilm(void) {
 
 void printd0(s16 d0w)
 {
-    u8 *ptr = alis.sd7;
+    char *ptr = alis.sd7;
     valtostr(alis.sd7, d0w);
     
     while (*ptr != 0)
@@ -2692,8 +2765,6 @@ static void ctoblack(void) {
     s16 duration = alis.varD6;
     toblackpal(duration);
 }
-
-extern u8 mpalet[768 * 4];
 
 s16 subcol(s16 change, s16 component)
 {
@@ -3034,22 +3105,25 @@ void rescmode(u8 *a0)
   *(u8 *)(SPRITEMEM_PTR + 1 + *(s16 *)(a0 + 2)) = a0[1];
 }
 
+s16 starbuff[8];
+
 static void cbackstar(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
     readexec_opername();
-    s16 d0w = alis.varD7;
+    starbuff[0] = alis.varD7;
     readexec_opername();
-    s16 d1w = alis.varD7;
+    starbuff[1] = alis.varD7;
     readexec_opername();
-    s16 d2w = alis.varD7;
+    starbuff[2] = alis.varD7;
     readexec_opername();
-    s16 d3w = alis.varD7;
+    starbuff[3] = alis.varD7;
     readexec_opername();
-    s16 d6w = alis.varD7;
+    starbuff[4] = alis.varD7;
     readexec_opername();
-    s16 d7w = alis.varD7;
-    
+    starbuff[5] = alis.varD7;
+    starbuff[6] = 0;
+
     // TODO: those values are read later in some other opcode/operand ...
 
 //    if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
@@ -3057,10 +3131,9 @@ static void cbackstar(void) {
 //        u8 *screen = (alis.mem + alis.basemain + get_0x16_screen_id(alis.script->vram_org));
 //        screen[1] &= 0xf7;
 //        screen[1] &= 0xef;
-//        if (d0w != 0)
+//        if (stararray[0] != 0)
 //        {
-//            screen[1] |= 8;
-//            screen[1] |= 0x10;
+//            screen[1] |= 0x18;
 //            rescmode(screen);
 //        }
 //    }
@@ -3070,13 +3143,26 @@ static void cstarring(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
     readexec_opername();
+    starbuff[0] = alis.varD7;
     readexec_opername();
+    starbuff[1] = alis.varD7;
     readexec_opername();
+    starbuff[2] = alis.varD7;
     readexec_opername();
-    readexec_opername();
-    readexec_opername();
-    readexec_opername();
-    readexec_opername();
+    
+    // not used in colorado
+    if (alis.platform.game != EGameColorado)
+    {
+        starbuff[3] = alis.varD7;
+        readexec_opername();
+        starbuff[4] = alis.varD7;
+        readexec_opername();
+        starbuff[5] = alis.varD7;
+        readexec_opername();
+        starbuff[6] = alis.varD7;
+        readexec_opername();
+        starbuff[7] = alis.varD7;
+    }
 }
 
 static void cengine(void) {
@@ -4390,12 +4476,13 @@ void shrinkprog(s32 start, s32 length, u16 id)
                 script->vacc_off = -0x34 - xread16(org_offset + 0x16);
                 debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
 
-                while (get_0x0a_vacc_offset(script->vram_org) < script->vacc_off)
-                {
-                    script->vacc_off -= 4;
-                    xsub32(script->vram_org + script->vacc_off, length);
-                    debug(EDebugInfo, " [%.8x => va %.4x + %.6x (%.6x)]", xread32(script->vram_org + script->vacc_off), (s16)script->vacc_off, script->vram_org, script->vacc_off + script->vram_org);
-                }
+                // NOTE: no longer needed, we are calculating proper value using script start location
+//                while (get_0x0a_vacc_offset(script->vram_org) < script->vacc_off)
+//                {
+//                    script->vacc_off -= 4;
+//                    xsub32(script->vram_org + script->vacc_off, length);
+//                    debug(EDebugInfo, " [%.8x => va %.4x + %.6x (%.6x)]", xread32(script->vram_org + script->vacc_off), (s16)script->vacc_off, script->vram_org, script->vacc_off + script->vram_org);
+//                }
             }
             else
             {

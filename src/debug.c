@@ -50,11 +50,16 @@ void debug(EDebugLevel level, char * format, ...) {
     if(level <= DEBUG_LEVEL) {
         va_list arg;
         va_start(arg, format);
+        vdebug(level, format, arg);
+        va_end(arg);
+    }
+}
+void vdebug(EDebugLevel level, char * format, va_list args) {
+    if(level <= DEBUG_LEVEL) {
         printf("%s%s ", debug_colors[level], debug_prefix[level]);
-        vprintf(format, arg);
+        vprintf(format, args);
         printf("%s", ANSI_COLOR_RESET);
         fflush(stdout);
-        va_end(arg);
     }
 }
 #else

@@ -1094,7 +1094,7 @@ void put_char(s8 character)
 
 void put_string(void)
 {
-    for (u8 *strptr = alis.sd7; *strptr; strptr++)
+    for (char *strptr = alis.sd7; *strptr; strptr++)
     {
         put_char(*strptr);
     }
@@ -1102,10 +1102,10 @@ void put_string(void)
 
 u32 tprintd0[] = { 0x3b9aca00, 0x05f5e100, 0x00989680, 0x000f4240, 0x000186a0, 0x00002710, 0x000003e8, 0x00000064, 0x0000000a, 0x00000001 };
 
-void valtostr(u8 *string, s16 value)
+void valtostr(char *string, s16 value)
 {
-    u8 *strptr = string;
-    u8 *tmpptr;
+    char *strptr = string;
+    char *tmpptr;
 
     s32 tmpval = value;
     if (tmpval < 0)
@@ -2995,7 +2995,13 @@ void draw(void)
 //        while (((fmouse != 0) && (-1 < fmouse)) && ((void)(fremouse = prevmouse + 1), fremouse != 0));
 //
         physic = logic;
-        logic = oldphys;
+        
+        // NOTE: targhan doesn't use double buffering
+        if (alis.platform.game != EGameTarghan)
+        {
+            logic = oldphys;
+        }
+        
         setphysic();
         
 //        if ((fmouse != 0) && (-1 < fmouse))

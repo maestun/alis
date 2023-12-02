@@ -41,12 +41,12 @@ sHost host;
 sAlisError errors[] = {
     { ALIS_ERR_FOPEN,   "fopen", "Failed to open file %s\n" },
     { ALIS_ERR_FWRITE,  "fwrite", "Failed to write to file %s\n" },
-    { ALIS_ERR_FCREATE, "fcreate", "" },
-    { ALIS_ERR_FDELETE, "fdelete", "" },
+    { ALIS_ERR_FCREATE, "fcreate", "Failed to create file %s\n" },
+    { ALIS_ERR_FDELETE, "fdelete", "Failed to delete file %s\n" },
     { ALIS_ERR_CDEFSC,  "cdefsc", "" },
-    { ALIS_ERR_FREAD,   "fread", "" },
-    { ALIS_ERR_FCLOSE,  "fclose", "" },
-    { ALIS_ERR_FSEEK,   "fseek", "" }
+    { ALIS_ERR_FREAD,   "fread", "Failed to read file %s\n" },
+    { ALIS_ERR_FCLOSE,  "fclose", "Failed to close file" },
+    { ALIS_ERR_FSEEK,   "fseek", "Failed to seek in file %s\n" }
 };
 
 // void vram_debug(void);
@@ -56,7 +56,7 @@ sAlisError errors[] = {
 // =============================================================================
 alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
     
-    if(alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
+    if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
         debug(EDebugFatal, "PC OVERFLOW !");
     }
@@ -87,7 +87,7 @@ alisRet readexec_addname(void) {
 }
 
 alisRet readexec_addname_swap(void) {
-    u8 * tmp = alis.sd7;
+    char *tmp = alis.sd7;
     alis.sd7 = alis.oldsd7;
     alis.oldsd7 = tmp;
     
@@ -114,7 +114,7 @@ alisRet readexec_opername_saveD6(void) {
 }
 
 alisRet readexec_opername_swap(void) {
-    u8 * tmp = alis.sd7;
+    char *tmp = alis.sd7;
     alis.sd7 = alis.sd6;
     alis.sd6 = tmp;
     
@@ -274,9 +274,9 @@ void alis_init(sPlatform platform) {
     alis.varD6 = alis.varD7 = 0;
     
     // init temp chunks
-    alis.bsd7 = alis.mem + 0x1a1e6;
-    alis.bsd6 = alis.mem + 0x1a2e6;
-    alis.bsd7bis = alis.mem + 0x1a3e6;
+    alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
+    alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
+    alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
     
     alis.sd7 = alis.bsd7;
     alis.sd6 = alis.bsd6;
@@ -534,12 +534,23 @@ u8 alis_start(void) {
     return ret;
 }
 
-
 void alis_error(int errnum, ...) {
     va_list args;
     va_start(args, errnum);
-    sAlisError err = errors[errnum];
-    debug(EDebugError, err.descfmt, args);
+    
+    sAlisError err = { 0,0,0 };
+
+    int len = sizeof(errors) / sizeof(sAlisError);
+    for (int e = 0; e < len; e++)
+    {
+        if (errors[e].errnum == errnum)
+        {
+            err = errors[e];
+            break;
+        }
+    }
+    
+    vdebug(EDebugError, err.descfmt, args);
     va_end(args);
     exit(-1);
 }
@@ -860,9 +871,8 @@ s16 tabchar(s16 offset, u8 *address)
     s16 length = *(s8 *)(address + offset - 1);
     for (int i = 0; i < length; i++)
     {
-        result += *(alis.acc) * xswap16(*(--ptr));
-        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, *(alis.acc) * xswap16(*(ptr)));
-        alis.acc++;
+        result += xswap16(*(--ptr)) * *alis.acc++;
+        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
     }
 
     return result;
@@ -875,9 +885,8 @@ s16 tabstring(s16 offset, u8 *address)
     s16 length = *(s8 *)(address + offset - 1);
     for (int i = 0; i < length; i++)
     {
-        result += *(alis.acc) * xswap16(*(--ptr));
-        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, *(alis.acc) * xswap16(*(ptr)));
-        alis.acc++;
+        result += xswap16(*(--ptr)) * *alis.acc++;
+        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
     }
     
     return result;
@@ -890,9 +899,8 @@ s16 tabint(s16 offset, u8 *address)
     s16 length = *(s8 *)(address + offset - 1);
     for (int i = 0; i < length; i++)
     {
-        result += *(alis.acc) * xswap16(*(--ptr));
-        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, *(alis.acc) * xswap16(*(ptr)));
-        alis.acc++;
+        result += xswap16(*(--ptr)) * *alis.acc++;
+        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
     }
     
     return result;

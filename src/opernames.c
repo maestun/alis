@@ -26,6 +26,36 @@
 #include "utils.h"
 
 
+void pop_sd6(void)
+{
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
+    strcpy(alis.sd6, (char *)alis.acc);
+    alis.acc += ((s32)strlen((char *)alis.acc) + 1) / 2;
+}
+
+void pop_sd7(void)
+{
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
+    strcpy(alis.sd7, (char *)alis.acc);
+    alis.acc += ((s32)strlen((char *)alis.acc) + 1) / 2;
+}
+
+void push_sd6(void)
+{
+    s32 len = ((s32)strlen(alis.sd6) + 1) / 2;
+    alis.acc[-1] = 0;
+    alis.acc -= len;
+    strcpy((char *)alis.acc, alis.sd6);
+}
+
+void push_sd7(void)
+{
+    s32 len = ((s32)strlen(alis.sd7) + 1) / 2;
+    alis.acc[-1] = 0;
+    alis.acc -= len;
+    strcpy((char *)alis.acc, alis.sd7);
+}
+
 // =============================================================================
 #pragma mark - TODO: opernames
 // =============================================================================
@@ -43,7 +73,7 @@ void oimmw(void) {
 void oimmp(void) {
     // reads null-terminated data into bssChunk3
     script_read_until_zero(alis.sd7);
-    debug(EDebugVerbose, " [\"%s\" <= sd7]", (char *)alis.sd7);
+    debug(EDebugVerbose, " [\"%s\" <= sd7]", alis.sd7);
 }
 
 void olocb(void) {
@@ -61,13 +91,13 @@ void olocw(void) {
 void olocp(void) {
     s16 offset = script_read16();
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
-    strcpy((char *)alis.sd7, (char *)get_vram(offset));
+    strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 void oloctp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.script->vram_org);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
-    strcpy((char *)alis.sd7, (char *)get_vram(offset));
+    strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 void oloctc(void) {
@@ -99,13 +129,13 @@ void odirw(void) {
 void odirp(void) {
     u8 offset = script_read8();
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
-    strcpy((char *)alis.sd7, (char *)get_vram(offset));
+    strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtp(void) {
     s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
-    strcpy((char *)alis.sd7, (char *)get_vram(offset));
+    strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtc(void) {
@@ -131,13 +161,13 @@ void omainw(void) {
 void omainp(void) {
     s16 offset = script_read16();
     debug(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    strcpy((char *)alis.sd7, (char *)(alis.mem + alis.basemain + offset));
+    strcpy(alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 void omaintp(void) {
     s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    strcpy((char *)alis.sd7, (char *)(alis.mem + alis.basemain + offset));
+    strcpy(alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 void omaintc(void) {
@@ -172,7 +202,7 @@ void ohimp(void) {
 
     s16 offset = script_read16();
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
-    strcpy((char *)alis.sd7, (char *)(alis.mem + vram_addr + offset));
+    strcpy(alis.sd7, (char *)(alis.mem + vram_addr + offset));
 }
 
 void ohimtp(void) {
@@ -191,8 +221,7 @@ void ohimti(void) {
 void opile(void) {
     // save r6 into r7
     alis.varD7 = alis.varD6;
-    alis.varD6 = *(alis.acc);
-    alis.acc++;
+    alis.varD6 = *alis.acc++;
 }
 
 // start eval loop, will stop after ofin() is called
@@ -361,12 +390,11 @@ void ojoy(void) {
 }
 
 void oprnd(void) {
-    u32 result = *(alis.acc);
+    u32 result = *alis.acc++;
     result = (u16)(result << 10 | result >> 6);
     result = (u16)(result * 0x7ab7 - 0x77f);
     result = (alis.varD7 & 0xffff) * result;
     alis.varD7 = result * 0x10000 | result >> 0x10;
-    alis.acc++;
 }
 
 void oscan(void) {
@@ -487,7 +515,37 @@ void oright(void) {
 }
 
 void omid(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    
+    char *src = (char *)(alis.sd7 + *alis.acc++);   // 01a1e6
+
+    printf("\n");
+    s32 t0 = (s32)((u8 *)src - alis.mem);
+    s32 v0 = (s32)((u8 *)alis.acc - alis.mem);
+    printf("$%.6x (", t0);
+    for (int i = 0; i < 64; i++) printf("%c", src[i]); printf(")\n");
+    
+    printf("$%.6x (", v0);       // 000198d6
+    for (int i = 0; i < 64; i++) printf("%c", alis.acc[i]); printf(")\n");
+
+    pop_sd7();
+
+    char *tgt = alis.sd7;
+    s32 t1 = (s32)((u8 *)tgt - alis.mem);
+    s32 v1 = (s32)((u8 *)alis.acc - alis.mem);
+    printf("$%.6x (", t1);
+    for (int i = 0; i < 64; i++) printf("%c", tgt[i]); printf(")\n");
+
+    printf("$%.6x (", v1);       // 000198e2
+    for (int i = 0; i < 64; i++) printf("%c", alis.acc[i]); printf(")\n");
+
+    s16 tgtlen = alis.varD7 - 1;
+    if (tgtlen)
+    {
+        sleep(0);
+    }
+    
+//    strncat(tgt, src, tgtlen);
 }
 
 void olen(void) {
@@ -508,62 +566,55 @@ void osadd(void) {
     
     readexec_opername_swap();
     
-    strcat((char *)alis.sd6, (char *)alis.sd7);
+    strcat(alis.sd6, alis.sd7);
 
-    u8 *tmp = alis.sd6;
+    char *tmp = alis.sd6;
     alis.sd6 = alis.sd7;
     alis.sd7 = tmp;
 }
 
 void osegal(void) {
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) ? 0 : -1;
+    alis.varD7 = strcmp(alis.sd6, alis.sd7) ? 0 : -1;
 }
 
 void osdiff(void) {
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) ? -1 : 0;
+    alis.varD7 = strcmp(alis.sd6, alis.sd7) ? -1 : 0;
 }
 
 void osinfeg(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) <= 0 ? -1 : 0;
+    alis.varD7 = strcmp(alis.sd6, alis.sd7) <= 0 ? -1 : 0;
 }
 
 void ossupeg(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) >= 0 ? -1 : 0;
+    alis.varD7 = strcmp(alis.sd6, alis.sd7) >= 0 ? -1 : 0;
 }
 
 void osinf(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) < 0 ? -1 : 0;
+    alis.varD7 = strcmp(alis.sd6, alis.sd7) < 0 ? -1 : 0;
 }
 
 void ossup(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp((char *)alis.sd6, (char *)alis.sd7) > 0 ? -1 : 0;
+    alis.varD7 = strcmp(alis.sd6, alis.sd7) > 0 ? -1 : 0;
 }
 
 void ospushacc(void) {
-    *(--alis.acc) = alis.varD7;
-}
-
-void pop_sd6(void)
-{
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
-    strcpy((char *)alis.sd6, (char *)alis.acc);
-    alis.acc += (s32)strlen((char *)alis.sd6) / 2;
+    push_sd7();
 }
 
 void ospile(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
-    u8 * tmp = alis.sd6;
+    char * tmp = alis.sd6;
     alis.sd6 = alis.sd7;
     alis.sd7 = tmp;
     
@@ -585,7 +636,7 @@ void oval(void) {
     
     if (alis.sd7[0] != 0)
     {
-        u8 *string = alis.sd7;
+        char *string = alis.sd7;
 
         flip = alis.sd7[0] == 0x2d;
         if (flip)
@@ -645,7 +696,7 @@ void oexistf(void) {
     char *dotptr = strrchr(path, '.');
     if (dotptr)
     {
-        if (strcasecmp(dotptr + 1, "fic"))
+        if (strcasecmp(dotptr + 1, "fic") && strcasecmp(dotptr + 1, "cst"))
         {
             strcpy(dotptr + 1, alis.platform.ext);
         }
@@ -898,7 +949,6 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x53, ojoykey, "TODO add desc"),
     {},
-    DECL_OPCODE(0x54, oconfig,
-                "unknown"),
+    DECL_OPCODE(0x54, oconfig, "unknown"),
     {}
 };

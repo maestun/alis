@@ -24,3 +24,4 @@
 #include "config.h"
 
 void debug(EDebugLevel level, char * format, ...);
+void vdebug(EDebugLevel level, char * format, va_list args);

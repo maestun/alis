@@ -133,11 +133,12 @@ void savepal(s16 mode);
 void restorepal(s16 mode, s32 duration);
 
 void selpalet(void);
+void setmpalet(void);
 
 void setlinepalet(s16 start, s16 palidx);
 
 s16 debprotf(s16 d2w);
 
-void valtostr(u8 *string, s16 value);
+void valtostr(char *string, s16 value);
 
 void log_sprites(void);

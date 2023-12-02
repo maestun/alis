@@ -142,7 +142,21 @@ void invdigit(u8 *sample)
         }
     }
 
-    *(u8 *)(sample + 0x10 + length - 1) = 0;
+    // TODO: causes crashes in some older games, investigate!
+    switch (alis.platform.game)
+    {
+        case EGameIshar_I:
+        case EGameIshar_II:
+        case EGameIshar_III:
+        case EGameTransartica:
+        case EGameRobinsonsRequiem:
+        case EGameBunnyBricks:
+            *(u8 *)(sample + 0x10 + length - 1) = 0;
+            break;
+            
+        default:
+            break;
+    }
 }
 
 s8 tfibo[16] = {
@@ -613,7 +627,7 @@ void script_read_bytes(u32 len, u8 * dest) {
     }
 }
 
-void script_read_until_zero(u8 * dest) {
+void script_read_until_zero(char * dest) {
     while((*dest++ = alis.mem[alis.script->pc++]));
 }
 
