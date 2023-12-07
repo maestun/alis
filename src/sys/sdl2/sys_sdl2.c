@@ -46,6 +46,7 @@ SDL_Keysym button = { 0, 0, 0, 0 };
 mouse_t _mouse;
 
 SDL_Renderer *  _renderer;
+SDL_TimerID     _timerID;
 SDL_Window *    _window;
 SDL_Event       _event;
 Uint32 *        _pixels;
@@ -70,6 +71,7 @@ void sys_init(void) {
     _scaleY = _scale * _aspect_ratio;
     
     SDL_Init(SDL_INIT_VIDEO);
+    _timerID = SDL_AddTimer(20, itroutine, NULL);
     _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
@@ -220,6 +222,7 @@ void sys_deinit(void) {
     free(_audio_spec);
     free(_ym2149);
 
+    SDL_RemoveTimer(_timerID);
 //   SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(_renderer);
     SDL_DestroyWindow(_window);
@@ -816,7 +819,7 @@ u16 sys_get_model(void) {
     switch (alis.platform.kind) {
             
         case EPlatformAmiga:        return 0xbb8;
-//        case EPlatformAmigaAGA:     // ???
+        case EPlatformAmigaAGA:     return 0x1388;
         case EPlatformAtari:        return 0x456;
         case EPlatformFalcon:       return 0x1388;
 //        case EPlatformMac:          // ???

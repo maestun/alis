@@ -123,7 +123,7 @@ void put_string(void);
 
 void putin(u16 idx);
 
-void itroutine(void);
+u32 itroutine(u32 interval, void *param);
 void draw(void);
 
 void topalette(u8 *paldata, s32 duration);

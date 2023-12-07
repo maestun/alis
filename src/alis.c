@@ -171,7 +171,7 @@ void alis_load_main(void) {
         alis.maxprog = 0x3c; // TODO: read from script / alis2
         
         // TODO: ...
-        alis.finmem = 0xf6e98;
+        alis.finmem = kHostRAMSize; // 0xf6e98;
 
         inisprit();
 
@@ -434,8 +434,6 @@ void alis_main(void) {
     do {
         alis.running = sys_poll_event();
         alis.restart_loop = 0;
-        
-        itroutine();
         
         alis.script = ENTSCR(alis.varD5);
         u8 *vram_addr = alis.mem + alis.script->vram_org;

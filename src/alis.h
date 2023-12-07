@@ -35,7 +35,7 @@
 # define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
 
-#define kHostRAMSize            (1024 * 1024)
+#define kHostRAMSize            (1024 * 1024 * 8)
 #define kVirtualRAMSize         (0xffff * sizeof(u8))
 
 #define kMaxScripts             (256)
@@ -250,6 +250,8 @@ typedef struct {
     char *          sd7;
     char *          sd6;
     char *          oldsd7;
+    
+    s32             tabptr[16][2];
 
     // data buffers
     u8              buffer[1024];

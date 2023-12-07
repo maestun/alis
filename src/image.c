@@ -2176,7 +2176,7 @@ void destofen(sSprite *sprite)
         case 0x10:
         case 0x12:
         {
-            if (alis.platform.kind == EPlatformAmiga && alis.platform.game == EGameColorado)
+            if (alis.platform.kind == EPlatformAmiga && (alis.platform.game == EGameColorado || alis.platform.game == EGameBostonBombClub))
             {
                 // 5 bit image
                 
@@ -2842,7 +2842,7 @@ affiscin:
     set_scr_state(scene, get_scr_state(scene) & 0x7f);
 }
 
-void itroutine(void)
+u32 itroutine(u32 interval, void *param)
 {
     u8 prevtiming = vtiming;
     timeclock ++;
@@ -2882,6 +2882,7 @@ void itroutine(void)
 //    }
     
     fitroutine = 0;
+    return 20;
 }
 
 void waitframe(void) {
