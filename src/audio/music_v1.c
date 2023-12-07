@@ -40,7 +40,7 @@ void mv1_stopmusic(void);
 
 extern SDL_AudioSpec *_audio_spec;
 
-const u8 kNumMV1Channels = 3;
+#define kNumMV1Channels (3)
 
 u32 mv1_tabfrq_st[] = {
     0x10000, 0x10000, 0x10000, 0x10000,
