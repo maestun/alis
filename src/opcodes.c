@@ -272,7 +272,7 @@ sFLICData bfilm;
 // fls video player
 
 u16 fls_drawing = 0;
-u16 fls_palettes = 0;
+u16 fls_pallines = 0;
 s8  fls_state = 0;
 
 void fls_cleanup(void)
@@ -370,10 +370,10 @@ u32 fls_decomp(u32 addr)
 void fls_vbl_callback2(void)
 {
     u16 *palette = (u16 *)(vgalogic + 32000);
-    s16 loops = 0xc5 - fls_palettes;
-    for (int i = 0; i < loops + 1; i++)
-    {
-    }
+    u16 curpal[16];
+    memcpy(curpal, palette, 32);
+
+    s16 pallines = 0xc5 - fls_pallines;
 
     // set 8 bit "hicolor palette" to help simulate ST 512 color image
 
@@ -391,78 +391,99 @@ void fls_vbl_callback2(void)
         }
     }
 
-    
     u8 *prevlogic = vgalogic_df;
-//    if (fls_drawing != 0)
+    if (fls_drawing != 0)
     {
         vgalogic_df = vgalogic;
         vgalogic = prevlogic;
         fls_drawing = 0;
     }
     
-    // copy vgalogic to screen
-    
     u8 *bitmap = vgalogic_df + 0xa0;
 
     u16 width = 320;
     u16 height = 200;
+    
+    // ST scanline width 48 + 320 + 44 (412)
+
+    int limit0 = 24;
+    int limit1 = 184;
 
     u32 at = 0;
-    palette -= 16;
-    for (int b = 0; b < width * height; b+=16, at+=8)
+
+    u32 bmpidx = 0;
+    u32 palidx;
+    u8 *rawcolor;
+    u8 red, grn, blu;
+    
+    // copy vgalogic to screen
+
+    for (int y = 0; y < height; y++)
     {
-        for (int c = 0; c < 8; c++)
+        for (int x = 0; x < width; x+=16, bmpidx+=16, at+=8)
         {
-            u32 rot = (7 - c);
-            u32 mask = 1 << rot;
-            physic[b + 0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
-            physic[b + 8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
-            
-            // TODO: palette handling is wrong
-            
-            int px = (b + c * 2);
-            if (px%320 == 0 || px%320 == 128 || px%320 == 304)
+            for (int dpx = 0; dpx < 8; dpx++)
             {
-                palette += 16;
-            }
-            {
-                u8 *rawcolor = (u8 *)&(palette[physic[b + 0 + c]]);
-                u8 red = (rawcolor[0] & 0b00000111);
-                u8 grn = (rawcolor[1] >> 4);
-                u8 blu = (rawcolor[1] & 0b00000111) >> 1;
-                physic[b + 0 + c] = (red * 32) + (grn * 4) + blu;
-            }
-            {
-                u8 *rawcolor = (u8 *)&(palette[physic[b + 8 + c]]);
-                u8 red = (rawcolor[0] & 0b00000111);
-                u8 grn = (rawcolor[1] >> 4);
-                u8 blu = (rawcolor[1] & 0b00000111) >> 1;
-                physic[b + 8 + c] = (red * 32) + (grn * 4) + blu;
+                // convert planar to chunky
+                
+                u32 rot = (7 - dpx);
+                u32 mask = 1 << rot;
+                physic[bmpidx + 0 + dpx] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
+                physic[bmpidx + 8 + dpx] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
+                
+                // TODO: palette handling is still somewhat off
+                
+                if (height > pallines)
+                {
+                    int px = (x + dpx * 2);
+                    if (px == limit0 || px == limit1)
+                    {
+                        palette += 16;
+                    }
+                    
+                    if (px >= limit0 && dpx == 0)
+                    {
+                        palidx = px < limit1 ? (px - limit0) / 8 : (px - limit1) / 8;
+                        if (palidx < 16)
+                        {
+                            curpal[palidx] = palette[palidx];
+                        }
+                    }
+                    
+                    rawcolor = (u8 *)&(curpal[physic[bmpidx + 0 + dpx]]);
+                    red = (rawcolor[0] & 0b00000111);
+                    grn = (rawcolor[1] >> 4);
+                    blu = (rawcolor[1] & 0b00000111) >> 1;
+                    physic[bmpidx + 0 + dpx] = (red * 32) + (grn * 4) + blu;
+                    
+                    if (px >= limit0 && dpx == 0)
+                    {
+                        palidx = 1 + (px < limit1 ? (px - limit0) / 8 : (px - limit1) / 8);
+                        if (palidx < 16)
+                        {
+                            curpal[palidx] = palette[palidx];
+                        }
+                    }
+                    
+                    rawcolor = (u8 *)&(curpal[physic[bmpidx + 8 + dpx]]);
+                    red = (rawcolor[0] & 0b00000111);
+                    grn = (rawcolor[1] >> 4);
+                    blu = (rawcolor[1] & 0b00000111) >> 1;
+                    physic[bmpidx + 8 + dpx] = (red * 32) + (grn * 4) + blu;
+                }
             }
         }
+        
+        palette += 16;
+        memcpy(curpal, palette, 32);
     }
 
     memcpy(logic, physic, 320*200);
-
-//    itroutine();
 }
 
-
-void fls_vbl_callback1(void)
-{
-    // copy vgalogic_df to screen
-//    DAT_ffff8201 = vgalogic_df;
-    // set lo res 50 hz
-
-    // set vbl callback 2
-//    _vect_vbl = fls_vbl_callback2;
-}
-
-// 0003d130
-// 4b08
 void fls_init(u32 addr)
 {
-    fls_palettes = (u16)xread8(addr + 8) * 2;
+    fls_pallines = (u16)xread8(addr + 8) * 2;
     bfilm.frames = xread16(addr + 6);
     bfilm.endptr = addr + xread32(addr);
     bfilm.frame = 0;
@@ -480,8 +501,6 @@ u32 fls_next(u32 addr)
     }
     else
     {
-//    do { } while (fls_drawing != 0);
-        
         addr = fls_decomp(addr);
         fls_drawing = 1;
         fls_vbl_callback2();
@@ -540,8 +559,6 @@ u32 flstofen(s16 clean)
             {
                 return 1;
             }
-            
-//            do { } while (fls_drawing != 0);
         }
     }
     
