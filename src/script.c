@@ -590,7 +590,7 @@ void script_read_debug(s32 value, size_t sz) {
             debug(EDebugInfo, " 0x%06x", value & 0xffffff);
             break;
         default:
-            debug(EDebugInfo, " %d", value);
+            debug(EDebugInfo, " 0x%x", value);
             break;
     }
 }
@@ -618,6 +618,14 @@ u32 script_read24(void) {
     u32 ret = read24(alis.mem + alis.script->pc);
     alis.script->pc += 3;
     script_read_debug(ret, sizeof(u32));
+    return ret;
+}
+
+u32 script_read32(void) {
+    
+    u16 ret = read32(alis.mem + alis.script->pc);
+    alis.script->pc += 4;
+    script_read_debug(ret, -1);
     return ret;
 }
 

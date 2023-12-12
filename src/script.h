@@ -201,6 +201,7 @@ sAlisScriptLive *script_live(sAlisScriptData * script);
 u8              script_read8(void);
 u16             script_read16(void);
 u32             script_read24(void);
+u32             script_read32(void);
 void            script_read_bytes(u32 len, u8 * dest);
 void            script_read_until_zero(char * dest);
 void            script_jump(s32 offset);
