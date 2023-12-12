@@ -617,12 +617,12 @@ void fli_palette(u32 addr)
 
 void fli_blackdata(void)
 {
-    memset(physic, 0, 64000);
+    memset(vgalogic, 0, 64000);
 }
 
 void fli_data(u32 a5)
 {
-    u8 *ptr = physic;
+    u8 *ptr = vgalogic;
     for (int i = 0; i < 200; i++, ptr += 320, a5 += 320)
     {
         memcpy(ptr, alis.mem + a5, 320);
@@ -664,7 +664,7 @@ void fli_decomp(u32 addr, u8 partial)
                     len = packets = 0;
                 }
                 
-                memset(physic + index + col, xread8(addr), count); addr++;
+                memset(vgalogic + index + col, xread8(addr), count); addr++;
             }
             else
             {
@@ -675,7 +675,7 @@ void fli_decomp(u32 addr, u8 partial)
                     len = packets = 0;
                 }
                 
-                memcpy(physic + index + col, alis.mem + addr, count); addr+= count;
+                memcpy(vgalogic + index + col, alis.mem + addr, count); addr+= count;
             }
             
             col += count;
@@ -717,6 +717,9 @@ void fli_elements(u32 addr)
     }
 
     fli_elements(addr + offset - 6);
+    
+    memcpy(physic, vgalogic, 320*200);
+    memcpy(logic, vgalogic, 320*200);
 }
 
 void fli_init(u32 flcaddr)
