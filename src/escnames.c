@@ -40,7 +40,9 @@ void coffmusic(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 void cdelfilm(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    // TODO: ...
+//    endfilm();
 }
 void copenfilm(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
