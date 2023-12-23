@@ -910,7 +910,7 @@ static void cdim(void) {
     xwrite8(alis.script->vram_org + --offset, counter);
     xwrite8(alis.script->vram_org + --offset, byte2);
 
-    if (alis.platform.game == EGameIshar_III || alis.platform.game == EGameRobinsonsRequiem)
+    if (alis.platform.version >= 30)
     {
         s16 counter16 = counter & 0xf;
         if (-1 < (s8)counter)
@@ -1285,6 +1285,8 @@ static void clive(void) {
 
 void clivin(void)
 {
+    s32 contextsize = get_context_size();
+
     s16 id = script_read16();
     if (id != -1)
     {
@@ -1324,7 +1326,7 @@ void clivin(void)
                 sAlisScriptLive *s = alis.live_scripts[i];
                 if (s && s->vram_org)
                 {
-                    u32 datasize = sizeof(sScriptContext) + s->data->header.w_unknown5 + s->data->header.w_unknown7;
+                    u32 datasize = contextsize + s->data->header.w_unknown5 + s->data->header.w_unknown7;
                     s32 vramsize = s->data->header.vram_alloc_sz;
                     s32 shrinkby = datasize + vramsize;
                     
@@ -1359,8 +1361,13 @@ static void ckill(void) {
 }
 
 static void cstopret(void) {
-    // never seen in ishar execution (boot2game)
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    if (alis.fseq == 0)
+    {
+        cstop();
+    }
+    
+    cret();
 }
 
 static void cexit(void) {
@@ -2088,7 +2095,7 @@ LAB_00015d44:
 //            {
 //                printf("0x%.8x\n", ((u32 *)alis.buffer)[b]);
 //            }
-//            
+//
 //            printf("\ntablent\n");
 //            for (int b = 0; b < bufidx + 2; b ++)
 //            {
@@ -2195,19 +2202,19 @@ static void cviewmat(void) {
 //                    {
 //                        if (buffer4[bufidx - 1] <= d0)
 //                            goto LAB_00015c8a;
-//                        
+//
 //                        tabidx --;
 //                        bufidx --;
 //                    }
-//                    
+//
 //                    buffer4[bufidx++] = d0;
 //                    alis.tablent[tabidx++] = d1;
 //                }
 //            }
 //        }
-//        
+//
 //    LAB_00015c8a:
-//        
+//
 //        entidx = xread16(alis.atent + 4 + entidx);
 //        if (entidx == 0)
 //        {
@@ -2527,6 +2534,7 @@ static void cfwritei(void) {
 }
 
 static void cfreadb(void) {
+    
     s32 addr = (s16)script_read16();
     if (addr == 0)
     {
@@ -2538,42 +2546,61 @@ static void cfreadb(void) {
         addr += alis.script->vram_org;
     }
 
-    u16 length = script_read16();
-
-    fread(alis.mem + addr, length, 1, alis.fp);
-    
-    // NOTE: *.fic files in all platforms are identical, for PC we have to do byteswaping
-    
-    if (alis.platform.kind == EPlatformPC)
+    if (alis.platform.version >= 30)
     {
-        u8 bytes = *(alis.mem + addr - 2);
-        if (bytes == 2)
+        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+
+        if ((s8)xread8(addr - 1) < 0)
         {
-            for (int i = 0; i < length; i += 2)
+            addr = xread32(addr);
+            if (addr < 1)
             {
-                u16 *val = (u16 *)(alis.mem + addr + i);
-                *val = (*val <<  8) | (*val >>  8);
+                return;
+            }
+        }
+        
+        u32 length = script_read32();
+        // TODO: type wrong we should use value set in cfopen IE 0
+        // use global variable
+        
+        if (1)//alis.script->data->type == 0)
+        {
+            fread(alis.mem + addr, length, 1, alis.fp);
+        }
+        else
+        {
+//            unpack();
+//            if (wordpack != 0)
+//            {
+//                unmixword();
+//            }
+        }
+    }
+    else
+    {
+        u16 length = script_read16();
+        
+        fread(alis.mem + addr, length, 1, alis.fp);
+        
+        // NOTE: *.fic files in all platforms are identical, for PC we have to do byteswaping
+        
+        if (alis.platform.kind == EPlatformPC)
+        {
+            u8 bytes = *(alis.mem + addr - 2);
+            if (bytes == 2)
+            {
+                for (int i = 0; i < length; i += 2)
+                {
+                    u16 *val = (u16 *)(alis.mem + addr + i);
+                    *val = (*val <<  8) | (*val >>  8);
+                }
             }
         }
     }
 }
 
-static void cfwriteb(void) {
-    s32 addr = (s16)script_read16();
-    if (addr == 0)
-    {
-        addr = (s16)script_read16();
-        addr += alis.basemain;
-    }
-    else
-    {
-        addr += alis.script->vram_org;
-    }
-
-    u16 length = script_read16();
-    
-    // handle byteswaping if needed
-    
+void writeswap(u32 addr, u32 length)
+{
     if (alis.platform.kind == EPlatformPC)
     {
         u8 bytes = *(alis.mem + addr - 2);
@@ -2587,14 +2614,53 @@ static void cfwriteb(void) {
                 u16 *val = (u16 *)(alis.mem + addr + i);
                 *tgt = (*val <<  8) | (*val >>  8);
             }
-
+            
             fwrite(data, length, 1, alis.fp);
             free(data);
             return;
         }
     }
-
+    
     fwrite(alis.mem + addr, length, 1, alis.fp);
+}
+
+static void cfwriteb(void) {
+    s32 addr = (s16)script_read16();
+    if (addr == 0)
+    {
+        addr = (s16)script_read16();
+        addr += alis.basemain;
+    }
+    else
+    {
+        addr += alis.script->vram_org;
+    }
+    
+    if (alis.platform.version >= 30)
+    {
+        debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+
+        u32 length = script_read32();
+
+        if (-1 < (s8)xread8(addr - 1))
+        {
+            writeswap(addr, length);
+        }
+        else
+        {
+            u32 addr1 = xread32(addr);
+            u32 addr2 = xread32(addr1);
+            if (0 < addr2)
+            {
+                writeswap(addr2, length);
+            }
+        }
+    }
+    else
+    {
+        u16 length = script_read16();
+        writeswap(addr, length);
+    }
 }
 
 static void cplot(void) {
@@ -3040,13 +3106,12 @@ static void cmusic(void) {
 
 static void cdelmusic(void) {
     readexec_opername();
-
-    u8 type = xread8(audio.mupnote - 6);
-    if (type == 0 || type == 3)
+    
+    if (alis.platform.version < 21)
     {
         mv1_offmusic(alis.varD7);
     }
-    else if (type == 4)
+    else
     {
         mv2_offmusic(alis.varD7);
     }
@@ -4111,36 +4176,138 @@ static void cshrink(void) {
 static void cdefmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
-    u32 mapram = alis.script->vram_org;
-    
-    s16 offset = script_read16();
-    if (offset == 0)
+    if (alis.platform.uid == EGameTransartica)
     {
-        offset = script_read16();
-        mapram = alis.basemain;
+        u32 mapram = alis.script->vram_org;
+        
+        s16 offset = script_read16();
+        if (offset == 0)
+        {
+            offset = script_read16();
+            mapram = alis.basemain;
+        }
+        
+        mapram += offset;
+        
+        readexec_opername();
+        xwrite8(mapram - 0x50, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x4e, alis.varD7);
+        xwrite16(mapram - 0x4c, get_0x0e_script_ent(alis.script->vram_org));
+        readexec_opername();
+        xwrite16(mapram - 0x4a, alis.varD7);
+        xwrite16(mapram - 0x48, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x48, alis.varD7 - 1 + xread16(mapram - 0x48));
+        readexec_opername();
+        xwrite16(mapram - 0x44, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x42, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x40, alis.varD7);
+        xwrite8(mapram - 0x4f, 0);
+        xwrite32(mapram - 0x2c, 4);
+        xwrite8(mapram - 0x28, 0x7f);
     }
-    
-    mapram += offset;
-    
-    readexec_opername();
-    xwrite8(mapram - 0x50, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x4e, alis.varD7);
-    xwrite16(mapram - 0x4c, get_0x0e_script_ent(alis.script->vram_org));
-    readexec_opername();
-    xwrite16(mapram - 0x4a, alis.varD7);
-    xwrite16(mapram - 0x48, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x48, alis.varD7 - 1 + xread16(mapram - 0x48));
-    readexec_opername();
-    xwrite16(mapram - 0x44, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x42, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x40, alis.varD7);
-    xwrite8(mapram - 0x4f, 0);
-    xwrite32(mapram - 0x2c, 4);
-    xwrite8(mapram - 0x28, 0x7f);
+    else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
+    {
+        u32 mapram = alis.script->vram_org;
+        s16 offset = script_read16();
+        if (offset == 0)
+        {
+            offset = script_read16();
+            mapram = alis.basemain;
+        }
+        
+        mapram += offset;
+
+        readexec_opername();
+        xwrite8(mapram - 0x400, (s8)alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3fe, alis.varD7);
+        xwrite16(mapram - 0x3fc, get_0x0e_script_ent(alis.script->vram_org));
+        readexec_opername();
+        xwrite16(mapram - 0x3fa, alis.varD7);
+        xwrite16(mapram - 0x3f8, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3f8, alis.varD7 - 1 + xread16(mapram - 0x3f8));
+        readexec_opername();
+        if (alis.varD7 == 0)
+            alis.varD7 = 1;
+
+        xwrite16(mapram - 0x3f4, alis.varD7);
+        readexec_opername();
+        if (alis.varD7 == 0)
+            alis.varD7 = 1;
+
+        xwrite16(mapram - 0x3f2, alis.varD7);
+        readexec_opername();
+        if (alis.varD7 == 0)
+            alis.varD7 = 1;
+
+        xwrite16(mapram - 0x3f0, alis.varD7);
+        xwrite8(mapram - 0x3ff, 0);
+        xwrite32(mapram - 0x3dc, 4);
+        xwrite8(mapram - 0x3d8, 0x7f);
+        
+        s32 uVar3;
+        s32 uVar5;
+        if ((s8)xread8(mapram - 1) < 0)
+        {
+            uVar5 = xread32(mapram - 6);
+            uVar3 = xread32(mapram - 10);
+        }
+        else
+        {
+            uVar5 = xread32(mapram - 4);
+            uVar3 = xread32(mapram - 6);
+        }
+        
+        s32 uVar4 = (s16)(uVar3 / (uVar5 & 0xffff));
+        xwrite16(mapram - 0x3c6, uVar4);
+        xwrite16(mapram - 0x3cc, uVar4);
+        xwrite16(mapram - 0x3c4, (u16)uVar5);
+        xwrite16(mapram - 0x3ca, (u16)uVar5 >> 1);
+        xwrite16(mapram - 0x3b6, 0);
+        
+        s32 sVar6 = -1;
+        u16 uVar2 = xread16(mapram - 0x3f4);
+        do {
+            sVar6 += 1;
+            uVar2 >>= 1;
+        } while (uVar2 != 0);
+        xwrite16(mapram - 0x3c0, sVar6);
+        
+        sVar6 = -1;
+        uVar2 = xread16(mapram - 0x3f2);
+        do {
+            sVar6 += 1;
+            uVar2 >>= 1;
+        } while (uVar2 != 0);
+        xwrite16(mapram - 0x3be, sVar6);
+        
+        sVar6 = -1;
+        uVar2 = xread16(mapram - 0x3f0);
+        do {
+            sVar6 += 1;
+            uVar2 >>= 1;
+        } while (uVar2 != 0);
+        xwrite16(mapram - 0x3bc, sVar6);
+
+        if (xread8(mapram - 0x3d8) == '\n')
+        {
+            sVar6 = get_0x16_screen_id(alis.script->vram_org);
+            if (sVar6 != 0)
+            {
+                xwrite16(alis.basemain + sVar6 + 0x40, get_0x0e_script_ent(alis.script->vram_org));
+                xwrite16(alis.basemain + sVar6 + 0x42, mapram - alis.script->vram_org);
+            }
+        }
+    }
+    else
+    {
+        debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    }
 }
 
 static void csetmap(void) {
@@ -4464,7 +4631,210 @@ static void cpointpix(void) {
 }
 
 static void cchartmap(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    // TODO: verify and clean
+    
+    u32 vram = alis.script->vram_org;
+
+    s16 offset = script_read16();
+    if (offset == 0)
+    {
+        vram = alis.basemain;
+        offset = script_read16();
+    }
+
+    u32 addr = vram + offset;
+    u32 puVar14 = addr;
+
+    readexec_opername();
+    s16 value = alis.varD7;
+    
+    int iVar4;
+    if (value == 0)
+    {
+        iVar4 = 0;
+    }
+    else
+    {
+        if (value != 1)
+        {
+            if ((value == 2) || (value == 3))
+            {
+                xwrite16(vram - 0x3b6, value);
+                readexec_opername();
+                return;
+            }
+            
+            if (value == 4)
+            {
+                xwrite16(vram - 0x3b4, value);
+                readexec_opername();
+                return;
+            }
+            
+            if (value == 5)
+            {
+                xwrite16(vram - 0x3b2, value);
+                readexec_opername();
+                return;
+            }
+            
+            readexec_opername();
+            iVar4 = alis.varD7;
+            
+            value --;
+            if (value < 0)
+            {
+                value = 0;
+            }
+            
+            s32 iVar1 = xread32(addr - 0x3ba);
+            s32 iVar3 = (int)(short)(xread16(alis.script->vram_org) - value) / (int)xread16(iVar1 - 0x3f4);
+            s16 sVar5 = (short)iVar3;
+            if (iVar3 < 0)
+            {
+                sVar5 = 0;
+            }
+            
+            if (xread16(iVar1 - 1000) <= sVar5)
+            {
+                sVar5 = xread16(iVar1 - 1000);
+            }
+            
+            iVar3 = (int)(short)(xread16(alis.script->vram_org) + value) / (int)xread16(iVar1 - 0x3f4);
+            s16 sVar6 = (short)iVar3;
+            if (iVar3 < 0)
+            {
+                sVar6 = 0;
+            }
+            
+            if (xread16(iVar1 - 1000) <= sVar6)
+            {
+                sVar6 = xread16(iVar1 - 1000);
+            }
+            
+            iVar3 = (int)(short)(xread16(alis.script->vram_org + 8) - value) / (int)xread16(iVar1 - 0x3f2);
+            s16 sVar10 = (short)iVar3;
+            if (iVar3 < 0)
+            {
+                sVar10 = 0;
+            }
+            
+            if (xread16(iVar1 - 0x3e6) <= sVar10)
+            {
+                sVar10 = xread16(iVar1 - 0x3e6);
+            }
+            
+            iVar3 = (int)(short)(xread16(alis.script->vram_org + 8) + value) / (int)xread16(iVar1 - 0x3f2);
+            value = (short)iVar3;
+            if (iVar3 < 0)
+            {
+                value = 0;
+            }
+            
+            if (xread16(iVar1 - 0x3e6) <= value)
+            {
+                value = xread16(iVar1 - 0x3e6);
+            }
+            
+            u16 uVar9 = (xread16(addr - 0xf0) - 4) - xread16(iVar1 - 0x3c0);
+
+            u32 rot = uVar9 & 0x3f;
+            u16 uVar2 = sVar5 >> rot;
+            u16 uVar8 = sVar6 >> rot;
+            uVar9 = xread16(addr - 0x3be) - xread16(iVar1 - 0x3be);
+            sVar10 >>= rot;
+            value = (value >> rot) - sVar10;
+            u16 uVar7 = ~(0xffffU >> (uVar2 - (uVar2 & 0xfff0) & 0x3f));
+            uVar9 = uVar8 | 0xf;
+            uVar8 = ~(-1 << (-(uVar8 - uVar9) & 0x3f));
+            uVar9 = (ushort)(uVar9 - (uVar2 & 0xfff0)) >> 4;
+            sVar5 = uVar9 - 1;
+            if (sVar5 < 0)
+            {
+                uVar7 = uVar8 | uVar7;
+                uVar8 = 0;
+            }
+            
+            if (uVar8 != 0)
+            {
+                sVar5 = uVar9 - 2;
+            }
+            
+            u32 puVar14 = addr;
+            if ((s8)xread8(addr - 1) < 0)
+            {
+                puVar14 = xread32(addr);
+                puVar14 = xread32(puVar14);
+            }
+            
+            u32 puVar15 = (puVar14 + sVar10 * 2 + (uint)(uVar2 >> 4) * (uint)(u16)xread16(addr - 0xf1));
+            sVar6 = xread16(addr - 0xf1);
+            
+            do
+            {
+                xwrite16(puVar15, xread16(puVar15) & uVar7);
+                u32 puVar16 = ((int)sVar6 + (int)puVar15);
+                sVar10 = sVar5;
+                if (-1 < sVar5)
+                {
+                    do
+                    {
+                        xwrite16(puVar16, 0);
+                        puVar16 = ((int)sVar6 + (int)puVar16);
+                        sVar10 += -1;
+                    }
+                    while (sVar10 != -1);
+                }
+                
+                if (uVar8 != 0)
+                {
+                    xwrite16(puVar16, xread16(puVar16) & uVar8);
+                }
+                
+                puVar15 = puVar15 + 1;
+                if ((value --) == -1)
+                {
+                    return;
+                }
+            }
+            while (true);
+        }
+        
+        iVar4 = -1;
+    }
+    
+    int d6w = xread16(addr - 0x3c6);
+    d6w *= xread16(addr - 0x3c4);
+    d6w >>= 1;
+    d6w -= 1;
+    
+    value = ((ushort)(xread16(addr - 0x3c6) * xread16(addr - 0xf1)) >> 1) - 1;
+    puVar14 = addr;
+    if ((s8)xread8(addr - 1) < 0)
+    {
+        puVar14 = xread32(addr);
+        puVar14 = xread32(puVar14);
+    }
+    
+    do
+    {
+        xwrite16(puVar14, (short)iVar4);
+        value += -1;
+        puVar14 = ((int)puVar14 + 2);
+    }
+    while (value != -1);
+    
+    vram = alis.script->vram_org;
+    value = script_read16();
+    if (value == 0)
+    {
+        value = script_read16();
+        vram = alis.basemain;
+    }
+    
+    xwrite32(addr - 0x3ba, vram + value);
 }
 
 static void cscsky(void) {
@@ -5008,6 +5378,8 @@ sAlisOpcode opcodes[] = {
 
 void killent(u16 killent, u16 testent)
 {
+    s32 contextsize = get_context_size();
+
     // script
     
     sAlisScriptLive *killscript = ENTSCR(killent);
@@ -5030,7 +5402,7 @@ void killent(u16 killent, u16 testent)
         sAlisScriptLive *s = alis.live_scripts[i];
         if (s && s->vram_org)
         {
-            u32 datasize = sizeof(sScriptContext) + s->data->header.w_unknown5 + s->data->header.w_unknown7;
+            u32 datasize = contextsize + s->data->header.w_unknown5 + s->data->header.w_unknown7;
             s32 vramsize = s->data->header.vram_alloc_sz;
             s32 shrinkby = datasize + vramsize;
             
@@ -5051,7 +5423,7 @@ void killent(u16 killent, u16 testent)
     
     cerasall();
 
-    u32 datasize = sizeof(sScriptContext) + killscript->data->header.w_unknown5 + killscript->data->header.w_unknown7;
+    u32 datasize = contextsize + killscript->data->header.w_unknown5 + killscript->data->header.w_unknown7;
     s32 vramsize = killscript->data->header.vram_alloc_sz;
     s32 shrinkby = datasize + vramsize;
 
@@ -5129,7 +5501,7 @@ void killent(u16 killent, u16 testent)
         sAlisScriptLive *s = alis.live_scripts[i];
         if (s && s->vram_org)
         {
-            u32 datasize = sizeof(sScriptContext) + s->data->header.w_unknown5 + s->data->header.w_unknown7;
+            u32 datasize = contextsize + s->data->header.w_unknown5 + s->data->header.w_unknown7;
             s32 vramsize = s->data->header.vram_alloc_sz;
             s32 shrinkby = datasize + vramsize;
             

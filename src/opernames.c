@@ -95,18 +95,18 @@ void olocp(void) {
 }
 
 void oloctp(void) {
-    s16 offset = tabstring(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabstring(script_read16(), alis.script->vram_org);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 void oloctc(void) {
-    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabchar(script_read16(), alis.script->vram_org);
     alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void olocti(void) {
-    s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabint(script_read16(), alis.script->vram_org);
     alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
@@ -133,18 +133,18 @@ void odirp(void) {
 }
 
 void odirtp(void) {
-    s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
+    s16 offset = tabstring(script_read8(), alis.script->vram_org);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 void odirtc(void) {
-    s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
+    s16 offset = tabchar(script_read8(), alis.script->vram_org);
     alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 void odirti(void) {
-    s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    s16 offset = tabint(script_read8(), alis.script->vram_org);
     alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
@@ -165,18 +165,18 @@ void omainp(void) {
 }
 
 void omaintp(void) {
-    s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabstring(script_read16(), alis.basemain);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
     strcpy(alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 void omaintc(void) {
-    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabchar(script_read16(), alis.basemain);
     alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 void omainti(void) {
-    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabint(script_read16(), alis.basemain);
     alis.varD7 = xread16(alis.basemain + offset);
 }
 

@@ -997,8 +997,17 @@ void putin(u16 idx)
         cursprvar->creducing  = get_0x27_creducing(alis.script->vram_org);
         cursprvar->clinking   = get_0x2a_clinking(alis.script->vram_org);
         cursprvar->cordspr    = get_0x2b_cordspr(alis.script->vram_org);
-        cursprvar->chsprite   = get_0x2f_chsprite(alis.script->vram_org);
         cursprvar->script_ent = get_0x0e_script_ent(alis.script->vram_org);
+        
+        s32 contextsize = get_context_size();
+        if (contextsize > 0x2e)
+        {
+            cursprvar->chsprite   = get_0x2f_chsprite(alis.script->vram_org);
+        }
+        else if (contextsize > 0x2e)
+        {
+            // TODO: ...
+        }
         
         cursprvar->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
         if (-1 < (s8)cursprvar->credon_off)
@@ -2998,7 +3007,7 @@ void draw(void)
         physic = logic;
         
         // NOTE: targhan doesn't use double buffering
-        if (alis.platform.game != EGameTarghan)
+        if (alis.platform.game != EGameTarghan0 && alis.platform.game != EGameTarghan1)
         {
             logic = oldphys;
         }

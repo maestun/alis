@@ -192,6 +192,7 @@ typedef struct {
 } sAlisScriptLive;
 
 
+void            script_guess_game(const char * script_path);
 sAlisScriptData *script_load(const char * script_path);
 void            script_unload(sAlisScriptData * script);
 
@@ -207,6 +208,7 @@ void            script_read_until_zero(char * dest);
 void            script_jump(s32 offset);
 
 // void            script_debug(sAlisScriptData * script);
+s32 get_context_size(void);
 
 u16 get_0x34_unknown(u32 vram);
 u8 get_0x32_unknown(u32 vram);

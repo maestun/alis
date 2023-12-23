@@ -27,22 +27,6 @@
 
 // try to identify game using unique script name
 
-#define kMadShowScriptName      ("roulette")
-#define kTarghanScriptName      ("targhan")
-#define kWindsurfScriptName     ("wwilly")
-#define kMayaScriptName         ("itikal")
-#define kColoradoScriptName     ("apaches")
-#define kStarbladeScriptName    ("animcity")
-#define kBostonScriptName       ("bobop")
-#define kArboreaScriptName      ("shamnir")
-#define kMutantScriptName       ("mutant")
-#define kTransarticaScriptName  ("mamesc")
-#define kStormMasterScriptName  ("sharkaan")
-#define kBunnyBricksScriptName  ("balles")
-#define kIshar_IScriptName      ("rampart")
-#define kIshar_IIScriptName     ("elmtair5")
-#define kIshar_IIIScriptName    ("moltus")
-
 typedef enum {
     EPlatformAtari = 0,
     EPlatformFalcon,
@@ -54,35 +38,65 @@ typedef enum {
     EPlatformUnknown
 } EPlatform;
 
+// name         basemem     context     sprite      version
+// dealers      0x?????     0x28        0x1c        1.0
+// mad show     0x23e00     0x2c        0x22        1.1
+// windsurf     0x25400     0x2e        0x24        1.2
+// targhan      0x26000     0x30        0x24        1.2
+// Maya         0x25e00     0x2e        0x24        1.3
+// colorado     0x26000     0x2e        0x24        1.3
+
+// starblade    0x21400     0x34        0x28        2.0
+// storm        0x1ff00     0x34        0x28        2.0
+// metal        0x20800     0x34        0x28        2.0
+// boston       0x27d00     0x34        0x28        2.1
+// trans        0x21d00     0x34        0x28        2.1
+// arborea      0x1f300     0x34        0x28        2.0
+// bunny        0x22200     0x34        0x28        2.1
+// ishar 1      0x20000     0x34        0x28        2.0/2.1
+// ishar 2      0x22400     0x34        0x28        2.1
+
+// ishar 3      0x25a00     0x3e        0x30        3.0
+// requiem      0x2b400     0x3e        0x30        3.0
+
+// deus         0x?????     0x??        0x??        4.0
+
 typedef enum {
-    EGameManhattanDealers,      // Manhattan Dealers (most likely not gonna work)
-    EGameMadShow,               // Mad Show
-    EGameTarghan,               // Targhan
-    EGameWindsurfWilly,         // Windsurf Willy
-    EGameLeFéticheMaya,         // Le Fétiche Maya
-    EGameColorado,              // Colorado
-    EGameStarblade,             // Starblade
-    EGameCrystalsOfArborea,     // Crystals of Arborea
-    EGameMetalMutant,           // Metal Mutant
-    EGameBostonBombClub,        // Boston Bomb Club
-    EGameXyphoesFantasy,        // Xyphoes Fantasy
-    EGameStormMaster,           // Storm Master
-    EGameIshar_I,               // Ishar I
-    EGameIshar_II,              // Ishar II
-    EGameIshar_III,             // Ishar III
-    EGameBunnyBricks,           // Bunny Bricks
-    EGameTransartica,           // Transartica
-    EGameRobinsonsRequiem,      // Robinson’s Requiem
-    EGameAsghan,                // Asghan (anything past this likely use new engine)
-    EGameDeus,                  // Deus
-    EGameTournamentOfWarriors,  // Tournament of Warriors
-    EGameTimeWarriors,          // Time Warriors
-    EGameUnknown
+    
+    EGameManhattanDealers        = -1,
+    EGameMadShow                 = 0x00244140,
+    EGameWindsurfWilly           = 0x00325aa0,
+    EGameTarghan0                = 0x0044aa20,
+    EGameTarghan1                = 0x002dc6c0,
+    EGameLeFeticheMaya           = 0x00180858,
+    EGameColorado                = 0x003ece20,
+    EGameStarblade               = 0x00594390,
+    EGameStormMaster             = 0x00632ea0,
+    EGameMetalMutant             = 0x001b7740,
+    EGameCrystalsOfArborea0      = 0x006cb808,
+    EGameCrystalsOfArborea1      = 0x006ddd00,
+    EGameTransartica             = 0x01312d00,
+    EGameBostonBombClub          = 0x00149970,
+    EGameBunnyBricks             = 0x002625a0,
+    EGameIshar_1                 = 0x00b71b00,
+    EGameIshar_2                 = 0x00ec82e0,
+    EGameIshar_3                 = 0x015b2330,
+    EGameRobinsonsRequiem0       = 0x00f42400,
+    EGameRobinsonsRequiem1       = 0x02160ec0,
+    EGameAsghan                  = -2,
+    EGameDeus                    = -3,
+    EGameTournamentOfWarriors    = -4,
+    EGameTimeWarriors            = -5,
+    EGameXyphoesFantasy          = -6,
+    EGameUnknown                 = 0,
 
 } EGame;
 
 typedef struct {
     EPlatform   kind;
+    char        name[32];
+    u32         version;
+    u32         uid;
     EGame       game;
     char        desc[kDescMaxLen];  // platform description
     char        ext[4];             // script file extension

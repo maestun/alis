@@ -222,6 +222,8 @@ void alis_init(sPlatform platform) {
     alis.platform = platform;
     vram_init();
 
+    script_guess_game(platform.main);
+    
 //    alis.nmode = 0; // 0 = atari 16 colors
 //                    // 3 = mono
 //                    // 8 = falcon 256 colors
@@ -862,8 +864,9 @@ s32 adresmus(s32 idx)
 #pragma mark -
 #pragma mark tab functions
 
-s16 tabchar(s16 offset, u8 *address)
+s16 tabchar(s16 offset, u32 addr)
 {
+    u8 *address = alis.mem + addr;
     s16 *ptr = (s16 *)(address + offset - 2);
     s16 result = offset + alis.varD7;
     s16 length = *(s8 *)(address + offset - 1);
@@ -876,8 +879,9 @@ s16 tabchar(s16 offset, u8 *address)
     return result;
 }
 
-s16 tabstring(s16 offset, u8 *address)
+s16 tabstring(s16 offset, u32 addr)
 {
+    u8 *address = alis.mem + addr;
     s16 *ptr = (s16 *)(address + offset - 2);
     s16 result = offset + alis.varD7 * (ushort)*(u8 *)ptr;
     s16 length = *(s8 *)(address + offset - 1);
@@ -890,8 +894,9 @@ s16 tabstring(s16 offset, u8 *address)
     return result;
 }
 
-s16 tabint(s16 offset, u8 *address)
+s16 tabint(s16 offset, u32 addr)
 {
+    u8 *address = alis.mem + addr;
     s16 *ptr = (s16 *)(address + offset - 2);
     s16 result = offset + alis.varD7 * 2;
     s16 length = *(s8 *)(address + offset - 1);
@@ -902,4 +907,148 @@ s16 tabint(s16 offset, u8 *address)
     }
     
     return result;
+}
+
+//s16 tabint(s16 offset, u32 addr)
+//{
+//    s16 result = offset + alis.varD7 * 2;
+//    s16 length = xread8(addr + offset - 1);
+//
+//    offset -= 2;
+//
+//    for (int i = 0; i < length; i++)
+//    {
+//        offset -= 2;
+//        result += xread16(addr + offset) * *alis.acc;
+//    }
+//    
+//    return result;
+//}
+//
+//s16 tabchar(s16 offset, u32 addr)
+//{
+//    s16 result = offset + alis.varD7;
+//    s16 length = xread8(addr + offset - 1);
+//    
+//    offset -= 2;
+//    
+//    for (int i = 0; i < length; i++)
+//    {
+//        offset -= 2;
+//        result += xread16(addr + offset) * *alis.acc++;
+//    }
+//
+//    return result;
+//}
+//
+//s16 tabstring(s16 offset, u32 addr)
+//{
+//    s16 result = offset + alis.varD7 * xread8(addr + offset - 2);
+//    s16 length = xread8(addr + offset - 1);
+//
+//    offset -= 2;
+//
+//    for (int i = 0; i < length; i++)
+//    {
+//        offset -= 2;
+//        result += xread16(addr + offset) * *alis.acc++;
+//
+//    }
+//    
+//    return result;
+//}
+
+
+s32 tabintV3(s16 offset, u32 address)
+{
+    alis.varD7 *= 2;
+    address += offset;
+
+    s8 length = xread8(address - 1);
+    if (length < 0)
+    {
+        length &= 0xf;
+        for (s32 i = 0; i < length; i++)
+        {
+            u16 acc = *alis.acc++;
+            u16 val0 = xread16(address - (4 + 4 * i));
+            u16 val1 = xread16(address - (6 + 4 * i));
+            val1 *= acc;
+            alis.varD7 += (val1 * 0x10000 | val1 >> 0x10) + acc * val0;
+        }
+        
+        address = xread32(address);
+    }
+    else
+    {
+        length &= 0xf;
+        for (s32 i = 0; i < length; i++)
+        {
+            alis.varD7 += *alis.acc++ * xread16(address - (4 + 2 * i));
+        }
+    }
+    
+    return address + alis.varD7;
+}
+
+s32 tabcharV3(s32 offset, u32 address)
+{
+    address += offset;
+
+    s8 length = xread8(address - 1);
+    if (length < 0)
+    {
+        length &= 0xf;
+        for (s32 i = 0; i < length; i++)
+        {
+            u16 acc = *alis.acc++;
+            u16 val0 = xread16(address - (4 + 4 * i));
+            u16 val1 = xread16(address - (6 + 4 * i));
+            alis.varD7 += (val1 * 0x10000 | val1 >> 0x10) + acc * val0;
+        }
+
+        address = xread32(address);
+    }
+    else
+    {
+        length &= 0xf;
+        for (s32 i = 0; i < length; i++)
+        {
+            alis.varD7 += *alis.acc++ * xread16(address - (4 + 2 * i));
+        }
+    }
+    
+    return address + alis.varD7;
+}
+
+s32 tabstringV3(s16 offset, u32 address)
+{
+    address += offset;
+
+    alis.varD7 *= xread8(address - 2);
+    s8 length = xread8(address - 1);
+    if (length < 0)
+    {
+        length &= 0xf;
+        for (s32 i = 0; i < length; i++)
+        {
+            u16 acc = *alis.acc++;
+            u16 val0 = xread16(address - (4 + 4 * i));
+            u16 val1 = xread16(address - (6 + 4 * i));
+            val1 *= acc;
+            alis.varD7 += (val1 * 0x10000 | val1 >> 0x10) + acc * val0;
+        }
+        
+        address = xread32(address);
+    }
+    else
+    {
+        length &= 0xf;
+        for (s32 i = 0; i < length; i++)
+        {
+            alis.varD7 += *alis.acc++ * xread16(address - (4 + 2 * i));
+        }
+    }
+    
+    return address + alis.varD7;
 }

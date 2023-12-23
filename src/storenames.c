@@ -62,21 +62,21 @@ static void slocp(void) {
 
 // Store at LOCation with offseT: Pointer
 static void sloctp(void) {
-    s16 offset = tabstring(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabstring(script_read16(), alis.script->vram_org);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)alis.mem + alis.script->vram_org + offset, (char *)alis.oldsd7);
 }
 
 // Store at LOCation with offseT: Char
 static void sloctc(void) {
-    s16 offset = tabchar(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabchar(script_read16(), alis.script->vram_org);
     alis.varD7 = *alis.acc++;
     xwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
 static void slocti(void) {
-    s16 offset = tabint(script_read16(), alis.mem + alis.script->vram_org);
+    s16 offset = tabint(script_read16(), alis.script->vram_org);
     alis.varD7 = *alis.acc++;
     xwrite16(alis.script->vram_org + offset, alis.varD7);
 }
@@ -111,19 +111,19 @@ static void sdirp(void) {
 }
 
 static void sdirtp(void) {
-    s16 offset = tabstring(script_read8(), alis.mem + alis.script->vram_org);
+    s16 offset = tabstring(script_read8(), alis.script->vram_org);
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
 static void sdirtc(void) {
-    s16 offset = tabchar(script_read8(), alis.mem + alis.script->vram_org);
+    s16 offset = tabchar(script_read8(), alis.script->vram_org);
     alis.varD7 = *alis.acc++;
     xwrite8(alis.script->vram_org + offset, alis.varD7);
 }
 
 static void sdirti(void) {
-    s16 offset = tabint(script_read8(), alis.mem + alis.script->vram_org);
+    s16 offset = tabint(script_read8(), alis.script->vram_org);
     alis.varD7 = *alis.acc++;
     xwrite16(alis.script->vram_org + offset, alis.varD7);
 }
@@ -147,19 +147,19 @@ static void smainp(void) {
 }
 
 static void smaintp(void) {
-    s16 offset = tabstring(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabstring(script_read16(), alis.basemain);
     debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
     strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
 static void smaintc(void) {
-    s16 offset = tabchar(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabchar(script_read16(), alis.basemain);
     alis.varD7 = *alis.acc++;
     xwrite8(alis.basemain + offset, (u8)alis.varD7);
 }
 
 static void smainti(void) {
-    s16 offset = tabint(script_read16(), alis.mem + alis.basemain);
+    s16 offset = tabint(script_read16(), alis.basemain);
     alis.varD7 = *alis.acc++;
     xwrite16(alis.basemain + offset, (s16)alis.varD7);
 }

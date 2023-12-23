@@ -115,9 +115,21 @@ typedef struct {
 } sRawBlock;
 
 typedef struct {
+    
+    u16 val0;
+    u16 val1;
+    u32 val2;
+    u32 val3;
+    u32 val4;
+    
+} sMainHeader;
+
+typedef struct {
     // platform
     sPlatform       platform;
-    
+
+    sMainHeader     header;
+
     sAlisSpecs      specs;
     
     
@@ -334,6 +346,14 @@ int             adresdes(s32 idx);
 int             adresmus(s32 idx);
 int             adresform(s16 idx);
 
-s16             tabint(s16 offset, u8 *address);
-s16             tabchar(s16 offset, u8 *address);
-s16             tabstring(s16 offset, u8 *address);
+// alis 2.0 (and possibly older)
+
+s16             tabint(s16 offset, u32 address);
+s16             tabchar(s16 offset, u32 address);
+s16             tabstring(s16 offset, u32 address);
+
+// alis 3.0 (and possibly older)
+
+s32             tabintV3(s16 offset, u32 address);
+s32             tabcharV3(s32 offset, u32 address);
+s32             tabstringV3(s16 offset, u32 address);

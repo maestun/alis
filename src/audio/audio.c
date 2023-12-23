@@ -29,7 +29,7 @@
 
 extern SDL_AudioSpec *_audio_spec;
 
-sChannel channels[4] = {{.type = 0}, {.type = 0}, {.type = 0}, {.type = 0}};
+sChannel channels[4] = {{.type = 0, .length = 0}, {.type = 0, .length = 0}, {.type = 0, .length = 0}, {.type = 0, .length = 0}};
 sAudio audio = {};
 
 
@@ -126,7 +126,7 @@ void ayumi_render(struct ayumi *ay, sChannel *ch, float *sample_data)
     s32 frame_count = ch->length;
     double frame_rate = 50;
     double clock_rate = 2000000;
-    s32 sample_rate = 44100;
+    s32 sample_rate = _audio_spec->freq;
     s32 volume = 1;
 
     s32 frame = 0;

@@ -145,11 +145,12 @@ void invdigit(u8 *sample)
     // TODO: causes crashes in some older games, investigate!
     switch (alis.platform.game)
     {
-        case EGameIshar_I:
-        case EGameIshar_II:
-        case EGameIshar_III:
+        case EGameIshar_1:
+        case EGameIshar_2:
+        case EGameIshar_3:
         case EGameTransartica:
-        case EGameRobinsonsRequiem:
+        case EGameRobinsonsRequiem0:
+        case EGameRobinsonsRequiem1:
         case EGameBunnyBricks:
             *(u8 *)(sample + 0x10 + length - 1) = 0;
             break;
@@ -164,6 +165,73 @@ s8 tfibo[16] = {
     0xFB, 0xFD, 0xFE, 0xFF,
     0x01, 0x02, 0x03, 0x05,
     0x08, 0x0D, 0x15, 0x22 };
+
+void script_guess_game(const char * script_path) {
+    
+    FILE * fp = fopen(script_path, "rb");
+    if (fp) {
+        debug(EDebugInfo,
+              "\nLoading script file: %s\n", script_path);
+        
+        // get packed file size
+        fseek(fp, 0L, SEEK_END);
+        u32 input_sz = (u32)ftell(fp);
+        rewind(fp);
+        
+        if (input_sz > 24)
+        {
+            // read header
+            u32 magic = fread32(fp);
+            u16 check = fread16(fp);
+            
+            if(is_main(check)) {
+                
+                alis.header.val0 = fread16(fp);
+                alis.header.val1 = fread16(fp);
+                alis.header.val2 = fread32(fp);
+                alis.header.val3 = fread32(fp);
+                alis.header.val4 = fread32(fp);
+                
+                alis.platform.uid = alis.header.val3 * alis.header.val4;
+
+                switch (alis.platform.uid)
+                {
+                    case EGameXyphoesFantasy:        strcpy(alis.platform.name, "Xyphoes Fantasy");         alis.platform.version = 0;  alis.platform.bpp = 4; alis.basemem = 0x22400; break;
+                    case EGameManhattanDealers:      strcpy(alis.platform.name, "Manhattan Dealers");       alis.platform.version = 10; alis.platform.bpp = 4; alis.basemem = 0x22400; break;
+                    case EGameMadShow:               strcpy(alis.platform.name, "Mad Show");                alis.platform.version = 11; alis.platform.bpp = 4; alis.basemem = 0x23e00; break;
+                    case EGameTarghan0:
+                    case EGameTarghan1:              strcpy(alis.platform.name, "Targhan");                 alis.platform.version = 12; alis.platform.bpp = 4; alis.basemem = 0x26000; break;
+                    case EGameWindsurfWilly:         strcpy(alis.platform.name, "Windsurf Willy");          alis.platform.version = 12; alis.platform.bpp = 4; alis.basemem = 0x25400; break;
+                    case EGameLeFeticheMaya:         strcpy(alis.platform.name, "Le Fetiche Maya");         alis.platform.version = 13; alis.platform.bpp = 4; alis.basemem = 0x25e00; break;
+                    case EGameColorado:              strcpy(alis.platform.name, "Colorado");                alis.platform.version = 13; alis.platform.bpp = 4; alis.basemem = 0x26000; break;
+                    case EGameStarblade:             strcpy(alis.platform.name, "Starblade");               alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x21400; break;
+                    case EGameStormMaster:           strcpy(alis.platform.name, "Storm Master");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1ff00; break;
+                    case EGameMetalMutant:           strcpy(alis.platform.name, "Metal Mutant");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x20800; break;
+                    case EGameCrystalsOfArborea0:
+                    case EGameCrystalsOfArborea1:    strcpy(alis.platform.name, "Crystals Of Arborea");     alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1f300;  break;
+                    case EGameBostonBombClub:        strcpy(alis.platform.name, "Boston Bomb Club");        alis.platform.version = 21; alis.platform.bpp = 4; alis.basemem = 0x27d00;  break;
+                    case EGameTransartica:           strcpy(alis.platform.name, "Transartica");             alis.platform.version = 22; alis.basemem = 0x21d00;  break;
+                    case EGameBunnyBricks:           strcpy(alis.platform.name, "Bunny Bricks");            alis.platform.version = 21; alis.basemem = 0x22200;  break;
+                    case EGameIshar_1:               strcpy(alis.platform.name, "Ishar 1");                 alis.platform.version = 20; alis.basemem = 0x20000;  break;
+                    case EGameIshar_2:               strcpy(alis.platform.name, "Ishar 2");                 alis.platform.version = 21; alis.basemem = 0x22400;  break;
+                    case EGameIshar_3:               strcpy(alis.platform.name, "Ishar 3");                 alis.platform.version = 30; alis.basemem = 0x25a00;  break;
+                    case EGameRobinsonsRequiem0:
+                    case EGameRobinsonsRequiem1:     strcpy(alis.platform.name, "Robinson's Requiem");      alis.platform.version = 30; alis.basemem = 0x2b400;  break;
+                    case EGameAsghan:                strcpy(alis.platform.name, "Asghan");                  alis.platform.version = 40; alis.basemem = 0x22400;  break;
+                    case EGameDeus:                  strcpy(alis.platform.name, "Deus");                    alis.platform.version = 40; alis.basemem = 0x22400;  break;
+                    case EGameTimeWarriors:          strcpy(alis.platform.name, "Time Warriors");           alis.platform.version = 40; alis.basemem = 0x22400;  break;
+                    case EGameTournamentOfWarriors:  strcpy(alis.platform.name, "Tournament Of Warriors");  alis.platform.version = 40; alis.basemem = 0x22400;  break;
+                    default:                         strcpy(alis.platform.name, "UNKNOWN");                 alis.platform.version = 20; alis.basemem = 0x22400;  break;
+                }
+
+                printf("Starting %s %s (ALIS v %.1f)\n", alis.platform.name, alis.platform.desc, alis.platform.version / 10.0);
+            }
+        }
+
+        // cleanup
+        fclose(fp);
+    }
+}
 
 sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
     
@@ -370,6 +438,44 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
     return script;
 }
 
+s32 get_context_size(void)
+{
+    switch (alis.platform.uid)
+    {
+        case EGameLeFeticheMaya:
+        case EGameColorado:
+        case EGameStarblade:
+        case EGameMadShow:
+        case EGameWindsurfWilly:
+            return 0x34;
+//            return 0x2e;
+            break;
+        case EGameTarghan0:
+        case EGameTarghan1:
+            return 0x34;
+//            return 0x30;
+            break;
+        case EGameCrystalsOfArborea0:
+        case EGameCrystalsOfArborea1:
+        case EGameStormMaster:
+        case EGameMetalMutant:
+        case EGameTransartica:
+        case EGameBostonBombClub:
+        case EGameIshar_1:
+        case EGameIshar_2:
+            return 0x34;
+            break;
+        case EGameIshar_3:
+        case EGameRobinsonsRequiem0:
+        case EGameRobinsonsRequiem1:
+        case EGameDeus:
+            return 0x3e;
+            break;
+        default:
+            return -1;
+    }
+}
+
 sAlisScriptLive *script_live(sAlisScriptData * prog) {
     
     sAlisScriptLive *script = (sAlisScriptLive *)malloc(sizeof(sAlisScriptLive));
@@ -381,9 +487,11 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     u8 *data = alis.mem + script->data->data_org;
     
     s32 prevfin = swap16((data + 0x12)) + alis.finent;
-
-    alis.finent = ((swap16((data + 0x16)) + (swap16((data + 0x12)) + alis.finent)) + sizeof(sScriptContext));
     
+    s32 contextsize = get_context_size();
+
+    alis.finent = ((swap16((data + 0x16)) + (swap16((data + 0x12)) + alis.finent)) + contextsize);
+
     script->vacc_off = (prevfin - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
     
@@ -418,15 +526,24 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     set_0x03_xinv(script->vram_org, 0);
     set_0x25_credon_credoff(script->vram_org, 0);
     set_0x26_creducing(script->vram_org, 0xff);
+    set_0x28_unknown(script->vram_org, 0); // wide
     set_0x2a_clinking(script->vram_org, 0); // byte
     set_0x2c_calign(script->vram_org, 0);
     set_0x2d_calign(script->vram_org, 0);
-    set_0x28_unknown(script->vram_org, 0); // wide
-    set_0x2f_chsprite(script->vram_org, 0);
-    set_0x32_unknown(script->vram_org, 0); // wide
-    set_0x34_unknown(script->vram_org, 0);
-    set_0x30_unknown(script->vram_org, 0);
-
+    
+    
+    if (contextsize > 0x2e)
+    {
+        set_0x2f_chsprite(script->vram_org, 0);
+        set_0x30_unknown(script->vram_org, 0);
+        set_0x32_unknown(script->vram_org, 0); // wide
+        set_0x34_unknown(script->vram_org, 0);
+    }
+    else if (contextsize > 0x2e)
+    {
+        // TODO: ...
+    }
+    
     //set_0x2d_calign(script->vram_org, script->header.unknown02);
     
     script->pc = script->pc_org = get_0x08_script_ret_offset(script->vram_org);
