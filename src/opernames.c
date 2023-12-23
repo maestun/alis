@@ -1,21 +1,21 @@
 //
 // Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy 
-// of this software and associated documentation files (the “Software”), 
-// to deal in the Software without restriction, including without limitation 
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-// and/or sell copies of the Software, and to permit persons to whom the 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the “Software”),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in 
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
@@ -95,19 +95,40 @@ void olocp(void) {
 }
 
 void oloctp(void) {
-    s16 offset = tabstring(script_read16(), alis.script->vram_org);
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
-    strcpy(alis.sd7, (char *)get_vram(offset));
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabstring(script_read16(), addr);
+    }
+    else {
+        addr = tabstringV3(script_read16(), addr);
+    }
+
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
 void oloctc(void) {
-    s16 offset = tabchar(script_read16(), alis.script->vram_org);
-    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabchar(script_read16(), addr);
+    }
+    else {
+        addr = tabcharV3(script_read16(), addr);
+    }
+
+    alis.varD7 = (s8)xread8(addr);
 }
 
 void olocti(void) {
-    s16 offset = tabint(script_read16(), alis.script->vram_org);
-    alis.varD7 = xread16(alis.script->vram_org + offset);
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabint(script_read16(), addr);
+    }
+    else {
+        addr = tabintV3(script_read16(), addr);
+    }
+
+    alis.varD7 = xread16(addr);
 }
 
 // reads a byte offset from script,
@@ -133,19 +154,40 @@ void odirp(void) {
 }
 
 void odirtp(void) {
-    s16 offset = tabstring(script_read8(), alis.script->vram_org);
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
-    strcpy(alis.sd7, (char *)get_vram(offset));
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabstring(script_read8(), addr);
+    }
+    else {
+        addr = tabstringV3(script_read8(), addr);
+    }
+
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
 void odirtc(void) {
-    s16 offset = tabchar(script_read8(), alis.script->vram_org);
-    alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabchar(script_read8(), addr);
+    }
+    else {
+        addr = tabcharV3(script_read8(), addr);
+    }
+
+    alis.varD7 = (s8)xread8(addr);
 }
 
 void odirti(void) {
-    s16 offset = tabint(script_read8(), alis.script->vram_org);
-    alis.varD7 = xread16(alis.script->vram_org + offset);
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabint(script_read8(), addr);
+    }
+    else {
+        addr = tabintV3(script_read8(), addr);
+    }
+
+    alis.varD7 = xread16(addr);
 }
 
 void omainb(void) {
@@ -165,19 +207,40 @@ void omainp(void) {
 }
 
 void omaintp(void) {
-    s16 offset = tabstring(script_read16(), alis.basemain);
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
-    strcpy(alis.sd7, (char *)(alis.mem + alis.basemain + offset));
+    s32 addr = alis.basemain;
+    if (alis.platform.version < 30) {
+        addr += tabstring(script_read16(), addr);
+    }
+    else {
+        addr = tabstringV3(script_read16(), addr);
+    }
+
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
 void omaintc(void) {
-    s16 offset = tabchar(script_read16(), alis.basemain);
-    alis.varD7 = (s8)xread8(alis.basemain + offset);
+    s32 addr = alis.basemain;
+    if (alis.platform.version < 30) {
+        addr += tabchar(script_read16(), addr);
+    }
+    else {
+        addr = tabcharV3(script_read16(), addr);
+    }
+
+    alis.varD7 = (s8)xread8(addr);
 }
 
 void omainti(void) {
-    s16 offset = tabint(script_read16(), alis.basemain);
-    alis.varD7 = xread16(alis.basemain + offset);
+    s32 addr = alis.basemain;
+    if (alis.platform.version < 30) {
+        addr += tabint(script_read16(), addr);
+    }
+    else {
+        addr = tabintV3(script_read16(), addr);
+    }
+
+    alis.varD7 = xread16(addr);
 }
 
 void ohimb(void) {
@@ -449,51 +512,93 @@ s16 io_dfree(void)
 }
 
 void ofree(void) {
-    if (alis.varD7 == 0)
+    
+    // if (alis.platform.game == EGameColorado)
+    if (alis.platform.version <= 20)
     {
-        alis.varD7 = (alis.finmem - alis.finprog) / 1000;
-    }
-    else if (alis.varD7 == 1)
-    {
-        alis.varD7 = (image.debsprit - alis.finent) / 1000;
-    }
-    else if (alis.varD7 == 2)
-    {
-        alis.varD7 = alis.maxprog - alis.nbprog;
-    }
-    else if (alis.varD7 != 3)
-    {
-        if (alis.varD7 == 4)
+        if (alis.varD7 == 0)
+        {
+            alis.varD7 = (alis.finmem - alis.finprog) / 1000;
+        }
+        else if (alis.varD7 == 1)
+        {
+            alis.varD7 = (image.debsprit - alis.finent) / 1000;
+        }
+        else if (alis.varD7 == 2)
+        {
+            alis.varD7 = alis.maxprog - alis.nbprog;
+        }
+        else if (alis.varD7 == 3)
+        {
+            alis.varD7 = alis.maxent - alis.nbent;
+        }
+        else if (alis.varD7 == 4)
         {
             alis.varD7 = 0;
-            
             for (s16 spritidx = image.libsprit; spritidx != 0; spritidx = SPRITE_VAR(spritidx)->to_next)
             {
                 alis.varD7 ++;
             }
-            
-            return;
+        }
+        else if ((alis.varD7 == 0x61) || (alis.varD7 == 0x41))
+        {
+            alis.varD7 = io_dfree();
+        }
+        else if ((alis.varD7 == 0x62) || (alis.varD7 == 0x42))
+        {
+            alis.varD7 = io_dfree();
+        }
+        else if ((alis.varD7 != 99) && (alis.varD7 != 0x43))
+        {
+            alis.varD7 = -1;
+        }
+        else
+        {
+            alis.varD7 = io_dfree();
+        }
+    }
+    else
+    {
+        if (alis.varD7 == 0)
+        {
+            alis.varD7 = (alis.finmem - alis.finprog) / 1000;
+        }
+        else if (alis.varD7 == 1)
+        {
+            alis.varD7 = (image.debsprit - alis.finent) / 1000;
+        }
+        else if (alis.varD7 == 2)
+        {
+            alis.varD7 = alis.maxprog - alis.nbprog;
+        }
+        else if (alis.varD7 == 3)
+        {
+            alis.varD7 = alis.maxent - alis.nbent;
+        }
+        else if (alis.varD7 == 4)
+        {
+            alis.varD7 = 0;
+            for (s16 spritidx = image.libsprit; spritidx != 0; spritidx = SPRITE_VAR(spritidx)->to_next)
+            {
+                alis.varD7 ++;
+            }
         }
         else if (0x40 < alis.varD7)
         {
             if (alis.varD7 < 0x49)
             {
                 alis.varD7 = io_dfree();
-                return;
             }
             
             if ((0x60 < alis.varD7) && (alis.varD7 < 0x69))
             {
                 alis.varD7 = io_dfree();
-                return;
             }
         }
-        
-        alis.varD7 =  -1;
-    }
-    else
-    {
-        alis.varD7 = alis.maxent - alis.nbent;
+        else
+        {
+            alis.varD7 =  -1;
+        }
     }
 }
 
@@ -696,7 +801,7 @@ void oexistf(void) {
     char *dotptr = strrchr(path, '.');
     if (dotptr)
     {
-        if (strcasecmp(dotptr + 1, "fic") && strcasecmp(dotptr + 1, "cst"))
+        if (strcasecmp(dotptr + 1, "fic") && strcasecmp(dotptr + 1, "cst") && !sys_fexists(path))
         {
             strcpy(dotptr + 1, alis.platform.ext);
         }

@@ -263,6 +263,8 @@ typedef struct {
     char *          sd6;
     char *          oldsd7;
     
+    char            autoname[256];
+
     s32             tabptr[16][2];
 
     // data buffers

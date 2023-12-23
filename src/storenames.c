@@ -1,21 +1,21 @@
 //
 // Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy 
-// of this software and associated documentation files (the “Software”), 
-// to deal in the Software without restriction, including without limitation 
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-// and/or sell copies of the Software, and to permit persons to whom the 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the “Software”),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in 
+// The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
@@ -34,7 +34,7 @@ static void cnul(void) {
 
 /**
  * @brief reads a word (offset) from script, then stores d7 byte at (vram + offset)
- * 
+ *
  */
 static void slocb(void) {
     s16 offset = script_read16();
@@ -43,7 +43,7 @@ static void slocb(void) {
 
 /**
  * @brief reads a word (offset) from script, then stores d7 word at (vram + offset)
- * 
+ *
  */
 static void slocw(void) {
     s16 offset = script_read16();
@@ -52,7 +52,7 @@ static void slocw(void) {
 
 /**
  * @brief reads a word (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
- * 
+ *
  */
 static void slocp(void) {
     s16 offset = script_read16();
@@ -62,29 +62,51 @@ static void slocp(void) {
 
 // Store at LOCation with offseT: Pointer
 static void sloctp(void) {
-    s16 offset = tabstring(script_read16(), alis.script->vram_org);
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabstring(script_read16(), addr);
+    }
+    else {
+        addr = tabstringV3(script_read16(), addr);
+    }
+
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
-    strcpy((char *)alis.mem + alis.script->vram_org + offset, (char *)alis.oldsd7);
+    strcpy((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 
 // Store at LOCation with offseT: Char
 static void sloctc(void) {
-    s16 offset = tabchar(script_read16(), alis.script->vram_org);
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabchar(script_read16(), addr);
+    }
+    else {
+        addr = tabcharV3(script_read16(), addr);
+    }
+
     alis.varD7 = *alis.acc++;
-    xwrite8(alis.script->vram_org + offset, alis.varD7);
+    xwrite8(addr, alis.varD7);
 }
 
 // Store at LOCation with offseT: Int
 static void slocti(void) {
-    s16 offset = tabint(script_read16(), alis.script->vram_org);
+
+    u32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabint(script_read16(), addr);
+    }
+    else {
+        addr = tabintV3(script_read16(), addr);
+    }
+
     alis.varD7 = *alis.acc++;
-    xwrite16(alis.script->vram_org + offset, alis.varD7);
+    xwrite16(addr, alis.varD7);
 }
 
 
 /**
  * @brief reads a byte (offset) from script, then stores d7 byte at (vram + offset)
- * 
+ *
  */
 static void sdirb(void) {
     xwrite8(alis.script->vram_org + script_read8(), (u8)alis.varD7);
@@ -92,7 +114,7 @@ static void sdirb(void) {
 
 /**
  * @brief reads a byte (offset) from script, then stores d7 word at (vram + offset)
- * 
+ *
  */
 static void sdirw(void) {
     
@@ -102,7 +124,7 @@ static void sdirw(void) {
 
 /**
  * @brief reads a byte (offset) from script, then stores null-terminated string in ARRAY_C at (vram + offset)
- * 
+ *
  */
 static void sdirp(void) {
     u8 offset = script_read8();
@@ -111,21 +133,42 @@ static void sdirp(void) {
 }
 
 static void sdirtp(void) {
-    s16 offset = tabstring(script_read8(), alis.script->vram_org);
+    s32 addr = alis.basemain;
+    if (alis.platform.version < 30) {
+        addr += tabstring(script_read8(), addr);
+    }
+    else {
+        addr = tabstringV3(script_read8(), addr);
+    }
+
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
-    strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
+    strcpy((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 
 static void sdirtc(void) {
-    s16 offset = tabchar(script_read8(), alis.script->vram_org);
+    s32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabchar(script_read8(), addr);
+    }
+    else {
+        addr = tabcharV3(script_read8(), addr);
+    }
+
     alis.varD7 = *alis.acc++;
-    xwrite8(alis.script->vram_org + offset, alis.varD7);
+    xwrite8(addr, alis.varD7);
 }
 
 static void sdirti(void) {
-    s16 offset = tabint(script_read8(), alis.script->vram_org);
+    u32 addr = alis.script->vram_org;
+    if (alis.platform.version < 30) {
+        addr += tabint(script_read8(), addr);
+    }
+    else {
+        addr = tabintV3(script_read8(), addr);
+    }
+
     alis.varD7 = *alis.acc++;
-    xwrite16(alis.script->vram_org + offset, alis.varD7);
+    xwrite16(addr, alis.varD7);
 }
 
 static void smainb(void) {
@@ -147,21 +190,42 @@ static void smainp(void) {
 }
 
 static void smaintp(void) {
-    s16 offset = tabstring(script_read16(), alis.basemain);
-    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
-    strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
+    s32 addr = alis.basemain;
+    if (alis.platform.version < 30) {
+        addr += tabstring(script_read16(), addr);
+    }
+    else {
+        addr = tabstringV3(script_read16(), addr);
+    }
+
+    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    strcpy((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 
 static void smaintc(void) {
-    s16 offset = tabchar(script_read16(), alis.basemain);
+    s32 addr = alis.basemain;
+    if (alis.platform.version < 30) {
+        addr += tabchar(script_read16(), addr);
+    }
+    else {
+        addr += tabcharV3(script_read16(), addr);
+    }
+
     alis.varD7 = *alis.acc++;
-    xwrite8(alis.basemain + offset, (u8)alis.varD7);
+    xwrite8(addr, alis.varD7);
 }
 
 static void smainti(void) {
-    s16 offset = tabint(script_read16(), alis.basemain);
+    u32 addr = alis.basemain;
+    if (alis.platform.version < 30) {
+        addr += tabint(script_read16(), addr);
+    }
+    else {
+        addr = tabintV3(script_read16(), addr);
+    }
+
     alis.varD7 = *alis.acc++;
-    xwrite16(alis.basemain + offset, (s16)alis.varD7);
+    xwrite16(addr, alis.varD7);
 }
 
 static void shimb(void) {

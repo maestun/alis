@@ -369,11 +369,13 @@ u32 fls_decomp(u32 addr)
 
 void fls_vbl_callback2(void)
 {
-    u16 *palette = (u16 *)(vgalogic + 32000);
-    u16 curpal[16];
-    memcpy(curpal, palette, 32);
-
-    s16 pallines = 0xc5 - fls_pallines;
+    u8 *prevlogic = vgalogic_df;
+    if (fls_drawing != 0)
+    {
+        vgalogic_df = vgalogic;
+        vgalogic = prevlogic;
+        fls_drawing = 0;
+    }
 
     // set 8 bit "hicolor palette" to help simulate ST 512 color image
 
@@ -390,24 +392,24 @@ void fls_vbl_callback2(void)
             }
         }
     }
-
-    u8 *prevlogic = vgalogic_df;
-    if (fls_drawing != 0)
-    {
-        vgalogic_df = vgalogic;
-        vgalogic = prevlogic;
-        fls_drawing = 0;
-    }
     
+    u16 curpal[16];
+    memcpy(curpal, vgalogic_df + 32000, 32);
+
+    s16 pallines = 0xc5 - fls_pallines;
+
+    u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
     u8 *bitmap = vgalogic_df + 0xa0;
 
     u16 width = 320;
     u16 height = 200;
     
     // ST scanline width 48 + 320 + 44 (412)
+    // change palette every 412 / 48 ?
+    float pxs = 9.6;
 
-    int limit0 = 24;
-    int limit1 = 184;
+    int limit0 = -4;
+    int limit1 = 156;
 
     u32 at = 0;
 
@@ -418,59 +420,70 @@ void fls_vbl_callback2(void)
     
     // copy vgalogic to screen
 
-    for (int y = 0; y < height; y++)
+    for (int y = 0; y < height; y++, palette += 16)
     {
+        int px = 0;
+        
         for (int x = 0; x < width; x+=16, bmpidx+=16, at+=8)
         {
-            for (int dpx = 0; dpx < 8; dpx++)
+            for (int dpx = 0; dpx < 8; dpx++, px++)
             {
-                // convert planar to chunky
+                // handle palette for the fist 8 pixels
                 
-                u32 rot = (7 - dpx);
-                u32 mask = 1 << rot;
-                physic[bmpidx + 0 + dpx] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
-                physic[bmpidx + 8 + dpx] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
-                
-                // TODO: palette handling is still somewhat off
-                
-                if (height > pallines)
+                if (px >= limit0)
                 {
-                    int px = (x + dpx * 2);
-                    if (px == limit0 || px == limit1)
+                    if (px == limit1)
                     {
                         palette += 16;
                     }
                     
-                    if (px >= limit0 && dpx == 0)
+                    palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
+                    if (palidx < 16)
                     {
-                        palidx = px < limit1 ? (px - limit0) / 8 : (px - limit1) / 8;
-                        if (palidx < 16)
-                        {
-                            curpal[palidx] = palette[palidx];
-                        }
+                        curpal[palidx] = palette[palidx];
                     }
-                    
-                    rawcolor = (u8 *)&(curpal[physic[bmpidx + 0 + dpx]]);
-                    red = (rawcolor[0] & 0b00000111);
-                    grn = (rawcolor[1] >> 4);
-                    blu = (rawcolor[1] & 0b00000111) >> 1;
-                    physic[bmpidx + 0 + dpx] = (red * 32) + (grn * 4) + blu;
-                    
-                    if (px >= limit0 && dpx == 0)
-                    {
-                        palidx = 1 + (px < limit1 ? (px - limit0) / 8 : (px - limit1) / 8);
-                        if (palidx < 16)
-                        {
-                            curpal[palidx] = palette[palidx];
-                        }
-                    }
-                    
-                    rawcolor = (u8 *)&(curpal[physic[bmpidx + 8 + dpx]]);
-                    red = (rawcolor[0] & 0b00000111);
-                    grn = (rawcolor[1] >> 4);
-                    blu = (rawcolor[1] & 0b00000111) >> 1;
-                    physic[bmpidx + 8 + dpx] = (red * 32) + (grn * 4) + blu;
                 }
+                
+                // convert planar to chunky
+
+                u32 rot = (7 - dpx);
+                u32 mask = 1 << rot;
+
+                rawcolor = (u8 *)&(curpal[(((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3)]);
+                red = (rawcolor[0] & 0b00000111);
+                grn = (rawcolor[1] >> 4);
+                blu = (rawcolor[1] & 0b00000111) >> 1;
+                physic[bmpidx + 0 + dpx] = (red << 5) + (grn << 2) + blu;
+            }
+            
+            for (int dpx = 0; dpx < 8; dpx++, px++)
+            {
+                // handle palette for the second 8 pixels
+
+                if (px >= limit0)
+                {
+                    if (px == limit1)
+                    {
+                        palette += 16;
+                    }
+
+                    palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
+                    if (palidx < 16)
+                    {
+                        curpal[palidx] = palette[palidx];
+                    }
+                }
+                
+                // convert planar to chunky
+                
+                u32 rot = (7 - dpx);
+                u32 mask = 1 << rot;
+
+                rawcolor = (u8 *)&(curpal[(((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3)]);
+                red = (rawcolor[0] & 0b00000111);
+                grn = (rawcolor[1] >> 4);
+                blu = (rawcolor[1] & 0b00000111) >> 1;
+                physic[bmpidx + 8 + dpx] = (red << 5) + (grn << 2) + blu;
             }
         }
         
@@ -1285,8 +1298,6 @@ static void clive(void) {
 
 void clivin(void)
 {
-    s32 contextsize = get_context_size();
-
     s16 id = script_read16();
     if (id != -1)
     {
@@ -1300,18 +1311,49 @@ void clivin(void)
             u8 *next = alis.mem + script->vram_org;
             memcpy(next, prev_vram, 8);
             
-            xadd16(script->vram_org + 0, alis.wcx);
-            xadd16(script->vram_org + 2, alis.wcz);
-            xadd16(script->vram_org + 4, alis.wcy);
-            
-            *(u8 *)(next + 0x9) = *(u8 *)(prev_vram + 0x9);
-            *(u8 *)(next + 0xa) = *(u8 *)(prev_vram + 0xa);
-            *(u8 *)(next + 0xb) = *(u8 *)(prev_vram + 0xb);
+            if (alis.platform.version >= 30)
+            {
+                *(s32 *)(next + 0x00) = *(s32 *)(prev_vram + 0x00);
+                *(s32 *)(next + 0x08) = *(s32 *)(prev_vram + 0x08);
+                *(s32 *)(next + 0x10) = *(s32 *)(prev_vram + 0x10);
 
-            *(s16 *)(alis.mem + script->vram_org - 0x28) = *(s16 *)(alis.mem + alis.script->vram_org - 0xe);
-            *(s16 *)(alis.mem + script->vram_org - 0x16) = *(s16 *)(alis.mem + alis.script->vram_org - 0x16);
-            *(s16 *)(alis.mem + script->vram_org - 0x22) = *(s16 *)(alis.mem + alis.script->vram_org - 0x22);
-            *(s16 *)(alis.mem + script->vram_org - 0x2a) = *(s16 *)(alis.mem + script->vram_org - 0xe);
+                *(s16 *)(next + 0x30) = *(s16 *)(prev_vram + 0x30);
+                *(s16 *)(next + 0x34) = *(s16 *)(prev_vram + 0x34);
+                *(s16 *)(next + 0x38) = *(s16 *)(prev_vram + 0x38);
+                *(s16 *)(next + 0x3c) = *(s16 *)(prev_vram + 0x3c);
+                *(s16 *)(next - 0x28) = *(s16 *)(prev_vram - 0x0e);
+
+                *(s32 *)(next + 0x18) = *(s32 *)(prev_vram + 0x18);
+                *(s32 *)(next + 0x20) = *(s32 *)(prev_vram + 0x20);
+                *(s32 *)(next + 0x28) = *(s32 *)(prev_vram + 0x28);
+
+                *(s16 *)(next + 0x40) = *(s16 *)(prev_vram + 0x40);
+                *(s16 *)(next + 0x44) = *(s16 *)(prev_vram + 0x44);
+                *(s16 *)(next + 0x48) = *(s16 *)(prev_vram + 0x48);
+
+                xadd16(script->vram_org + 0x00, alis.wcx);
+                xadd16(script->vram_org + 0x08, alis.wcz);
+                xadd16(script->vram_org + 0x10, alis.wcy);
+                
+                *(s16 *)(next - 0x16) = *(s16 *)(prev_vram - 0x16);
+                *(s16 *)(next - 0x22) = *(s16 *)(prev_vram - 0x22);
+                *(s16 *)(next - 0x2a) = *(s16 *)(next - 0xe);
+            }
+            else
+            {
+                xadd16(script->vram_org + 0, alis.wcx);
+                xadd16(script->vram_org + 2, alis.wcz);
+                xadd16(script->vram_org + 4, alis.wcy);
+                
+                *(u8 *)(next + 0x9) = *(u8 *)(prev_vram + 0x9);
+                *(u8 *)(next + 0xa) = *(u8 *)(prev_vram + 0xa);
+                *(u8 *)(next + 0xb) = *(u8 *)(prev_vram + 0xb);
+
+                *(s16 *)(next - 0x28) = *(s16 *)(prev_vram - 0xe);
+                *(s16 *)(next - 0x16) = *(s16 *)(prev_vram - 0x16);
+                *(s16 *)(next - 0x22) = *(s16 *)(prev_vram - 0x22);
+                *(s16 *)(next - 0x2a) = *(s16 *)(next - 0xe);
+            }
 
             // NOTE: just to show already running scripts
             
@@ -1326,6 +1368,7 @@ void clivin(void)
                 sAlisScriptLive *s = alis.live_scripts[i];
                 if (s && s->vram_org)
                 {
+                    s32 contextsize = get_context_size();
                     u32 datasize = contextsize + s->data->header.w_unknown5 + s->data->header.w_unknown7;
                     s32 vramsize = s->data->header.vram_alloc_sz;
                     s32 shrinkby = datasize + vramsize;
@@ -1347,6 +1390,10 @@ void clivin(void)
                 return;
             }
         }
+    }
+    else
+    {
+        alis.varD7 = -1;
     }
 
     cstore_continue();
@@ -1895,12 +1942,26 @@ static void crstent(void) {
 }
 
 static void ctstmov(void) {
+
+    if (alis.platform.version >= 30)
+    {
+        alis.wcx = xread16(alis.script->vram_org + 0x00);
+        alis.wcy = xread16(alis.script->vram_org + 0x08);
+        alis.wcz = xread16(alis.script->vram_org + 0x10);
+    }
+    else
+    {
+        alis.wcx = xread16(alis.script->vram_org + 0);
+        alis.wcy = xread16(alis.script->vram_org + 2);
+        alis.wcz = xread16(alis.script->vram_org + 4);
+    }
+    
     readexec_opername();
-    alis.wcx = xread16(alis.script->vram_org + 0) + alis.varD7;
+    alis.wcx += alis.varD7;
     readexec_opername();
-    alis.wcy = xread16(alis.script->vram_org + 2) + alis.varD7;
+    alis.wcy += alis.varD7;
     readexec_opername();
-    alis.wcz = xread16(alis.script->vram_org + 4) + alis.varD7;
+    alis.wcz += alis.varD7;
     readexec_opername();
     alis.matmask = alis.varD7;
     alis.wforme = get_0x1a_cforme(alis.script->vram_org);
@@ -1913,12 +1974,26 @@ static void ctstset(void) {
 }
 
 static void cftstmov(void) {
+    
+    if (alis.platform.version >= 30)
+    {
+        alis.wcx = xread16(alis.script->vram_org + 0x00);
+        alis.wcy = xread16(alis.script->vram_org + 0x08);
+        alis.wcz = xread16(alis.script->vram_org + 0x10);
+    }
+    else
+    {
+        alis.wcx = xread16(alis.script->vram_org + 0);
+        alis.wcy = xread16(alis.script->vram_org + 2);
+        alis.wcz = xread16(alis.script->vram_org + 4);
+    }
+    
     readexec_opername();
-    alis.wcx = xread16(alis.script->vram_org + 0) + alis.varD7;
+    alis.wcx += alis.varD7;
     readexec_opername();
-    alis.wcy = xread16(alis.script->vram_org + 2) + alis.varD7;
+    alis.wcy += alis.varD7;
     readexec_opername();
-    alis.wcz = xread16(alis.script->vram_org + 4) + alis.varD7;
+    alis.wcz += alis.varD7;
     readexec_opername();
     alis.matmask = alis.varD7;
     readexec_opername();
@@ -2925,9 +3000,20 @@ static void cescape(void) {
 }
 
 static void cvtstmov(void) {
-    alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
-    alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
-    alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
+
+    if (alis.platform.version >= 30)
+    {
+        alis.wcx = (s8)xread8(alis.script->vram_org + 0x34) + xread16(alis.script->vram_org + 0x00);
+        alis.wcy = (s8)xread8(alis.script->vram_org + 0x38) + xread16(alis.script->vram_org + 0x08);
+        alis.wcz = (s8)xread8(alis.script->vram_org + 0x3c) + xread16(alis.script->vram_org + 0x10);
+    }
+    else
+    {
+        alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
+        alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
+        alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
+    }
+    
     readexec_opername();
     alis.matmask = alis.varD7;
     alis.wforme = get_0x1a_cforme(alis.script->vram_org);
@@ -2936,9 +3022,20 @@ static void cvtstmov(void) {
 }
 
 static void cvftstmov(void) {
-    alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
-    alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
-    alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
+
+    if (alis.platform.version >= 30)
+    {
+        alis.wcx = (s8)xread8(alis.script->vram_org + 0x34) + xread16(alis.script->vram_org + 0x00);
+        alis.wcy = (s8)xread8(alis.script->vram_org + 0x38) + xread16(alis.script->vram_org + 0x08);
+        alis.wcz = (s8)xread8(alis.script->vram_org + 0x3c) + xread16(alis.script->vram_org + 0x10);
+    }
+    else
+    {
+        alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
+        alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
+        alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
+    }
+    
     readexec_opername();
     alis.matmask = alis.varD7;
     readexec_opername();
@@ -3255,9 +3352,19 @@ static void cwftstmov(void) {
 }
 
 static void ctstform(void) {
-    alis.wcx = xread16(alis.script->vram_org + 0);
-    alis.wcy = xread16(alis.script->vram_org + 2);
-    alis.wcz = xread16(alis.script->vram_org + 4);
+    if (alis.platform.version >= 30)
+    {
+        alis.wcx = xread16(alis.script->vram_org + 0x00);
+        alis.wcy = xread16(alis.script->vram_org + 0x08);
+        alis.wcz = xread16(alis.script->vram_org + 0x10);
+    }
+    else
+    {
+        alis.wcx = xread16(alis.script->vram_org + 0);
+        alis.wcy = xread16(alis.script->vram_org + 2);
+        alis.wcz = xread16(alis.script->vram_org + 4);
+    }
+
     readexec_opername();
     alis.matmask = alis.varD7;
     readexec_opername();
@@ -3462,7 +3569,6 @@ static void csinput(void) {
 }
 
 static void crunfilm(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
     bfilm.batchframes = alis.varD7;
     runfilm();
@@ -3891,9 +3997,9 @@ static void calign(void) {
     set_0x2d_calign(alis.script->vram_org, alis.varD7);
 }
 
-void rescmode(u8 *a0)
+void rescmode(s16 at, u8 value)
 {
-  *(u8 *)(SPRITEMEM_PTR + 1 + *(s16 *)(a0 + 2)) = a0[1];
+    SPRITE_VAR(at)->numelem = value;
 }
 
 s16 starbuff[8];
@@ -3915,19 +4021,34 @@ static void cbackstar(void) {
     starbuff[5] = alis.varD7;
     starbuff[6] = 0;
 
-    // TODO: those values are read later in some other opcode/operand ...
+    if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
+    {
+        if (alis.platform.uid == EGameColorado) // colorado and likely other older games
+        {
+            u8 value = xread8(alis.basemain + 1);
+            value &= 0xf7;
+            value &= 0xef;
+            if (starbuff[0] != 0)
+                value |= 0x18;
 
-//    if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
-//    {
-//        u8 *screen = (alis.mem + alis.basemain + get_0x16_screen_id(alis.script->vram_org));
-//        screen[1] &= 0xf7;
-//        screen[1] &= 0xef;
-//        if (stararray[0] != 0)
-//        {
-//            screen[1] |= 0x18;
-//            rescmode(screen);
-//        }
-//    }
+            xwrite8(alis.basemain + 1, value);
+        }
+        else // if (alis.platform.game == EGameIshar_1 || alis.platform.game == EGameIshar_2 || alis.platform.game == EGameIshar_3 || alis.platform.game == EGameRobinsonsRequiem || alis.platform.game == EGameTransartica || alis.platform.game == EGameMetalMutant || alis.platform.game == EGameStormMaster)
+        {
+            u8 value = xread8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1);
+            value &= 0xf7;
+            value &= 0xef;
+            if (starbuff[0] != 0)
+            {
+                value |= 0x18;
+
+                s16 at = xread16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 2);
+                rescmode(at, value);
+            }
+            
+            xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1, value);
+        }
+    }
 }
 
 static void cstarring(void) {
@@ -3942,7 +4063,7 @@ static void cstarring(void) {
     readexec_opername();
     
     // not used in colorado
-    if (alis.platform.game != EGameColorado)
+    if (alis.platform.uid != EGameColorado)
     {
         starbuff[3] = alis.varD7;
         readexec_opername();
@@ -4023,7 +4144,7 @@ static void clinepalet(void) {
     readexec_opername();
     readexec_opername_saveD6();
 
-    if (alis.platform.bpp != 8 && !(alis.platform.game == EGameMetalMutant && alis.platform.kind == EPlatformPC))
+    if (alis.platform.bpp != 8 && !(alis.platform.uid == EGameMetalMutant && alis.platform.kind == EPlatformPC))
     {
         setlinepalet(alis.varD7, alis.varD6);
     }
@@ -4035,6 +4156,15 @@ static void cautomode(void) {
 
 static void cautofile(void) {
     readexec_opername_swap();
+    
+    if (alis.platform.version >= 30)
+    {
+        int i = 0;
+        for (; i < 0xc; i++)
+            alis.autoname[i] = alis.sd7[i];
+        
+        alis.autoname[i] = 0;
+    }
 }
 
 static void ccancel(void) {
@@ -4526,7 +4656,68 @@ static void cscsun(void) {
 }
 
 static void cdarkpal(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    short sVar4;
+    short *psVar5;
+    short *psVar6;
+    
+    readexec_opername();
+    s16 darkpar = alis.varD7;
+    readexec_opername();
+    s16 darkpav = alis.varD7;
+    readexec_opername();
+    s16 darkpab = alis.varD7;
+    readexec_opername();
+    s16 darkpac = alis.varD7;
+    readexec_opername();
+    s16 darkpan = alis.varD7;
+
+    s16 sVar1 = darkpav;
+    s16 sVar2 = darkpab;
+    s16 sVar3 = darkpar;
+
+//    if (darkpac < 0x3c)
+//    {
+//        sVar4 = darkpac + alis.varD7;
+//        if (0x3f < sVar4)
+//        {
+//            sVar4 = 0x40;
+//        }
+//
+//        psVar5 = (short *)(dkpalet + (short)(darkpac * 6));
+//        sVar4 = (sVar4 - darkpac) + -1;
+//        do
+//        {
+//            *psVar5 = sVar3;
+//            psVar6 = psVar5 + 2;
+//            psVar5[1] = sVar1;
+//            psVar5 = psVar5 + 3;
+//            *psVar6 = sVar2;
+//            sVar4 += -1;
+//        }
+//        while (sVar4 != -1);
+//
+//        dkpalet._0_2_ = 0;
+//        dkpalet._2_2_ = 0;
+//        dkpalet._4_2_ = 0;
+//        sVar3 = 0xb2;
+//        psVar5 = (short *)(dkpalet + 6);
+//
+//        do
+//        {
+//            if (*psVar5 != 0x100)
+//            {
+//                fdarkpal = 1;
+//                dkpalet._0_2_ = 0;
+//                dkpalet._2_2_ = 0;
+//                dkpalet._4_2_ = 0;
+//                return;
+//            }
+//        }
+//        while ((true) && (sVar3 += -1, psVar5 = psVar5 + 1, sVar3 != -1));
+//
+//        fdarkpal = 0;
+//    }
 }
 
 static void cscdark(void) {
@@ -4589,7 +4780,9 @@ static void cscview(void) {
 }
 
 static void cfilm(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    if (alis.platform.kind == EPlatformAmiga)
+        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+
     readexec_opername();
     memset(&bfilm, 0, sizeof(bfilm));
     
@@ -4865,7 +5058,7 @@ static void cclock(void)    {
 #pragma mark - Unimplemented opcodes
 // ============================================================================
 static void cnul(void)      {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cesc1(void)     {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
@@ -4875,37 +5068,37 @@ static void cesc1(void)     {
     return opcode.fptr();
 }
 static void cesc2(void)     {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cesc3(void)     {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cbreakpt(void)  {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cmul(void)      {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cdiv(void)      {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cjsrabs(void)   {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cjmpabs(void)   {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cjsrind16(void) {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cjsrind24(void) {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cjmpind16(void) {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cjmpind24(void) {
-    debug(EDebugError, " N/I ");
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 
@@ -5596,6 +5789,8 @@ void shrinkprog(s32 start, s32 length, u16 id)
 
     if (id != 0)
     {
+        s32 contextsize = get_context_size();
+
         u32 entidx = 0;
         u32 prevent = 0;
         
@@ -5618,7 +5813,7 @@ void shrinkprog(s32 start, s32 length, u16 id)
                 set_0x08_script_ret_offset(script->vram_org, get_0x08_script_ret_offset(script->vram_org) - length);
                 
                 u32 org_offset = get_0x14_script_org_offset(script->vram_org);
-                script->vacc_off = -0x34 - xread16(org_offset + 0x16);
+                script->vacc_off = -contextsize - xread16(org_offset + 0x16);
                 debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
 
                 // NOTE: no longer needed, we are calculating proper value using script start location

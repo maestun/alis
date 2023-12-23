@@ -28,16 +28,20 @@
 static void cnul(void) {
 }
 void consound(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+//    fsound = 1;
 }
 void coffsound(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    //    fsound = 0;
 }
 void conmusic(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+//    fmusic = 1;
 }
 void coffmusic(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+//    fmusic = 0;
 }
 void cdelfilm(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
