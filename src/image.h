@@ -75,7 +75,11 @@ typedef struct {
     s16 oldcx;
     s16 oldcy;
     s16 oldcz;
-    
+
+    s16 oldacx;
+    s16 oldacy;
+    s16 oldacz;
+
     s16 backprof;
     s16 backx1;
     s16 backx2;

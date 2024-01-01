@@ -340,96 +340,99 @@ void alis_loop(void) {
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
 
-void savecoord(u8 *a6)
+void savecoord(u32 addr)
 {
-    // ishar 1&2
-    image.oldcx = read16(a6 + 0);
-    image.oldcy = read16(a6 + 2);
-    image.oldcz = read16(a6 + 4);
+    image.oldcx = xread16(addr + ALIS_SCR_WCX);
+    image.oldcy = xread16(addr + ALIS_SCR_WCY);
+    image.oldcz = xread16(addr + ALIS_SCR_WCZ);
 
-//    //ishar 3
-//    oldcx = *(u16 *)(a6 + 0x00);
-//    oldcy = *(u16 *)(a6 + 0x08);
-//    oldcz = *(u16 *)(a6 + 0x10);
-//    oldacx = *(u16 *)(a6 + 0x18);
-//    oldacy = *(u16 *)(a6 + 0x20);
-//    oldacz = *(u16 *)(a6 + 0x28);
+    // ishar 3
+
+    if (alis.platform.version >= 30) {
+
+        image.oldacx = xread16(addr + 0x18);
+        image.oldacy = xread16(addr + 0x20);
+        image.oldacz = xread16(addr + 0x28);
+    }
 }
 
-void updtcoord(u8 *a6)
+void updtcoord(u32 addr)
 {
-    // ishar 1&2
-    s16 addx = read16(a6 + 0) - image.oldcx;
-    s16 addy = read16(a6 + 2) - image.oldcy;
-    s16 addz = read16(a6 + 4) - image.oldcz;
-    if (addz != 0 || addx != 0 || addy != 0)
-    {
-        for (sSprite *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+    if (alis.platform.version < 30) {
+        // ishar 1&2
+        s16 addx = xread16(addr + 0) - image.oldcx;
+        s16 addy = xread16(addr + 2) - image.oldcy;
+        s16 addz = xread16(addr + 4) - image.oldcz;
+        if (addz != 0 || addx != 0 || addy != 0)
         {
-            if (sprite->state == 0)
-                sprite->state = 2;
-            
-            sprite->depx += addx;
-            sprite->depy += addy;
-            sprite->depz += addz;
+            for (sSprite *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+            {
+                if (sprite->state == 0)
+                    sprite->state = 2;
+                
+                sprite->depx += addx;
+                sprite->depy += addy;
+                sprite->depz += addz;
+            }
         }
     }
-    
-    // ishar 3
-//    s16 angle = *(u16 *)(a6 + 0x18);
-//    if (angle != oldacx)
-//    {
-//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
-//            angle = angle % 0x168;
-//
-//        if (angle < -0x168 && (angle += 0x168) < -0x168)
-//            angle = angle % 0x168;
-//
-//        *(s16 *)(a6 + 0x18) = angle;
-//    }
-//
-//    angle = *(u16 *)(a6 + 0x20);
-//    if (angle != oldacy)
-//    {
-//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
-//            angle = angle % 0x168;
-//
-//        if (angle < -0x168 && (angle += 0x168) < -0x168)
-//            angle = angle % 0x168;
-//
-//        *(s16 *)(a6 + 0x20) = angle;
-//    }
-//
-//    angle = *(u16 *)(a6 + 0x28);
-//    if (angle != oldacy)
-//    {
-//        if ((0x168 < angle) && 0x168 < (angle = angle - 0x168))
-//            angle = angle % 0x168;
-//
-//        if (angle < -0x168 && (angle += 0x168) < -0x168)
-//            angle = angle % 0x168;
-//
-//        *(s16 *)(a6 + 0x28) = angle;
-//    }
-//
-//    s16 addx = *(s16 *)(a6 + 0x00) - oldcx;
-//    s16 addy = *(s16 *)(a6 + 0x08) - oldcy;
-//    s16 addz = *(s16 *)(a6 + 0x10) - oldcz;
-//    u16 unknown28 = *(u16 *)(a6 + 0x28);
-//
-//    if (angle != oldacz || addz != 0 || addx != 0 || addy != 0)
-//    {
-//        for (SpriteVariables *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
-//        {
-//            if (sprite->state == 0)
-//                sprite->state = 2;
-//
-//            sprite->depx += addx;
-//            sprite->depy += addy;
-//            sprite->depz += addz;
-//            sprite->sprite_0x28 = unknown28;
-//        }
-//    }
+    else {
+        // ishar 3
+        s16 angle = xread16(addr + 0x18);
+        if (angle != image.oldacx)
+        {
+            if ((0x168 < angle) && 0x168 < (angle -= 0x168))
+                angle %= 0x168;
+
+            if (angle < -0x168 && (angle += 0x168) < -0x168)
+                angle %= 0x168;
+
+            xwrite16(addr + 0x18, angle);
+        }
+
+        angle = xread16(addr + 0x20);
+        if (angle != image.oldacy)
+        {
+            if ((0x168 < angle) && 0x168 < (angle -= 0x168))
+                angle %= 0x168;
+
+            if (angle < -0x168 && (angle += 0x168) < -0x168)
+                angle %= 0x168;
+
+            xwrite16(addr + 0x20, angle);
+        }
+
+        angle = xread16(addr + 0x28);
+        if (angle != image.oldacz)
+        {
+            if ((0x168 < angle) && 0x168 < (angle -= 0x168))
+                angle %= 0x168;
+
+            if (angle < -0x168 && (angle += 0x168) < -0x168)
+                angle %= 0x168;
+
+            xwrite16(addr + 0x28, angle);
+        }
+
+        s16 addx = xread16(addr + 0x00) - image.oldcx;
+        s16 addy = xread16(addr + 0x08) - image.oldcy;
+        s16 addz = xread16(addr + 0x10) - image.oldcz;
+        u16 unknown28 = xread16(addr + 0x28);
+
+        if (angle != image.oldacz || addz != 0 || addx != 0 || addy != 0)
+        {
+            for (sSprite *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
+            {
+                if (sprite->state == 0)
+                    sprite->state = 2;
+
+                sprite->depx += addx;
+                sprite->depy += addy;
+                sprite->depz += addz;
+//                sprite->sprite_0x28 = unknown28;
+            }
+        }
+    }
 }
 
 void alis_main(void) {
@@ -438,7 +441,6 @@ void alis_main(void) {
         alis.restart_loop = 0;
         
         alis.script = ENTSCR(alis.varD5);
-        u8 *vram_addr = alis.mem + alis.script->vram_org;
         
         alis.fallent = 0;
         alis.fseq = 0;
@@ -449,10 +451,10 @@ void alis_main(void) {
             if (script_offset != 0)
             {
                 alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
-                savecoord(vram_addr);
+                savecoord(alis.script->vram_org);
                 alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 10 + script_offset;
                 alis_loop();
-                updtcoord(vram_addr);
+                updtcoord(alis.script->vram_org);
             }
         }
         
@@ -472,7 +474,7 @@ void alis_main(void) {
             debug(EDebugInfo, "\n %s %s [%.2x, %.2x] ", get_0x01_wait_count(alis.script->vram_org) == 0 ? "RUNNING" : "WAITING", alis.script->name, get_0x01_wait_count(alis.script->vram_org), get_0x02_wait_cycles(alis.script->vram_org));
             if (get_0x01_wait_count(alis.script->vram_org) == 0)
             {
-                savecoord(vram_addr);
+                savecoord(alis.script->vram_org);
                 
                 alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
                 alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
@@ -503,7 +505,7 @@ void alis_main(void) {
                     alis_loop();
                 }
                 
-                updtcoord(vram_addr);
+                updtcoord(alis.script->vram_org);
                 
                 set_0x01_wait_count(alis.script->vram_org, get_0x02_wait_cycles(alis.script->vram_org));
                 alis.acc = alis.acc_org;
@@ -864,78 +866,31 @@ s32 adresmus(s32 idx)
 #pragma mark -
 #pragma mark tab functions
 
-s16 tabchar(s16 offset, u32 addr)
-{
-    u8 *address = alis.mem + addr;
-    s16 *ptr = (s16 *)(address + offset - 2);
-    s16 result = offset + alis.varD7;
-    s16 length = *(s8 *)(address + offset - 1);
-    for (int i = 0; i < length; i++)
-    {
-        result += xswap16(*(--ptr)) * *alis.acc++;
-        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
-    }
-
-    return result;
-}
-
-s16 tabstring(s16 offset, u32 addr)
-{
-    u8 *address = alis.mem + addr;
-    s16 *ptr = (s16 *)(address + offset - 2);
-    s16 result = offset + alis.varD7 * (ushort)*(u8 *)ptr;
-    s16 length = *(s8 *)(address + offset - 1);
-    for (int i = 0; i < length; i++)
-    {
-        result += xswap16(*(--ptr)) * *alis.acc++;
-        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
-    }
-    
-    return result;
-}
-
-s16 tabint(s16 offset, u32 addr)
-{
-    u8 *address = alis.mem + addr;
-    s16 *ptr = (s16 *)(address + offset - 2);
-    s16 result = offset + alis.varD7 * 2;
-    s16 length = *(s8 *)(address + offset - 1);
-    for (int i = 0; i < length; i++)
-    {
-        result += xswap16(*(--ptr)) * *alis.acc++;
-        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
-    }
-    
-    return result;
-}
-
 //s16 tabint(s16 offset, u32 addr)
 //{
+//    u8 *address = alis.mem + addr;
+//    s16 *ptr = (s16 *)(address + offset - 2);
 //    s16 result = offset + alis.varD7 * 2;
-//    s16 length = xread8(addr + offset - 1);
-//
-//    offset -= 2;
-//
+//    s16 length = *(s8 *)(address + offset - 1);
 //    for (int i = 0; i < length; i++)
 //    {
-//        offset -= 2;
-//        result += xread16(addr + offset) * *alis.acc;
+//        result += xswap16(*(--ptr)) * *alis.acc++;
+//        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
 //    }
-//    
+//
 //    return result;
 //}
 //
 //s16 tabchar(s16 offset, u32 addr)
 //{
+//    u8 *address = alis.mem + addr;
+//    s16 *ptr = (s16 *)(address + offset - 2);
 //    s16 result = offset + alis.varD7;
-//    s16 length = xread8(addr + offset - 1);
-//    
-//    offset -= 2;
-//    
+//    s16 length = *(s8 *)(address + offset - 1);
 //    for (int i = 0; i < length; i++)
 //    {
-//        offset -= 2;
-//        result += xread16(addr + offset) * *alis.acc++;
+//        result += xswap16(*(--ptr)) * *alis.acc++;
+//        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
 //    }
 //
 //    return result;
@@ -943,112 +898,114 @@ s16 tabint(s16 offset, u32 addr)
 //
 //s16 tabstring(s16 offset, u32 addr)
 //{
-//    s16 result = offset + alis.varD7 * xread8(addr + offset - 2);
-//    s16 length = xread8(addr + offset - 1);
-//
-//    offset -= 2;
-//
+//    u8 *address = alis.mem + addr;
+//    s16 *ptr = (s16 *)(address + offset - 2);
+//    s16 result = offset + alis.varD7 * (ushort)*(u8 *)ptr;
+//    s16 length = *(s8 *)(address + offset - 1);
 //    for (int i = 0; i < length; i++)
 //    {
-//        offset -= 2;
-//        result += xread16(addr + offset) * *alis.acc++;
-//
+//        result += xswap16(*(--ptr)) * *alis.acc++;
+//        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
 //    }
-//    
+//
 //    return result;
 //}
 
-
-s32 tabintV3(s16 offset, u32 address)
+s32 tabint(u32 addr)
 {
-    alis.varD7 *= 2;
-    address += offset;
-
-    s8 length = xread8(address - 1);
+    s32 result = addr + alis.varD7 * 2;
+    s8 length = xread8(--addr);
+    --addr;
+    
     if (length < 0)
     {
-        length &= 0xf;
-        for (s32 i = 0; i < length; i++)
+        if (alis.platform.version >= 30)
         {
-            u16 acc = *alis.acc++;
-            u16 val0 = xread16(address - (4 + 4 * i));
-            u16 val1 = xread16(address - (6 + 4 * i));
-            val1 *= acc;
-            alis.varD7 += (val1 * 0x10000 | val1 >> 0x10) + acc * val0;
+            length &= 0xf;
+            for (s32 i = 0; i < length; i++)
+            {
+                result += xread32((addr -= 4)) * *alis.acc++;
+            }
         }
-        
-        address = xread32(address);
     }
     else
     {
-        length &= 0xf;
-        for (s32 i = 0; i < length; i++)
+        if (alis.platform.version >= 30)
         {
-            alis.varD7 += *alis.acc++ * xread16(address - (4 + 2 * i));
+            length &= 0xf;
+        }
+
+        for (int i = 0; i < length; i++)
+        {
+            result += (u16)xread16((addr -= 2)) * *alis.acc++;
         }
     }
     
-    return address + alis.varD7;
+    return result;
 }
 
-s32 tabcharV3(s32 offset, u32 address)
+s32 tabchar(u32 addr)
 {
-    address += offset;
-
-    s8 length = xread8(address - 1);
+    s32 result = addr + alis.varD7;
+    s8 length = xread8(--addr);
+    --addr;
+    
     if (length < 0)
     {
-        length &= 0xf;
-        for (s32 i = 0; i < length; i++)
+        if (alis.platform.version >= 30)
         {
-            u16 acc = *alis.acc++;
-            u16 val0 = xread16(address - (4 + 4 * i));
-            u16 val1 = xread16(address - (6 + 4 * i));
-            alis.varD7 += (val1 * 0x10000 | val1 >> 0x10) + acc * val0;
+            length &= 0xf;
+            for (s32 i = 0; i < length; i++)
+            {
+                result += xread32((addr -= 4)) * *alis.acc++;
+            }
         }
-
-        address = xread32(address);
     }
     else
     {
-        length &= 0xf;
-        for (s32 i = 0; i < length; i++)
+        if (alis.platform.version >= 30)
         {
-            alis.varD7 += *alis.acc++ * xread16(address - (4 + 2 * i));
+            length &= 0xf;
+        }
+
+        for (int i = 0; i < length; i++)
+        {
+            result += (u16)xread16((addr -= 2)) * *alis.acc++;
         }
     }
-    
-    return address + alis.varD7;
+
+    return result;
 }
 
-s32 tabstringV3(s16 offset, u32 address)
+s32 tabstring(u32 addr)
 {
-    address += offset;
+    s32 result = addr;
+    s8 length = xread8(--addr);
+    result += alis.varD7 * xread8(--addr);
 
-    alis.varD7 *= xread8(address - 2);
-    s8 length = xread8(address - 1);
     if (length < 0)
     {
-        length &= 0xf;
-        for (s32 i = 0; i < length; i++)
+        if (alis.platform.version >= 30)
         {
-            u16 acc = *alis.acc++;
-            u16 val0 = xread16(address - (4 + 4 * i));
-            u16 val1 = xread16(address - (6 + 4 * i));
-            val1 *= acc;
-            alis.varD7 += (val1 * 0x10000 | val1 >> 0x10) + acc * val0;
+            length &= 0xf;
+            for (s32 i = 0; i < length; i++)
+            {
+                result += xread32((addr -= 4)) * *alis.acc++;
+            }
         }
-        
-        address = xread32(address);
     }
     else
     {
-        length &= 0xf;
-        for (s32 i = 0; i < length; i++)
+        if (alis.platform.version >= 30)
         {
-            alis.varD7 += *alis.acc++ * xread16(address - (4 + 2 * i));
+            length &= 0xf;
+        }
+
+        for (int i = 0; i < length; i++)
+        {
+            result += (u16)xread16((addr -= 2)) * *alis.acc++;
         }
     }
     
-    return address + alis.varD7;
+    return result;
 }

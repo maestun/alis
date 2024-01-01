@@ -95,39 +95,18 @@ void olocp(void) {
 }
 
 void oloctp(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabstring(script_read16(), addr);
-    }
-    else {
-        addr = tabstringV3(script_read16(), addr);
-    }
-
+    s32 addr = tabstring(alis.script->vram_org + script_read16());
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
 void oloctc(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabchar(script_read16(), addr);
-    }
-    else {
-        addr = tabcharV3(script_read16(), addr);
-    }
-
+    s32 addr = tabchar(alis.script->vram_org + script_read16());
     alis.varD7 = (s8)xread8(addr);
 }
 
 void olocti(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabint(script_read16(), addr);
-    }
-    else {
-        addr = tabintV3(script_read16(), addr);
-    }
-
+    s32 addr = tabint(alis.script->vram_org + script_read16());
     alis.varD7 = xread16(addr);
 }
 
@@ -154,39 +133,18 @@ void odirp(void) {
 }
 
 void odirtp(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabstring(script_read8(), addr);
-    }
-    else {
-        addr = tabstringV3(script_read8(), addr);
-    }
-
+    s32 addr = tabstring(alis.script->vram_org + script_read8());
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
 void odirtc(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabchar(script_read8(), addr);
-    }
-    else {
-        addr = tabcharV3(script_read8(), addr);
-    }
-
+    s32 addr = tabchar(alis.script->vram_org + script_read8());
     alis.varD7 = (s8)xread8(addr);
 }
 
 void odirti(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabint(script_read8(), addr);
-    }
-    else {
-        addr = tabintV3(script_read8(), addr);
-    }
-
+    s32 addr = tabint(alis.script->vram_org + script_read8());
     alis.varD7 = xread16(addr);
 }
 
@@ -207,39 +165,18 @@ void omainp(void) {
 }
 
 void omaintp(void) {
-    s32 addr = alis.basemain;
-    if (alis.platform.version < 30) {
-        addr += tabstring(script_read16(), addr);
-    }
-    else {
-        addr = tabstringV3(script_read16(), addr);
-    }
-
+    s32 addr = tabstring(alis.basemain + script_read16());
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
 void omaintc(void) {
-    s32 addr = alis.basemain;
-    if (alis.platform.version < 30) {
-        addr += tabchar(script_read16(), addr);
-    }
-    else {
-        addr = tabcharV3(script_read16(), addr);
-    }
-
+    s32 addr = tabchar(alis.basemain + script_read16());
     alis.varD7 = (s8)xread8(addr);
 }
 
 void omainti(void) {
-    s32 addr = alis.basemain;
-    if (alis.platform.version < 30) {
-        addr += tabint(script_read16(), addr);
-    }
-    else {
-        addr = tabintV3(script_read16(), addr);
-    }
-
+    s32 addr = tabint(alis.basemain + script_read16());
     alis.varD7 = xread16(addr);
 }
 

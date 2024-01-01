@@ -1209,6 +1209,17 @@ static void cwlive(void) {
 }
 
 static void cunload(void) {
+    
+    int count = 0;
+    while (audio.muflag)
+    {
+        // 1 000 000
+        usleep(1000);
+        
+        if (count++ == 1000)
+            audio.muflag = 0;
+    }
+    
     s16 id = script_read16();
     if (id != -1 && id != get_0x10_script_id(alis.script->vram_org))
     {
@@ -1309,8 +1320,7 @@ void clivin(void)
             
             u8 *prev_vram = alis.mem + alis.script->vram_org;
             u8 *next = alis.mem + script->vram_org;
-            memcpy(next, prev_vram, 8);
-            
+
             if (alis.platform.version >= 30)
             {
                 *(s32 *)(next + 0x00) = *(s32 *)(prev_vram + 0x00);
@@ -1321,7 +1331,6 @@ void clivin(void)
                 *(s16 *)(next + 0x34) = *(s16 *)(prev_vram + 0x34);
                 *(s16 *)(next + 0x38) = *(s16 *)(prev_vram + 0x38);
                 *(s16 *)(next + 0x3c) = *(s16 *)(prev_vram + 0x3c);
-                *(s16 *)(next - 0x28) = *(s16 *)(prev_vram - 0x0e);
 
                 *(s32 *)(next + 0x18) = *(s32 *)(prev_vram + 0x18);
                 *(s32 *)(next + 0x20) = *(s32 *)(prev_vram + 0x20);
@@ -1330,30 +1339,20 @@ void clivin(void)
                 *(s16 *)(next + 0x40) = *(s16 *)(prev_vram + 0x40);
                 *(s16 *)(next + 0x44) = *(s16 *)(prev_vram + 0x44);
                 *(s16 *)(next + 0x48) = *(s16 *)(prev_vram + 0x48);
-
-                xadd16(script->vram_org + 0x00, alis.wcx);
-                xadd16(script->vram_org + 0x08, alis.wcz);
-                xadd16(script->vram_org + 0x10, alis.wcy);
-                
-                *(s16 *)(next - 0x16) = *(s16 *)(prev_vram - 0x16);
-                *(s16 *)(next - 0x22) = *(s16 *)(prev_vram - 0x22);
-                *(s16 *)(next - 0x2a) = *(s16 *)(next - 0xe);
             }
             else
             {
-                xadd16(script->vram_org + 0, alis.wcx);
-                xadd16(script->vram_org + 2, alis.wcz);
-                xadd16(script->vram_org + 4, alis.wcy);
-                
-                *(u8 *)(next + 0x9) = *(u8 *)(prev_vram + 0x9);
-                *(u8 *)(next + 0xa) = *(u8 *)(prev_vram + 0xa);
-                *(u8 *)(next + 0xb) = *(u8 *)(prev_vram + 0xb);
-
-                *(s16 *)(next - 0x28) = *(s16 *)(prev_vram - 0xe);
-                *(s16 *)(next - 0x16) = *(s16 *)(prev_vram - 0x16);
-                *(s16 *)(next - 0x22) = *(s16 *)(prev_vram - 0x22);
-                *(s16 *)(next - 0x2a) = *(s16 *)(next - 0xe);
+                memcpy(next, prev_vram, 0xb);
             }
+
+            xadd16(script->vram_org + ALIS_SCR_WCX, alis.wcx);
+            xadd16(script->vram_org + ALIS_SCR_WCY, alis.wcz);
+            xadd16(script->vram_org + ALIS_SCR_WCZ, alis.wcy);
+
+            *(s16 *)(next - 0x28) = *(s16 *)(prev_vram - 0xe);
+            *(s16 *)(next - 0x16) = *(s16 *)(prev_vram - 0x16);
+            *(s16 *)(next - 0x22) = *(s16 *)(prev_vram - 0x22);
+            *(s16 *)(next - 0x2a) = *(s16 *)(next - 0xe);
 
             // NOTE: just to show already running scripts
             
@@ -1576,20 +1575,20 @@ static void cerasen(void) {
 
 static void cset(void) {
     readexec_opername();
-    xwrite16(alis.script->vram_org + 0, alis.varD7);
+    xwrite16(alis.script->vram_org + ALIS_SCR_WCX, alis.varD7);
     readexec_opername();
-    xwrite16(alis.script->vram_org + 2, alis.varD7);
+    xwrite16(alis.script->vram_org + ALIS_SCR_WCY, alis.varD7);
     readexec_opername();
-    xwrite16(alis.script->vram_org + 4, alis.varD7);
+    xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, alis.varD7);
 }
 
 static void cmov(void) {
     readexec_opername();
-    xadd16(alis.script->vram_org + 0, alis.varD7);
+    xadd16(alis.script->vram_org + ALIS_SCR_WCX, alis.varD7);
     readexec_opername();
-    xadd16(alis.script->vram_org + 2, alis.varD7);
+    xadd16(alis.script->vram_org + ALIS_SCR_WCY, alis.varD7);
     readexec_opername();
-    xadd16(alis.script->vram_org + 4, alis.varD7);
+    xadd16(alis.script->vram_org + ALIS_SCR_WCZ, alis.varD7);
 }
 
 static void copensc(void) {
@@ -1699,9 +1698,11 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
         tmpx2 = -tmpx2;
     }
     
-    tmpx1 += xread16(ent_vram + 0);
-    tmpy1 += xread16(ent_vram + 2);
-    tmpz1 += xread16(ent_vram + 4);
+    u32 size = alis.platform.version >= 30 ? 8 : 2;
+
+    tmpx1 += xread16(ent_vram+ ALIS_SCR_WCX);
+    tmpy1 += xread16(ent_vram + ALIS_SCR_WCY);
+    tmpz1 += xread16(ent_vram + ALIS_SCR_WCZ);
 
     tmpx2 += tmpx1;
     tmpy2 += tmpy1;
@@ -1943,18 +1944,9 @@ static void crstent(void) {
 
 static void ctstmov(void) {
 
-    if (alis.platform.version >= 30)
-    {
-        alis.wcx = xread16(alis.script->vram_org + 0x00);
-        alis.wcy = xread16(alis.script->vram_org + 0x08);
-        alis.wcz = xread16(alis.script->vram_org + 0x10);
-    }
-    else
-    {
-        alis.wcx = xread16(alis.script->vram_org + 0);
-        alis.wcy = xread16(alis.script->vram_org + 2);
-        alis.wcz = xread16(alis.script->vram_org + 4);
-    }
+    alis.wcx = xread16(alis.script->vram_org+ ALIS_SCR_WCX);
+    alis.wcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    alis.wcz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
     
     readexec_opername();
     alis.wcx += alis.varD7;
@@ -1975,18 +1967,9 @@ static void ctstset(void) {
 
 static void cftstmov(void) {
     
-    if (alis.platform.version >= 30)
-    {
-        alis.wcx = xread16(alis.script->vram_org + 0x00);
-        alis.wcy = xread16(alis.script->vram_org + 0x08);
-        alis.wcz = xread16(alis.script->vram_org + 0x10);
-    }
-    else
-    {
-        alis.wcx = xread16(alis.script->vram_org + 0);
-        alis.wcy = xread16(alis.script->vram_org + 2);
-        alis.wcz = xread16(alis.script->vram_org + 4);
-    }
+    alis.wcx = xread16(alis.script->vram_org+ ALIS_SCR_WCX);
+    alis.wcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    alis.wcz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
     
     readexec_opername();
     alis.wcx += alis.varD7;
@@ -2033,16 +2016,11 @@ static void cpredent(void) {
 
 u8 calcnear(u32 source, u32 target, s32 *val)
 {
-    s32 wcx = xread16(target + 0) - xread16(source + 0);
-    s32 wcy = xread16(target + 2) - xread16(source + 2);
-    s32 wcz = xread16(target + 4) - xread16(source + 4);
+    s32 wcx = xread16(target + ALIS_SCR_WCX) - xread16(source + ALIS_SCR_WCX);
+    s32 wcy = xread16(target + ALIS_SCR_WCY) - xread16(source + ALIS_SCR_WCY);
+    s32 wcz = xread16(target + ALIS_SCR_WCZ) - xread16(source + ALIS_SCR_WCZ);
     *val = (wcx * wcx) + (wcy * wcy) + (wcz * wcz);
-    if (*val <= alis.valnorme && (alis.fview == 0 || *val <= ((s8)xread8(source + 0x9) * wcx + (s8)xread8(source + 0xa) * wcy + (s8)xread8(source + 0xb) * wcz) * (s32)alis.valchamp))
-    {
-        return 1;
-    }
-    
-    return 0;
+    return (*val <= alis.valnorme && (alis.fview == 0 || *val <= ((s8)xread8(source + ALIS_SCR_WCX2) * wcx + (s8)xread8(source + ALIS_SCR_WCY2) * wcy + (s8)xread8(source + ALIS_SCR_WCZ2) * wcz) * (s32)alis.valchamp)) ? 1 : 0;
 }
 
 static void cnearent(void) {
@@ -2906,15 +2884,17 @@ static void csetvect(void) {
 
 u8 *deb_approach(s32 offset, s16 *wcx, s16 *wcy, s16 *wcz)
 {
-    offset = xread32(alis.atent + offset);
-    *wcx = xread16(offset + 0) - xread16(alis.script->vram_org + 0);
-    *wcy = xread16(offset + 2) - xread16(alis.script->vram_org + 2);
-    *wcz = xread16(offset + 4) - xread16(alis.script->vram_org + 4);
     
     u8 *address = get_0x20_set_vect(alis.script->vram_org) == 0 ? vstandard : alis.mem + get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org);
 
     alis.varD7 = *address;
-    xwrite8(alis.script->vram_org + 0x8, *address);
+
+    offset = xread32(alis.atent + offset);
+    *wcx = xread16(offset + ALIS_SCR_WCX) - xread16(alis.script->vram_org + ALIS_SCR_WCX);
+    *wcy = xread16(offset + ALIS_SCR_WCY) - xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    *wcz = xread16(offset + ALIS_SCR_WCZ) - xread16(alis.script->vram_org + ALIS_SCR_WCZ);
+    xwrite8(alis.script->vram_org + ALIS_SCR_ADDR, *address);
+
     return address + 1;
 }
 
@@ -2959,10 +2939,10 @@ static void capproach(void) {
         }
         while (alis.varD7 != -1);
         
-        xwrite8(alis.script->vram_org + 0x8, xread8(alis.script->vram_org + 0x8) - index);
-        xwrite8(alis.script->vram_org + 0x9, addr1[0]);
-        xwrite8(alis.script->vram_org + 0xa, addr1[1]);
-        xwrite8(alis.script->vram_org + 0xb, addr1[2]);
+        xwrite8(alis.script->vram_org + ALIS_SCR_ADDR, xread8(alis.script->vram_org + ALIS_SCR_ADDR) - index);
+        xwrite8(alis.script->vram_org + ALIS_SCR_WCX2, addr1[0]);
+        xwrite8(alis.script->vram_org + ALIS_SCR_WCY2, addr1[1]);
+        xwrite8(alis.script->vram_org + ALIS_SCR_WCZ2, addr1[2]);
     }
 }
 
@@ -2992,27 +2972,18 @@ static void cescape(void) {
         }
         while (alis.varD7 != -1);
         
-        xwrite8(alis.script->vram_org + 0x8, xread8(alis.script->vram_org + 0x8) - index);
-        xwrite8(alis.script->vram_org + 0x9, addr1[0]);
-        xwrite8(alis.script->vram_org + 0xa, addr1[1]);
-        xwrite8(alis.script->vram_org + 0xb, addr1[2]);
+        xwrite8(alis.script->vram_org + ALIS_SCR_ADDR, xread8(alis.script->vram_org + ALIS_SCR_ADDR) - index);
+        xwrite8(alis.script->vram_org + ALIS_SCR_WCX2, addr1[0]);
+        xwrite8(alis.script->vram_org + ALIS_SCR_WCY2, addr1[1]);
+        xwrite8(alis.script->vram_org + ALIS_SCR_WCZ2, addr1[2]);
     }
 }
 
 static void cvtstmov(void) {
 
-    if (alis.platform.version >= 30)
-    {
-        alis.wcx = (s8)xread8(alis.script->vram_org + 0x34) + xread16(alis.script->vram_org + 0x00);
-        alis.wcy = (s8)xread8(alis.script->vram_org + 0x38) + xread16(alis.script->vram_org + 0x08);
-        alis.wcz = (s8)xread8(alis.script->vram_org + 0x3c) + xread16(alis.script->vram_org + 0x10);
-    }
-    else
-    {
-        alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
-        alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
-        alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
-    }
+    alis.wcx = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2) + xread16(alis.script->vram_org + ALIS_SCR_WCX);
+    alis.wcy = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2) + xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    alis.wcz = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCZ2) + xread16(alis.script->vram_org + ALIS_SCR_WCZ);
     
     readexec_opername();
     alis.matmask = alis.varD7;
@@ -3023,18 +2994,9 @@ static void cvtstmov(void) {
 
 static void cvftstmov(void) {
 
-    if (alis.platform.version >= 30)
-    {
-        alis.wcx = (s8)xread8(alis.script->vram_org + 0x34) + xread16(alis.script->vram_org + 0x00);
-        alis.wcy = (s8)xread8(alis.script->vram_org + 0x38) + xread16(alis.script->vram_org + 0x08);
-        alis.wcz = (s8)xread8(alis.script->vram_org + 0x3c) + xread16(alis.script->vram_org + 0x10);
-    }
-    else
-    {
-        alis.wcx = (s8)xread8(alis.script->vram_org + 0x9) + xread16(alis.script->vram_org + 0);
-        alis.wcy = (s8)xread8(alis.script->vram_org + 0xa) + xread16(alis.script->vram_org + 2);
-        alis.wcz = (s8)xread8(alis.script->vram_org + 0xb) + xread16(alis.script->vram_org + 4);
-    }
+    alis.wcx = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2) + xread16(alis.script->vram_org + ALIS_SCR_WCX);
+    alis.wcy = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2) + xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    alis.wcz = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCZ2) + xread16(alis.script->vram_org + ALIS_SCR_WCZ);
     
     readexec_opername();
     alis.matmask = alis.varD7;
@@ -3045,9 +3007,9 @@ static void cvftstmov(void) {
 }
 
 static void cvmov(void) {
-    xadd16(alis.script->vram_org + 0, (s8)xread8(alis.script->vram_org + 0x9));
-    xadd16(alis.script->vram_org + 2, (s8)xread8(alis.script->vram_org + 0xa));
-    xadd16(alis.script->vram_org + 4, (s8)xread8(alis.script->vram_org + 0xb));
+    xadd16(alis.script->vram_org + ALIS_SCR_WCX, (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2));
+    xadd16(alis.script->vram_org + ALIS_SCR_WCY, (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2));
+    xadd16(alis.script->vram_org + ALIS_SCR_WCZ, (s8)xread8(alis.script->vram_org + ALIS_SCR_WCZ2));
 }
 
 static void cdefworld(void) {
@@ -3352,18 +3314,9 @@ static void cwftstmov(void) {
 }
 
 static void ctstform(void) {
-    if (alis.platform.version >= 30)
-    {
-        alis.wcx = xread16(alis.script->vram_org + 0x00);
-        alis.wcy = xread16(alis.script->vram_org + 0x08);
-        alis.wcz = xread16(alis.script->vram_org + 0x10);
-    }
-    else
-    {
-        alis.wcx = xread16(alis.script->vram_org + 0);
-        alis.wcy = xread16(alis.script->vram_org + 2);
-        alis.wcz = xread16(alis.script->vram_org + 4);
-    }
+    alis.wcx = xread16(alis.script->vram_org + ALIS_SCR_WCX);
+    alis.wcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    alis.wcz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
 
     readexec_opername();
     alis.matmask = alis.varD7;
@@ -4942,7 +4895,7 @@ static void cchartmap(void) {
             u16 uVar7 = ~(0xffffU >> (uVar2 - (uVar2 & 0xfff0) & 0x3f));
             uVar9 = uVar8 | 0xf;
             uVar8 = ~(-1 << (-(uVar8 - uVar9) & 0x3f));
-            uVar9 = (ushort)(uVar9 - (uVar2 & 0xfff0)) >> 4;
+            uVar9 = (u16)(uVar9 - (uVar2 & 0xfff0)) >> 4;
             sVar5 = uVar9 - 1;
             if (sVar5 < 0)
             {

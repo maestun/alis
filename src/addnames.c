@@ -65,38 +65,17 @@ static void alocp(void) {
 
 static void aloctp(void) {
     debug(EDebugInfo, "CHECK: ", __FUNCTION__);
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabstring(script_read16(), addr);
-    }
-    else {
-        addr = tabstringV3(script_read16(), addr);
-    }
-
+    s32 addr = tabstring(alis.script->vram_org + script_read16());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 
 static void aloctc(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabchar(script_read16(), addr);
-    }
-    else {
-        addr = tabcharV3(script_read16(), addr);
-    }
-
+    s32 addr = tabchar(alis.script->vram_org + script_read16());
     xadd8(addr, (char)*alis.acc++);
 }
 
 static void alocti(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabint(script_read16(), addr);
-    }
-    else {
-        addr = tabintV3(script_read16(), addr);
-    }
-
+    s32 addr = tabint(alis.script->vram_org + script_read16());
     xadd16(addr, *alis.acc++);
 }
 
@@ -117,35 +96,15 @@ static void adirp(void) {
 
 static void adirtp(void) {
     debug(EDebugInfo, "CHECK: ", __FUNCTION__);
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabstring(script_read8(), addr);
-    }
-    else {
-        addr = tabstringV3(script_read8(), addr);
-    }
-
+    s32 addr = tabstring(alis.script->vram_org + script_read8());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 static void adirtc(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30) {
-        addr += tabchar(script_read8(), addr);
-    }
-    else {
-        addr = tabcharV3(script_read8(), addr);
-    }
-
+    s32 addr = tabchar(alis.script->vram_org + script_read8());
     xadd8(addr, (char)*alis.acc++);
 }
 static void adirti(void) {
-    s32 addr = alis.script->vram_org;
-    if (alis.platform.version < 30)  {
-        addr += tabint(script_read8(), alis.script->vram_org);
-    }
-    else {
-        addr = tabintV3(script_read8(), alis.script->vram_org);
-    }
+    s32 addr = tabint(alis.script->vram_org + script_read8());
 
     xadd16(addr, *alis.acc++);
 }
@@ -163,36 +122,15 @@ static void amainp(void) {
 }
 static void amaintp(void) {
     debug(EDebugInfo, "CHECK: ", __FUNCTION__);
-    s32 addr = alis.basemain;
-    if (alis.platform.version < 30) {
-        addr += tabstring(script_read16(), addr);
-    }
-    else {
-        addr = tabstringV3(script_read16(), addr);
-    }
-
+    s32 addr = tabstring(alis.basemain + script_read16());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 static void amaintc(void) {
-    s32 addr = alis.basemain;
-    if (alis.platform.version < 30) {
-        addr += tabchar(script_read16(), addr);
-    }
-    else {
-        addr = tabcharV3(script_read16(), addr);
-    }
-
+    s32 addr = tabchar(alis.basemain + script_read16());
     xadd8(addr, (u8)*alis.acc++);
 }
 static void amainti(void) {
-    s32 addr = alis.basemain;
-    if (alis.platform.version < 30) {
-        addr += tabint(script_read16(), addr);
-    }
-    else {
-        addr = tabintV3(script_read16(), addr);
-    }
-
+    s32 addr = tabint(alis.basemain + script_read16());
     xadd16(addr, *alis.acc++);
 }
 static void ahimb(void) {
@@ -209,13 +147,7 @@ static void ahimp(void) {
 static void ahimtp(void) {
     debug(EDebugInfo, "CHECK: ", __FUNCTION__);
     s32 addr = xread32(alis.atent + xread16(alis.script->vram_org + script_read16()));
-    if (alis.platform.version < 30) {
-        addr += tabstring(script_read16(), addr);
-    }
-    else {
-        addr = tabstringV3(script_read16(), addr);
-    }
-
+    addr = tabstring(addr + script_read16());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 static void ahimtc(void) {

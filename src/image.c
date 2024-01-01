@@ -91,10 +91,6 @@ s32 bufrvb;
 
 s32 mousflag;
 
-s16 oldacx;
-s16 oldacy;
-s16 oldacz;
-
 u8 *bufpack = 0;
 
 u8 timing = 0;

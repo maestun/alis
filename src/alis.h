@@ -49,6 +49,20 @@
 
 #define ENTSCR(x) alis.live_scripts[x / sizeof(sScriptLoc)]
 
+#define ALIS_SCR_WCX    0
+#define ALIS_SCR_WCY    (alis.platform.version >= 30 ? 8 : 2)
+#define ALIS_SCR_WCZ    (alis.platform.version >= 30 ? 16 : 4)
+
+#define ALIS_SCR_WCAX    alis.platform.version >= 30 ? 24 : -1
+#define ALIS_SCR_WCAY    alis.platform.version >= 30 ? 32 : -1
+#define ALIS_SCR_WCAZ    alis.platform.version >= 30 ? 40 : -1
+
+#define ALIS_SCR_ADDR   alis.platform.version >= 30 ? 0x32 : 0x8
+
+#define ALIS_SCR_WCX2    alis.platform.version >= 30 ? 0x34 : 0x9
+#define ALIS_SCR_WCY2    alis.platform.version >= 30 ? 0x38 : 0xa
+#define ALIS_SCR_WCZ2    alis.platform.version >= 30 ? 0x3c : 0xb
+
 // =============================================================================
 // MARK: - ERROR CODES
 // =============================================================================
@@ -348,14 +362,6 @@ int             adresdes(s32 idx);
 int             adresmus(s32 idx);
 int             adresform(s16 idx);
 
-// alis 2.0 (and possibly older)
-
-s16             tabint(s16 offset, u32 address);
-s16             tabchar(s16 offset, u32 address);
-s16             tabstring(s16 offset, u32 address);
-
-// alis 3.0 (and possibly older)
-
-s32             tabintV3(s16 offset, u32 address);
-s32             tabcharV3(s32 offset, u32 address);
-s32             tabstringV3(s16 offset, u32 address);
+s32             tabint(u32 address);
+s32             tabchar(u32 address);
+s32             tabstring(u32 address);
