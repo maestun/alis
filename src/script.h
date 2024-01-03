@@ -210,6 +210,10 @@ void            script_jump(s32 offset);
 // void            script_debug(sAlisScriptData * script);
 s32 get_context_size(void);
 
+u32 get_0x3e_wait_time(u32 vram);
+u16 get_0x3a_wait_cycles(u32 vram);
+u16 get_0x38_unknown(u32 vram);
+u16 get_0x36_unknown(u32 vram);
 u16 get_0x34_unknown(u32 vram);
 u8 get_0x32_unknown(u32 vram);
 u8 get_0x31_unknown(u32 vram);
@@ -245,6 +249,10 @@ u8 get_0x03_xinv(u32 vram);
 u8 get_0x02_wait_cycles(u32 vram);
 u8 get_0x01_wait_count(u32 vram);
 
+void set_0x3e_wait_time(u32 vram, u32 val);
+void set_0x3a_wait_cycles(u32 vram, u16 val);
+void set_0x38_unknown(u32 vram, u16 val);
+void set_0x36_unknown(u32 vram, u16 val);
 void set_0x34_unknown(u32 vram, u16 val);
 void set_0x32_unknown(u32 vram, u8 val);
 void set_0x31_unknown(u32 vram, u8 val);

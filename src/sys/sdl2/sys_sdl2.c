@@ -304,7 +304,7 @@ u8 pblanc10(u8 *a0, u8 d1b)
 void canal(sChannel *channel, u16 index)
 {
     channel->length --;
-    if (channel->length != 0)
+    if (channel->length > 0)
     {
         s32 vol = (s32)channel->delta_volume + (s32)channel->volume;
         if (-1 < vol)
@@ -335,24 +335,29 @@ void canal(sChannel *channel, u16 index)
 
 void io_canal(sChannel *channel, s16 index)
 {
-    if (2 < (u8)index)
-    {
-        return;
-    }
+//    if (2 < (u8)index)
+//    {
+//        return;
+//    }
     
 //    if (fsam != 0)
 //    {
 //        return;
 //    }
     
-    s32 test = (channel->volume >>8) >> 3 & 0xf;
-    s32 tes0 = channel->volume >> 8;
-    tes0 = tes0 >> 3;
-    tes0 &= 0xf;
+//    s32 test = (channel->volume >> 8) >> 3 & 0xf;
+//    s32 tes0 = channel->volume >> 8;
+//    tes0 = tes0 >> 3;
+//    tes0 &= 0xf;
+    
+    if (channel->volume && channel->type != 0)
+    {
+        sleep(0);
+    }
 
     giaccess(index + 0x88, ((channel->volume >> 3) >> 8) & 0xf, index);
     giaccess(index * 2 + 0x80, channel->freq >> 3, index);
-    giaccess(index * 2 + 0x81, ((channel->freq >> 3) >> 8) & 0xf, index);
+    //giaccess(index * 2 + 0x81, ((channel->freq >> 3) >> 8) & 0xf, index);
     giaccess(7, 0, index);
 
     u32 result = channel->freq >> 3 & 0xf;
@@ -360,15 +365,15 @@ void io_canal(sChannel *channel, s16 index)
     if (index < 3)
     {
         result = result | 1 << (index & 0x1f) | 1 << ((u16)(index + 3) & 0x1f);
-        if ((channel->type & 1U) != 0)
+        if ((channel->type & 1) != 0)
         {
             result &= ~(1 << (index & 0x1f));
         }
         
-//        if ((channel->type & 2U) != 0)
+        if ((channel->type & 2) != 0)
         {
             u8 bVar2 = (result & 1 << ((u16)(index + 3) & 0x1f)) == 0;
-            priorblanc(channel);
+            // priorblanc(channel);
             if (!bVar2)
             {
                 giaccess(0x86, (u8)((u16)channel->freq >> 10), index);
@@ -395,10 +400,12 @@ void giaccess(s8 cmd, u8 data, u8 ch)
         case 1:
         case 3:
         case 5:
+            printf("\n  set_tone %d %d", ch, data);
             ayumi_set_tone(_ym2149, ch, data);
             break;
             
         case 6:
+            printf("\n  set_noise %d", data);
             ayumi_set_noise(_ym2149, data);
             break;
             
@@ -407,21 +414,25 @@ void giaccess(s8 cmd, u8 data, u8 ch)
             u8 tone_off = BIT_CHK(data, ch);
             u8 noise_off = BIT_CHK(data, (ch + 3));
             u8 envelope_on = BIT_CHK(data, 6);
+            printf("\n  set_mixer %d %d %d", tone_off, noise_off, envelope_on);
             ayumi_set_mixer(_ym2149, ch, tone_off, noise_off, envelope_on);
             break;
         }
         case 8:
         case 9:
         case 10:
+            printf("\n  set_volume %d %d", ch, data);
             ayumi_set_volume(_ym2149, ch, data);
             break;
             
         case 11:
         case 12:
+            printf("\n  set_envelope %d", data);
             ayumi_set_envelope(_ym2149, data);
             break;
             
         case 13:
+            printf("\n  set_shape %d", data);
             ayumi_set_envelope_shape(_ym2149, data);
             break;
             
@@ -664,112 +675,114 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
 //                            ch->played ++;
 //                        }
 //                    }
-//                    {
-//                        if (i < 3 && update_ym)
-//                        {
-//                            if (ch->played >= ch->length)
-//                            {
-//                                if (ch->loop > 1)
-//                                {
-//                                    ch->loop--;
-//                                    ch->played = smpidx = 0;
-//                                }
-//                                else
-//                                {
-//                                    ch->type = eChannelTypeNone;
-//                                    ayumi_set_noise(_ym2149, 0);
-//                                    ayumi_set_tone(_ym2149, i, 0);
-//                                    ayumi_set_volume(_ym2149, i, 0);
-//                                    break;
-//                                }
-//                            }
-//                            
-//                            amplitude = ch->volume >> 8;
-//                            amplitude = amplitude >> 3;
-//                            amplitude = amplitude & 0xf;
-//                            
-//                            frequency = (ch->freq >> 3);
-//                            
-////                            ayumi_set_noise(_ym2149, 0);
-////                            ayumi_set_tone(_ym2149, i, frequency);
-////                            ayumi_set_mixer(_ym2149, i, tone_off, noise_off, envelope_on);
-////                            ayumi_set_volume(_ym2149, i, amplitude);
-//
-////                            PSG_writeReg(_psg, 0x8, amplitude);
-////                            PSG_writeReg(_psg, 0x0, frequency);
-////                            PSG_writeReg(_psg, 0x7, 0b11111110);
-////                            io_canal(ch, i);
-//                            
-//                            ch->volume += ch->delta_volume;
-//                            if (0x7fff < ch->volume)
-//                                ch->volume = 0x7fff;
-//                            
-//                            ch->freq += ch->delta_freq;
-//                            if (ch->freq < 0)
-//                                ch->freq = 0;
-//                            
-//                            ch->played ++;
-//                        }
-//                    }
+                    {
+                        if (i < 3 && update_ym)
+                        {
+                            if (ch->played >= ch->length)
+                            {
+                                if (ch->loop > 1)
+                                {
+                                    ch->loop--;
+                                    ch->played = smpidx = 0;
+                                }
+                                else
+                                {
+                                    ch->type = eChannelTypeNone;
+                                    ayumi_set_noise(_ym2149, 0);
+                                    ayumi_set_tone(_ym2149, i, 0);
+                                    ayumi_set_volume(_ym2149, i, 0);
+                                    break;
+                                }
+                            }
+                            
+                            amplitude = ch->volume >> 8;
+                            amplitude = amplitude >> 3;
+                            amplitude = amplitude & 0xf;
+                            
+                            frequency = (ch->freq >> 3);
+                            
+//                            ayumi_set_noise(_ym2149, 0);
+//                            ayumi_set_tone(_ym2149, i, frequency);
+//                            ayumi_set_mixer(_ym2149, i, tone_off, noise_off, envelope_on);
+//                            ayumi_set_volume(_ym2149, i, amplitude);
+
+//                            PSG_writeReg(_psg, 0x8, amplitude);
+//                            PSG_writeReg(_psg, 0x0, frequency);
+//                            PSG_writeReg(_psg, 0x7, 0b11111110);
+                            printf("\nYM2149");
+                            io_canal(ch, i);
+                            
+                            ch->volume += ch->delta_volume;
+                            if (0x7fff < ch->volume)
+                                ch->volume = 0x7fff;
+                            
+                            ch->freq += ch->delta_freq;
+                            if (ch->freq < 0)
+                                ch->freq = 0;
+                            
+                            ch->played ++;
+                        }
+                    }
                         break;
                         
-//                    case eChannelTypeNoise:
-//                    case eChannelTypeExplode:
-//                    {
-//                        if (i < 3 && update_ym)
-//                        {
-//                            if (ch->played >= ch->length)
-//                            {
-//                                if (ch->loop > 1)
-//                                {
-//                                    ch->loop--;
-//                                    ch->played = smpidx = 0;
-//                                }
-//                                else
-//                                {
-//                                    ch->type = eChannelTypeNone;
-//                                    ayumi_set_noise(_ym2149, 0);
-//                                    ayumi_set_tone(_ym2149, i, 0);
-//                                    ayumi_set_volume(_ym2149, i, 0);
-//                                    break;
-//                                }
-//                            }
-//                            
-//                            amplitude = ch->volume >> 8;
-//                            amplitude = amplitude >> 3;
-//                            amplitude = amplitude & 0xf;
-//                            
-//                            frequency = (ch->freq >> 10);
-//                            
-////                            ayumi_set_noise(_ym2149, frequency);
-////                            ayumi_set_mixer(_ym2149, i, 1, 0, envelope_on);
-////                            ayumi_set_volume(_ym2149, i, amplitude);
-//
-////                            PSG_writeReg(_psg, 0x8, amplitude);
-////                            PSG_writeReg(_psg, i, frequency);
-////                            PSG_writeReg(_psg, 0x7, 0b11100000);
-////                            io_canal(ch, i);
-//
-//                            ch->volume += ch->delta_volume;
-//                            if (0x7fff < ch->volume)
-//                                ch->volume = 0x7fff;
-//                            
-//                            ch->freq += ch->delta_freq;
-//                            if (ch->freq < 0)
-//                                ch->freq = 0;
-//                            
-//                            ch->played ++;
-//                        }
-//                    }
-//                        break;
+                    case eChannelTypeNoise:
+                    case eChannelTypeExplode:
+                    {
+                        if (i < 3 && update_ym)
+                        {
+                            if (ch->played >= ch->length)
+                            {
+                                if (ch->loop > 1)
+                                {
+                                    ch->loop--;
+                                    ch->played = smpidx = 0;
+                                }
+                                else
+                                {
+                                    ch->type = eChannelTypeNone;
+                                    ayumi_set_noise(_ym2149, 0);
+                                    ayumi_set_tone(_ym2149, i, 0);
+                                    ayumi_set_volume(_ym2149, i, 0);
+                                    break;
+                                }
+                            }
+                            
+                            amplitude = ch->volume >> 8;
+                            amplitude = amplitude >> 3;
+                            amplitude = amplitude & 0xf;
+                            
+                            frequency = (ch->freq >> 10);
+                            
+//                            ayumi_set_noise(_ym2149, frequency);
+//                            ayumi_set_mixer(_ym2149, i, 1, 0, envelope_on);
+//                            ayumi_set_volume(_ym2149, i, amplitude);
+
+//                            PSG_writeReg(_psg, 0x8, amplitude);
+//                            PSG_writeReg(_psg, i, frequency);
+//                            PSG_writeReg(_psg, 0x7, 0b11100000);
+                            printf("\nYM2149");
+                            io_canal(ch, i);
+
+                            ch->volume += ch->delta_volume;
+                            if (0x7fff < ch->volume)
+                                ch->volume = 0x7fff;
+                            
+                            ch->freq += ch->delta_freq;
+                            if (ch->freq < 0)
+                                ch->freq = 0;
+                            
+                            ch->played ++;
+                        }
+                    }
+                        break;
                         
                     default:
                         break;
                 }
             }
             
-            for (int i = 0; i < 3; i++)
-                canal(&channels[i], i);
+//            for (int i = 0; i < 3; i++)
+//                canal(&channels[i], i);
             
             ayumi_process(_ym2149);
             

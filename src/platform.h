@@ -35,6 +35,7 @@ typedef enum {
     EPlatformMac,
     EPlatformPC,
     EPlatformAmstradCPC,
+    EPlatform3DO,
     EPlatformUnknown
 } EPlatform;
 
@@ -97,7 +98,6 @@ typedef struct {
     char        name[32];
     u32         version;
     u32         uid;
-    EGame       game;
     char        desc[kDescMaxLen];  // platform description
     char        ext[4];             // script file extension
     u32         ram_sz;             // size of ram, in bytes

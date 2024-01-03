@@ -152,7 +152,6 @@ s16 logy2 = 0xc7;
 s16 loglarg = 0xa0; // 0x50 for st
 u8 insid = 0;
 u8 *backmap;
-u32 timeclock = 0;
 
 
 void tdarkpal(u8 *paldata)
@@ -351,7 +350,7 @@ void savepal(s16 mode)
 void restorepal(s16 mode, s32 duration)
 {
     // not used in some games (Metal Mutant, ...)
-    if (alis.platform.game == EGameMetalMutant)
+    if (alis.platform.uid == EGameMetalMutant)
     {
         return;
     }
@@ -2181,7 +2180,7 @@ void destofen(sSprite *sprite)
         case 0x10:
         case 0x12:
         {
-            if (alis.platform.kind == EPlatformAmiga && (alis.platform.game == EGameColorado || alis.platform.game == EGameBostonBombClub))
+            if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameBostonBombClub))
             {
                 // 5 bit image
                 
@@ -2850,7 +2849,7 @@ affiscin:
 u32 itroutine(u32 interval, void *param)
 {
     u8 prevtiming = vtiming;
-    timeclock ++;
+    alis.timeclock ++;
     fitroutine = 1;
     vtiming = vtiming + 1;
     if (vtiming == 0) {
@@ -3003,7 +3002,7 @@ void draw(void)
         physic = logic;
         
         // NOTE: targhan doesn't use double buffering
-        if (alis.platform.game != EGameTarghan0 && alis.platform.game != EGameTarghan1)
+        if (alis.platform.uid != EGameTarghan0 && alis.platform.uid != EGameTarghan1)
         {
             logic = oldphys;
         }

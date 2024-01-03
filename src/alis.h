@@ -53,15 +53,15 @@
 #define ALIS_SCR_WCY    (alis.platform.version >= 30 ? 8 : 2)
 #define ALIS_SCR_WCZ    (alis.platform.version >= 30 ? 16 : 4)
 
-#define ALIS_SCR_WCAX    alis.platform.version >= 30 ? 24 : -1
-#define ALIS_SCR_WCAY    alis.platform.version >= 30 ? 32 : -1
-#define ALIS_SCR_WCAZ    alis.platform.version >= 30 ? 40 : -1
+#define ALIS_SCR_WCAX    (alis.platform.version >= 30 ? 24 : -1)
+#define ALIS_SCR_WCAY    (alis.platform.version >= 30 ? 32 : -1)
+#define ALIS_SCR_WCAZ    (alis.platform.version >= 30 ? 40 : -1)
 
-#define ALIS_SCR_ADDR   alis.platform.version >= 30 ? 0x32 : 0x8
+#define ALIS_SCR_ADDR    (alis.platform.version >= 30 ? 0x32 : 0x8)
 
-#define ALIS_SCR_WCX2    alis.platform.version >= 30 ? 0x34 : 0x9
-#define ALIS_SCR_WCY2    alis.platform.version >= 30 ? 0x38 : 0xa
-#define ALIS_SCR_WCZ2    alis.platform.version >= 30 ? 0x3c : 0xb
+#define ALIS_SCR_WCX2    (alis.platform.version >= 30 ? 0x34 : 0x9)
+#define ALIS_SCR_WCY2    (alis.platform.version >= 30 ? 0x38 : 0xa)
+#define ALIS_SCR_WCZ2    (alis.platform.version >= 30 ? 0x3c : 0xb)
 
 // =============================================================================
 // MARK: - ERROR CODES
@@ -326,6 +326,8 @@ typedef struct {
     
     s8              vprotect;
     
+    u32             timeclock;
+
     struct timeval  time;
 
     u8              swap_endianness;

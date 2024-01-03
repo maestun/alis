@@ -450,7 +450,6 @@ s16 io_dfree(void)
 
 void ofree(void) {
     
-    // if (alis.platform.game == EGameColorado)
     if (alis.platform.version <= 20)
     {
         if (alis.varD7 == 0)

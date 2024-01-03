@@ -204,6 +204,92 @@ void ayumi_render(struct ayumi *ay, sChannel *ch, float *sample_data)
 
 // #include "emu2149.h"
 
+void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson)
+{
+    sChannel *canal;
+    
+    char cVar1 = priorson;
+    if (priorson < '\0')
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            canal = &channels[i];
+            if (priorson == canal->cursn)
+                goto runson10;
+        }
+        
+joined_r0x0001b270:
+        
+        canal = &channels[3];
+        if (priorson == channels[3].cursn)
+            goto runson10;
+    }
+    else
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            canal = &channels[0];
+            if (pereson == canal->pere && priorson == canal->cursn)
+                goto runson10;
+        }
+        
+        if (pereson == channels[3].pere)
+            goto joined_r0x0001b270;
+    }
+    
+    canal = &channels[0];
+    char cVar2 = channels[0].cursn;
+    if (channels[1].cursn < channels[0].cursn)
+    {
+        canal = &channels[1];
+        cVar2 = channels[1].cursn;
+    }
+    
+    if (channels[2].cursn < cVar2)
+    {
+        canal = &channels[2];
+        cVar2 = channels[2].cursn;
+    }
+    
+    if (channels[3].cursn < cVar2)
+    {
+        canal = &channels[3];
+        cVar2 = channels[3].cursn;
+    }
+    
+    if (((-1 < priorson) && (cVar2 < '\0')) && (cVar2 != -0x80))
+    {
+        return;
+    }
+    
+    if (priorson < cVar2)
+    {
+        return;
+    }
+    
+runson10:
+    
+//    if ((s8)type < '\0')
+//    {
+//        gosound(canal);
+//    }
+//    else
+    {
+        canal->state = -0x80;
+        canal->cursn = cVar1;
+        canal->type = type;
+        canal->freq = freqson;
+        canal->delta_freq = dfreqson;
+        canal->volume = volson;
+        canal->unk0x7 = '\0';
+        canal->delta_volume = dvolson;
+        canal->length = longson;
+        canal->pere = pereson;
+        canal->state = 2;
+    }
+    return;
+}
+
 void playsound(eChannelType type, u8 pereson, u8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson)
 {
     s32 channelidx = -1;

@@ -143,7 +143,7 @@ void invdigit(u8 *sample)
     }
 
     // TODO: causes crashes in some older games, investigate!
-    switch (alis.platform.game)
+    switch (alis.platform.uid)
     {
         case EGameIshar_1:
         case EGameIshar_2:
@@ -539,9 +539,13 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
         set_0x32_unknown(script->vram_org, 0); // wide
         set_0x34_unknown(script->vram_org, 0);
     }
-    else if (contextsize > 0x2e)
+    
+    if (contextsize > 0x34)
     {
-        // TODO: ...
+        set_0x36_unknown(script->vram_org, 0);
+        set_0x38_unknown(script->vram_org, 0);
+        set_0x3a_wait_cycles(script->vram_org, 0);
+        set_0x3e_wait_time(script->vram_org, 0);
     }
     
     //set_0x2d_calign(script->vram_org, script->header.unknown02);
@@ -786,6 +790,10 @@ void script_jump(s32 offset) {
 //            opcodes[code].name);
 // }
 
+u32 get_0x3e_wait_time(u32 vram)                        { return xread32(vram - 0x3e); }
+u16 get_0x3a_wait_cycles(u32 vram)                      { return xread16(vram - 0x3a); }
+u16 get_0x38_unknown(u32 vram)                          { return xread16(vram - 0x38); }
+u16 get_0x36_unknown(u32 vram)                          { return xread16(vram - 0x36); }
 u16 get_0x34_unknown(u32 vram)                          { return xread16(vram - 0x34); }
 u8 get_0x32_unknown(u32 vram)                           { return xread8(vram - 0x32); }
 u8 get_0x31_unknown(u32 vram)                           { return xread8(vram - 0x31); }
@@ -821,6 +829,10 @@ u8 get_0x03_xinv(u32 vram)                              { return xread8(vram - 0
 u8 get_0x02_wait_cycles(u32 vram)                       { return xread8(vram - 0x2); }
 u8 get_0x01_wait_count(u32 vram)                        { return xread8(vram - 0x1); }
 
+void set_0x3e_wait_time(u32 vram, u32 val)              { xwrite32(vram - 0x3e, val); }
+void set_0x3a_wait_cycles(u32 vram, u16 val)            { xwrite16(vram - 0x3a, val); }
+void set_0x38_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x38, val); }
+void set_0x36_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x36, val); }
 void set_0x34_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x34, val); }
 void set_0x32_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x32, val); }
 void set_0x31_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x31, val); }

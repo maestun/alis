@@ -34,10 +34,14 @@ typedef enum {
 
 typedef struct {
     
+    s8 state;
+    s8 cursn;
+    s16 pere;
     eChannelType type;
     u8 *address;
     u32 played;
     s16 volume;
+    u8 unk0x7;
     u32 length;
     s16 freq;
     u8 loop;

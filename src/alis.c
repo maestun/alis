@@ -224,6 +224,8 @@ void alis_init(sPlatform platform) {
 
     script_guess_game(platform.main);
     
+    alis.timeclock = 0;
+    
 //    alis.nmode = 0; // 0 = atari 16 colors
 //                    // 3 = mono
 //                    // 8 = falcon 256 colors
@@ -429,14 +431,20 @@ void updtcoord(u32 addr)
                 sprite->depx += addx;
                 sprite->depy += addy;
                 sprite->depz += addz;
+                
+                // TODO: following line messes with I3 drawing, investigate
 //                sprite->sprite_0x28 = unknown28;
             }
         }
     }
 }
 
-void alis_main(void) {
+void alis_main_V2(void) {
     do {
+        
+        // TODO: rough estimate, calculate proper value for slower computers
+        usleep(2000);
+        
         alis.running = sys_poll_event();
         alis.restart_loop = 0;
         
@@ -445,7 +453,7 @@ void alis_main(void) {
         alis.fallent = 0;
         alis.fseq = 0;
         
-        if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0) 
+        if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0)
         {
             s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10));
             if (script_offset != 0)
@@ -522,6 +530,89 @@ void alis_main(void) {
     while (alis.running);
 }
 
+void alis_main_V3(void) {
+    do {
+        alis.running = sys_poll_event();
+        alis.restart_loop = 0;
+        
+        alis.script = ENTSCR(alis.varD5);
+        
+        alis.fallent = 0;
+        alis.fseq = 0;
+        
+        if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0)
+        {
+            s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10));
+            if (script_offset != 0)
+            {
+                alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                savecoord(alis.script->vram_org);
+                alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 10 + script_offset;
+                alis_loop();
+                updtcoord(alis.script->vram_org);
+            }
+        }
+        
+        if (get_0x04_cstart_csleep(alis.script->vram_org) == 0)
+        {
+            debug(EDebugInfo, "\n SLEEPING %s", alis.script->name);
+        }
+
+        if (get_0x04_cstart_csleep(alis.script->vram_org) != 0)
+        {
+            if ((s8)get_0x04_cstart_csleep(alis.script->vram_org) < 0)
+            {
+                set_0x04_cstart_csleep(alis.script->vram_org, 1);
+            }
+            
+            if (get_0x3e_wait_time(alis.script->vram_org) < alis.timeclock) {
+                set_0x3e_wait_time(alis.script->vram_org, get_0x3a_wait_cycles(alis.script->vram_org) + alis.timeclock);
+                savecoord(alis.script->vram_org);
+                
+                alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
+                alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
+                alis.fseq++;
+                alis_loop();
+                
+                if (alis.restart_loop != 0)
+                {
+                    alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
+                    if (alis.varD5 == 0)
+                    {
+                        alis.script = ENTSCR(alis.varD5);
+                        draw();
+                    }
+
+                    continue;
+                }
+
+                set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
+                set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
+                
+                s32 script_offset = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 6);
+                if (script_offset != 0)
+                {
+                    alis.fseq = 0;
+                    alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                    alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 6 + script_offset;
+                    alis_loop();
+                }
+                
+                updtcoord(alis.script->vram_org);
+                
+                alis.acc = alis.acc_org;
+            }
+        }
+        
+        alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
+        if (alis.varD5 == 0)
+        {
+            alis.script = ENTSCR(alis.varD5);
+            draw();
+        }
+    }
+    while (alis.running);
+}
 
 u8 alis_start(void) {
     u8 ret = 0;
@@ -530,8 +621,16 @@ u8 alis_start(void) {
     alis.running = 1;
     alis.cstopret = 0;
     alis.varD5 = 0;
-    alis_main();
     
+    if (alis.platform.version < 30)
+    {
+        alis_main_V2();
+    }
+    else
+    {
+        alis_main_V3();
+    }
+
     // alis was stopped by 'cexit' opcode
     return ret;
 }
@@ -866,12 +965,12 @@ s32 adresmus(s32 idx)
 #pragma mark -
 #pragma mark tab functions
 
-//s16 tabint(s16 offset, u32 addr)
+//s32 tabint(u32 addr)
 //{
 //    u8 *address = alis.mem + addr;
-//    s16 *ptr = (s16 *)(address + offset - 2);
-//    s16 result = offset + alis.varD7 * 2;
-//    s16 length = *(s8 *)(address + offset - 1);
+//    s16 *ptr = (s16 *)(address - 2);
+//    s16 result = addr + alis.varD7 * 2;
+//    s16 length = *(s8 *)(address - 1);
 //    for (int i = 0; i < length; i++)
 //    {
 //        result += xswap16(*(--ptr)) * *alis.acc++;
@@ -881,12 +980,12 @@ s32 adresmus(s32 idx)
 //    return result;
 //}
 //
-//s16 tabchar(s16 offset, u32 addr)
+//s32 tabchar(u32 addr)
 //{
 //    u8 *address = alis.mem + addr;
-//    s16 *ptr = (s16 *)(address + offset - 2);
-//    s16 result = offset + alis.varD7;
-//    s16 length = *(s8 *)(address + offset - 1);
+//    s16 *ptr = (s16 *)(address - 2);
+//    s16 result = addr + alis.varD7;
+//    s16 length = *(s8 *)(address - 1);
 //    for (int i = 0; i < length; i++)
 //    {
 //        result += xswap16(*(--ptr)) * *alis.acc++;
@@ -896,12 +995,12 @@ s32 adresmus(s32 idx)
 //    return result;
 //}
 //
-//s16 tabstring(s16 offset, u32 addr)
+//s32 tabstring(u32 addr)
 //{
 //    u8 *address = alis.mem + addr;
-//    s16 *ptr = (s16 *)(address + offset - 2);
-//    s16 result = offset + alis.varD7 * (ushort)*(u8 *)ptr;
-//    s16 length = *(s8 *)(address + offset - 1);
+//    s16 *ptr = (s16 *)(address - 2);
+//    s16 result = addr + alis.varD7 * (ushort)*(u8 *)ptr;
+//    s16 length = *(s8 *)(address - 1);
 //    for (int i = 0; i < length; i++)
 //    {
 //        result += xswap16(*(--ptr)) * *alis.acc++;
