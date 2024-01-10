@@ -29,31 +29,59 @@
 void pop_sd6(void)
 {
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
-    strcpy(alis.sd6, (char *)alis.acc);
-    alis.acc += ((s32)strlen((char *)alis.acc) + 1) / 2;
+    
+    char *src = (char *)alis.acc;
+    strcpy(alis.sd6, src);
+
+    s32 len = (s32)strlen(src) + 1;
+    if (len % 2 == 1)
+    {
+        src++;
+    }
+    
+    src += len;
+    alis.acc = (s16 *)src;
 }
 
 void pop_sd7(void)
 {
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
-    strcpy(alis.sd7, (char *)alis.acc);
-    alis.acc += ((s32)strlen((char *)alis.acc) + 1) / 2;
+    
+    char *src = (char *)alis.acc;
+    strcpy(alis.sd7, src);
+
+    s32 len = (s32)strlen(src) + 1;
+    if (len % 2 == 1)
+        src++;
+    
+    src += len;
+    alis.acc = (s16 *)src;
 }
 
 void push_sd6(void)
 {
-    s32 len = ((s32)strlen(alis.sd6) + 1) / 2;
-    alis.acc[-1] = 0;
-    alis.acc -= len;
-    strcpy((char *)alis.acc, alis.sd6);
+    char *tgt = (char *)alis.acc;
+
+    s32 len = (s32)strlen(alis.sd6) + 1;
+    if (len % 2 == 1)
+        *(--tgt) = 0;
+
+    tgt -= len;
+    strcpy(tgt, alis.sd6);
+    alis.acc = (s16 *)tgt;
 }
 
 void push_sd7(void)
 {
-    s32 len = ((s32)strlen(alis.sd7) + 1) / 2;
-    alis.acc[-1] = 0;
-    alis.acc -= len;
-    strcpy((char *)alis.acc, alis.sd7);
+    char *tgt = (char *)alis.acc;
+
+    s32 len = (s32)strlen(alis.sd7) + 1;
+    if (len % 2 == 1)
+        *(--tgt) = 0;
+
+    tgt -= len;
+    strcpy(tgt, alis.sd7);
+    alis.acc = (s16 *)tgt;
 }
 
 // =============================================================================
@@ -556,37 +584,26 @@ void oright(void) {
 }
 
 void omid(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
-    char *src = (char *)(alis.sd7 + *alis.acc++);   // 01a1e6
-
-    printf("\n");
-    s32 t0 = (s32)((u8 *)src - alis.mem);
-    s32 v0 = (s32)((u8 *)alis.acc - alis.mem);
-    printf("$%.6x (", t0);
-    for (int i = 0; i < 64; i++) printf("%c", src[i]); printf(")\n");
-    
-    printf("$%.6x (", v0);       // 000198d6
-    for (int i = 0; i < 64; i++) printf("%c", alis.acc[i]); printf(")\n");
+    char *src = alis.sd7 + *alis.acc++;
 
     pop_sd7();
-
+    
     char *tgt = alis.sd7;
-    s32 t1 = (s32)((u8 *)tgt - alis.mem);
-    s32 v1 = (s32)((u8 *)alis.acc - alis.mem);
-    printf("$%.6x (", t1);
-    for (int i = 0; i < 64; i++) printf("%c", tgt[i]); printf(")\n");
 
-    printf("$%.6x (", v1);       // 000198e2
-    for (int i = 0; i < 64; i++) printf("%c", alis.acc[i]); printf(")\n");
-
-    s16 tgtlen = alis.varD7 - 1;
-    if (tgtlen)
+    alis.varD7 -= 1;
+    for (; alis.varD7 > -1; alis.varD7--, src++, tgt++)
     {
-        sleep(0);
+        *tgt = *src;
+        
+        if (*tgt == 0)
+            break;
     }
     
-//    strncat(tgt, src, tgtlen);
+    if (alis.varD7 < 0)
+    {
+        *tgt = 0;
+    }
 }
 
 void olen(void) {
@@ -603,8 +620,6 @@ void ostr(void) {
 }
 
 void osadd(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     readexec_opername_swap();
     
     strcat(alis.sd6, alis.sd7);
@@ -653,17 +668,9 @@ void ospushacc(void) {
 }
 
 void ospile(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
     char * tmp = alis.sd6;
     alis.sd6 = alis.sd7;
     alis.sd7 = tmp;
-    
-//    s32 t0 = (s32)(alis.sd7 - alis.mem);
-//    s32 t1 = (s32)(alis.sd6 - alis.mem);
-//
-//    printf("osadd(void): Write to address $0195e8, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
-//    printf("osadd(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
 
     pop_sd6();
 }

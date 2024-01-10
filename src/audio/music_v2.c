@@ -111,10 +111,10 @@ void mv2_gomusic(void)
         if (instrument->address != 0)
         {
             if (xread8(instrument->address - 0x10) == 5)
-                chipinst += 1;
+                chipinst++;
             
             else if (xread8(instrument->address - 0x10) == 6)
-                opl2inst += 1;
+                opl2inst++;
         }
         
         instrument ++;
@@ -256,7 +256,7 @@ void mv2_soundrout(void)
         }
         else
         {
-            audio.muattac -= 1;
+            audio.muattac--;
             u16 tmpvol = ((u32)audio.muvol * (u32)audio.muattac) / (u32)mv2a.mubufa;
             newvolgen = (tmpvol & 0xff00) | -((s8)tmpvol - audio.muvol);
         }
@@ -268,7 +268,7 @@ f_soundroutc:
 
         if (audio.muchute != 0)
         {
-            audio.muchute -= 1;
+            audio.muchute--;
             newvolgen = (u16)(((u32)audio.muvol * (u32)audio.muchute) / (u32)mv2a.mubufc);
         }
         else
@@ -281,7 +281,7 @@ f_soundroutc:
     mv2a.muvolgen = newvolgen;
     if (mv2a.muspeed != 0)
     {
-        mv2a.muspeed -= 1;
+        mv2a.muspeed--;
         if (mv2a.muspeed == 0 || (s16)prevmuspeed < 1)
         {
             mv2a.muspeed = audio.mutemp;
@@ -290,7 +290,7 @@ f_soundroutc:
             if (-1 < (s16)(mv2a.mucnt - 0x40))
             {
                 prevmucnt = 0;
-                mv2a.muptr += 1;
+                mv2a.muptr++;
             }
             
             mv2a.mucnt = prevmucnt + 1;

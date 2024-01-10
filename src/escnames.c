@@ -21,6 +21,8 @@
 
 #include "alis.h"
 #include "alis_private.h"
+#include "audio.h"
+#include "video.h"
 
 // ============================================================================
 #pragma mark - Escnames routines
@@ -28,25 +30,19 @@
 static void cnul(void) {
 }
 void consound(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-//    fsound = 1;
+    audio.fsound = 1;
 }
 void coffsound(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    //    fsound = 0;
+    audio.fsound = 0;
 }
 void conmusic(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-//    fmusic = 1;
+    audio.fmusic = 1;
 }
 void coffmusic(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-//    fmusic = 0;
+    audio.fmusic = 0;
 }
 void cdelfilm(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    // TODO: ...
-//    endfilm();
+    endfilm();
 }
 void copenfilm(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);

@@ -70,8 +70,6 @@ float dpalet[768];
 u8 *atpalet = tpalet;
 u8 *ampalet = mpalet;
 
-u8 *dkpalet = 0;
-
 u8 flinepal = 0;
 s16 firstpal[64];
 s16 tlinepal[64] = { 0, 0, 0xff, 0 };
@@ -80,7 +78,6 @@ u8 palc = 0;
 u8 palt = 0;
 u8 palt0 = 0;
 u8 ftopal = 0;
-u8 fdarkpal = 0;
 u8 thepalet = 0;
 u8 defpalet = 0;
 
@@ -274,7 +271,7 @@ void topalette(u8 *paldata, s32 duration)
         {
             palc = 0;
             u8 offset = paldata[2];
-            if (fdarkpal == 0)
+            if (image.fdarkpal == 0)
             {
                 memcpy(atpalet + (offset * 3), paldata + 4, colors * 3);
             }
@@ -658,15 +655,13 @@ void inisprit(void)
     image.libsprit = 0x78; // 0x8078;
     cursprit += 0x78;
     
-    do
+    sSprite *sprite = SPRITE_VAR(cursprit);
+    for (; cursprit < image.finsprit; sprite = SPRITE_VAR(cursprit), cursprit += 0x30)
     {
-        sSprite *sprite = SPRITE_VAR(cursprit);
         sprite->to_next = cursprit + 0x30;
-        cursprit += 0x30;
     }
-    while (cursprit < image.finsprit);
-    
-    *(s16 *)(SPRITEMEM_PTR + cursprit - 0x24) = 0;
+
+    sprite->to_next = 0;
 }
 
 u8 searchelem(s16 *curidx, s16 *previdx)
@@ -2091,7 +2086,7 @@ void destofen(sSprite *sprite)
     u8 *at = bitmap + 6;
 
     u8 color;
-    u8 clear = 0;
+    u16 clear = 0;
     u8 palidx = 0;
 
     s32 bmpy1 = 0;
@@ -2240,11 +2235,16 @@ void destofen(sSprite *sprite)
             // 8 bit image
             
             palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
-            // Ishar 1
-//            clear = bitmap[0] == bitmap[7];
-            // Ishar 2
-            clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
+            
+            // Ishar 1 & 3
+            clear = 0;
 
+            if (alis.platform.uid == EGameIshar_2)
+            {
+                // Ishar 2
+                clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
+            }
+            
             at = bitmap + 8;
 
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)

@@ -264,6 +264,30 @@ u8 is_packed(u8 packer_kind) {
     ;
 }
 
+int unpack_buffer(u8 packer_kind, u8* packed_buffer, u32 packed_size, u8** unpacked_buffer, u32 unpacked_size) {
+    
+    u8 dict[kPackedDictionarySize];
+
+    // unpack
+    if (packer_kind == kPackerKindNew) {
+        unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
+        // depak(packed_buffer, unpacked_buffer, packed_size, unpacked_size, dict);
+    }
+    else if (packer_kind == kPackerKindOld) {
+        unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 0);
+    }
+    else if (packer_kind == kPackerKindOldInterlaced) {
+        unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
+    }
+    else if (packer_kind == kPackerKindNewInterlaced || packer_kind == kPackerKindMac || packer_kind == kPackerKindMacInterlaced) {
+        debug(EDebugFatal, "Unpacker not yet implemented\n");
+        free(packed_buffer);
+        return EUnpackErrorFormat;
+    }
+    
+    return 0;
+}
+
 /// @brief Unpacks a script file to buffer
 /// @param packed_file_path full path to packed file
 /// @param unpacked_buffer output buffer
@@ -354,6 +378,87 @@ int unpack_script(const char* packed_file_path,
         // error
         debug(EDebugFatal, "Cannot open input file (%s)\n", packed_file_path);
         ret = EUnpackErrorInput;
+    }
+    return ret;
+}
+
+int unpack_script_fp(FILE* pfp, u8** unpacked_buffer) {
+    int ret = 0;
+    if(pfp) {
+        // get packed sz
+        fseek(pfp, 0, SEEK_END);
+        u32 packed_size = (u32)ftell(pfp);
+        rewind(pfp);
+
+        u32 magic = fread32(pfp);
+        u8 packer_kind = magic >> 24;
+
+        if(is_packed(packer_kind)) {
+            u16 is_main = fread16(pfp) == 0;
+            u32 unpacked_size = (magic & 0x00ffffff);
+            u8 dict[kPackedDictionarySize];
+
+            packed_size -= kPackedHeaderSize; // size of magic + is_main
+            unpacked_size -= kPackedHeaderSize; // TODO: not sure about that
+            if(is_main) {
+                // skip vm specs
+                fseek(pfp, kVMSpecsSize, SEEK_CUR);
+                packed_size -= kVMSpecsSize;
+                unpacked_size -= kVMSpecsSize; // TODO: not sure about that
+            }
+
+            if(packer_kind == kPackerKindNew) {
+                // read dictionary
+                fread(dict, sizeof(u8), kPackedDictionarySize, pfp);
+                packed_size -= kPackedDictionarySize;
+            }
+
+            // read packed bytes in alloc'd buffer
+            u8* packed_buffer = (u8*)malloc(packed_size * sizeof(u8));
+            fread(packed_buffer, sizeof(u8), packed_size, pfp);
+            fclose(pfp);
+
+            // alloc unpack buffer
+            *unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
+            
+// TODO: remove
+// u8 ref[25328];
+// FILE* f=fopen("/home/olivier/dev/self/unpack/data/ishar1/atari/MAIN.AO.ref", "rb");
+// for(int i = 0; i < 25328; i++) {
+//     ref[i]=fgetc(f);
+// }
+// fclose(f);
+
+            // unpack
+            if (packer_kind == kPackerKindNew) {
+                unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
+                // depak(packed_buffer, unpacked_buffer, packed_size, unpacked_size, dict);
+            }
+            else if (packer_kind == kPackerKindOld) {
+                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 0);
+            }
+            else if (packer_kind == kPackerKindOldInterlaced) {
+                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
+            }
+            else if (packer_kind == kPackerKindNewInterlaced || packer_kind == kPackerKindMac || packer_kind == kPackerKindMacInterlaced) {
+                debug(EDebugFatal, "Unpacker not yet implemented\n");
+                free(packed_buffer);
+                return EUnpackErrorFormat;
+            }
+
+            debug(EDebugInfo, "Unpacked %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n",
+                    packed_size, unpacked_size,
+                    100 - (int)((packed_size * 100) / unpacked_size),
+                    packer_kind == kPackerKindNew ? "new" : "old");
+            free(packed_buffer);
+            packed_buffer = NULL;
+            ret = unpacked_size;
+        }
+        else {
+            // do nothing
+            debug(EDebugWarning, "File is not packed, or packer format is unknown (0x%02x)\n", (magic >> 24));
+            ret = EUnpackErrorFormat;
+        }
     }
     return ret;
 }

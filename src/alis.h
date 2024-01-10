@@ -279,7 +279,7 @@ typedef struct {
     
     char            autoname[256];
 
-    s32             tabptr[16][2];
+    u32             tabptr;
 
     // data buffers
     u8              buffer[1024];
@@ -298,6 +298,10 @@ typedef struct {
     u8              fmitmov;
     u16             goodmat;
     u32             baseform;
+    
+    s8              typepack;
+    u8              wordpack;
+    u32             longpack;
     
     // helper: executed instructions count
     u32             icount;

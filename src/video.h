@@ -21,34 +21,28 @@
 
 #pragma once
 
-#include "config.h"
-#include "time.h"
-
-typedef enum {
-    eChannelTypeNone        = 0,
-    eChannelTypeDingZap     = 1,
-    eChannelTypeNoise       = 2,
-    eChannelTypeExplode     = 3,
-    eChannelTypeSample      = 0x80,
-} eChannelType;
-
 typedef struct {
-    
-    s8 state;
-    s8 curson;
-    s16 pere;
-    eChannelType type;
-    u8 *address;
-    u32 played;
-    s16 volume;
-    u8 unk0x7;
-    u32 length;
-    s16 freq;
-    u8 loop;
+    s16 id;
+    u8  playing;
+    u8  reserved0;
+    u32 addr1;
+    s16 frame;
+    s16 frames;
+    s32 reserved1;
+    s32 reserved2;
+    s32 reserved3;
+    s32 reserved4;
+    s32 endptr;
+    s32 reserved5;
+    u32 addr2;
+    s16 result;
+    s16 batchframes;
+    s16 waitclock;
+    u32 basemain;
+} sFLICData;
 
-    s16 delta_volume;
-    s16 delta_freq;
+void inifilm(void);
+void runfilm(void);
+void endfilm(void);
 
-} sChannel;
-
-extern sChannel channels[4];
+extern sFLICData bfilm;

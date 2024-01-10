@@ -233,7 +233,7 @@ void script_guess_game(const char * script_path) {
     }
 }
 
-sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
+sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
     
 //    debprot();
     s16 id = swap16((data + 0));
@@ -262,7 +262,7 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz, u8 type) {
     memset(script, 0, sizeof(sAlisScriptData));
     strcpy(script->name, name);
     script->sz = data_sz;
-    script->type = type;
+    script->type = alis.typepack;
     
     // script data
     script->header.id = swap16((data + 0));
@@ -618,8 +618,8 @@ sAlisScriptData * script_load(const char * script_path) {
         // TODO: check if this was already loaded, if so use cache
         
         // decrunch if needed
-        s8 type = magic >> 24;
-        if (type < 0)
+        alis.typepack = magic >> 24;
+        if (alis.typepack < 0)
         {
             debug(EDebugInfo, "Depacking...\n");
 
@@ -644,7 +644,7 @@ sAlisScriptData * script_load(const char * script_path) {
 
             depak_sz = unpack_script(script_path, &depak_buf);
             if (depak_sz > 0) {
-                script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz, type);
+                script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
             }
 
             // cleanup
@@ -665,7 +665,7 @@ sAlisScriptData * script_load(const char * script_path) {
             fseek(fp, seekto, SEEK_SET);
             fread(depak_buf, sizeof(u8), depak_sz, fp);
 
-            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz, type);
+            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
         }
 
         // cleanup

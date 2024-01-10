@@ -27,6 +27,7 @@
 #include "image.h"
 #include "screen.h"
 #include "utils.h"
+#include "video.h"
 
 #define BIT_SCAN        (0)
 #define BIT_INTER       (1)
@@ -221,622 +222,6 @@ s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 ent_wforme2x);
 s32 monofirm(s32 ent_vram, s32 ent_formedata);
 
 static void cret(void);
-
-
-typedef struct {
-    s16 id;
-    u8  playing;
-    u8  reserved0;
-    u32 addr1;
-    s16 frame;
-    s16 frames;
-    s32 reserved1;
-    s32 reserved2;
-    s32 reserved3;
-    s32 reserved4;
-    s32 endptr;
-    s32 reserved5;
-    u32 addr2;
-    s16 result;
-    s16 batchframes;
-    s16 waitclock;
-    u32 basemain;
-} sFLICData;
-
-extern u8 *logic;
-extern u8 *physic;
-
-extern s16 fenx1;
-extern s16 feny1;
-extern s16 fenx2;
-extern s16 feny2;
-extern s16 clipx1;
-extern s16 clipy1;
-extern s16 clipx2;
-extern s16 clipy2;
-extern s16 clipl;
-extern s16 cliph;
-extern s16 wlogx1;
-extern s16 wlogx2;
-extern s16 wlogy1;
-extern s16 wlogy2;
-extern s16 wloglarg;
-extern s16 loglarg;
-
-u32 endframe = 0;
-
-sFLICData bfilm;
-
-// fls video player
-
-u16 fls_drawing = 0;
-u16 fls_pallines = 0;
-s8  fls_state = 0;
-
-void fls_cleanup(void)
-{
-    // TODO: restore palette and screen
-
-    bfilm.addr1 = 0;
-    fls_state = 0;
-//    last_touche = 0;
-}
-
-u16 pal[16] = {
-    0x0000,
-    0x0019,
-    0x0011,
-    0x0811,
-    0x0089,
-    0x0881,
-    0x0081,
-    0x0088,
-    0x0018,
-    0x0012,
-    0x0889,
-    0x0812,
-    0x0181,
-    0x0181,
-    0x0181,
-    0x0181,
-};
-
-
-// 114000
-u8 pvgalogic[1024 * 1024];
-u8 *vgalogic = pvgalogic + 0x40;
-u8 *vgalogic_df = pvgalogic + 0xdf00 + 0x13f;
-extern u8 tpalet[768 * 4];
-
-void fls_savscreen(void)
-{
-    vgalogic = (u8 *)(vgalogic + 0xffU);
-    memset(vgalogic, 0, 57000);
-    
-    // TODO: store old palette/res
-
-    fls_state = 0xff;
-}
-
-void fls_vbl_callback2(void);
-
-u32 fls_decomp(u32 addr)
-{
-    bfilm.frame ++;
-    u32 endframe = addr + xread32(addr);
-
-    u8 *vgaptr = vgalogic_df;//(u8 *)(vgalogic_df + 0xa0);
-    vgaptr += 0xa0;
-
-    addr += 6;
-
-    while (endframe > addr)
-    {
-        u8 len = xread8(addr); addr++;
-        if (len >= 0x80)
-        {
-            s16 test = (s8)len;
-            test += 0x80;
-            
-            s32 length = 0x100 - len;
-            memcpy(vgaptr, alis.mem + addr, length); vgaptr += length; addr += length;
-        }
-        else
-        {
-            if ((s8)len < 2)
-            {
-                if (len == 1)
-                {
-                    vgaptr += xread16(addr); addr+=2;
-                }
-                else
-                {
-                    vgaptr += xread8(addr); addr++;
-                }
-            }
-            else
-            {
-                u8 color = xread8(addr); addr++;
-                memset(vgaptr, color, len); vgaptr += len;;
-            }
-        }
-    }
-    
-    return endframe;
-}
-
-void fls_vbl_callback2(void)
-{
-    u8 *prevlogic = vgalogic_df;
-    if (fls_drawing != 0)
-    {
-        vgalogic_df = vgalogic;
-        vgalogic = prevlogic;
-        fls_drawing = 0;
-    }
-
-    // set 8 bit "hicolor palette" to help simulate ST 512 color image
-
-    int i = 0;
-    for (int r = 0; r < 8; r++)
-    {
-        for (int g = 0; g < 8; g++)
-        {
-            for (int b = 0; b < 4; b++)
-            {
-                mpalet[i++] = r * 32;
-                mpalet[i++] = g * 32;
-                mpalet[i++] = b * 64;
-            }
-        }
-    }
-    
-    u16 curpal[16];
-    memcpy(curpal, vgalogic_df + 32000, 32);
-
-    s16 pallines = 0xc5 - fls_pallines;
-
-    u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
-    u8 *bitmap = vgalogic_df + 0xa0;
-
-    u16 width = 320;
-    u16 height = 200;
-    
-    // ST scanline width 48 + 320 + 44 (412)
-    // change palette every 412 / 48 ?
-    float pxs = 9.6;
-
-    int limit0 = -4;
-    int limit1 = 156;
-
-    u32 at = 0;
-
-    u32 bmpidx = 0;
-    u32 palidx;
-    u8 *rawcolor;
-    u8 red, grn, blu;
-    
-    // copy vgalogic to screen
-
-    for (int y = 0; y < height; y++, palette += 16)
-    {
-        int px = 0;
-        
-        for (int x = 0; x < width; x+=16, bmpidx+=16, at+=8)
-        {
-            for (int dpx = 0; dpx < 8; dpx++, px++)
-            {
-                // handle palette for the fist 8 pixels
-                
-                if (px >= limit0)
-                {
-                    if (px == limit1)
-                    {
-                        palette += 16;
-                    }
-                    
-                    palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
-                    if (palidx < 16)
-                    {
-                        curpal[palidx] = palette[palidx];
-                    }
-                }
-                
-                // convert planar to chunky
-
-                u32 rot = (7 - dpx);
-                u32 mask = 1 << rot;
-
-                rawcolor = (u8 *)&(curpal[(((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3)]);
-                red = (rawcolor[0] & 0b00000111);
-                grn = (rawcolor[1] >> 4);
-                blu = (rawcolor[1] & 0b00000111) >> 1;
-                physic[bmpidx + 0 + dpx] = (red << 5) + (grn << 2) + blu;
-            }
-            
-            for (int dpx = 0; dpx < 8; dpx++, px++)
-            {
-                // handle palette for the second 8 pixels
-
-                if (px >= limit0)
-                {
-                    if (px == limit1)
-                    {
-                        palette += 16;
-                    }
-
-                    palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
-                    if (palidx < 16)
-                    {
-                        curpal[palidx] = palette[palidx];
-                    }
-                }
-                
-                // convert planar to chunky
-                
-                u32 rot = (7 - dpx);
-                u32 mask = 1 << rot;
-
-                rawcolor = (u8 *)&(curpal[(((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3)]);
-                red = (rawcolor[0] & 0b00000111);
-                grn = (rawcolor[1] >> 4);
-                blu = (rawcolor[1] & 0b00000111) >> 1;
-                physic[bmpidx + 8 + dpx] = (red << 5) + (grn << 2) + blu;
-            }
-        }
-        
-        palette += 16;
-        memcpy(curpal, palette, 32);
-    }
-
-    memcpy(logic, physic, 320*200);
-}
-
-void fls_init(u32 addr)
-{
-    fls_pallines = (u16)xread8(addr + 8) * 2;
-    bfilm.frames = xread16(addr + 6);
-    bfilm.endptr = addr + xread32(addr);
-    bfilm.frame = 0;
-}
-
-u32 fls_next(u32 addr)
-{
-    if (fls_state < 0)
-    {
-        addr = fls_decomp(addr);
-        fls_drawing = 1;
-        fls_state = 1;
-        fls_vbl_callback2();
-        return addr;
-    }
-    else
-    {
-        addr = fls_decomp(addr);
-        fls_drawing = 1;
-        fls_vbl_callback2();
-        return addr;
-    }
-}
-
-u32 flstofen(s16 clean)
-{
-    if (clean < 0)
-    {
-        fls_cleanup();
-    }
-    else
-    {
-        u32 addr = bfilm.addr1;
-        if (addr != 0)
-        {
-            s16 type = xread16(addr + 4);
-            if (type == 0x5354)
-            {
-                fls_init(addr);
-                
-                addr += alis.platform.kind == EPlatformAmiga ? 0x8 : 0xc;
-            }
-            else
-            {
-                if (fls_state == 0)
-                {
-                    fls_savscreen();
-                }
-                
-                if (alis.platform.kind == EPlatformAmiga)
-                {
-                    if (type != 0x5355 && type != 0x5356)
-                    {
-                        bfilm.addr1 = 0;
-                        return 0;
-                    }
-                }
-                else
-                {
-                    if (type != 0x5357)
-                    {
-                        bfilm.addr1 = 0;
-                        return 0;
-                    }
-                }
-                
-                addr = fls_next(addr);
-                fls_drawing = 1;
-            }
-            
-            bfilm.addr1 = (addr & 1) + addr;
-            if (bfilm.addr1 < bfilm.endptr)
-            {
-                return 1;
-            }
-        }
-    }
-    
-    bfilm.addr1 = 0;
-    return 0;
-}
-
-void endfilm(void)
-{
-    flstofen(-1);
-//    if (pvgalogic != 0)
-//    {
-//        io_mfree();
-//        pvgalogic = 0;
-//    }
-}
-
-
-// fli (flic video) video player
-
-void fli_palette(u32 addr)
-{
-    u16 packets = *(u16 *)(alis.mem + addr), index = 0;
-    addr+=2;
-    
-    do
-    {
-        index += (u8)(xread8(addr)); addr++;
-        u16 len = xread8(addr); addr++;
-        if (len == 0)
-        {
-            len = 256;
-        }
-        
-        if (index + len > 256)
-        {
-            len = 256 - index;
-            packets = 1;
-        }
-
-        u8 *ptr = mpalet + 3 * index;
-        for (int c = 0; c < len; c++)
-        {
-            ptr[0] = xread8(addr) * 2; addr++;
-            ptr[1] = xread8(addr) * 2; addr++;
-            ptr[2] = xread8(addr) * 2; addr++;
-            ptr += 3;
-        }
-        
-        index += len;
-    }
-    while (--packets);
-
-    ftopal = 0xff;
-}
-
-void fli_blackdata(void)
-{
-    memset(vgalogic, 0, 64000);
-}
-
-void fli_data(u32 a5)
-{
-    u8 *ptr = vgalogic;
-    for (int i = 0; i < 200; i++, ptr += 320, a5 += 320)
-    {
-        memcpy(ptr, alis.mem + a5, 320);
-    }
-}
-
-void fli_decomp(u32 addr, u8 partial)
-{
-    u32 index = 0;
-    u16 len = 200;
-    
-    if (partial)
-    {
-        index = *(u16 *)(alis.mem + addr) * 320; addr+=2;
-        len = *(u16 *)(alis.mem + addr); addr+=2;
-    }
-    
-    while (len--)
-    {
-        u8 packets = xread8(addr); addr++;
-        u16 col = 0;
-        while (packets--)
-        {
-            if (partial)
-            {
-                col += (u16)(xread8(addr)); addr++;
-            }
-            
-            short int count = (signed char) xread8(addr); addr++;
-            if (partial) count = -count;
-            if (count >= 0)
-            {
-                if (count == 0)
-                    count = 256;
-                
-                if (col + count > 320)
-                {
-                    count = 320 - col;
-                    len = packets = 0;
-                }
-                
-                memset(vgalogic + index + col, xread8(addr), count); addr++;
-            }
-            else
-            {
-                count = -count;
-                if (col + count > 320)
-                {
-                    count = 320 - col;
-                    len = packets = 0;
-                }
-                
-                memcpy(vgalogic + index + col, alis.mem + addr, count); addr+= count;
-            }
-            
-            col += count;
-        }
-        
-        index += 320;
-    }
-}
-
-void fli_elements(u32 addr)
-{
-    if (endframe <= addr)
-    {
-        return;
-    }
-
-    u32 offset = *(u32 *)(alis.mem + addr);
-    addr+=4;
-
-    u16 type = *(u16 *)(alis.mem + addr);
-    addr+=2;
-    
-    switch (type) {
-        case 0xb:
-            fli_palette(addr);
-            break;
-        case 0xc:
-            fli_decomp(addr, 1);
-            break;
-        case 0xd:
-            fli_blackdata();
-            break;
-        case 0xf:
-            fli_decomp(addr, 0);
-            break;
-        case 0x10:
-            fli_data(addr);
-            break;
-    }
-
-    fli_elements(addr + offset - 6);
-    
-    memcpy(physic, vgalogic, 320*200);
-    memcpy(logic, vgalogic, 320*200);
-}
-
-void fli_init(u32 flcaddr)
-{
-    u32 length = *(u32 *)(alis.mem + flcaddr);
-    bfilm.endptr = flcaddr + length;
-    bfilm.addr1 = flcaddr + 0x80;
-    bfilm.frames = *(u16 *)(alis.mem + flcaddr + 6);
-    bfilm.frame = 0;
-}
-
-void fli_next(u32 addr)
-{
-    u32 length = *(u32 *)(alis.mem + addr);
-    endframe = addr + length;
-    fli_elements(addr + 16);
-    bfilm.addr1 = endframe;
-    bfilm.frame++;
-}
-
-s16 flitofen(void)
-{
-    u32 flcaddr = bfilm.addr1;
-    u16 type = *(u16 *)(alis.mem + flcaddr + 4);
-    if (type == 0xaf11)
-    {
-        fli_init(flcaddr);
-        return 1;
-    }
-    else if (type == 0xf1fa && bfilm.endptr > flcaddr)
-    {
-        fli_next(flcaddr);
-        return 1;
-    }
-    
-    return 0;
-}
-
-void inifilm(void)
-{
-    bfilm.playing = 0;
-    
-    if (alis.platform.kind == EPlatformAtari || alis.platform.kind == EPlatformAmiga)
-    {
-        flstofen(0);
-    }
-    else
-    {
-        flitofen();
-    }
-}
-
-void runfilm(void)
-{
-    u32 basemain = bfilm.basemain;
-    fenx1 = *(u16 *)(alis.mem + basemain + 0xe);
-    fenx2 = *(u16 *)(alis.mem + basemain + 0x12) + fenx1;
-    clipl = *(u16 *)(alis.mem + basemain + 0x12) + 1;
-    feny1 = *(u16 *)(alis.mem + basemain + 0x10);
-    feny2 = *(u16 *)(alis.mem + basemain + 0x14) + feny1;
-    cliph = *(u16 *)(alis.mem + basemain + 0x14) + 1;
-    wloglarg = loglarg;
-    wlogx1 = 0;
-    wlogy1 = 0;
-    clipx1 = fenx1;
-    clipy1 = feny1;
-    clipx2 = fenx2;
-    clipy2 = feny2;
-    
-    bfilm.playing = 1;
-    
-    while (true)
-    {
-        u32 prevclock = alis.timeclock;
-        s16 result = (alis.platform.kind == EPlatformAtari || alis.platform.kind == EPlatformAmiga) ? flstofen(0) : flitofen();
-        if (0 < bfilm.waitclock)
-        {
-            s16 index = (s16)(((u32)(u16)bfilm.waitclock * 5) / 7);
-            if (index == 0)
-            {
-                index = 1;
-            }
-            
-            do { } while (alis.timeclock < (u32)(index + prevclock));
-        }
-        
-        if (result == 0)
-            break;
-        
-        bfilm.batchframes--;
-        if (bfilm.batchframes == 0)
-        {
-            bfilm.result = 0;
-            return;
-        }
-        
-        if (bfilm.batchframes < 0)
-        {
-            bfilm.batchframes++;
-        }
-    }
-    
-    bfilm.addr1 = bfilm.addr2;
-    bfilm.result = -0x7ffc;
-}
-
 
 // ============================================================================
 #pragma mark - Opcodes
@@ -2412,7 +1797,7 @@ static void czap(void) {
     readexec_opername();
     u8 priorson = alis.varD7;
     readexec_opername();
-    u8 volson = alis.varD7;
+    s16 volson = alis.varD7 << 8;
     readexec_opername();
     u16 freqson = alis.varD7;
     readexec_opername();
@@ -2433,7 +1818,7 @@ static void cexplode(void) {
     readexec_opername();
     u8 priorson = alis.varD7;
     readexec_opername();
-    u8 volson = alis.varD7;
+    s16 volson = alis.varD7 << 8;
     readexec_opername();
     u16 freqson = alis.varD7;
     readexec_opername();
@@ -2443,14 +1828,13 @@ static void cexplode(void) {
         return;
     }
     
-    u32 vol32 = ((u32)volson << 8) / (u32)longson;
-    s16 vol16 = (s16)vol32;
-    if (vol32 == 0)
+    u32 dvolson = ((u32)volson) / (u32)longson;
+    if (dvolson == 0)
     {
-        vol16 = 1;
+        dvolson = 1;
     }
 
-    runson(eChannelTypeExplode, pereson, priorson, volson, freqson, longson, -vol16, 0);
+    runson(eChannelTypeExplode, pereson, priorson, volson, freqson, longson, -(s16)dvolson, 0);
 }
 
 static void cding(void) {
@@ -2458,7 +1842,7 @@ static void cding(void) {
     readexec_opername();
     u8 priorson = alis.varD7;
     readexec_opername();
-    s16 volson = alis.varD7;
+    s16 volson = alis.varD7 << 8;
     readexec_opername();
     u16 freqson = alis.varD7;
     readexec_opername();
@@ -2468,13 +1852,13 @@ static void cding(void) {
         return;
     }
     
-    u32 tmpa = ((u32)volson << 8) / (u32)longson;
-    u32 tmpb = ((u32)volson << 8) % (u32)longson;
-    u32 newdvolson = tmpa == 0 ? 1 : tmpb << 0x10 | tmpa;
+    u32 dvolson = ((u32)volson) / (u32)longson;
+    if (dvolson == 0)
+    {
+        dvolson = 1;
+    }
 
-    s16 dvolson = -(s16)newdvolson;
-
-    runson(eChannelTypeDingZap, pereson, priorson, volson, freqson, longson, dvolson, 0);
+    runson(eChannelTypeDingZap, pereson, priorson, volson, freqson, longson, -(s16)dvolson, 0);
 }
 
 static void cnoise(void) {
@@ -2482,7 +1866,7 @@ static void cnoise(void) {
     readexec_opername();
     u8 priorson = alis.varD7;
     readexec_opername();
-    u8 volson = alis.varD7;
+    s16 volson = alis.varD7 << 8;
     readexec_opername();
     u16 freqson = alis.varD7;
     readexec_opername();
@@ -2492,20 +1876,53 @@ static void cnoise(void) {
         return;
     }
     
-    u32 vol32 = ((u32)volson << 8) / (u32)volson;
-    s16 vol16 = (s16)vol32;
-    if (vol32 == 0)
+    u32 dvolson = ((u32)volson) / (u32)longson;
+    if (dvolson == 0)
     {
-        vol16 = 1;
+        dvolson = 1;
     }
-    
-    u16 dvolson = -vol16;
 
-    runson(eChannelTypeNoise, pereson, priorson, volson, freqson, longson, dvolson, 0);
+    runson(eChannelTypeNoise, pereson, priorson, volson, freqson, longson, -(s16)dvolson, 0);
 }
 
 static void cinitab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+}
+
+FILE *aopen(char *path, u16 openmode)
+{
+    bool exists = sys_fexists(path);
+
+    alis.fp = sys_fopen((char *)path, openmode);
+    alis.typepack = 0;
+    alis.openmode = openmode;
+    if ((openmode & 0x100) == 0 || exists)
+    {
+        if ((openmode & 0x200) == 0)
+        {
+            if (alis.fp != NULL)
+            {
+                if ((openmode & 0x800) != 0)
+                {
+                    fread(alis.buffer, 0xc, 1, alis.fp);
+                    if (((u32 *)(alis.buffer))[0] == 0x50423630)
+                    {
+                        alis.typepack = 0xa0;
+                        alis.wordpack = 0;
+                        alis.longpack = ((u32 *)(alis.buffer))[1];
+                    }
+                    else if (((u32 *)(alis.buffer))[0] == 0x50573630)
+                    {
+                        alis.typepack = 0xa0;
+                        alis.wordpack = 1;
+                        alis.longpack = ((u32 *)(alis.buffer))[1];
+                    }
+                }
+            }
+        }
+    }
+    
+    return alis.fp;
 }
 
 static void cfopen(void) {
@@ -2529,7 +1946,8 @@ static void cfopen(void) {
         mode = script_read16();
     }
 
-    alis.fp = sys_fopen((char *)path, mode);
+    aopen((char *)path, mode);
+//    alis.fp = sys_fopen((char *)path, mode);
     if(alis.fp == NULL) {
         alis_error(ALIS_ERR_FOPEN, path);
     }
@@ -2572,6 +1990,7 @@ static void cfwritei(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+#include "unpack.h"
 static void cfreadb(void) {
     
     s32 addr = (s16)script_read16();
@@ -2587,10 +2006,9 @@ static void cfreadb(void) {
 
     if (alis.platform.version >= 30)
     {
-        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-
         if ((s8)xread8(addr - 1) < 0)
         {
+            addr = xread32(addr);
             addr = xread32(addr);
             if (addr < 1)
             {
@@ -2602,17 +2020,20 @@ static void cfreadb(void) {
         // TODO: type wrong we should use value set in cfopen IE 0
         // use global variable
         
-        if (1)//alis.script->data->type == 0)
+        if (alis.typepack == 0)
         {
             fread(alis.mem + addr, length, 1, alis.fp);
         }
         else
         {
-//            unpack();
-//            if (wordpack != 0)
-//            {
-//                unmixword();
-//            }
+            debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+
+            u8 *unpacked_buffer = alis.mem + addr;
+            u32 unpacked_size = unpack_script_fp(alis.fp, &unpacked_buffer);
+            if (alis.wordpack != 0)
+            {
+                // unmixword();
+            }
         }
     }
     else
@@ -3054,9 +2475,7 @@ static void cfindtyp(void) {
     crstent();
 }
 
-static void cmusic(void) {
-    alis.flagmain = 0;
-    
+void music(void) {
     readexec_opername();
     s16 idx = alis.varD7;
     s32 addr = adresmus(idx);
@@ -3128,7 +2547,12 @@ static void cmusic(void) {
         }
 
         audio.muvolume = audio.maxvolume >> 8;
-        mv2_gomusic();
+        
+        if (audio.fmusic)
+        {
+            mv2_gomusic();
+        }
+        
         audio.mustate = 1;
     }
     else
@@ -3141,6 +2565,11 @@ static void cmusic(void) {
         
         debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     }
+}
+
+static void cmusic(void) {
+    alis.flagmain = 0;
+    music();
 }
 
 static void cdelmusic(void) {
@@ -3279,6 +2708,17 @@ static void cdelsound(void) {
     {
         channels[i].type = eChannelTypeNone;
     }
+
+    for (int i = 0; i < 3; i++)
+    {
+        channels[i].type = eChannelTypeNone;
+        channels[i].volume = 0;
+        channels[i].freq = 0;
+        channels[i].curson = 0x80;
+        channels[i].state = 0;
+        channels[i].played = 0;
+        io_canal(&(channels[i]), i);
+    }
 }
 
 static void cwmov(void) {
@@ -3389,7 +2829,8 @@ static void cmxputat(void) {
 }
 
 static void cmmusic(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    alis.flagmain = 1;
+    music();
 }
 
 static void cmforme(void) {
@@ -3953,34 +3394,103 @@ static void cbackstar(void) {
     starbuff[5] = alis.varD7;
     starbuff[6] = 0;
 
-    if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
-    {
-        if (alis.platform.uid == EGameColorado) // colorado and likely other older games
-        {
-            u8 value = xread8(alis.basemain + 1);
-            value &= 0xf7;
-            value &= 0xef;
-            if (starbuff[0] != 0)
-                value |= 0x18;
-
-            xwrite8(alis.basemain + 1, value);
-        }
-        else
-        {
-            u8 value = xread8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1);
-            value &= 0xf7;
-            value &= 0xef;
-            if (starbuff[0] != 0)
-            {
-                value |= 0x18;
-
-                s16 at = xread16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 2);
-                rescmode(at, value);
-            }
+    switch (alis.platform.uid) {
             
-            xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1, value);
+        case EGameColorado:
+        {
+            if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
+            {
+                u8 value = xread8(alis.basemain + 1);
+                value &= 0xf7;
+                value &= 0xef;
+                if (alis.varD7 != 0)
+                    value |= 0x18;
+
+                xwrite8(alis.basemain + 1, value);
+            }
+            break;
         }
+
+        case EGameManhattanDealers:
+        case EGameMadShow:
+        case EGameWindsurfWilly:
+        case EGameLeFeticheMaya:
+        {
+            // NOP
+            break;
+        }
+            
+        case EGameStarblade:
+        {
+            // TODO: starblade implementation differs
+            break;
+        }
+        
+        case EGameStormMaster:
+        case EGameTarghan0:
+        case EGameTarghan1:
+        case EGameCrystalsOfArborea0:
+        case EGameCrystalsOfArborea1:
+        case EGameMetalMutant:
+        case EGameTransartica:
+        case EGameBostonBombClub:
+        case EGameBunnyBricks:
+        case EGameIshar_1:
+        case EGameIshar_2:
+        case EGameIshar_3:
+        case EGameRobinsonsRequiem0:
+        case EGameRobinsonsRequiem1:
+        {
+            if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
+            {
+                u8 value = xread8(alis.basemain + 1);
+                value &= 0xf7;
+                value &= 0xef;
+                if (alis.varD7 != 0)
+                {
+                    value |= 0x18;
+
+                    s16 at = xread16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 2);
+                    rescmode(at, value);
+                }
+                
+                xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1, value);
+            }
+            break;
+        }
+            
+        default:
+            break;
     }
+    
+//    if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
+//    {
+//        if (alis.platform.uid == EGameColorado) // colorado and likely other older games
+//        {
+//            u8 value = xread8(alis.basemain + 1);
+//            value &= 0xf7;
+//            value &= 0xef;
+//            if (starbuff[0] != 0)
+//                value |= 0x18;
+//
+//            xwrite8(alis.basemain + 1, value);
+//        }
+//        else
+//        {
+//            u8 value = xread8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1);
+//            value &= 0xf7;
+//            value &= 0xef;
+//            if (starbuff[0] != 0)
+//            {
+//                value |= 0x18;
+//
+//                s16 at = xread16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 2);
+//                rescmode(at, value);
+//            }
+//            
+//            xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1, value);
+//        }
+//    }
 }
 
 static void cstarring(void) {
@@ -4202,7 +3712,7 @@ static void cshrink(void) {
     s16 height = read16(data + 4);
     if (height != 0)
     {
-        height += 1;
+        height++;
         
         s32 bits = width * height;
         
@@ -4236,8 +3746,6 @@ static void cshrink(void) {
 }
 
 static void cdefmap(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     if (alis.platform.uid == EGameTransartica)
     {
         u32 mapram = alis.script->vram_org;
@@ -4273,6 +3781,8 @@ static void cdefmap(void) {
     }
     else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
     {
+        debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+
         u32 mapram = alis.script->vram_org;
         s16 offset = script_read16();
         if (offset == 0)
@@ -4312,57 +3822,47 @@ static void cdefmap(void) {
         xwrite32(mapram - 0x3dc, 4);
         xwrite8(mapram - 0x3d8, 0x7f);
         
-        s32 uVar3;
-        s32 uVar5;
+        s32 vala, valb;
         if ((s8)xread8(mapram - 1) < 0)
         {
-            uVar5 = xread32(mapram - 6);
-            uVar3 = xread32(mapram - 10);
+            valb = xread32(mapram - 6);
+            vala = xread32(mapram - 10);
         }
         else
         {
-            uVar5 = xread32(mapram - 4);
-            uVar3 = xread32(mapram - 6);
+            valb = xread32(mapram - 4);
+            vala = xread32(mapram - 6);
         }
         
-        s32 uVar4 = (s16)(uVar3 / (uVar5 & 0xffff));
-        xwrite16(mapram - 0x3c6, uVar4);
-        xwrite16(mapram - 0x3cc, uVar4);
-        xwrite16(mapram - 0x3c4, (u16)uVar5);
-        xwrite16(mapram - 0x3ca, (u16)uVar5 >> 1);
+        s32 ratio = (s16)(vala / (valb & 0xffff));
+        xwrite16(mapram - 0x3c6, ratio);
+        xwrite16(mapram - 0x3cc, ratio);
+        xwrite16(mapram - 0x3c4, (u16)valb);
+        xwrite16(mapram - 0x3ca, (u16)valb >> 1);
         xwrite16(mapram - 0x3b6, 0);
         
-        s32 sVar6 = -1;
-        u16 uVar2 = xread16(mapram - 0x3f4);
-        do {
-            sVar6 += 1;
-            uVar2 >>= 1;
-        } while (uVar2 != 0);
-        xwrite16(mapram - 0x3c0, sVar6);
-        
-        sVar6 = -1;
-        uVar2 = xread16(mapram - 0x3f2);
-        do {
-            sVar6 += 1;
-            uVar2 >>= 1;
-        } while (uVar2 != 0);
-        xwrite16(mapram - 0x3be, sVar6);
-        
-        sVar6 = -1;
-        uVar2 = xread16(mapram - 0x3f0);
-        do {
-            sVar6 += 1;
-            uVar2 >>= 1;
-        } while (uVar2 != 0);
-        xwrite16(mapram - 0x3bc, sVar6);
+        for (int i = 0; i < 3; i++)
+        {
+            s32 result = -1;
+            u16 count = xread16(mapram - (0x3f4 - i * 2));
+
+            do
+            {
+                result++;
+                count >>= 1;
+            }
+            while (count != 0);
+            
+            xwrite16(mapram - (0x3c0 - i * 2), result);
+        }
 
         if (xread8(mapram - 0x3d8) == '\n')
         {
-            sVar6 = get_0x16_screen_id(alis.script->vram_org);
-            if (sVar6 != 0)
+            s32 scrid = get_0x16_screen_id(alis.script->vram_org);
+            if (scrid != 0)
             {
-                xwrite16(alis.basemain + sVar6 + 0x40, get_0x0e_script_ent(alis.script->vram_org));
-                xwrite16(alis.basemain + sVar6 + 0x42, mapram - alis.script->vram_org);
+                xwrite16(alis.basemain + scrid + 0x40, get_0x0e_script_ent(alis.script->vram_org));
+                xwrite16(alis.basemain + scrid + 0x42, mapram - alis.script->vram_org);
             }
         }
     }
@@ -4540,19 +4040,25 @@ s32 io_malloc(s32 rawsize)
         alis.finmem = blockloc;
         xwrite32(blockloc, size);
 
+        if (alis.platform.version < 30)
+        {
+            return blockloc;
+        }
+        
         for (int i = 0; i < 0xf; i++)
         {
-            if (alis.tabptr[i][0] == 0)
+            if (xread32(alis.tabptr + i * 8) == 0)
             {
-                alis.tabptr[i][0] = blockloc + 8;
-                alis.tabptr[i][1] = blockloc + 8;
+                xwrite32(alis.tabptr + i * 8 + 0, blockloc + 8);
+                xwrite32(alis.tabptr + i * 8 + 4, blockloc + 8);
+
                 // NOTE: silmarils originaly used 32 bit pointer to pointer table allocated in (alis.mem) block
-                return i;
+                return alis.tabptr + i * 8;
             }
         }
     }
     
-    return -1;
+    return 0;
 }
 
 static void calloctab(void) {
@@ -4588,11 +4094,6 @@ static void cscsun(void) {
 }
 
 static void cdarkpal(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    short sVar4;
-    short *psVar5;
-    short *psVar6;
-    
     readexec_opername();
     s16 darkpar = alis.varD7;
     readexec_opername();
@@ -4603,53 +4104,47 @@ static void cdarkpal(void) {
     s16 darkpac = alis.varD7;
     readexec_opername();
     s16 darkpan = alis.varD7;
+    
+    s16 val0 = 0x3c;
+    s16 val1 = 0x3f;
+    s16 val2 = 0x40;
+    if (alis.platform.bpp == 8)
+    {
+        val0 = 0x100;
+        val1 = 0xff;
+        val2 = 0x100;
+    }
 
-    s16 sVar1 = darkpav;
-    s16 sVar2 = darkpab;
-    s16 sVar3 = darkpar;
+    if (darkpac < val0)
+    {
+        s16 length = darkpac + alis.varD7;
+        if (val1 < length)
+        {
+            length = val2;
+        }
 
-//    if (darkpac < 0x3c)
-//    {
-//        sVar4 = darkpac + alis.varD7;
-//        if (0x3f < sVar4)
-//        {
-//            sVar4 = 0x40;
-//        }
-//
-//        psVar5 = (short *)(dkpalet + (short)(darkpac * 6));
-//        sVar4 = (sVar4 - darkpac) + -1;
-//        do
-//        {
-//            *psVar5 = sVar3;
-//            psVar6 = psVar5 + 2;
-//            psVar5[1] = sVar1;
-//            psVar5 = psVar5 + 3;
-//            *psVar6 = sVar2;
-//            sVar4 += -1;
-//        }
-//        while (sVar4 != -1);
-//
-//        dkpalet._0_2_ = 0;
-//        dkpalet._2_2_ = 0;
-//        dkpalet._4_2_ = 0;
-//        sVar3 = 0xb2;
-//        psVar5 = (short *)(dkpalet + 6);
-//
-//        do
-//        {
-//            if (*psVar5 != 0x100)
-//            {
-//                fdarkpal = 1;
-//                dkpalet._0_2_ = 0;
-//                dkpalet._2_2_ = 0;
-//                dkpalet._4_2_ = 0;
-//                return;
-//            }
-//        }
-//        while ((true) && (sVar3 += -1, psVar5 = psVar5 + 1, sVar3 != -1));
-//
-//        fdarkpal = 0;
-//    }
+        for (int i = darkpac; i < length; i++)
+        {
+            image.dkpalet[i * 3 + 0] = darkpar;
+            image.dkpalet[i * 3 + 1] = darkpav;
+            image.dkpalet[i * 3 + 2] = darkpab;
+        }
+
+        image.dkpalet[0] = 0;
+        image.dkpalet[1] = 0;
+        image.dkpalet[2] = 0;
+        
+        for (int i = 3; i < 0xb6; i++)
+        {
+            if (image.dkpalet[i] != 0x100)
+            {
+                image.fdarkpal = 1;
+                return;
+            }
+        }
+
+        image.fdarkpal = 0;
+    }
 }
 
 static void cscdark(void) {
@@ -4770,7 +4265,6 @@ static void cchartmap(void) {
     }
 
     u32 addr = vram + offset;
-    u32 puVar14 = addr;
 
     readexec_opername();
     s16 value = alis.varD7;
@@ -4815,111 +4309,103 @@ static void cchartmap(void) {
             }
             
             s32 iVar1 = xread32(addr - 0x3ba);
-            s32 iVar3 = (int)(short)(xread16(alis.script->vram_org) - value) / (int)xread16(iVar1 - 0x3f4);
-            s16 sVar5 = (short)iVar3;
+            s32 iVar3 = (short)(xread16(alis.script->vram_org) - value) / xread16(iVar1 - 0x3f4);
+            s16 outval0 = (short)iVar3;
             if (iVar3 < 0)
             {
-                sVar5 = 0;
+                outval0 = 0;
             }
             
-            if (xread16(iVar1 - 1000) <= sVar5)
+            if (xread16(iVar1 - 0x3e8) <= outval0)
             {
-                sVar5 = xread16(iVar1 - 1000);
+                outval0 = xread16(iVar1 - 0x3e8);
             }
             
-            iVar3 = (int)(short)(xread16(alis.script->vram_org) + value) / (int)xread16(iVar1 - 0x3f4);
-            s16 sVar6 = (short)iVar3;
+            iVar3 = (short)(xread16(alis.script->vram_org) + value) / xread16(iVar1 - 0x3f4);
+            s16 outval1 = (short)iVar3;
             if (iVar3 < 0)
             {
-                sVar6 = 0;
+                outval1 = 0;
             }
             
-            if (xread16(iVar1 - 1000) <= sVar6)
+            if (xread16(iVar1 - 0x3e8) <= outval1)
             {
-                sVar6 = xread16(iVar1 - 1000);
+                outval1 = xread16(iVar1 - 0x3e8);
             }
             
-            iVar3 = (int)(short)(xread16(alis.script->vram_org + 8) - value) / (int)xread16(iVar1 - 0x3f2);
-            s16 sVar10 = (short)iVar3;
+            iVar3 = (short)(xread16(alis.script->vram_org + 8) - value) / xread16(iVar1 - 0x3f2);
+            s16 outval2 = (short)iVar3;
             if (iVar3 < 0)
             {
-                sVar10 = 0;
+                outval2 = 0;
             }
             
-            if (xread16(iVar1 - 0x3e6) <= sVar10)
+            if (xread16(iVar1 - 0x3e6) <= outval2)
             {
-                sVar10 = xread16(iVar1 - 0x3e6);
+                outval2 = xread16(iVar1 - 0x3e6);
             }
             
-            iVar3 = (int)(short)(xread16(alis.script->vram_org + 8) + value) / (int)xread16(iVar1 - 0x3f2);
-            value = (short)iVar3;
+            iVar3 = (short)(xread16(alis.script->vram_org + 8) + value) / xread16(iVar1 - 0x3f2);
+            s16 outval3 = (short)iVar3;
             if (iVar3 < 0)
             {
-                value = 0;
+                outval3 = 0;
             }
             
-            if (xread16(iVar1 - 0x3e6) <= value)
+            if (xread16(iVar1 - 0x3e6) <= outval3)
             {
-                value = xread16(iVar1 - 0x3e6);
+                outval3 = xread16(iVar1 - 0x3e6);
             }
             
-            u16 uVar9 = (xread16(addr - 0xf0) - 4) - xread16(iVar1 - 0x3c0);
-
-            u32 rot = uVar9 & 0x3f;
-            u16 uVar2 = sVar5 >> rot;
-            u16 uVar8 = sVar6 >> rot;
-            uVar9 = xread16(addr - 0x3be) - xread16(iVar1 - 0x3be);
-            sVar10 >>= rot;
-            value = (value >> rot) - sVar10;
-            u16 uVar7 = ~(0xffffU >> (uVar2 - (uVar2 & 0xfff0) & 0x3f));
-            uVar9 = uVar8 | 0xf;
-            uVar8 = ~(-1 << (-(uVar8 - uVar9) & 0x3f));
-            uVar9 = (u16)(uVar9 - (uVar2 & 0xfff0)) >> 4;
-            sVar5 = uVar9 - 1;
-            if (sVar5 < 0)
+            u32 rot = ((xread16(addr - 0x3c0) - 4) - xread16(iVar1 - 0x3c0)) & 0x3f;
+            u16 outval0u = outval0 >> rot;
+            u16 outval1u = outval1 >> rot;
+            rot = (xread16(addr - 0x3be) - xread16(iVar1 - 0x3be)) & 0x3f;
+            outval2 >>= rot;
+            outval3 = (outval3 >> rot) - outval2;
+            u16 uVar7 = ~(0xffffU >> (outval0u - (outval0u & 0xfff0) & 0x3f));
+            u16 count = outval1u | 0xf;
+            outval1u = ~(-1 << (-(outval1u - count) & 0x3f));
+            count = (u16)(count - (outval0u & 0xfff0)) >> 4;
+            if (count <= 0)
             {
-                uVar7 = uVar8 | uVar7;
-                uVar8 = 0;
+                uVar7 |= outval1u;
+                outval1u = 0;
             }
             
-            if (uVar8 != 0)
+            if (outval1u != 0)
             {
-                sVar5 = uVar9 - 2;
+                count--;
             }
             
-            u32 puVar14 = addr;
+            u32 addr2 = addr;
             if ((s8)xread8(addr - 1) < 0)
             {
-                puVar14 = xread32(addr);
-                puVar14 = xread32(puVar14);
+                addr2 = xread32(addr);
+                addr2 = xread32(addr2);
             }
             
-            u32 puVar15 = (puVar14 + sVar10 * 2 + (uint)(uVar2 >> 4) * (uint)(u16)xread16(addr - 0xf1));
-            sVar6 = xread16(addr - 0xf1);
+            addr2 += outval2 * 2 + (outval0u >> 4) * xread16(addr - 0x3c4);
+            s16 offset2 = xread16(addr - 0x3c4);
             
             do
             {
-                xwrite16(puVar15, xread16(puVar15) & uVar7);
-                u32 puVar16 = ((int)sVar6 + (int)puVar15);
-                sVar10 = sVar5;
-                if (-1 < sVar5)
+                xwrite16(addr2, xread16(addr2) & uVar7);
+                u32 addr3 = addr2 + offset2;
+
+                for (int i = 0; i < count; i++)
                 {
-                    do
-                    {
-                        xwrite16(puVar16, 0);
-                        puVar16 = ((int)sVar6 + (int)puVar16);
-                        sVar10 += -1;
-                    }
-                    while (sVar10 != -1);
+                    xwrite16(addr3, 0);
+                    addr3 = addr3 + offset2;
                 }
                 
-                if (uVar8 != 0)
+                if (outval1u != 0)
                 {
-                    xwrite16(puVar16, xread16(puVar16) & uVar8);
+                    xwrite16(addr3, xread16(addr3) & outval1u);
                 }
                 
-                puVar15 = puVar15 + 1;
-                if ((value --) == -1)
+                addr2++;
+                if ((outval3 --) == -1)
                 {
                     return;
                 }
@@ -4930,36 +4416,27 @@ static void cchartmap(void) {
         iVar4 = -1;
     }
     
-    int d6w = xread16(addr - 0x3c6);
-    d6w *= xread16(addr - 0x3c4);
-    d6w >>= 1;
-    d6w -= 1;
-    
-    value = ((ushort)(xread16(addr - 0x3c6) * xread16(addr - 0xf1)) >> 1) - 1;
-    puVar14 = addr;
+    s16 loops = ((s16)(xread16(addr - 0x3c6) * xread16(addr - 0x3c4)) >> 1);
     if ((s8)xread8(addr - 1) < 0)
     {
-        puVar14 = xread32(addr);
-        puVar14 = xread32(puVar14);
+        addr = xread32(addr);
+        addr = xread32(addr);
     }
-    
-    do
+
+    for (int i = 0; i < loops; i++, addr += 2)
     {
-        xwrite16(puVar14, (short)iVar4);
-        value += -1;
-        puVar14 = ((int)puVar14 + 2);
+        xwrite16(addr, (short)iVar4);
     }
-    while (value != -1);
     
     vram = alis.script->vram_org;
-    value = script_read16();
-    if (value == 0)
+    offset = script_read16();
+    if (offset == 0)
     {
-        value = script_read16();
+        offset = script_read16();
         vram = alis.basemain;
     }
     
-    xwrite32(addr - 0x3ba, vram + value);
+    xwrite32(addr - 0x3ba, vram + offset);
 }
 
 static void cscsky(void) {
@@ -4992,7 +4469,6 @@ static void cnul(void)      {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 static void cesc1(void)     {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     u16 code = script_read8() | 0x100;
     sAlisOpcode opcode = opcodes[code];
     debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);

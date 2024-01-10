@@ -79,6 +79,9 @@ typedef struct {
     s16 oldacx;
     s16 oldacy;
     s16 oldacz;
+    
+    s16 dkpalet[768 * 3];
+    u8 fdarkpal;
 
     s16 backprof;
     s16 backx1;

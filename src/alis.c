@@ -143,6 +143,33 @@ void alis_load_main(void) {
         // skip 6 bytes
         fseek(fp, 6, SEEK_CUR);
         
+//        // read raw specs header
+//        alis.specs.script_data_tab_len = fread16(fp);
+//        alis.specs.script_vram_tab_len = fread16(fp);
+//        alis.specs.unused = fread32(fp);
+//        alis.specs.max_allocatable_vram = fread32(fp);
+//        alis.specs.vram_to_data_offset = fread32(fp);
+//        alis.specs.vram_to_data_offset += 3;
+//        alis.specs.vram_to_data_offset *= 0x28;
+//        
+//        alis.vprotect = 0;
+//        
+//        // set the location of scripts' vrams table
+//        alis.atprog = ALIS_VM_RAM_ORG;
+//        alis.atprog_ptr = (u32 *)(alis.mem + alis.atprog);
+//        alis.atent = alis.atprog + 0xf0;
+//        alis.atent_ptr = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
+//        alis.maxent = alis.specs.script_vram_tab_len;
+//        alis.debent = alis.atent + alis.maxent * 6;
+//        alis.finent = alis.debent;
+//
+//        image.debsprit = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1;
+//        image.finsprit = image.debsprit + alis.specs.vram_to_data_offset;
+//        alis.debprog = image.finsprit;
+//        alis.finprog = alis.debprog;
+//        alis.dernprog = alis.atprog;
+//        alis.maxprog = 0x3c; // TODO: read from script / alis2
+        
         // read raw specs header
         alis.specs.script_data_tab_len = fread16(fp);
         alis.specs.script_vram_tab_len = fread16(fp);
@@ -150,26 +177,27 @@ void alis_load_main(void) {
         alis.specs.max_allocatable_vram = fread32(fp);
         alis.specs.vram_to_data_offset = fread32(fp);
         alis.specs.vram_to_data_offset += 3;
-        alis.specs.vram_to_data_offset *= 0x28;
+        alis.specs.vram_to_data_offset *= 0x30; // 0x28; // multiply by sprite data size
         
         alis.vprotect = 0;
         
         // set the location of scripts' vrams table
-        alis.atprog = ALIS_VM_RAM_ORG;
+        alis.atprog = alis.basemem;
         alis.atprog_ptr = (u32 *)(alis.mem + alis.atprog);
-        alis.atent = alis.atprog + 0xf0;
-        alis.atent_ptr = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
+        alis.atent = alis.atprog + alis.specs.script_data_tab_len * 4; // 0xf0;
+        alis.atent_ptr = (sScriptLoc *)(alis.vram_org + alis.specs.script_data_tab_len * 4);
         alis.maxent = alis.specs.script_vram_tab_len;
         alis.debent = alis.atent + alis.maxent * 6;
         alis.finent = alis.debent;
 
         image.debsprit = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1;
-        image.finsprit = image.debsprit + alis.specs.vram_to_data_offset;
+        image.finsprit += image.debsprit + alis.specs.vram_to_data_offset;
+        
         alis.debprog = image.finsprit;
         alis.finprog = alis.debprog;
         alis.dernprog = alis.atprog;
-        alis.maxprog = 0x3c; // TODO: read from script / alis2
-        
+        alis.maxprog = alis.specs.script_data_tab_len;
+
         // TODO: ...
         alis.finmem = kHostRAMSize; // 0xf6e98;
 
@@ -226,6 +254,9 @@ void alis_init(sPlatform platform) {
     
     alis.timeclock = 0;
     
+    audio.fsound = 1;
+    audio.fmusic = 1;
+
 //    alis.nmode = 0; // 0 = atari 16 colors
 //                    // 3 = mono
 //                    // 8 = falcon 256 colors
@@ -237,6 +268,8 @@ void alis_init(sPlatform platform) {
     
     memset(tpalet, 0, 768 * 4);
     memset(mpalet, 0, 768 * 4);
+    
+    image.fdarkpal = 0;
 
     // init virtual ram
     alis.mem = malloc(sizeof(u8) * kHostRAMSize);
@@ -245,6 +278,63 @@ void alis_init(sPlatform platform) {
     image.spritemem = (u8 *)malloc(1024 * 1024);
     memset(image.spritemem, 0x0, 1024 * 1024);
 
+//    // NOTE: cswitching is never called for older games
+//    alis.fswitch = 1;
+//    alis.flagmain = 0;
+//    
+//    alis.fallent = 0;
+//    alis.fseq = 0;
+//    alis.fmuldes = 0;
+//    alis.fadddes = 0;
+//    alis.ferase = 0;
+//
+//    alis.saversp = 0;
+//    alis.basemem = 0x22400;
+//    alis.basevar = 0;
+//    alis.finmem = 0x22000;
+//
+//    alis.nbprog = 0;
+//    alis.maxprog = 0;
+//    alis.atprog = alis.basemem;
+//    
+//    alis.nbent = 0;
+//    alis.ptrent = alis.tablent;
+//
+//    memset(alis.tablent, 0, sizeof(alis.tablent));
+//    memset(alis.matent, 0, sizeof(alis.matent));
+//    memset(alis.buffer, 0, sizeof(alis.buffer));
+//
+//    alis.ctiming = 0;
+//    alis.prevkey = 0;
+//
+//    // init virtual registers
+//    alis.varD6 = alis.varD7 = 0;
+//    
+//    // init temp chunks
+//    alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
+//    alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
+//    alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
+//    
+//    alis.sd7 = alis.bsd7;
+//    alis.sd6 = alis.bsd6;
+//    alis.oldsd7 = alis.bsd7bis;
+//    
+//    // init helpers
+//    if(alis.fp) {
+//        fclose(alis.fp);
+//        alis.fp = NULL;
+//    }
+//       
+//    // set the vram origin at some abitrary location (same as atari, to ease debug)
+//    alis.vram_org = alis.mem + ALIS_VM_RAM_ORG;
+//    
+//    // the script data address table is located at vram start
+//    alis.script_data_orgs = (u32 *)alis.vram_org;
+//    
+//    // TODO: init virtual accumulator
+////    alis.acc_org = alis.script->vram_org;
+////    alis.acc = alis.script->vram_org + kVirtualRAMSize;
+//    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x198e2);
     // NOTE: cswitching is never called for older games
     alis.fswitch = 1;
     alis.flagmain = 0;
@@ -256,9 +346,9 @@ void alis_init(sPlatform platform) {
     alis.ferase = 0;
 
     alis.saversp = 0;
-    alis.basemem = 0x22400;
+//    alis.basemem = 0x22400 + 0x3600;    // I3 0x25a00
     alis.basevar = 0;
-    alis.finmem = 0x22000;
+    alis.finmem = alis.basemem - 0x400; // 0x22000 + 0x3600;
 
     alis.nbprog = 0;
     alis.maxprog = 0;
@@ -281,6 +371,9 @@ void alis_init(sPlatform platform) {
     alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
     alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
     alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
+
+    alis.tabptr = 0x1b82e; // tab containing 2 * 16 pointers
+    memset(alis.mem + alis.tabptr, 0, 2 * 16 * 4);
     
     alis.sd7 = alis.bsd7;
     alis.sd6 = alis.bsd6;
@@ -293,7 +386,7 @@ void alis_init(sPlatform platform) {
     }
        
     // set the vram origin at some abitrary location (same as atari, to ease debug)
-    alis.vram_org = alis.mem + ALIS_VM_RAM_ORG;
+    alis.vram_org = alis.mem + alis.basemem;
     
     // the script data address table is located at vram start
     alis.script_data_orgs = (u32 *)alis.vram_org;
@@ -301,8 +394,10 @@ void alis_init(sPlatform platform) {
     // TODO: init virtual accumulator
 //    alis.acc_org = alis.script->vram_org;
 //    alis.acc = alis.script->vram_org + kVirtualRAMSize;
-    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x198e2);
+    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x1cdc0); // 0x198e2);
     
+    alis.fmouse = 0xff;
+
     // init host system stuff
     host.pixelbuf.w = alis.platform.width;
     host.pixelbuf.h = alis.platform.height;

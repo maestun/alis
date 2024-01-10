@@ -63,6 +63,9 @@ typedef struct {
 
     sAudioInstrument tabinst[128];
     
+    u8 fsound;
+    u8 fmusic;
+    
     u32 mupnote;
     u8 muvolume;
     u16 maxvolume;
@@ -100,3 +103,8 @@ void mv1_offmusic(u32 much);
 
 void mv2_gomusic(void);
 void mv2_offmusic(u32 much);
+
+// ym
+
+void io_canal(sChannel *channel, s16 index);
+

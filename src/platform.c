@@ -20,9 +20,12 @@
 //
 
 // TODO: remove platform/posix dependencies
+
 #include "debug.h"
 #include "platform.h"
 #include "utils.h"
+
+// TODO: Manhattan Dealers, the first game using ALIS engine is different. Its using 'OO' and 'SNG' file extensions and main script is in 'man.sng'
 
 static sPlatform platforms[] = {
     { .kind = EPlatformAtari,       .uid = EGameUnknown, .version = 20, .desc = "Atari ST/STe",                 .ext = "AO", .ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .is_little_endian = 0, .path = "" },
