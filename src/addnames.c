@@ -71,12 +71,14 @@ static void aloctp(void) {
 
 static void aloctc(void) {
     s32 addr = tabchar(alis.script->vram_org + script_read16());
-    xadd8(addr, (char)*alis.acc++);
+    alis.varD7 = *alis.acc++;
+    xadd8(addr, (char)alis.varD7);
 }
 
 static void alocti(void) {
     s32 addr = tabint(alis.script->vram_org + script_read16());
-    xadd16(addr, *alis.acc++);
+    alis.varD7 = *alis.acc++;
+    xadd16(addr, alis.varD7);
 }
 
 static void adirb(void) {
@@ -101,12 +103,13 @@ static void adirtp(void) {
 }
 static void adirtc(void) {
     s32 addr = tabchar(alis.script->vram_org + script_read8());
-    xadd8(addr, (char)*alis.acc++);
+    alis.varD7 = *alis.acc++;
+    xadd8(addr, (char)alis.varD7);
 }
 static void adirti(void) {
     s32 addr = tabint(alis.script->vram_org + script_read8());
-
-    xadd16(addr, *alis.acc++);
+    alis.varD7 = *alis.acc++;
+    xadd16(addr, alis.varD7);
 }
 static void amainb(void) {
     s16 offset = script_read16();
@@ -127,11 +130,13 @@ static void amaintp(void) {
 }
 static void amaintc(void) {
     s32 addr = tabchar(alis.basemain + script_read16());
-    xadd8(addr, (u8)*alis.acc++);
+    alis.varD7 = *alis.acc++;
+    xadd8(addr, (u8)alis.varD7);
 }
 static void amainti(void) {
     s32 addr = tabint(alis.basemain + script_read16());
-    xadd16(addr, *alis.acc++);
+    alis.varD7 = *alis.acc++;
+    xadd16(addr, alis.varD7);
 }
 static void ahimb(void) {
     debug(EDebugInfo, "MISSING: ", __FUNCTION__);

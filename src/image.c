@@ -420,9 +420,9 @@ void linepal(void)
     *(u8 **)(palentry + 4) = mpalet;
 }
 
-void setlinepalet(s16 line, s16 palidx) {
+void setlinepalet(void) {
     
-    if (line < 0)
+    if (alis.varD7 < 0)
     {
         flinepal = 0;
         tlinepal[0] = 0;
@@ -433,9 +433,9 @@ void setlinepalet(s16 line, s16 palidx) {
         return;
     }
     
-    if (199 <= line)
+    if (199 <= alis.varD7)
     {
-        line = 199;
+        alis.varD7 = 199;
     }
 
     s16 *tlinepal_ptr = tlinepal;
@@ -444,12 +444,12 @@ void setlinepalet(s16 line, s16 palidx) {
     do
     {
         prevtlpal_ptr = tlinepal_ptr;
-        if (line == prevtlpal_ptr[0])
+        if (alis.varD7 == prevtlpal_ptr[0])
         {
-            if (palidx == prevtlpal_ptr[1])
+            if (alis.varD6 == prevtlpal_ptr[1])
                 return;
             
-            prevtlpal_ptr[1] = palidx;
+            prevtlpal_ptr[1] = alis.varD6;
             flinepal = 1;
             linepal();
             return;
@@ -469,10 +469,10 @@ void setlinepalet(s16 line, s16 palidx) {
             prevtlpal_ptr[1] = prevtlpal_ptr[-1];
             tlinepal_ptr = prevtlpal_ptr - 2;
         }
-        while ((s16)(line - prevtlpal_ptr[0]) < 0);
+        while ((s16)(alis.varD7 - prevtlpal_ptr[0]) < 0);
         
-        prevtlpal_ptr[0] = line;
-        prevtlpal_ptr[1] = palidx;
+        prevtlpal_ptr[0] = alis.varD7;
+        prevtlpal_ptr[1] = alis.varD6;
         flinepal = 1;
         linepal();
     }

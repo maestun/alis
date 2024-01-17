@@ -142,7 +142,7 @@ void restorepal(s16 mode, s32 duration);
 void selpalet(void);
 void setmpalet(void);
 
-void setlinepalet(s16 start, s16 palidx);
+void setlinepalet(void);
 
 s16 debprotf(s16 d2w);
 

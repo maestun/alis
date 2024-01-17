@@ -461,6 +461,7 @@ s32 get_context_size(void)
         case EGameMetalMutant:
         case EGameTransartica:
         case EGameBostonBombClub:
+        case EGameBunnyBricks:
         case EGameIshar_1:
         case EGameIshar_2:
             return 0x34;
@@ -490,7 +491,7 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     
     s32 contextsize = get_context_size();
 
-    alis.finent = ((swap16((data + 0x16)) + (swap16((data + 0x12)) + alis.finent)) + contextsize);
+    alis.finent += swap16(data + 0x16) + swap16(data + 0x12) + contextsize;
 
     script->vacc_off = (prevfin - alis.finent) & 0xffff;
     script->vram_org = alis.finent;

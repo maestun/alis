@@ -386,53 +386,47 @@ static void cloop24(void) {
 static void cswitch1(void) {
     readexec_opername();
 
+    s16 test = 0;
     s16 addition = script_read8();
     if ((alis.script->pc & 1) != 0)
     {
         alis.script->pc ++;
     }
-
-    s16 test;
-
+    
     do
     {
         test = script_read16();
         if (alis.varD7 == test)
         {
-            addition = script_read16();
-            alis.script->pc += addition;
+            alis.script->pc += script_read16();
             return;
         }
-
+        
         alis.script->pc += 2;
     }
-    while (test <= alis.varD7 && (--addition) != -1);
-
-    if (addition < 0)
+    while (alis.varD7 > test  && (--addition) > -1);
+    
+    if (addition > 0)
     {
-        return;
+        alis.script->pc += (addition * 4);
     }
-
-    alis.script->pc += (addition * 4);
 }
 
 static void cswitch2(void) {
     readexec_opername();
     
     s16 addition = script_read8();
-    s32 new_pc = alis.script->pc;
-    if ((new_pc & 1) != 0)
+    if ((alis.script->pc & 1) != 0)
     {
         alis.script->pc ++;
     }
 
-    s16 test = script_read16();
-    s16 val = alis.varD7 + test;
-    if (val >= 0 && val <= addition)
+    alis.varD7 += script_read16();
+    if (alis.varD7 >= 0 && alis.varD7 <= addition)
     {
-        alis.script->pc += (val * 2);
-        s16 test2 = script_read16();
-        alis.script->pc += test2;
+        alis.varD7 *= 2;
+        alis.script->pc += alis.varD7;
+        alis.script->pc += script_read16();
     }
     else
     {
@@ -2587,11 +2581,10 @@ static void cdelmusic(void) {
 
 static void ccadence(void) {
     readexec_opername();
-    s16 tempo = alis.varD7;
-    if (tempo == 0)
-        tempo = 1;
+    if (alis.varD7 == 0)
+        alis.varD7 = 1;
 
-    audio.mutempo = (u8)tempo;
+    audio.mutempo = (u8)alis.varD7;
     audio.mutemp = (u8)((audio.mutempo * 6) / 0x20);
 }
 
@@ -3588,7 +3581,7 @@ static void clinepalet(void) {
 
     if (alis.platform.bpp != 8 && !(alis.platform.uid == EGameMetalMutant && alis.platform.kind == EPlatformPC))
     {
-        setlinepalet(alis.varD7, alis.varD6);
+        setlinepalet();
     }
 }
 

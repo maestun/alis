@@ -547,7 +547,8 @@ void alis_main_V2(void) {
         
         alis.fallent = 0;
         alis.fseq = 0;
-        
+        alis.acc = alis.acc_org;
+
         if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0)
         {
             s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10));
@@ -611,7 +612,6 @@ void alis_main_V2(void) {
                 updtcoord(alis.script->vram_org);
                 
                 set_0x01_wait_count(alis.script->vram_org, get_0x02_wait_cycles(alis.script->vram_org));
-                alis.acc = alis.acc_org;
             }
         }
         
@@ -634,7 +634,8 @@ void alis_main_V3(void) {
         
         alis.fallent = 0;
         alis.fseq = 0;
-        
+        alis.acc = alis.acc_org;
+
         if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0)
         {
             s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10));
@@ -694,8 +695,6 @@ void alis_main_V3(void) {
                 }
                 
                 updtcoord(alis.script->vram_org);
-                
-                alis.acc = alis.acc_org;
             }
         }
         
@@ -1060,51 +1059,6 @@ s32 adresmus(s32 idx)
 #pragma mark -
 #pragma mark tab functions
 
-//s32 tabint(u32 addr)
-//{
-//    u8 *address = alis.mem + addr;
-//    s16 *ptr = (s16 *)(address - 2);
-//    s16 result = addr + alis.varD7 * 2;
-//    s16 length = *(s8 *)(address - 1);
-//    for (int i = 0; i < length; i++)
-//    {
-//        result += xswap16(*(--ptr)) * *alis.acc++;
-//        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
-//    }
-//
-//    return result;
-//}
-//
-//s32 tabchar(u32 addr)
-//{
-//    u8 *address = alis.mem + addr;
-//    s16 *ptr = (s16 *)(address - 2);
-//    s16 result = addr + alis.varD7;
-//    s16 length = *(s8 *)(address - 1);
-//    for (int i = 0; i < length; i++)
-//    {
-//        result += xswap16(*(--ptr)) * *alis.acc++;
-//        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
-//    }
-//
-//    return result;
-//}
-//
-//s32 tabstring(u32 addr)
-//{
-//    u8 *address = alis.mem + addr;
-//    s16 *ptr = (s16 *)(address - 2);
-//    s16 result = addr + alis.varD7 * (ushort)*(u8 *)ptr;
-//    s16 length = *(s8 *)(address - 1);
-//    for (int i = 0; i < length; i++)
-//    {
-//        result += xswap16(*(--ptr)) * *alis.acc++;
-//        debug(EDebugInfo, "\n  [%.8x => %.6x]", result, xswap16(*(ptr)) * *alis.acc);
-//    }
-//
-//    return result;
-//}
-
 s32 tabint(u32 addr)
 {
     s32 result = addr + alis.varD7 * 2;
@@ -1115,6 +1069,10 @@ s32 tabint(u32 addr)
     {
         if (alis.platform.version >= 30)
         {
+            u32 newaddr = xread32(addr + 2);
+            newaddr = xread32(newaddr);
+            result = newaddr + alis.varD7 * 2;
+
             length &= 0xf;
             for (s32 i = 0; i < length; i++)
             {
@@ -1148,6 +1106,10 @@ s32 tabchar(u32 addr)
     {
         if (alis.platform.version >= 30)
         {
+            u32 newaddr = xread32(addr + 2);
+            newaddr = xread32(newaddr);
+            result = newaddr + alis.varD7;
+
             length &= 0xf;
             for (s32 i = 0; i < length; i++)
             {
@@ -1181,6 +1143,10 @@ s32 tabstring(u32 addr)
     {
         if (alis.platform.version >= 30)
         {
+            u32 newaddr = xread32(addr + 2);
+            newaddr = xread32(newaddr);
+            result = newaddr + alis.varD7 * xread8(addr + 1);
+
             length &= 0xf;
             for (s32 i = 0; i < length; i++)
             {

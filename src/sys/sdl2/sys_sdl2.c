@@ -110,7 +110,7 @@ void sys_init(void) {
 
     free(desired_spec);
     
-    _psg = PSG_new(4000000, _audio_spec->freq);
+    _psg = PSG_new(3579545, _audio_spec->freq);
     PSG_setClockDivider(_psg, 1);
     PSG_setVolumeMode(_psg, 1); // YM style
     PSG_setQuality(_psg, 1);
@@ -268,7 +268,6 @@ static u8 *samplebuffer[1024 * 1024 * 4];
 bool priorblanc(sChannel *channel)
 {
     u8 result = 1;
-    u8 uVar1 = channel->curson;
     if (channel->curson < channels[0].curson)
         result = pblanc10(&(channels[0]), result);
 
@@ -557,7 +556,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
                         break;
                 }
                 
-                s32 s0 = PSG_calc(_psg) * 4;
+                s32 s0 = PSG_calc(_psg);
                 s32 s1 = strm[p] - 0x8000;
                 
                 s32 val = (strm[p] + ((s0 + s1) + 0x8000)) / 2;
