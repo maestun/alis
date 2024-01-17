@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -16,7 +16,7 @@
 		6808EE05297069760045BA8A /* image.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* image.c */; };
 		6816E8042B15217600F0D314 /* music_v1.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E8032B15217600F0D314 /* music_v1.c */; };
 		6816E8072B15219400F0D314 /* music_v2.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E8062B15219400F0D314 /* music_v2.c */; };
-		6816E8162B158FF100F0D314 /* ayumi.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E80D2B158FD200F0D314 /* ayumi.c */; };
+		6838DE3B2B57685B005078DD /* video.c in Sources */ = {isa = PBXBuildFile; fileRef = 6838DE3A2B57685B005078DD /* video.c */; };
 		685EBE252A52033800E4F465 /* screen.c in Sources */ = {isa = PBXBuildFile; fileRef = 685EBE242A52033800E4F465 /* screen.c */; };
 		6879D5842A942A4F0067C22A /* channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5832A942A4F0067C22A /* channel.c */; };
 		6879D5932AADB5E40067C22A /* audio.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5922AADB5E30067C22A /* audio.c */; };
@@ -44,15 +44,6 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		8B9C4026250A2A5B00C947F9 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -66,18 +57,8 @@
 		6808EE04297069760045BA8A /* image.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = image.c; sourceTree = "<group>"; };
 		6816E8032B15217600F0D314 /* music_v1.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v1.c; sourceTree = "<group>"; };
 		6816E8062B15219400F0D314 /* music_v2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v2.c; sourceTree = "<group>"; };
-		6816E80A2B158FD200F0D314 /* load_text.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = load_text.c; sourceTree = "<group>"; };
-		6816E80B2B158FD200F0D314 /* fym_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = fym_to_text.py; sourceTree = "<group>"; };
-		6816E80C2B158FD200F0D314 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
-		6816E80D2B158FD200F0D314 /* ayumi.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ayumi.c; sourceTree = "<group>"; };
-		6816E80E2B158FD200F0D314 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		6816E80F2B158FD200F0D314 /* load_text.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = load_text.h; sourceTree = "<group>"; };
-		6816E8102B158FD200F0D314 /* psg_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = psg_to_text.py; sourceTree = "<group>"; };
-		6816E8112B158FD200F0D314 /* afx_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = afx_to_text.py; sourceTree = "<group>"; };
-		6816E8122B158FD200F0D314 /* ayumi_render.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ayumi_render.c; sourceTree = "<group>"; };
-		6816E8132B158FD200F0D314 /* ayumi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ayumi.h; sourceTree = "<group>"; };
-		6816E8142B158FD200F0D314 /* ayumi_render_gui.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ayumi_render_gui.py; sourceTree = "<group>"; };
-		6816E8152B158FD200F0D314 /* ym_to_text.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ym_to_text.py; sourceTree = "<group>"; };
+		6838DE392B57685B005078DD /* video.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = video.h; sourceTree = "<group>"; };
+		6838DE3A2B57685B005078DD /* video.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = video.c; sourceTree = "<group>"; };
 		685EBE232A52033800E4F465 /* screen.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = screen.h; sourceTree = "<group>"; };
 		685EBE242A52033800E4F465 /* screen.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = screen.c; sourceTree = "<group>"; };
 		6879D5822A942A4F0067C22A /* channel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = channel.h; sourceTree = "<group>"; };
@@ -127,25 +108,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		6816E8092B158FD200F0D314 /* ayumi */ = {
-			isa = PBXGroup;
-			children = (
-				6816E80A2B158FD200F0D314 /* load_text.c */,
-				6816E80B2B158FD200F0D314 /* fym_to_text.py */,
-				6816E80C2B158FD200F0D314 /* LICENSE */,
-				6816E80D2B158FD200F0D314 /* ayumi.c */,
-				6816E80E2B158FD200F0D314 /* README.md */,
-				6816E80F2B158FD200F0D314 /* load_text.h */,
-				6816E8102B158FD200F0D314 /* psg_to_text.py */,
-				6816E8112B158FD200F0D314 /* afx_to_text.py */,
-				6816E8122B158FD200F0D314 /* ayumi_render.c */,
-				6816E8132B158FD200F0D314 /* ayumi.h */,
-				6816E8142B158FD200F0D314 /* ayumi_render_gui.py */,
-				6816E8152B158FD200F0D314 /* ym_to_text.py */,
-			);
-			path = ayumi;
-			sourceTree = "<group>";
-		};
 		6816E8172B15902300F0D314 /* audio */ = {
 			isa = PBXGroup;
 			children = (
@@ -221,7 +183,6 @@
 			children = (
 				68A502BD2B23F0E300635EEC /* emu2149 */,
 				6816E8172B15902300F0D314 /* audio */,
-				6816E8092B158FD200F0D314 /* ayumi */,
 				8B7D7B13256D3ECA00DAA932 /* sys */,
 				0981CBCE250B46970097F862 /* addnames.c */,
 				8B9C400E250921E900C947F9 /* alis.h */,
@@ -250,6 +211,8 @@
 				68AC2DA52A5F52EF0046C6EB /* unpack.h */,
 				8B9C402E250A2F9300C947F9 /* utils.h */,
 				8B9C402F250A2F9300C947F9 /* utils.c */,
+				6838DE3A2B57685B005078DD /* video.c */,
+				6838DE392B57685B005078DD /* video.h */,
 			);
 			name = alis;
 			path = ../src;
@@ -262,9 +225,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8B9C4027250A2A5B00C947F9 /* Build configuration list for PBXNativeTarget "alis" */;
 			buildPhases = (
+				6838DE3D2B576A88005078DD /* ShellScript */,
 				8B9C401A250A2A5B00C947F9 /* Sources */,
 				8B9C4025250A2A5B00C947F9 /* Frameworks */,
-				8B9C4026250A2A5B00C947F9 /* CopyFiles */,
 				680460432B436E9E00B3A453 /* Embed Frameworks */,
 			);
 			buildRules = (
@@ -303,6 +266,28 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		6838DE3D2B576A88005078DD /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/bin/bash\n\nrm -rf \"$TARGET_BUILD_DIR/SDL2.framework\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		8B9C401A250A2A5B00C947F9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -319,12 +304,12 @@
 				8B9C402C250A2A8F00C947F9 /* main.c in Sources */,
 				8B9C401B250A2A5B00C947F9 /* alis.c in Sources */,
 				6808EE05297069760045BA8A /* image.c in Sources */,
-				6816E8162B158FF100F0D314 /* ayumi.c in Sources */,
 				685EBE252A52033800E4F465 /* screen.c in Sources */,
 				0981CBD4250B46970097F862 /* opernames.c in Sources */,
 				8B9C403B250A3E5200C947F9 /* script.c in Sources */,
 				8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */,
 				0981CBD3250B46970097F862 /* escnames.c in Sources */,
+				6838DE3B2B57685B005078DD /* video.c in Sources */,
 				68A502C62B23F16100635EEC /* emu2149.c in Sources */,
 				68AC2DA32A5F52B60046C6EB /* platform.c in Sources */,
 				6816E8042B15217600F0D314 /* music_v1.c in Sources */,
