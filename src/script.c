@@ -438,6 +438,8 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
     return script;
 }
 
+// TOOD: use engine version instead of specific game
+// move to platform
 s32 get_context_size(void)
 {
     switch (alis.platform.uid)

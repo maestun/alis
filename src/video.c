@@ -37,6 +37,7 @@ extern u8 ftopal;
 extern u8 thepalet;
 extern u8 defpalet;
 extern u8 mpalet[768 * 4];
+u8 vpalet[16 * 3];
 
 extern s16 fenx1;
 extern s16 feny1;
@@ -182,103 +183,159 @@ void fls_vbl_callback2(void)
             }
         }
     }
-    
-    u16 curpal[16];
-    memcpy(curpal, vgalogic_df + 32000, 32);
 
-    s16 pallines = 0xc5 - fls_pallines;
-
-    u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
     u8 *bitmap = vgalogic_df + 0xa0;
 
     u16 width = 320;
     u16 height = 200;
-    
-    // ST scanline width 48 + 320 + 44 (412)
-    // change palette every 412 / 48 ?
-    float pxs = 9.6;
-
-    int limit0 = -4;
-    int limit1 = 156;
-
-    u32 at = 0;
 
     u32 bmpidx = 0;
-    u32 palidx;
-    u8 *rawcolor;
-    u8 red, grn, blu;
-    
+
     // copy vgalogic to screen
-
-    for (int y = 0; y < height; y++, palette += 16)
+    
+    if (alis.platform.kind == EPlatformAmiga)
     {
-        int px = 0;
+        // Amiga HAM bitplanes
         
-        for (int x = 0; x < width; x+=16, bmpidx+=16, at+=8)
+        u32 planesize = (width * height) / 8;
+        u8 c0, c1, c2, c3, c4, c5;
+        u8 r = 0;
+        u8 g = 0;
+        u8 b = 0;
+
+        for (s32 h = 0; h < height; h++)
         {
-            for (int dpx = 0; dpx < 8; dpx++, px++)
+            u8 *tgt = physic + (h * width);
+            for (s32 w = 0; w < width; w++, tgt++, bmpidx++)
             {
-                // handle palette for the fist 8 pixels
+                s32 idx = (w + h * width) / 8;
+                c0 = *(bitmap + idx);
+                c1 = *(bitmap + (idx += planesize));
+                c2 = *(bitmap + (idx += planesize));
+                c3 = *(bitmap + (idx += planesize));
+                c4 = *(bitmap + (idx += planesize));
+                c5 = *(bitmap + (idx += planesize));
+
+                int bit = 7 - (w % 8);
                 
-                if (px >= limit0)
-                {
-                    if (px == limit1)
-                    {
-                        palette += 16;
-                    }
-                    
-                    palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
-                    if (palidx < 16)
-                    {
-                        curpal[palidx] = palette[palidx];
-                    }
+                int control = ((c4 >> bit) & 1) << 0 | ((c5 >> bit) & 1) << 1; // ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1;
+                int color = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3;
+
+                switch (control) {
+                    case 0:
+                        r = vpalet[color * 3 + 0] >> 5;
+                        g = vpalet[color * 3 + 1] >> 5;
+                        b = vpalet[color * 3 + 2] >> 6;
+                      break;
+                    case 1:
+                        b = color >> 2;
+                        break;
+                    case 2:
+                        r = color >> 1;
+                        break;
+                    case 3:
+                        g = color >> 1;
+                        break;
                 }
-                
-                // convert planar to chunky
 
-                u32 rot = (7 - dpx);
-                u32 mask = 1 << rot;
-
-                rawcolor = (u8 *)&(curpal[(((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3)]);
-                red = (rawcolor[0] & 0b00000111);
-                grn = (rawcolor[1] >> 4);
-                blu = (rawcolor[1] & 0b00000111) >> 1;
-                physic[bmpidx + 0 + dpx] = (red << 5) + (grn << 2) + blu;
-            }
-            
-            for (int dpx = 0; dpx < 8; dpx++, px++)
-            {
-                // handle palette for the second 8 pixels
-
-                if (px >= limit0)
-                {
-                    if (px == limit1)
-                    {
-                        palette += 16;
-                    }
-
-                    palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
-                    if (palidx < 16)
-                    {
-                        curpal[palidx] = palette[palidx];
-                    }
-                }
-                
-                // convert planar to chunky
-                
-                u32 rot = (7 - dpx);
-                u32 mask = 1 << rot;
-
-                rawcolor = (u8 *)&(curpal[(((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3)]);
-                red = (rawcolor[0] & 0b00000111);
-                grn = (rawcolor[1] >> 4);
-                blu = (rawcolor[1] & 0b00000111) >> 1;
-                physic[bmpidx + 8 + dpx] = (red << 5) + (grn << 2) + blu;
+                physic[bmpidx] = (r << 5) + (g << 2) + b;
             }
         }
+    }
+    else
+    {
+        // Atari ST Spectrum 512 bitplanes
         
-        palette += 16;
-        memcpy(curpal, palette, 32);
+        u16 curpal[16];
+        memcpy(curpal, vgalogic_df + 32000, 32);
+
+        s16 pallines = 0xc5 - fls_pallines;
+
+        u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
+
+        // ST scanline width 48 + 320 + 44 (412)
+        // change palette every 412 / 48 ?
+        float pxs = 9.6;
+
+        int limit0 = -4;
+        int limit1 = 156;
+        
+        u32 at = 0;
+
+        u32 palidx;
+        u8 *rawcolor;
+        u8 red, grn, blu;
+        
+        for (int y = 0; y < height; y++, palette += 16)
+        {
+            int px = 0;
+            
+            for (int x = 0; x < width; x+=16, bmpidx+=16, at+=8)
+            {
+                for (int dpx = 0; dpx < 8; dpx++, px++)
+                {
+                    // handle palette for the fist 8 pixels
+                    
+                    if (px >= limit0)
+                    {
+                        if (px == limit1)
+                        {
+                            palette += 16;
+                        }
+                        
+                        palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
+                        if (palidx < 16)
+                        {
+                            curpal[palidx] = palette[palidx];
+                        }
+                    }
+                    
+                    // convert planar to chunky
+                    
+                    u32 rot = (7 - dpx);
+                    u32 mask = 1 << rot;
+                    
+                    rawcolor = (u8 *)&(curpal[(((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3)]);
+                    red = (rawcolor[0] & 0b00000111);
+                    grn = (rawcolor[1] >> 4);
+                    blu = (rawcolor[1] & 0b00000111) >> 1;
+                    physic[bmpidx + 0 + dpx] = (red << 5) + (grn << 2) + blu;
+                }
+                
+                for (int dpx = 0; dpx < 8; dpx++, px++)
+                {
+                    // handle palette for the second 8 pixels
+                    
+                    if (px >= limit0)
+                    {
+                        if (px == limit1)
+                        {
+                            palette += 16;
+                        }
+                        
+                        palidx = px < limit1 ? (px - limit0) / pxs : (px - limit1) / pxs;
+                        if (palidx < 16)
+                        {
+                            curpal[palidx] = palette[palidx];
+                        }
+                    }
+                    
+                    // convert planar to chunky
+                    
+                    u32 rot = (7 - dpx);
+                    u32 mask = 1 << rot;
+                    
+                    rawcolor = (u8 *)&(curpal[(((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3)]);
+                    red = (rawcolor[0] & 0b00000111);
+                    grn = (rawcolor[1] >> 4);
+                    blu = (rawcolor[1] & 0b00000111) >> 1;
+                    physic[bmpidx + 8 + dpx] = (red << 5) + (grn << 2) + blu;
+                }
+            }
+            
+            palette += 16;
+            memcpy(curpal, palette, 32);
+        }
     }
 
     memcpy(logic, physic, 320*200);
@@ -311,6 +368,24 @@ u32 fls_next(u32 addr)
     }
 }
 
+u32 fls_pal(u32 addr)
+{
+    // set palette
+    u8 *palette = alis.mem + addr + 6;
+
+    addr += xread32(addr);
+
+    int c = 0;
+    for (int i = 0; i < 16; i++, palette += 2, c += 3)
+    {
+        vpalet[c + 0] = (palette[0] & 0b00001111) << 4;
+        vpalet[c + 1] = (palette[1] >> 4) << 4;
+        vpalet[c + 2] = (palette[1] & 0b00001111) << 4;
+    }
+    
+    return addr;
+}
+
 u32 flstofen(s16 clean)
 {
     if (clean < 0)
@@ -338,23 +413,34 @@ u32 flstofen(s16 clean)
                 
                 if (alis.platform.kind == EPlatformAmiga)
                 {
-                    if (type != 0x5355 && type != 0x5356)
+                    if (type == 0x5355)
+                    {
+                        addr = fls_next(addr);
+                        fls_drawing = 1;
+                    }
+                    else if (type == 0x5356)
+                    {
+                        addr = fls_pal(addr);
+                    }
+                    else
                     {
                         bfilm.addr1 = 0;
                         return 0;
                     }
                 }
-                else
+                else // Atari ST
                 {
-                    if (type != 0x5357)
+                    if (type == 0x5357)
+                    {
+                        addr = fls_next(addr);
+                        fls_drawing = 1;
+                    }
+                    else
                     {
                         bfilm.addr1 = 0;
                         return 0;
                     }
                 }
-                
-                addr = fls_next(addr);
-                fls_drawing = 1;
             }
             
             bfilm.addr1 = (addr & 1) + addr;
