@@ -4110,13 +4110,15 @@ static void cdarkpal(void) {
 
     if (darkpac < val0)
     {
-        s16 length = darkpac + alis.varD7;
+        s16 length = darkpac + darkpan;
         if (val1 < length)
         {
             length = val2;
         }
+        
+        length -= darkpac;
 
-        for (int i = darkpac; i < length; i++)
+        for (int i = darkpac; i <= length; i++)
         {
             image.dkpalet[i * 3 + 0] = darkpar;
             image.dkpalet[i * 3 + 1] = darkpav;

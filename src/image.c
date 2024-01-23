@@ -151,56 +151,6 @@ u8 insid = 0;
 u8 *backmap;
 
 
-void tdarkpal(u8 *paldata)
-{
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-    // TODO: ...
-//    u32 color;
-//    u32 *in_A1;
-//    s8 *pbVar4;
-//    s16 *puVar6;
-//    s16 uVar2;
-//
-//    s16 *puVar5 = dkpalet + (((s16)in_A1 - (s16)atpalet) >> 2) * 3;
-//
-//    do
-//    {
-//        color = *paldata;
-//        paldata += 3;
-//        bufrvb = color & 0xffffff00;
-//        if ((bufrvb == 0) && (((0x100 < *puVar5 || (0x100 < puVar5[1])) || (0x100 < puVar5[2]))))
-//        {
-//            bufrvb = 0x1010001;
-//        }
-//
-//        color = (bufrvb >> 0x18) * (u32)*puVar5;
-//        if (0xffff < color)
-//        {
-//            color = 0xffff;
-//        }
-//
-//        in_A1[0] = (s8)(color >> 9) & 0x7e;
-//        puVar6 = puVar5 + 2;
-//        color = (bufrvb >> 0x10 & 0xff) * (u32)puVar5[1];
-//        if (0xffff < color) {
-//            color = 0xffff;
-//        }
-//        in_A1[1] = (s8)(color >> 9) & 0x7e;
-//        pbVar4 = in_A1 + 3;
-//        in_A1[2] = 0;
-//        puVar5 = puVar5 + 3;
-//        color = (bufrvb >> 8 & 0xff) * (u32)*puVar6;
-//        if (0xffff < color) {
-//            color = 0xffff;
-//        }
-//
-//        in_A1 += 4;
-//        *pbVar4 = (s8)(color >> 9) & 0x7e;
-//        uVar2 --;
-//    }
-//    while (uVar2 != 0xffff);
-}
-
 void topalet(void)
 {
     ftopal = 0;
@@ -271,17 +221,24 @@ void topalette(u8 *paldata, s32 duration)
         {
             palc = 0;
             u8 offset = paldata[2];
-            if (image.fdarkpal == 0)
-            {
-                memcpy(atpalet + (offset * 3), paldata + 4, colors * 3);
-            }
-            else
-            {
-                tdarkpal(paldata);
-            }
+            memcpy(atpalet + (offset * 3), paldata + 4, colors * 3);
         }
     }
     
+    if (image.fdarkpal)
+    {
+        u16 *dkpalptr = (u16 *)image.dkpalet;
+
+        s16 to = 0;
+
+        for (s32 i = 0; i < 256; i++, dkpalptr += 3)
+        {
+            atpalet[to++] *= (dkpalptr[0] / 256.0);
+            atpalet[to++] *= (dkpalptr[1] / 256.0);
+            atpalet[to++] *= (dkpalptr[2] / 256.0);
+        }
+    }
+
     thepalet = 0;
     defpalet = 0;
     
@@ -896,8 +853,7 @@ void putin(u16 idx)
     {
         if (resourcedata[0] == 0xfe)
         {
-            // TODO: handle palette
-            debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+            topalette(resourcedata, 0);
             return;
         }
         

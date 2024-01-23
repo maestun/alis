@@ -80,7 +80,7 @@ typedef struct {
     s16 oldacy;
     s16 oldacz;
     
-    s16 dkpalet[768 * 3];
+    s16 dkpalet[768];
     u8 fdarkpal;
 
     s16 backprof;

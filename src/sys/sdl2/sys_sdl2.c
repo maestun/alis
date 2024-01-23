@@ -62,6 +62,10 @@ u32             _height = 200;
 SDL_AudioSpec   *_audio_spec;
 PSG             *_psg;
 
+extern u8       fls_ham6;
+extern u8       fls_s512;
+extern u8       *vgalogic_df;
+
 extern u8       flinepal;
 extern s16      firstpal[64];
 
@@ -170,9 +174,172 @@ u8 sys_poll_event(void) {
     return running;
 }
 
-
 void sys_render(pixelbuf_t buffer) {
     
+    if (fls_ham6)
+    {
+        u8 *bitmap = vgalogic_df + 0xa0;
+    
+        // Amiga HAM bitplanes
+        
+        u32 px = 0;
+        u32 planesize = (buffer.w * buffer.h) / 8;
+        u8 c0, c1, c2, c3, c4, c5;
+        u8 r = 0;
+        u8 g = 0;
+        u8 b = 0;
+
+        for (s32 h = 0; h < buffer.h; h++)
+        {
+            u8 *tgt = buffer.data + (h * buffer.w);
+            for (s32 w = 0; w < buffer.w; w++, tgt++, px++)
+            {
+                s32 idx = (w + h * buffer.w) / 8;
+                c0 = *(bitmap + idx);
+                c1 = *(bitmap + (idx += planesize));
+                c2 = *(bitmap + (idx += planesize));
+                c3 = *(bitmap + (idx += planesize));
+                c4 = *(bitmap + (idx += planesize));
+                c5 = *(bitmap + (idx += planesize));
+
+                int bit = 7 - (w % 8);
+                
+                int control = ((c4 >> bit) & 1) << 0 | ((c5 >> bit) & 1) << 1;
+                int index = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3;
+
+                switch (control) {
+                    case 0:
+                        r = buffer.palette[index * 3 + 0];
+                        g = buffer.palette[index * 3 + 1];
+                        b = buffer.palette[index * 3 + 2];
+                      break;
+                    case 1:
+                        b = index << 4;
+                        break;
+                    case 2:
+                        r = index << 4;
+                        break;
+                    case 3:
+                        g = index << 4;
+                        break;
+                }
+
+                _pixels[px] = (u32)(0xff000000 + (r << 16) + (g << 8) + (b << 0));
+            }
+        }
+
+        SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
+
+        // render
+        SDL_RenderClear(_renderer);
+        SDL_RenderCopy(_renderer, _texture, NULL, NULL);
+        SDL_RenderPresent(_renderer);
+        return;
+    }
+
+    if (fls_s512)
+    {
+        u8 *bitmap = vgalogic_df + 0xa0;
+
+        // Atari ST Spectrum 512 bitplanes
+        
+        u16 curpal[16];
+        memcpy(curpal, vgalogic_df + 32000, 32);
+
+        // s16 pallines = 0xc5 - fls_pallines;
+
+        u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
+
+        // ST scanline width 48 + 320 + 44 (412)
+        // change palette every 412 / 48 ?
+        float pxs = 9.6;
+
+        int limit0 = -4;
+        int limit1 = 156;
+        
+        u32 px = 0;
+        u32 at = 0;
+
+        u32 palidx;
+        u8 *rawcolor;
+        u8 r, g, b;
+        
+        for (int y = 0; y < buffer.h; y++, palette += 16)
+        {
+            int lpx = 0;
+            
+            for (int x = 0; x < buffer.w; x+=16, at+=8)
+            {
+                for (int dpx = 0; dpx < 8; dpx++, lpx++, px++)
+                {
+                    // handle palette for the fist 8 pixels
+                    
+                    if (lpx >= limit0)
+                    {
+                        if (lpx == limit1)
+                        {
+                            palette += 16;
+                        }
+                        
+                        palidx = lpx < limit1 ? (lpx - limit0) / pxs : (lpx - limit1) / pxs;
+                        if (palidx < 16)
+                        {
+                            curpal[palidx] = palette[palidx];
+                        }
+                    }
+                    
+                    u32 rot = (7 - dpx);
+                    u32 mask = 1 << rot;
+                    
+                    rawcolor = (u8 *)&(curpal[(((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3)]);
+                    r = (rawcolor[0] & 0b00000111) << 5;
+                    g = (rawcolor[1] >> 4) << 5;
+                    b = (rawcolor[1] & 0b00000111) << 5;
+                    _pixels[px] = (u32)(0xff000000 + (r << 16) + (g << 8) + (b << 0));
+                }
+                
+                for (int dpx = 0; dpx < 8; dpx++, lpx++, px++)
+                {
+                    // handle palette for the second 8 pixels
+                    
+                    if (lpx >= limit0)
+                    {
+                        if (lpx == limit1)
+                        {
+                            palette += 16;
+                        }
+                        
+                        palidx = lpx < limit1 ? (lpx - limit0) / pxs : (lpx - limit1) / pxs;
+                        if (palidx < 16)
+                        {
+                            curpal[palidx] = palette[palidx];
+                        }
+                    }
+                    
+                    u32 rot = (7 - dpx);
+                    u32 mask = 1 << rot;
+                    
+                    rawcolor = (u8 *)&(curpal[(((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3)]);
+                    r = (rawcolor[0] & 0b00000111) << 5;
+                    g = (rawcolor[1] >> 4) << 5;
+                    b = (rawcolor[1] & 0b00000111) << 5;
+                    _pixels[px] = (u32)(0xff000000 + (r << 16) + (g << 8) + (b << 0));
+                }
+            }
+            
+            palette += 16;
+            memcpy(curpal, palette, 32);
+        }
+
+        SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
+
+        // render
+        SDL_RenderClear(_renderer);
+        SDL_RenderCopy(_renderer, _texture, NULL, NULL);
+        SDL_RenderPresent(_renderer);
+        return;
+    }
+
     if (flinepal == 0)
     {
         for (int px = 0; px < buffer.w * buffer.h; px++)
@@ -763,7 +930,7 @@ int sys_fclose(FILE * fp) {
 
 u8 sys_fexists(char * path) {
     u8 ret = 0;
-    FILE * fp = sys_fopen(path, 0);
+    FILE * fp = fopen(strlower(path), "rb");
     if(fp) {
         ret = 1;
         sys_fclose(fp);
@@ -796,10 +963,10 @@ u16 sys_get_model(void) {
     switch (alis.platform.kind) {
             
         case EPlatformAmiga:        return 0xbb8;
-        case EPlatformAmigaAGA:     return 0x1388;
+        case EPlatformAmigaAGA:     return 0x1770;
         case EPlatformAtari:        return 0x456;
+        case EPlatformMac:
         case EPlatformFalcon:       return 0x1388;
-//        case EPlatformMac:          // ???
         case EPlatformPC:           return 0x7d4; // (I2 7d0 - 7d4, I3 0x7ee - 7f2)
         default:                    return 0x456;
     };

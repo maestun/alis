@@ -269,6 +269,9 @@ void alis_init(sPlatform platform) {
     memset(tpalet, 0, 768 * 4);
     memset(mpalet, 0, 768 * 4);
     
+    for (int i = 0; i < 768; i++)
+        image.dkpalet[i] = 0x100;
+    
     image.fdarkpal = 0;
 
     // init virtual ram
