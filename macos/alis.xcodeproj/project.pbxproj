@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 50;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -225,7 +225,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8B9C4027250A2A5B00C947F9 /* Build configuration list for PBXNativeTarget "alis" */;
 			buildPhases = (
-				6838DE3D2B576A88005078DD /* ShellScript */,
 				8B9C401A250A2A5B00C947F9 /* Sources */,
 				8B9C4025250A2A5B00C947F9 /* Frameworks */,
 				680460432B436E9E00B3A453 /* Embed Frameworks */,
@@ -265,28 +264,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		6838DE3D2B576A88005078DD /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "#!/bin/bash\n\nrm -rf \"$TARGET_BUILD_DIR/SDL2.framework\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		8B9C401A250A2A5B00C947F9 /* Sources */ = {
