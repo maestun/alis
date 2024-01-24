@@ -1075,7 +1075,7 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
         tmpx2 = -tmpx2;
     }
     
-    tmpx1 += xread16(ent_vram+ ALIS_SCR_WCX);
+    tmpx1 += xread16(ent_vram + ALIS_SCR_WCX);
     tmpy1 += xread16(ent_vram + ALIS_SCR_WCY);
     tmpz1 += xread16(ent_vram + ALIS_SCR_WCZ);
 
@@ -2092,8 +2092,6 @@ static void cfwriteb(void) {
     
     if (alis.platform.version >= 30)
     {
-        debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
         u32 length = script_read32();
 
         if (-1 < (s8)xread8(addr - 1))
@@ -4229,16 +4227,241 @@ static void catstmap(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// TODO: ...
+s16 testaimx[1024];
+s16 testaimy[1024];
+
 static void cavtstmov(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+
+    u32 vram = alis.script->vram_org;
+    s16 sVar4 = xread8(vram + 0x38);
+    s16 sVar1 = testaimx[xread16(vram + 0x28)];
+    s16 sVar2 = testaimy[xread16(vram + 0x28)];
+    s16 sVar3 = testaimy[xread16(vram + 0x18)];
+    alis.wcx = (u16)((uint)(xread32(vram + ALIS_SCR_WCX) + ((int)sVar2 * (char)xread8(vram + 0x34) - (int)(short)((int)sVar1 * (int)sVar3 >> 9) * (int)sVar4) * 0x80) >> 0x10);
+    alis.wcy = (u16)((uint)(xread32(vram + ALIS_SCR_WCY) + ((int)(sVar2 * (int)sVar3 >> 9) * (int)sVar4 + (int)sVar1 * (char)xread8(vram + 0x34)) * 0x80) >> 0x10);
+    alis.wcz = (u16)((uint)(xread32(vram + ALIS_SCR_WCZ) + ((int)sVar4 * testaimx[xread16(vram + 0x18)] + (char)xread8(vram + 0x3c) * (int)sVar3) * 0x80) >> 0x10);
+    
+    readexec_opername();
+    alis.matmask = alis.varD7;
+    alis.wforme = get_0x1a_cforme(vram);
+    clipform();
+    crstent();
 }
 
 static void cavmov(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+//void calcaim2(ushort *d0w,ushort *d1w)
+//{
+//    uint uVar1;
+//    ushort unaff_D2w;
+//    ushort uVar2;
+//    ushort uVar3;
+//    ushort uVar4;
+//    short sVar5;
+//    
+//    uVar1 = (uint)d1w;
+//    if (d0w == 0)
+//    {
+//    LAB_0001d57e:
+//        if (d1w == 0)
+//        {
+//            uVar1 = 0;
+//        }
+//    }
+//    else
+//    {
+//        uVar2 = d0w;
+//        if ((short)d0w < 0)
+//        {
+//            uVar2 = -d0w;
+//        }
+//        
+//        if (d1w != 0)
+//        {
+//            uVar3 = d1w;
+//            if ((short)d1w < 0)
+//            {
+//                uVar3 = -d1w;
+//            }
+//            
+//            if ((short)uVar3 < (short)uVar2)
+//            {
+//                uVar4 = 0x5a;
+//                uVar2 = (ushort)((uint)((int)(short)uVar2 << 5) / (uint)uVar3);
+//                if ((0x73f < uVar2) || (uVar4 = (ushort)(u8)DAT_00022064[(short)uVar2], DAT_00022064[(short)uVar2] != 0))
+//                {
+//                    if ((short)d1w < 0)
+//                    {
+//                        uVar4 = 0xb4 - uVar4;
+//                    }
+//                    
+//                    if (-1 < (short)d0w)
+//                    {
+//                        uVar4 = -uVar4;
+//                    }
+//                    
+//                    uVar1 = ((short)d0w * 0x200) / (int)*(short *)((int)&DAT_00021a0e + (int)(short)(uVar4 * 2)) & 0xffff;
+//                    goto LAB_0001d570;
+//                }
+//                
+//                goto LAB_0001d57e;
+//            }
+//            
+//            uVar4 = 0x5a;
+//            uVar2 = (ushort)((uint)((int)(short)uVar3 << 5) / (uint)uVar2);
+//            if ((0x73f < uVar2) || (uVar4 = (ushort)(u8)DAT_00022064[(short)uVar2], DAT_00022064[(short)uVar2] != 0))
+//            {
+//                if ((short)d1w < 0)
+//                {
+//                    uVar4 = -uVar4;
+//                }
+//                
+//                sVar5 = uVar4 - 0x5a;
+//                if ((short)d0w < 0)
+//                {
+//                    sVar5 = -sVar5;
+//                }
+//                
+//                uVar1 = ((short)d1w * 0x200) / (int)*(short *)((int)&DAT_00021ac2 + (int)(short)(sVar5 * 2))
+//                & 0xffff;
+//                goto LAB_0001d570;
+//            }
+//        }
+//        
+//        uVar1 = (uint)d0w;
+//    }
+//LAB_0001d570:
+//    if ((short)uVar1 < 0)
+//    {
+//        uVar1 = (uint)(ushort)-(short)uVar1;
+//    }
+//    
+//    return CONCAT22((short)uVar1,unaff_D2w);
+//}
+
+void calcaim(short *d0w,short *d1w,short *d2w,short d3w,short d4w,short d5w)
+{
+//    undefined2 extraout_D0w;
+//    undefined2 uVar1;
+//    undefined2 extraout_D0w_00;
+//    ushort d1w_00;
+//    undefined4 uVar2;
+//    
+//    uVar2 = calcaim2(d0w - d3w,d1w - d4w);
+//    d1w_00 = (ushort)((uint)uVar2 >> 0x10);
+//    uVar1 = 0;
+//    if ((short)uVar2 != 0) {
+//        uVar2 = calcaim2(-(short)uVar2,d1w_00);
+//        d1w_00 = (ushort)((uint)uVar2 >> 0x10);
+//        uVar1 = extraout_D0w_00;
+//    }
+//    return CONCAT24(extraout_D0w,CONCAT22(uVar1,d1w_00));
+}
+
 static void caim(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    
+    readexec_opername();
+    s16 cx = alis.varD7;
+    readexec_opername();
+    s16 cy = alis.varD7;
+    readexec_opername();
+    s16 cz = alis.varD7;
+    
+    s16 oldcx = xread16(alis.script->vram_org + ALIS_SCR_WCX);
+    s16 oldcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    s16 oldcz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
+    
+    calcaim(&cx, &cy, &cz, oldcx, oldcy, oldcz);
+    
+    if (cz == 0)
+    {
+        cx = xread16(alis.script->vram_org + 0x28);
+    }
+    
+    readexec_opername();
+    u16 uVar4 = alis.varD7;
+    
+    if (0xb3 >= uVar4)
+    {
+        cy = xread16(alis.script->vram_org + 0x28);
+        
+        u16 uVar1 = cx - cy;
+        if ((short)uVar1 < 0)
+        {
+            if ((short)uVar1 < -0xb3)
+            {
+                uVar1 += 0x168;
+                if ((short)uVar1 < 0)
+                {
+                    if ((short)uVar1 <= (short)-uVar4)
+                        uVar1 = -uVar4;
+                    
+                    cx = cy + uVar1;
+                }
+                    
+                if ((short)uVar4 <= (short)uVar1)
+                    uVar1 = uVar4;
+                
+                cx = cy + uVar1;
+            }
+            else
+            {
+                if ((short)uVar1 <= (short)-uVar4)
+                    uVar1 = -uVar4;
+                
+                cx = cy + uVar1;
+            }
+        }
+        else
+        {
+            if (0xb3 < (short)uVar1)
+            {
+                uVar1 -= 0x168;
+                if ((short)uVar1 < 0)
+                {
+                    if ((short)uVar1 <= (short)-uVar4)
+                        uVar1 = -uVar4;
+                    
+                    cx = cy + uVar1;
+                }
+            }
+            else
+            {
+                if ((short)uVar4 <= (short)uVar1)
+                {
+                    uVar1 = uVar4;
+                }
+                
+                cx = cy + uVar1;
+            }
+        }
+    }
+    
+    if (cx < 0x168)
+    {
+        if (cx < -0x167)
+        {
+            cx += 0x168;
+        }
+    }
+    else
+    {
+        cx += -0x168;
+    }
+    
+    alis.varD7 = cy;
+    cstore_continue();
+    
+    alis.varD7 = cx;
+    cstore_continue();
+    
+    alis.varD7 = cz;
+    cstore_continue();
 }
 
 static void cpointpix(void) {

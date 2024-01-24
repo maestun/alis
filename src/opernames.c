@@ -576,7 +576,8 @@ void ogetkey(void) {
 }
 
 void oleft(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    pop_sd7();
+    *(u8 *)(alis.sd7 + (alis.varD7 & 0xff)) = 0;
 }
 
 void oright(void) {
@@ -584,7 +585,6 @@ void oright(void) {
 }
 
 void omid(void) {
-    
     char *src = alis.sd7 + *alis.acc++;
 
     pop_sd7();
@@ -740,7 +740,8 @@ void oval(void) {
 void oexistf(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
-    strcat(path, (char *)alis.oldsd7);
+//    strcat(path, (char *)alis.oldsd7);
+    strcat(path, (char *)alis.sd7);
     char *dotptr = strrchr(path, '.');
     if (dotptr)
     {
@@ -761,7 +762,7 @@ void ochr(void) {
 void ochange(void) {
     // TODO: change le drive courant ??
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    alis.varD7 = -1;
+    alis.varD7 = 0;
 }
 
 void ocountry(void) {
