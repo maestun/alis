@@ -1,0 +1,41 @@
+ALIS
+- cbackstar
+- cstarring
+- cfopen, report failure to open file but don't exit
+
+Le Fetiche Maya
+- sidebar not displayed
+- AMIGA crash in script decompression
+
+Colorado
+- flickering player sprite after enterin canoe
+- palette flickering after svaing at camp fire
+- drawing broken in river section
+
+Metal Mutant
+
+Crystals of Arborea
+- parts of scene stop redrawing after showing map/entering combat, etc
+- DOS intro animation do not scale falling crystals
+
+Bunny Bricks
+- ATARI wrong palette in menu
+
+Ishar I
+
+Ishar II
+- DOS implement FM instruments
+
+Ishar III
+- fville sometimes don't call cpalette for time of day change
+- enemies don't attack
+- giving money to officer to get city pass don't work
+- ATARI/AMIGA leaving shop updates all active palettes (it shouldn't affetct linepalette)
+- DOS version don't start properly
+
+Robinson's Requiem
+- cavtstmov
+- caim
+- catstmap
+- cchartmap
+- cviewmat
