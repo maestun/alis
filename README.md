@@ -35,6 +35,39 @@ Run the executable by passing the data path:
 
 ## More info...
 
+### What is working
+
+| Game                   | Atari ST     | Atari Falcon | Amiga        | Amiga AGA    | Macintosh    | MS DOS       | 3DO          | Amstrad CPC  |
+| :---                   | :---         | :---         | :---         | :---         | :---         | :---         | :---         | :---         |
+| Manhattan Dealers      | NOT WORKING  | -            | NOT WORKING  | -            | -            | NOT WORKING  | -            | -            |
+| Mad Show               | NOT PLAYABLE | -            | NOT PLAYABLE | -            | -            | NOT PLAYABLE | -            | -            |
+| Windsurf Willy         | NOT PLAYABLE | -            | NOT PLAYABLE | -            | -            | NOT PLAYABLE | -            | NOT WORKING  |
+| Targhan                | NOT PLAYABLE | -            | NOT PLAYABLE | -            | NOT PLAYABLE | NOT PLAYABLE | -            | NOT WORKING  |
+| Xyphoes Fantasy        | -            | -            | -            | -            | -            | -            | -            | NOT WORKING  |
+| Le Fetiche Maya        | P/PLAYABLE   | -            | NOT PLAYABLE | -            | -            | P/PLAYABLE   | -            | -            |
+| Colorado               | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Starblade              | PLAYABLE     | -            | PLAYABLE     | -            | -            | PLAYABLE     | -            | -            |
+| Storm Master           | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Metal Mutant           | PLAYABLE     | -            | PLAYABLE     | -            | -            | PLAYABLE     | -            | -            |
+| Crystals Of Arborea    | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Transarctica           | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | -            | -            |
+| Boston Bomb Club       | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Bunny Bricks           | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Ishar 1                | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | -            | -            |
+| Ishar 2                | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | -            | -            |
+| Ishar 3                | P/PLAYABLE   | P/PLAYABLE   | P/PLAYABLE   | P/PLAYABLE   | P/PLAYABLE   | NOT PLAYABLE | -            | -            |
+| Robinson's Requiem     | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT WORKING  | -            |
+| Asghan                 | -            | -            | -            | -            | -            | NOT WORKING  | -            | -            |
+| Deus                   | -            | -            | -            | -            | -            | NOT WORKING  | -            | -            |
+| Tournament Of Warriors | -            | -            | -            | -            | -            | NOT WORKING  | -            | -            |
+| Time Warriors          | -            | -            | -            | -            | -            | NOT WORKING  | -            | -            |
+
+- NOT WORKING           main script is not executed at all.               
+- NOT PLAYABLE          game is executed but crashes or freezes shortly after execution.               
+- P/PLAYABLE            partialy playable, but game breaking bugs are to be expected.
+- PLAYABLE              playable and at least partially tested with no major bugs found.
+- COMPLETE              fully playable and tested.
+
 ### Development tools used for reversing
 
 - Ubuntu Linux
