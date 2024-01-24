@@ -44,18 +44,18 @@ Run the executable by passing the data path:
 | Windsurf Willy         | NOT PLAYABLE | -            | NOT PLAYABLE | -            | -            | NOT PLAYABLE | -            | NOT WORKING  |
 | Targhan                | NOT PLAYABLE | -            | NOT PLAYABLE | -            | NOT PLAYABLE | NOT PLAYABLE | -            | NOT WORKING  |
 | Xyphoes Fantasy        | -            | -            | -            | -            | -            | -            | -            | NOT WORKING  |
-| Le Fetiche Maya        | P/PLAYABLE   | -            | NOT PLAYABLE | -            | -            | P/PLAYABLE   | -            | -            |
-| Colorado               | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Le Fetiche Maya        | PARTIALLY PLAYABLE | -            | NOT PLAYABLE | -            | -            | PARTIALLY PLAYABLE | -            | -            |
+| Colorado               | PARTIALLY PLAYABLE | -            | PARTIALLY PLAYABLE | -            | -            | PARTIALLY PLAYABLE | -            | -            |
 | Starblade              | PLAYABLE     | -            | PLAYABLE     | -            | -            | PLAYABLE     | -            | -            |
-| Storm Master           | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Storm Master           | PARTIALLY PLAYABLE | -            | PARTIALLY PLAYABLE | -            | -            | PARTIALLY PLAYABLE | -            | -            |
 | Metal Mutant           | PLAYABLE     | -            | PLAYABLE     | -            | -            | PLAYABLE     | -            | -            |
-| Crystals Of Arborea    | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Crystals Of Arborea    | PARTIALLY PLAYABLE | -            | PARTIALLY PLAYABLE | -            | -            | PARTIALLY PLAYABLE | -            | -            |
 | Transarctica           | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | -            | -            |
-| Boston Bomb Club       | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
-| Bunny Bricks           | P/PLAYABLE   | -            | P/PLAYABLE   | -            | -            | P/PLAYABLE   | -            | -            |
+| Boston Bomb Club       | PARTIALLY PLAYABLE | -            | PARTIALLY PLAYABLE | -            | -            | PARTIALLY PLAYABLE | -            | -            |
+| Bunny Bricks           | PARTIALLY PLAYABLE | -            | PARTIALLY PLAYABLE | -            | -            | PARTIALLY PLAYABLE | -            | -            |
 | Ishar 1                | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | -            | -            |
 | Ishar 2                | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | PLAYABLE     | -            | -            |
-| Ishar 3                | P/PLAYABLE   | P/PLAYABLE   | P/PLAYABLE   | P/PLAYABLE   | P/PLAYABLE   | NOT PLAYABLE | -            | -            |
+| Ishar 3                | PARTIALLY PLAYABLE | PARTIALLY PLAYABLE | PARTIALLY PLAYABLE | PARTIALLY PLAYABLE | PARTIALLY PLAYABLE | NOT PLAYABLE | -            | -            |
 | Robinson's Requiem     | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT PLAYABLE | NOT WORKING  | -            |
 | Asghan                 | -            | -            | -            | -            | -            | NOT WORKING  | -            | -            |
 | Deus                   | -            | -            | -            | -            | -            | NOT WORKING  | -            | -            |
@@ -64,7 +64,7 @@ Run the executable by passing the data path:
 
 - NOT WORKING           main script is not executed at all.               
 - NOT PLAYABLE          game is executed but crashes or freezes shortly after execution.               
-- P/PLAYABLE            partialy playable, but game breaking bugs are to be expected.
+- PARTIALLY PLAYABLE    buggy, game breaking bugs are to be expected.
 - PLAYABLE              playable and at least partially tested with no major bugs found.
 - COMPLETE              fully playable and tested.
 
