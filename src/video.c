@@ -137,9 +137,6 @@ u32 fls_decomp(u32 addr)
         u8 len = xread8(addr); addr++;
         if (len >= 0x80)
         {
-            s16 test = (s8)len;
-            test += 0x80;
-            
             s32 length = 0x100 - len;
             memcpy(vgaptr, alis.mem + addr, length); vgaptr += length; addr += length;
         }

@@ -216,7 +216,7 @@ void script_guess_game(const char * script_path) {
                     case EGameIshar_2:               strcpy(alis.platform.name, "Ishar 2");                 alis.platform.version = 21; alis.basemem = 0x22400;  break;
                     case EGameIshar_3:               strcpy(alis.platform.name, "Ishar 3");                 alis.platform.version = 30; alis.basemem = 0x25a00;  break;
                     case EGameRobinsonsRequiem0:
-                    case EGameRobinsonsRequiem1:     strcpy(alis.platform.name, "Robinson's Requiem");      alis.platform.version = 30; alis.basemem = 0x2b400;  break;
+                    case EGameRobinsonsRequiem1:     strcpy(alis.platform.name, "Robinson's Requiem");      alis.platform.version = 31; alis.basemem = 0x2b400;  break;
                     case EGameAsghan:                strcpy(alis.platform.name, "Asghan");                  alis.platform.version = 40; alis.basemem = 0x22400;  break;
                     case EGameDeus:                  strcpy(alis.platform.name, "Deus");                    alis.platform.version = 40; alis.basemem = 0x22400;  break;
                     case EGameTimeWarriors:          strcpy(alis.platform.name, "Time Warriors");           alis.platform.version = 40; alis.basemem = 0x22400;  break;
@@ -346,8 +346,8 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
                         {
                             uint32_t rot = (7 - c);
                             uint32_t mask = 1 << rot;
-                            pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2);
-                            pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2);
+                            pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
+                            pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
                         }
                         
                         for (int d = 0; d < 8; d++)
@@ -816,8 +816,8 @@ u8 get_0x23_unknown(u32 vram)                           { return xread8(vram - 0
 u16 get_0x22_cworld(u32 vram)                           { return xread16(vram - 0x22); }
 //u8 get_0x21_cworld(u32 vram)                            { return xread8(vram - 0x21); }
 u16 get_0x20_set_vect(u32 vram)                         { return xread16(vram - 0x20); }
-u16 get_0x1e_scan_clr(u32 vram)                         { return xread16(vram - 0x1e); }
-u16 get_0x1c_scan_clr(u32 vram)                         { return xread16(vram - 0x1c); }
+s16 get_0x1e_scan_clr(u32 vram)                         { return xread16(vram - 0x1e); }
+s16 get_0x1c_scan_clr(u32 vram)                         { return xread16(vram - 0x1c); }
 s16 get_0x1a_cforme(u32 vram)                           { return xread16(vram - 0x1a); }
 u16 get_0x18_unknown(u32 vram)                          { return xread16(vram - 0x18); }
 u16 get_0x16_screen_id(u32 vram)                        { return xread16(vram - 0x16); }
@@ -855,8 +855,8 @@ void set_0x23_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x23, v
 void set_0x22_cworld(u32 vram, u16 val)                 { xwrite16(vram - 0x22, val); }
 //void set_0x21_cworld(u32 vram, u8 val)                  { xwrite8(vram - 0x21, val); }
 void set_0x20_set_vect(u32 vram, u16 val)               { xwrite16(vram - 0x20, val); }
-void set_0x1e_scan_clr(u32 vram, u16 val)               { xwrite16(vram - 0x1e, val); }
-void set_0x1c_scan_clr(u32 vram, u16 val)               { xwrite16(vram - 0x1c, val); }
+void set_0x1e_scan_clr(u32 vram, s16 val)               { xwrite16(vram - 0x1e, val); }
+void set_0x1c_scan_clr(u32 vram, s16 val)               { xwrite16(vram - 0x1c, val); }
 void set_0x1a_cforme(u32 vram, s16 val)                 { xwrite16(vram - 0x1a, val); }
 void set_0x18_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x18, val); }
 void set_0x16_screen_id(u32 vram, u16 val)              { xwrite16(vram - 0x16, val); }

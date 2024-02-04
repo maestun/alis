@@ -83,11 +83,15 @@ typedef struct {
     s16 dkpalet[768];
     u8 fdarkpal;
 
+    s32 backdes;
+    s32 backaddr;
     s16 backprof;
     s16 backx1;
     s16 backx2;
     s16 backy1;
     s16 backy2;
+    s16 backlarg;
+    u8 *backmap;
 
     s32 basesprite;
     u16 libsprit;
@@ -145,6 +149,7 @@ void setmpalet(void);
 void setlinepalet(void);
 
 s16 debprotf(s16 d2w);
+s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3);
 
 void valtostr(char *string, s16 value);
 

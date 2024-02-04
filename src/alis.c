@@ -281,63 +281,6 @@ void alis_init(sPlatform platform) {
     image.spritemem = (u8 *)malloc(1024 * 1024);
     memset(image.spritemem, 0x0, 1024 * 1024);
 
-//    // NOTE: cswitching is never called for older games
-//    alis.fswitch = 1;
-//    alis.flagmain = 0;
-//    
-//    alis.fallent = 0;
-//    alis.fseq = 0;
-//    alis.fmuldes = 0;
-//    alis.fadddes = 0;
-//    alis.ferase = 0;
-//
-//    alis.saversp = 0;
-//    alis.basemem = 0x22400;
-//    alis.basevar = 0;
-//    alis.finmem = 0x22000;
-//
-//    alis.nbprog = 0;
-//    alis.maxprog = 0;
-//    alis.atprog = alis.basemem;
-//    
-//    alis.nbent = 0;
-//    alis.ptrent = alis.tablent;
-//
-//    memset(alis.tablent, 0, sizeof(alis.tablent));
-//    memset(alis.matent, 0, sizeof(alis.matent));
-//    memset(alis.buffer, 0, sizeof(alis.buffer));
-//
-//    alis.ctiming = 0;
-//    alis.prevkey = 0;
-//
-//    // init virtual registers
-//    alis.varD6 = alis.varD7 = 0;
-//    
-//    // init temp chunks
-//    alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
-//    alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
-//    alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
-//    
-//    alis.sd7 = alis.bsd7;
-//    alis.sd6 = alis.bsd6;
-//    alis.oldsd7 = alis.bsd7bis;
-//    
-//    // init helpers
-//    if(alis.fp) {
-//        fclose(alis.fp);
-//        alis.fp = NULL;
-//    }
-//       
-//    // set the vram origin at some abitrary location (same as atari, to ease debug)
-//    alis.vram_org = alis.mem + ALIS_VM_RAM_ORG;
-//    
-//    // the script data address table is located at vram start
-//    alis.script_data_orgs = (u32 *)alis.vram_org;
-//    
-//    // TODO: init virtual accumulator
-////    alis.acc_org = alis.script->vram_org;
-////    alis.acc = alis.script->vram_org + kVirtualRAMSize;
-//    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x198e2);
     // NOTE: cswitching is never called for older games
     alis.fswitch = 1;
     alis.flagmain = 0;
@@ -374,6 +317,10 @@ void alis_init(sPlatform platform) {
     alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
     alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
     alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
+    
+    // NOTE: random address that should be empty
+    alis.vstandard = 0x153C6;
+    memset(alis.mem + alis.vstandard, 0, 256);
 
     alis.tabptr = 0x1b82e; // tab containing 2 * 16 pointers
     memset(alis.mem + alis.tabptr, 0, 2 * 16 * 4);
@@ -383,10 +330,7 @@ void alis_init(sPlatform platform) {
     alis.oldsd7 = alis.bsd7bis;
     
     // init helpers
-    if(alis.fp) {
-        fclose(alis.fp);
-        alis.fp = NULL;
-    }
+    alis.fp = NULL;
        
     // set the vram origin at some abitrary location (same as atari, to ease debug)
     alis.vram_org = alis.mem + alis.basemem;
@@ -450,9 +394,9 @@ void savecoord(u32 addr)
 
     if (alis.platform.version >= 30) {
 
-        image.oldacx = xread16(addr + 0x18);
-        image.oldacy = xread16(addr + 0x20);
-        image.oldacz = xread16(addr + 0x28);
+        image.oldacx = xread16(addr + ALIS_SCR_WCAX);
+        image.oldacy = xread16(addr + ALIS_SCR_WCAY);
+        image.oldacz = xread16(addr + ALIS_SCR_WCAZ);
     }
 }
 
@@ -478,7 +422,7 @@ void updtcoord(u32 addr)
     }
     else {
         // ishar 3
-        s16 angle = xread16(addr + 0x18);
+        s16 angle = xread16(addr + ALIS_SCR_WCAX);
         if (angle != image.oldacx)
         {
             if ((0x168 < angle) && 0x168 < (angle -= 0x168))
@@ -487,10 +431,10 @@ void updtcoord(u32 addr)
             if (angle < -0x168 && (angle += 0x168) < -0x168)
                 angle %= 0x168;
 
-            xwrite16(addr + 0x18, angle);
+            xwrite16(addr + ALIS_SCR_WCAX, angle);
         }
 
-        angle = xread16(addr + 0x20);
+        angle = xread16(addr + ALIS_SCR_WCAY);
         if (angle != image.oldacy)
         {
             if ((0x168 < angle) && 0x168 < (angle -= 0x168))
@@ -499,10 +443,10 @@ void updtcoord(u32 addr)
             if (angle < -0x168 && (angle += 0x168) < -0x168)
                 angle %= 0x168;
 
-            xwrite16(addr + 0x20, angle);
+            xwrite16(addr + ALIS_SCR_WCAY, angle);
         }
 
-        angle = xread16(addr + 0x28);
+        angle = xread16(addr + ALIS_SCR_WCAZ);
         if (angle != image.oldacz)
         {
             if ((0x168 < angle) && 0x168 < (angle -= 0x168))
@@ -511,13 +455,13 @@ void updtcoord(u32 addr)
             if (angle < -0x168 && (angle += 0x168) < -0x168)
                 angle %= 0x168;
 
-            xwrite16(addr + 0x28, angle);
+            xwrite16(addr + ALIS_SCR_WCAZ, angle);
         }
 
-        s16 addx = xread16(addr + 0x00) - image.oldcx;
-        s16 addy = xread16(addr + 0x08) - image.oldcy;
-        s16 addz = xread16(addr + 0x10) - image.oldcz;
-        u16 unknown28 = xread16(addr + 0x28);
+        s16 addx = xread16(addr + ALIS_SCR_WCX) - image.oldcx;
+        s16 addy = xread16(addr + ALIS_SCR_WCY) - image.oldcy;
+        s16 addz = xread16(addr + ALIS_SCR_WCZ) - image.oldcz;
+        u16 wcaz = xread16(addr + ALIS_SCR_WCAZ);
 
         if (angle != image.oldacz || addz != 0 || addx != 0 || addy != 0)
         {
@@ -529,9 +473,7 @@ void updtcoord(u32 addr)
                 sprite->depx += addx;
                 sprite->depy += addy;
                 sprite->depz += addz;
-                
-                // TODO: following line messes with I3 drawing, investigate
-//                sprite->sprite_0x28 = unknown28;
+                sprite->sprite_0x28 = wcaz;
             }
         }
     }
@@ -641,7 +583,7 @@ void alis_main_V3(void) {
 
         if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0)
         {
-            s32 script_offset = swap32((alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 10));
+            s32 script_offset = xread32(get_0x14_script_org_offset(alis.script->vram_org) + 10);
             if (script_offset != 0)
             {
                 alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
@@ -688,7 +630,7 @@ void alis_main_V3(void) {
                 set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
                 set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
                 
-                s32 script_offset = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 6);
+                s32 script_offset = xread32(get_0x14_script_org_offset(alis.script->vram_org) + 6);
                 if (script_offset != 0)
                 {
                     alis.fseq = 0;

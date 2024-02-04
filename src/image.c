@@ -135,7 +135,6 @@ u8 vtiming = 0;
 s16 savmouse[2];
 u32 savmouse2[8];
 u8 switchgo;
-s16 backlarg;
 u8 *wlogic;
 s16 wlogx1;
 s16 wlogx2;
@@ -148,7 +147,6 @@ s16 logy1 = 0;
 s16 logy2 = 0xc7;
 s16 loglarg = 0xa0; // 0x50 for st
 u8 insid = 0;
-u8 *backmap;
 
 
 void topalet(void)
@@ -471,11 +469,9 @@ void log_sprites(void)
 
             u8 *bitmap = 0;
             sSprite *sprite;
-            s16 lastidx2 = 0;
             s16 lastidx = 0;
             for (curidx = get_scr_screen_id(scsprite); curidx != 0; curidx = SPRITE_VAR(curidx)->link)
             {
-                lastidx2 = lastidx;
                 lastidx = curidx;
                 sprite = SPRITE_VAR(curidx);
 
@@ -2190,7 +2186,7 @@ void destofen(sSprite *sprite)
         {
             // 8 bit image
             
-            palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
+//            palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
             
             // Ishar 1 & 3
             clear = 0;
@@ -2310,12 +2306,12 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                                 {
                                     if ((image.wback != 0) && (image.pback != 0))
                                     {
-                                        wlogic = backmap;
+                                        wlogic = image.backmap;
                                         wlogx1 = image.backx1;
                                         wlogx2 = image.backx2;
                                         wlogy1 = image.backy1;
                                         wlogy2 = image.backy2;
-                                        wloglarg = backlarg;
+                                        wloglarg = image.backlarg;
                                         
                                         if (clipy1 <= image.backx1)
                                             clipy1 = image.backx1;
@@ -2351,12 +2347,12 @@ void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
                                     if (image.pback == 0)
                                         goto fenetre31;
 
-                                    wlogic = backmap;
+                                    wlogic = image.backmap;
                                     wlogx1 = image.backx1;
                                     wlogx2 = image.backx2;
                                     wlogy1 = image.backy1;
                                     wlogy2 = image.backy2;
-                                    wloglarg = backlarg;
+                                    wloglarg = image.backlarg;
                                 }
                             }
 

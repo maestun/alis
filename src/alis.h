@@ -277,6 +277,8 @@ typedef struct {
     char *          sd6;
     char *          oldsd7;
     
+    u32             vstandard;
+    
     char            autoname[256];
 
     u32             tabptr;

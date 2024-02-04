@@ -426,22 +426,24 @@ void oprnd(void) {
 }
 
 void oscan(void) {
-    s16 scan_clr = get_0x1e_scan_clr(alis.script->vram_org);
-    if (scan_clr == get_0x1c_scan_clr(alis.script->vram_org))
+    s16 new_val = get_0x1e_scan_clr(alis.script->vram_org);
+    if (new_val == get_0x1c_scan_clr(alis.script->vram_org))
     {
         alis.varD7 = -1;
         return;
     }
     
-    s16 result = xread16(alis.script->vram_org + scan_clr);
-    scan_clr += 2;
-    if (-0x35 < scan_clr)
+    s16 limit = alis.platform.version >= 30 ? -0x3f : -0x35;
+
+    s16 result = xread16(alis.script->vram_org + new_val);
+    new_val += 2;
+    if (limit < new_val)
     {
-        scan_clr -= xread16(get_0x14_script_org_offset(alis.script->vram_org) + 0x16);
+        new_val -= xread16(get_0x14_script_org_offset(alis.script->vram_org) + 0x16);
     }
 
-    set_0x1e_scan_clr(alis.script->vram_org, scan_clr);
-    if (scan_clr == get_0x1c_scan_clr(alis.script->vram_org))
+    set_0x1e_scan_clr(alis.script->vram_org, new_val);
+    if (new_val == get_0x1c_scan_clr(alis.script->vram_org))
     {
         set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
     }
@@ -611,7 +613,6 @@ void olen(void) {
 }
 
 void oasc(void) {
-    alis.varD7 = 0;
     alis.varD7 = alis.sd7[0];
 }
 
