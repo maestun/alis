@@ -45,7 +45,18 @@ void cdelfilm(void) {
     endfilm();
 }
 void copenfilm(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    
+    // TODO: load film to alis mem (name is in alis.sd7)
+    // inifilm();
+    
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+    readexec_opername();
+
+    alis.varD7 = -1;
+    cstore_continue();
 }
 
 

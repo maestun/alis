@@ -23,11 +23,11 @@ Ishar II
 - DOS implement FM instruments
 
 Ishar III
-- giving money to officer to get city pass don't work
-- crash when reading note in fron of Mather Fudius house
-- crash when leaving tavern with Erkh Moltus
+? giving money to officer to get city pass don't work
+- crash when reading scrolls
 - ATARI/AMIGA leaving shop updates all active palettes (it shouldn't affetct linepalette)
 - DOS version don't start properly
+- Add support for CD video
 
 Robinson's Requiem
 - cavtstmov

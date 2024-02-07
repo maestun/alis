@@ -26,6 +26,7 @@
 #include "mem.h"
 #include "image.h"
 #include "screen.h"
+#include "unpack.h"
 #include "utils.h"
 #include "video.h"
 
@@ -232,20 +233,6 @@ void io_mfree(s32 addr);
 // ============================================================================
 #pragma mark - Opcodes
 // ============================================================================
-
-static void cstore_continue(void) {
-    char *tmp = alis.sd7;
-    alis.sd7 = alis.oldsd7;
-    alis.oldsd7 = tmp;
-    
-//    s32 t0 = (s32)(alis.sd7 - alis.mem);
-//    s32 t1 = (s32)(alis.oldsd7 - alis.mem);
-//
-//    printf("cstore_continue(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
-//    printf("cstore_continue(void): Write to address $0195ec, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
-
-    readexec_storename();
-}
 
 static void cstore(void) {
     readexec_opername_saveD7();
@@ -2144,7 +2131,6 @@ static void cfwritei(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
-#include "unpack.h"
 static void cfreadb(void) {
     
     s32 addr = (s16)script_read16();
@@ -2157,6 +2143,8 @@ static void cfreadb(void) {
     {
         addr += alis.script->vram_org;
     }
+    
+    u32 length = 0;
 
     if (alis.platform.version >= 30)
     {
@@ -2170,9 +2158,7 @@ static void cfreadb(void) {
             }
         }
         
-        u32 length = script_read32();
-        // TODO: type wrong we should use value set in cfopen IE 0
-        // use global variable
+        length = script_read32();
         
         if (alis.typepack == 0)
         {
@@ -2182,32 +2168,32 @@ static void cfreadb(void) {
         {
             debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
-            u8 *unpacked_buffer = alis.mem + addr;
-            u32 unpacked_size = unpack_script_fp(alis.fp, &unpacked_buffer);
-            if (alis.wordpack != 0)
-            {
-                // unmixword();
-            }
+//            u8 *unpacked_buffer = alis.mem + addr;
+//            u32 unpacked_size = unpack_script_fp(alis.fp, &unpacked_buffer);
+//            if (alis.wordpack != 0)
+//            {
+//                 unmixword();
+//            }
         }
     }
     else
     {
-        u16 length = script_read16();
+        length = script_read16();
         
         fread(alis.mem + addr, length, 1, alis.fp);
-        
-        // NOTE: *.fic files in all platforms are identical, for PC we have to do byteswaping
-        
-        if (alis.platform.kind == EPlatformPC)
+    }
+    
+    // NOTE: *.fic files in all platforms are identical, for PC we have to do byteswaping
+    
+    if (alis.platform.kind == EPlatformPC)
+    {
+        u8 bytes = *(alis.mem + addr - 2);
+        if (bytes == 2)
         {
-            u8 bytes = *(alis.mem + addr - 2);
-            if (bytes == 2)
+            for (int i = 0; i < length; i += 2)
             {
-                for (int i = 0; i < length; i += 2)
-                {
-                    u16 *val = (u16 *)(alis.mem + addr + i);
-                    *val = (*val <<  8) | (*val >>  8);
-                }
+                u16 *val = (u16 *)(alis.mem + addr + i);
+                *val = (*val <<  8) | (*val >>  8);
             }
         }
     }

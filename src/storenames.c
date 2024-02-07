@@ -211,6 +211,13 @@ static void seval(void) {
     readexec_storename();
 }
 
+void cstore_continue(void) {
+    char *tmp = alis.sd7;
+    alis.sd7 = alis.oldsd7;
+    alis.oldsd7 = tmp;
+
+    readexec_storename();
+}
 
 // ============================================================================
 #pragma mark - Store pointer table
