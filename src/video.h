@@ -24,17 +24,12 @@
 typedef struct {
     s16 id;
     u8  playing;
-    u8  reserved0;
-    u32 addr1;
+    u8 *addr1;
+    u8 *addr2;
+    u8 *endptr;
+    u8 *delptr;
     s16 frame;
     s16 frames;
-    s32 reserved1;
-    s32 reserved2;
-    s32 reserved3;
-    s32 reserved4;
-    s32 endptr;
-    s32 reserved5;
-    u32 addr2;
     s16 result;
     s16 batchframes;
     s16 waitclock;

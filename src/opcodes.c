@@ -2030,42 +2030,6 @@ static void cinitab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
-FILE *aopen(char *path, u16 openmode)
-{
-    bool exists = sys_fexists(path);
-
-    alis.fp = sys_fopen((char *)path, openmode);
-    alis.typepack = 0;
-    alis.openmode = openmode;
-    if ((openmode & 0x100) == 0 || exists)
-    {
-        if ((openmode & 0x200) == 0)
-        {
-            if (alis.fp != NULL)
-            {
-                if ((openmode & 0x800) != 0)
-                {
-                    fread(alis.buffer, 0xc, 1, alis.fp);
-                    if (((u32 *)(alis.buffer))[0] == 0x50423630)
-                    {
-                        alis.typepack = 0xa0;
-                        alis.wordpack = 0;
-                        alis.longpack = ((u32 *)(alis.buffer))[1];
-                    }
-                    else if (((u32 *)(alis.buffer))[0] == 0x50573630)
-                    {
-                        alis.typepack = 0xa0;
-                        alis.wordpack = 1;
-                        alis.longpack = ((u32 *)(alis.buffer))[1];
-                    }
-                }
-            }
-        }
-    }
-    
-    return alis.fp;
-}
-
 static void cfopen(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
@@ -2087,7 +2051,7 @@ static void cfopen(void) {
         mode = script_read16();
     }
 
-    aopen((char *)path, mode);
+    afopen((char *)path, mode);
 //    alis.fp = sys_fopen((char *)path, mode);
     if(alis.fp == NULL) {
         alis_error(ALIS_ERR_FOPEN, path);
@@ -4422,17 +4386,13 @@ static void cscview(void) {
 }
 
 static void cfilm(void) {
-    if (alis.platform.kind == EPlatformAmiga)
-        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-
-    readexec_opername();
     memset(&bfilm, 0, sizeof(bfilm));
-    
+    readexec_opername();
     bfilm.id = alis.varD7;
     readexec_opername();
     s32 addr = adresdes(alis.varD7) + 0x20 + 4;
-    bfilm.addr1 = addr;
-    bfilm.addr2 = addr;
+    bfilm.addr1 = alis.mem + addr;
+    bfilm.addr2 = alis.mem + addr;
     readexec_opername();
     bfilm.waitclock = alis.varD7;
     bfilm.basemain = alis.basemain;

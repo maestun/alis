@@ -21,13 +21,13 @@ Ishar I
 
 Ishar II
 - DOS implement FM instruments
+- FIX drawing/or palette in 256 colors
 
 Ishar III
 ? giving money to officer to get city pass don't work
 - crash when reading scrolls
 - ATARI/AMIGA leaving shop updates all active palettes (it shouldn't affetct linepalette)
-- DOS version don't start properly
-- Add support for CD video
+- FIX drawing/or palette in 256 colors
 
 Robinson's Requiem
 - cavtstmov

@@ -55,7 +55,7 @@ extern s16 wlogy2;
 extern s16 wloglarg;
 extern s16 loglarg;
 
-u32 endframe = 0;
+u8 *endframe = NULL;
 
 sFLICData bfilm;
 
@@ -114,7 +114,7 @@ void fls_cleanup(void)
 //    last_touche = 0;
 }
 
-u32 fls_decomp(u32 addr)
+u8 *fls_decomp(u8 *addr)
 {
     u8 *prevlogic = vgalogic_df;
     if (fls_drawing != 0)
@@ -125,7 +125,7 @@ u32 fls_decomp(u32 addr)
     }
 
     bfilm.frame ++;
-    u32 endframe = addr + xread32(addr);
+    u8 *endframe = addr + read32(addr);
 
     u8 *vgaptr = vgalogic_df;//(u8 *)(vgalogic_df + 0xa0);
     vgaptr += 0xa0;
@@ -134,11 +134,11 @@ u32 fls_decomp(u32 addr)
 
     while (endframe > addr)
     {
-        u8 len = xread8(addr); addr++;
+        u8 len = *(addr); addr++;
         if (len >= 0x80)
         {
             s32 length = 0x100 - len;
-            memcpy(vgaptr, alis.mem + addr, length); vgaptr += length; addr += length;
+            memcpy(vgaptr, addr, length); vgaptr += length; addr += length;
         }
         else
         {
@@ -146,16 +146,16 @@ u32 fls_decomp(u32 addr)
             {
                 if (len == 1)
                 {
-                    vgaptr += xread16(addr); addr+=2;
+                    vgaptr += read16(addr); addr+=2;
                 }
                 else
                 {
-                    vgaptr += xread8(addr); addr++;
+                    vgaptr += *(addr); addr++;
                 }
             }
             else
             {
-                u8 color = xread8(addr); addr++;
+                u8 color = *(addr); addr++;
                 memset(vgaptr, color, len); vgaptr += len;;
             }
         }
@@ -164,18 +164,18 @@ u32 fls_decomp(u32 addr)
     return endframe;
 }
 
-void fls_init(u32 addr)
+void fls_init(u8 *addr)
 {
     fls_ham6 = alis.platform.kind == EPlatformAmiga;
     fls_s512 = alis.platform.kind == EPlatformAtari;
     
-    fls_pallines = (u16)xread8(addr + 8) * 2;
-    bfilm.frames = xread16(addr + 6);
-    bfilm.endptr = addr + xread32(addr);
+    fls_pallines = (u16)*(addr + 8) * 2;
+    bfilm.frames = read16(addr + 6);
+    bfilm.endptr = addr + read32(addr);
     bfilm.frame = 0;
 }
 
-u32 fls_next(u32 addr)
+u8 *fls_next(u8 *addr)
 {
     if (fls_state < 0)
     {
@@ -192,12 +192,12 @@ u32 fls_next(u32 addr)
     }
 }
 
-u32 fls_pal(u32 addr)
+u8 *fls_pal(u8 *addr)
 {
     // set palette
-    u8 *palette = alis.mem + addr + 6;
+    u8 *palette = addr + 6;
 
-    addr += xread32(addr);
+    addr += read32(addr);
 
     int c = 0;
     for (int i = 0; i < 16; i++, palette += 2, c += 3)
@@ -218,10 +218,10 @@ u32 flstofen(s16 clean)
     }
     else
     {
-        u32 addr = bfilm.addr1;
+        u8 *addr = bfilm.addr1;
         if (addr != 0)
         {
-            s16 type = xread16(addr + 4);
+            s16 type = read16(addr + 4);
             if (type == 0x5354)
             {
                 fls_init(addr);
@@ -267,7 +267,7 @@ u32 flstofen(s16 clean)
                 }
             }
             
-            bfilm.addr1 = (addr & 1) + addr;
+            bfilm.addr1 = ((uint64_t)addr & 1) + addr;
             if (bfilm.addr1 < bfilm.endptr)
             {
                 return 1;
@@ -292,15 +292,15 @@ void endfilm(void)
 
 // fli (flic video) video player
 
-void fli_palette(u32 addr)
+void fli_palette(u8 *addr)
 {
-    u16 packets = *(u16 *)(alis.mem + addr), index = 0;
+    u16 packets = *(u16 *)(addr), index = 0;
     addr+=2;
     
     do
     {
-        index += (u8)(xread8(addr)); addr++;
-        u16 len = xread8(addr); addr++;
+        index += *(addr); addr++;
+        u16 len = *(addr); addr++;
         if (len == 0)
         {
             len = 256;
@@ -315,9 +315,9 @@ void fli_palette(u32 addr)
         u8 *ptr = mpalet + 3 * index;
         for (int c = 0; c < len; c++)
         {
-            ptr[0] = xread8(addr) * 2; addr++;
-            ptr[1] = xread8(addr) * 2; addr++;
-            ptr[2] = xread8(addr) * 2; addr++;
+            ptr[0] = *(addr) * 2; addr++;
+            ptr[1] = *(addr) * 2; addr++;
+            ptr[2] = *(addr) * 2; addr++;
             ptr += 3;
         }
         
@@ -333,38 +333,38 @@ void fli_blackdata(void)
     memset(vgalogic, 0, 64000);
 }
 
-void fli_data(u32 a5)
+void fli_data(u8 *addr)
 {
     u8 *ptr = vgalogic;
-    for (int i = 0; i < 200; i++, ptr += 320, a5 += 320)
+    for (int i = 0; i < 200; i++, ptr += 320, addr += 320)
     {
-        memcpy(ptr, alis.mem + a5, 320);
+        memcpy(ptr, addr, 320);
     }
 }
 
-void fli_decomp(u32 addr, u8 partial)
+void fli_decomp(u8 *addr, u8 partial)
 {
     u32 index = 0;
     u16 len = 200;
     
     if (partial)
     {
-        index = *(u16 *)(alis.mem + addr) * 320; addr+=2;
-        len = *(u16 *)(alis.mem + addr); addr+=2;
+        index = *(u16 *)(addr) * 320; addr+=2;
+        len = *(u16 *)(addr); addr+=2;
     }
     
     while (len--)
     {
-        u8 packets = xread8(addr); addr++;
+        u8 packets = *addr; addr++;
         u16 col = 0;
         while (packets--)
         {
             if (partial)
             {
-                col += (u16)(xread8(addr)); addr++;
+                col += *(addr); addr++;
             }
             
-            short int count = (signed char) xread8(addr); addr++;
+            short int count = (signed char) *(addr); addr++;
             if (partial) count = -count;
             if (count >= 0)
             {
@@ -377,7 +377,7 @@ void fli_decomp(u32 addr, u8 partial)
                     len = packets = 0;
                 }
                 
-                memset(vgalogic + index + col, xread8(addr), count); addr++;
+                memset(vgalogic + index + col, *(addr), count); addr++;
             }
             else
             {
@@ -388,7 +388,7 @@ void fli_decomp(u32 addr, u8 partial)
                     len = packets = 0;
                 }
                 
-                memcpy(vgalogic + index + col, alis.mem + addr, count); addr+= count;
+                memcpy(vgalogic + index + col, addr, count); addr+= count;
             }
             
             col += count;
@@ -398,17 +398,17 @@ void fli_decomp(u32 addr, u8 partial)
     }
 }
 
-void fli_elements(u32 addr)
+void fli_elements(u8 *addr)
 {
     if (endframe <= addr)
     {
         return;
     }
 
-    u32 offset = *(u32 *)(alis.mem + addr);
+    u32 offset = *(u32 *)(addr);
     addr+=4;
 
-    u16 type = *(u16 *)(alis.mem + addr);
+    u16 type = *(u16 *)(addr);
     addr+=2;
     
     switch (type) {
@@ -435,18 +435,18 @@ void fli_elements(u32 addr)
     memcpy(logic, vgalogic, 320*200);
 }
 
-void fli_init(u32 flcaddr)
+void fli_init(u8 *flcaddr)
 {
-    u32 length = *(u32 *)(alis.mem + flcaddr);
+    u32 length = *(u32 *)(flcaddr);
     bfilm.endptr = flcaddr + length;
     bfilm.addr1 = flcaddr + 0x80;
-    bfilm.frames = *(u16 *)(alis.mem + flcaddr + 6);
+    bfilm.frames = *(u16 *)(flcaddr + 6);
     bfilm.frame = 0;
 }
 
-void fli_next(u32 addr)
+void fli_next(u8 *addr)
 {
-    u32 length = *(u32 *)(alis.mem + addr);
+    u32 length = *(u32 *)(addr);
     endframe = addr + length;
     fli_elements(addr + 16);
     bfilm.addr1 = endframe;
@@ -455,17 +455,19 @@ void fli_next(u32 addr)
 
 s16 flitofen(void)
 {
-    u32 flcaddr = bfilm.addr1;
-    u16 type = *(u16 *)(alis.mem + flcaddr + 4);
-    if (type == 0xaf11)
+    if (bfilm.addr1 != NULL)
     {
-        fli_init(flcaddr);
-        return 1;
-    }
-    else if (type == 0xf1fa && bfilm.endptr > flcaddr)
-    {
-        fli_next(flcaddr);
-        return 1;
+        u16 type = *(u16 *)(bfilm.addr1 + 4);
+        if (type == 0xaf11)
+        {
+            fli_init(bfilm.addr1);
+            return 1;
+        }
+        else if (type == 0xf1fa && bfilm.endptr > bfilm.addr1)
+        {
+            fli_next(bfilm.addr1);
+            return 1;
+        }
     }
     
     return 0;

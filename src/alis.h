@@ -373,3 +373,5 @@ int             adresform(s16 idx);
 s32             tabint(u32 address);
 s32             tabchar(u32 address);
 s32             tabstring(u32 address);
+
+FILE            *afopen(char *path, u16 openmode);

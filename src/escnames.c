@@ -43,19 +43,58 @@ void coffmusic(void) {
 }
 void cdelfilm(void) {
     endfilm();
+    
+    if (bfilm.delptr != NULL)
+        free(bfilm.delptr);
+
+    memset(&bfilm, 0, sizeof(bfilm));
 }
 void copenfilm(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
-    // TODO: load film to alis mem (name is in alis.sd7)
-    // inifilm();
-    
-    readexec_opername();
-    readexec_opername();
-    readexec_opername();
-    readexec_opername();
+    memset(&bfilm, 0, sizeof(bfilm));
 
-    alis.varD7 = -1;
+    readexec_opername();
+    bfilm.id = alis.varD7;
+
+    readexec_opername_swap();
+    
+    alis.fp = NULL;
+
+    // TODO: hack!!!
+
+    char *at = strstr(alis.sd7, "150.");
+    if (at != NULL)
+    {
+        memcpy(at, "300.", 4);
+    }
+    
+    char path[kPathMaxLen] = {0};
+    strcpy(path, alis.platform.path);
+    strcat(path, alis.sd7);
+
+    afopen((char *)path, 1);
+    
+    u8 *addr = NULL;
+    
+    if (alis.fp)
+    {
+        struct stat st;
+        fstat(fileno(alis.fp), &st);
+        off_t size = st.st_size;
+        
+        addr = malloc(size);
+        fread(addr, size, 1, alis.fp);
+    }
+    
+    bfilm.addr1 = addr;
+    bfilm.addr2 = addr;
+    bfilm.delptr = addr;
+    // TODO: not realy sure what next value is used for
+    readexec_opername();
+    readexec_opername();
+    bfilm.waitclock = alis.varD7;
+    bfilm.basemain = alis.basemain;
+    inifilm();
+    alis.varD7 = bfilm.frames;
     cstore_continue();
 }
 

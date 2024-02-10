@@ -36,6 +36,7 @@ typedef enum {
     EPlatformPC,
     EPlatformAmstradCPC,
     EPlatform3DO,
+    EPlatformJaguar,
     EPlatformUnknown
 } EPlatform;
 

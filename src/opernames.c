@@ -746,7 +746,7 @@ void oexistf(void) {
     char *dotptr = strrchr(path, '.');
     if (dotptr)
     {
-        if (strcasecmp(dotptr + 1, "fic") && strcasecmp(dotptr + 1, "cst") && !sys_fexists(path))
+        if (strcasecmp(dotptr + 1, "fic") && strcasecmp(dotptr + 1, "cst") && strcasecmp(dotptr + 1, "dat") && !sys_fexists(path))
         {
             strcpy(dotptr + 1, alis.platform.ext);
         }

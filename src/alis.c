@@ -1114,3 +1114,39 @@ s32 tabstring(u32 addr)
     
     return result;
 }
+
+FILE *afopen(char *path, u16 openmode)
+{
+    bool exists = sys_fexists(path);
+
+    alis.fp = sys_fopen((char *)path, openmode);
+    alis.typepack = 0;
+    alis.openmode = openmode;
+    if ((openmode & 0x100) == 0 || exists)
+    {
+        if ((openmode & 0x200) == 0)
+        {
+            if (alis.fp != NULL)
+            {
+                if ((openmode & 0x800) != 0)
+                {
+                    fread(alis.buffer, 0xc, 1, alis.fp);
+                    if (((u32 *)(alis.buffer))[0] == 0x50423630)
+                    {
+                        alis.typepack = 0xa0;
+                        alis.wordpack = 0;
+                        alis.longpack = ((u32 *)(alis.buffer))[1];
+                    }
+                    else if (((u32 *)(alis.buffer))[0] == 0x50573630)
+                    {
+                        alis.typepack = 0xa0;
+                        alis.wordpack = 1;
+                        alis.longpack = ((u32 *)(alis.buffer))[1];
+                    }
+                }
+            }
+        }
+    }
+    
+    return alis.fp;
+}

@@ -951,24 +951,30 @@ time_t sys_get_time(void) {
 }
 
 u16 sys_get_model(void) {
-    // TODO: make it configureable?
-    debug(EDebugInfo, "SIMULATED: %s", __FUNCTION__);
-    // 0x456 = Atari STe / 1MB / Lowrez
-    // 0x3f2 = Atari ST / 1MB / Lowrez
+
+    // 1010 = Atari ST / 1MB / lowrez
+    // 1110 = Atari STe / 1MB / lowrez
+    // 1111 = Atari STe / 1MB / mono
     
     // on PC, there are only 4 correct values (mono, cga, ega, vga?)
-    // 0x7d0 + 0, 0x7d0 + 1, 0x7d0 + 2, 0x7d0 + 4
+    // 2000 + [0 - 4]
     
     // TODO: find all values
     switch (alis.platform.kind) {
             
-        case EPlatformAmiga:        return 0xbb8;
-        case EPlatformAmigaAGA:     return 0x1770;
-        case EPlatformAtari:        return 0x456;
-        case EPlatformMac:
-        case EPlatformFalcon:       return 0x1388;
-        case EPlatformPC:           return 0x7d4; // (I2 7d0 - 7d4, I3 0x7ee - 7f2)
-        default:                    return 0x456;
+        case EPlatformAtari:        return 1110;
+        case EPlatformPC:           return 2000;
+        case EPlatformAmiga:        return 3000;
+        case EPlatformMac:          return 4000;
+        case EPlatformFalcon:       return 5000;
+        case EPlatformAmigaAGA:     return 6000;
+            
+        // TODO: find correct values
+        // case EPlatformAmstradCPC:   return 4000;
+        // case EPlatform3DO:          return 4000;
+        // case EPlatformJaguar:       return 4000;
+            
+        default:                    return 4000;
     };
 }
 
