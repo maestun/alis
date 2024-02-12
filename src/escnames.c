@@ -82,7 +82,10 @@ void copenfilm(void) {
         off_t size = st.st_size;
         
         addr = malloc(size);
-        fread(addr, size, 1, alis.fp);
+        if (addr)
+        {
+            fread(addr, size, 1, alis.fp);
+        }
     }
     
     bfilm.addr1 = addr;

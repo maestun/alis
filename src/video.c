@@ -315,9 +315,9 @@ void fli_palette(u8 *addr)
         u8 *ptr = mpalet + 3 * index;
         for (int c = 0; c < len; c++)
         {
-            ptr[0] = *(addr) * 2; addr++;
-            ptr[1] = *(addr) * 2; addr++;
-            ptr[2] = *(addr) * 2; addr++;
+            ptr[0] = *(addr) << 2; addr++;
+            ptr[1] = *(addr) << 2; addr++;
+            ptr[2] = *(addr) << 2; addr++;
             ptr += 3;
         }
         

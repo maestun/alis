@@ -219,7 +219,7 @@ void topalette(u8 *paldata, s32 duration)
         {
             palc = 0;
             u8 offset = paldata[2];
-            memcpy(atpalet + (offset * 3), paldata + 4, colors * 3);
+            memcpy(atpalet + (offset * 3), paldata + 4, (1 + colors) * 3);
         }
     }
     

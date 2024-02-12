@@ -36,6 +36,7 @@ static sPlatform platforms[] = {
     { .kind = EPlatformPC,          .uid = EGameUnknown, .version = 20, .desc = "MS/DOS",                       .ext = "IO", .ram_sz = 0x400000, .video_ram_sz = 0xfa00,  .width = 320, .height = 200, .bpp = 8,  .is_little_endian = 1, .path = "" },
     { .kind = EPlatformAmstradCPC,  .uid = EGameUnknown, .version = 20, .desc = "Amstrad CPC",                  .ext = "??", .ram_sz = 0x20000,  .video_ram_sz = 0x3e80,  .width = 320, .height = 200, .bpp = 2,  .is_little_endian = 1, .path = "" },
     { .kind = EPlatform3DO,         .uid = EGameUnknown, .version = 20, .desc = "3DO Interactive Multiplayer",  .ext = "3O", .ram_sz = 0x200000, .video_ram_sz = 0x6c000, .width = 384, .height = 288, .bpp = 24, .is_little_endian = 1, .path = "" },
+    { .kind = EPlatformJaguar,      .uid = EGameUnknown, .version = 20, .desc = "Atari Jaguar",                 .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width = 320, .height = 200, .bpp = 24, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformUnknown,     .uid = EGameUnknown, .version = 20, .desc = "Unknown",                      .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width =   0, .height =   0, .bpp = 0,  .is_little_endian = 0, .path = "" },
 };
 
