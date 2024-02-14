@@ -358,6 +358,8 @@ void alis_init(sPlatform platform) {
     alis.script = alis.main;
     alis.basemain = alis.main->vram_org;
     
+    alis.desmouse = NULL;
+    
     gettimeofday(&alis.time, NULL); // TODO: remove system dependencies
 }
 

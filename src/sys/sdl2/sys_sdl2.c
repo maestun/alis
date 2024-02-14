@@ -26,6 +26,7 @@
 #include "audio.h"
 #include "channel.h"
 #include "image.h"
+#include "mem.h"
 #include "utils.h"
 
 #include "emu2149.h"
@@ -52,6 +53,7 @@ SDL_Window *    _window;
 SDL_Event       _event;
 Uint32 *        _pixels;
 SDL_Texture *   _texture;
+SDL_Cursor *    _cursor;
 float           _scale = 2;
 float           _aspect_ratio = 1.2;
 float           _scaleX;
@@ -88,12 +90,15 @@ void sys_init(void) {
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
-    
+    SDL_RenderSetLogicalSize(_renderer, 640, 480);
+
     _pixels = malloc(_width * _height * sizeof(*_pixels));
     memset(_pixels, 0, _width * _height * sizeof(*_pixels));
     
     _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, _width, _height);
     SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
+    
+    _cursor = NULL;
     
     SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
 
@@ -165,8 +170,14 @@ u8 sys_poll_event(void) {
 			{
 				_scaleX = (float)_event.window.data1 / _width;
 				_scaleY = (float)_event.window.data2 / _height;
+                
+                if (_scaleX * 1.2 > _scaleY)
+                    _scaleX = _scaleY / 1.2;
 				
-				//SDL_RenderSetScale(_renderer, _scaleX, _scaleY);
+                else if (_scaleY > _scaleX * 1.2)
+                    _scaleY = _scaleX * 1.2;
+                
+                sys_update_cursor();
 			}
 		}
     };
@@ -342,9 +353,10 @@ void sys_render(pixelbuf_t buffer) {
 
     if (flinepal == 0)
     {
+        int index;
         for (int px = 0; px < buffer.w * buffer.h; px++)
         {
-            int index = buffer.data[px];
+            index = buffer.data[px];
             _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
         }
     }
@@ -364,12 +376,13 @@ void sys_render(pixelbuf_t buffer) {
             palentry += 2 + (sizeof(u8 *) >> 1);
             s16 y2 = palentry[0] == 0xff ? 200 : min(palentry[1], 200);
 
+            int index;
             for (int y = y1; y < y2; y++)
             {
                 s32 px = y * buffer.w;
                 for (int x = 0; x < buffer.w; x++, px++)
                 {
-                    int index = buffer.data[px];
+                    index = buffer.data[px];
                     _pixels[px] = (u32)(0xff000000 + (palette[index * 3 + 0] << 16) + (palette[index * 3 + 1] << 8) + (palette[index * 3 + 2] << 0));
                 }
             }
@@ -771,8 +784,159 @@ void sys_set_mouse(u16 x, u16 y) {
 
 void sys_enable_mouse(u8 enable) {
     _mouse.enabled = enable;
+    
+    if (_mouse.enabled)
+        sys_update_cursor();
+    else
+        alis.desmouse = NULL;
+    
+    SDL_ShowCursor(_mouse.enabled);
 }
 
+void sys_update_cursor(void) {
+    
+    if (alis.desmouse == NULL)
+        return;
+    
+    u8 type = alis.desmouse[0];
+    u16 width = read16(alis.desmouse + 2) + 1;
+    u16 height = read16(alis.desmouse + 4) + 1;
+    
+    u32 pixels[width * height];
+
+    switch (type)
+    {
+        case 0x00:
+        case 0x02:
+        {
+            u8 *palette = host.pixelbuf.palette;
+
+            if (flinepal)
+            {
+                s16 *palentry = firstpal;
+
+                for (int i = 0; i < 3; i++)
+                {
+                    s16 unk1 = palentry[0];
+                    if (unk1 == 0xff)
+                        break;
+
+                    palette = *(u8 **)&(palentry[2]);
+                    palentry += 2 + (sizeof(u8 *) >> 1);
+                }
+            }
+            
+            // ST image
+            
+            u8 color;
+            u8 clear = type == 0 ? 0 : -1;
+            
+            u8 *at = alis.desmouse + 6;
+
+            s32 px = 0;
+            for (s32 h = 0; h < height; h++)
+            {
+                for (s32 w = 0; w < width; w++, px++)
+                {
+                    s16 wh = w / 2;
+                    color = *(at + wh + h * (width / 2));
+                    color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                    pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (palette[color * 3 + 0] << 16) + (palette[color * 3 + 1] << 8) + (palette[color * 3 + 2] << 0));
+                }
+            }
+            
+            break;
+        }
+            
+        case 0x10:
+        case 0x12:
+        {
+            // 4 bit image
+            u8 palidx = alis.desmouse[6];
+            u8 clear = alis.desmouse[0] == 0x10 ? alis.desmouse[7] : -1;
+            u8 *at = alis.desmouse + 8;
+            u8 color;
+
+            s32 px = 0;
+            for (s32 h = 0; h < width; h++)
+            {
+                for (s32 w = 0; w < height; w++, px++)
+                {
+                    s16 wh = w / 2;
+                    color = *(at + wh + h * (width / 2));
+                    color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                    int index = palidx + color;
+                    pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (host.pixelbuf.palette[index * 3 + 0] << 16) + (host.pixelbuf.palette[index * 3 + 1] << 8) + (host.pixelbuf.palette[index * 3 + 2] << 0));
+                }
+            }
+            break;
+        }
+
+            
+        case 0x14:
+        case 0x16:
+        {
+            // 8 bit image
+            
+            u8 color;
+
+            // Ishar 1 & 3
+            u8 clear = 0;
+
+            if (alis.platform.uid == EGameIshar_2)
+            {
+                // Ishar 2
+                clear = alis.desmouse[0] == 0x14 ? alis.desmouse[7] : -1;
+            }
+            
+            u8 *at = alis.desmouse + 8;
+
+            for (int px = 0; px < width * height; px++)
+            {
+                color = at[px];
+                pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (host.pixelbuf.palette[color * 3 + 0] << 16) + (host.pixelbuf.palette[color * 3 + 1] << 8) + (host.pixelbuf.palette[color * 3 + 2] << 0));
+            }
+
+            break;
+        }
+            
+        default:
+        {
+            sleep(0);
+            break;
+        }
+    };
+    
+    SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(pixels, width, height, 32, width * 4, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+    if (!surface)
+    {
+        printf("Failed to create mouse surface: %s\n", SDL_GetError());
+        return;
+    }
+    
+    SDL_Surface *scaledSurface = SDL_CreateRGBSurface(0, width * _scaleX, height * _scaleY, surface->format->BitsPerPixel, surface->format->Rmask, surface->format->Gmask, surface->format->Bmask, surface->format->Amask);
+    if (SDL_BlitScaled(surface, NULL, scaledSurface, NULL) < 0)
+    {
+        printf("Failed to scale mouse cursor: %s\n", SDL_GetError());
+
+        SDL_FreeSurface(scaledSurface);
+        scaledSurface = NULL;
+    }
+    else
+    {
+        SDL_FreeSurface(surface);
+
+        surface = scaledSurface;
+        width = surface->w;
+        height = surface->h;
+    }
+    
+    _cursor = SDL_CreateColorCursor(surface, 0, 0);
+    
+    SDL_FreeSurface(surface);
+    
+    SDL_SetCursor(_cursor);
+}
 
 u8 io_inkey(void)
 {

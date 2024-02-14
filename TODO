@@ -1,6 +1,7 @@
 ALIS
 - cbackstar
 - cstarring
+- update mouse cursor whenever palette changes
 
 Le Fetiche Maya
 - sidebar not displayed
@@ -21,13 +22,19 @@ Transarctica
 - wrong background color in map
 
 Ishar I
+- when entering load name, previous name is not cleared. So if we load 12345.sav and than try to load abc.sav it fail, because game attempt to load abc45.sav.
+    this is bug in original game!
 
 Ishar II
 - DOS implement FM instruments
 - FIX drawing/or palette in 256 colors
+- BG music plays after every second map segment load
 
 Ishar III
 ? giving money to officer to get city pass don't work
+    we are picking wrong entity when clicking on part of sprite that is in the same position as some soldier in the background.
+    this is bug in original game!
+    
 - crash when reading scrolls
 - ATARI/AMIGA leaving shop updates all active palettes (it shouldn't affetct linepalette)
 

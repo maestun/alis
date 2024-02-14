@@ -2367,6 +2367,7 @@ static void cdefmouse(void) {
     if (*ptr == 0 || *ptr == 0x10 || *ptr == 0x14)
     {
         alis.desmouse = ptr;
+        sys_update_cursor();
     }
 }
 

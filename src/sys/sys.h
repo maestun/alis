@@ -47,6 +47,8 @@ mouse_t sys_get_mouse(void);
 void    sys_set_mouse(u16 x, u16 y);
 void    sys_enable_mouse(u8 enable);
 
+void    sys_update_cursor(void);
+
 u8      io_inkey(void);
 u8      io_shiftkey(void);
 u8      io_joy(u8 port);
