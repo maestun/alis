@@ -481,11 +481,10 @@ void updtcoord(u32 addr)
     }
 }
 
+struct timeval  looptime;
+
 void alis_main_V2(void) {
     do {
-        
-        // TODO: rough estimate, calculate proper value for slower computers
-        usleep(2000);
         
         alis.running = sys_poll_event();
         alis.restart_loop = 0;
@@ -531,6 +530,13 @@ void alis_main_V2(void) {
                 alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
                 alis.fseq++;
                 alis_loop();
+                
+                struct timeval now;
+                while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (looptime.tv_sec * 1000000 + looptime.tv_usec) < 4000)) {
+                    usleep(500);
+                }
+
+                looptime = now;
                 
                 if (alis.restart_loop != 0)
                 {

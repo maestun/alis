@@ -166,6 +166,7 @@ void topalet(void)
         }
     }
     
+    sys_update_cursor();
     ftopal = 1;
 }
 
@@ -258,6 +259,8 @@ void topalette(u8 *paldata, s32 duration)
         memcpy(ampalet, atpalet, 768);
         ftopal = 0xff;
     }
+    
+    sys_update_cursor();
 }
 
 void toblackpal(s16 duration)
@@ -2843,10 +2846,8 @@ u32 itroutine(u32 interval, void *param)
 
 void waitframe(void) {
     
-    struct timeval now, start;
-    gettimeofday(&start, NULL);
-    
-    while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (alis.time.tv_sec * 1000000 + alis.time.tv_usec) < FRAME_TICKS * alis.ctiming /* max(2, alis.ctiming) */)) {
+    struct timeval now;
+    while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (alis.time.tv_sec * 1000000 + alis.time.tv_usec) < FRAME_TICKS * alis.ctiming)) {
         usleep(1000);
     }
 
@@ -2868,11 +2869,6 @@ void draw(void)
         phytolog();
     }
     
-    // s8 prevmouse = fremouse;
-    
-    // wait for vblank
-    // do {} while (vtiming < timing);
-    
     vtiming = 0;
     
     if (alis.fswitch != 0)
@@ -2884,27 +2880,7 @@ void draw(void)
         }
         else
         {
-//            do { } while (fremouse2 != 0);
-//
-//            fremouse ++;
-//            if (fremouse != 0)
-//            {
-//                fremouse = prevmouse;
-//            }
-//
             oldfen();
-//            fremouse2 = 1;
-//            if (fmouse != 2)
-//            {
-//                mouserase();
-//            }
-//
-//            fremouse2 = 0;
-//            fremouse = -1;
-//            if (fmouse == 0)
-//            {
-//                fmouse = -1;
-//            }
         }
 
         ptabfen = tabfen;
@@ -2922,7 +2898,6 @@ void draw(void)
     fremap = 1;
     
     s16 scnidx = screen.ptscreen;
-//    prevmouse = fremouse;
     u8 *oldphys = physic;
     
     while (scnidx != 0)
@@ -2939,18 +2914,6 @@ void draw(void)
     fremap = 0;
     if (alis.fswitch != 0)
     {
-//        do
-//        {
-//            if (switchgo == 0)
-//            {
-//                fremouse = prevmouse;
-//                fremap = 0;
-//            }
-//
-//            fremouse = prevmouse;
-//        }
-//        while (((fmouse != 0) && (-1 < fmouse)) && ((void)(fremouse = prevmouse + 1), fremouse != 0));
-//
         physic = logic;
         
         // NOTE: targhan doesn't use double buffering
@@ -2960,12 +2923,6 @@ void draw(void)
         }
         
         setphysic();
-        
-//        if ((fmouse != 0) && (-1 < fmouse))
-//        {
-//            fremouse2 = 1;
-//            fremouse = -1;
-//        }
     }
     
     sys_render(host.pixelbuf);

@@ -1,7 +1,6 @@
 ALIS
 - cbackstar
 - cstarring
-- update mouse cursor whenever palette changes
 
 Le Fetiche Maya
 - sidebar not displayed
@@ -35,7 +34,7 @@ Ishar III
     we are picking wrong entity when clicking on part of sprite that is in the same position as some soldier in the background.
     this is bug in original game!
     
-- crash when reading scrolls
+- drawing bug when reading scrolls
 - ATARI/AMIGA leaving shop updates all active palettes (it shouldn't affetct linepalette)
 
 Robinson's Requiem

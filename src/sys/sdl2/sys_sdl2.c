@@ -90,7 +90,7 @@ void sys_init(void) {
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
-    SDL_RenderSetLogicalSize(_renderer, 640, 480);
+    SDL_RenderSetLogicalSize(_renderer, 320, 240);
 
     _pixels = malloc(_width * _height * sizeof(*_pixels));
     memset(_pixels, 0, _width * _height * sizeof(*_pixels));
@@ -138,8 +138,12 @@ u8 sys_poll_event(void) {
 
     // update mouse
     u32 bt = SDL_GetMouseState(&_mouse.x, &_mouse.y);
-    _mouse.x /= _scaleX;
-    _mouse.y /= _scaleY;
+    
+    float newx, newy;
+    SDL_RenderWindowToLogical(_renderer, _mouse.x, _mouse.y, &newx, &newy);
+    
+    _mouse.x = newx;
+    _mouse.y = newy / _aspect_ratio;
     _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
     _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
     
@@ -168,14 +172,8 @@ u8 sys_poll_event(void) {
 		{
 			if (_event.window.event == SDL_WINDOWEVENT_RESIZED)
 			{
-				_scaleX = (float)_event.window.data1 / _width;
-				_scaleY = (float)_event.window.data2 / _height;
-                
-                if (_scaleX * 1.2 > _scaleY)
-                    _scaleX = _scaleY / 1.2;
-				
-                else if (_scaleY > _scaleX * 1.2)
-                    _scaleY = _scaleX * 1.2;
+                SDL_RenderGetScale(_renderer, &_scaleX, &_scaleY);
+                _scaleY *= _aspect_ratio;
                 
                 sys_update_cursor();
 			}
@@ -242,6 +240,7 @@ void sys_render(pixelbuf_t buffer) {
         SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
 
         // render
+        SDL_SetRenderDrawColor(_renderer, 255, 0, 0, 255);
         SDL_RenderClear(_renderer);
         SDL_RenderCopy(_renderer, _texture, NULL, NULL);
         SDL_RenderPresent(_renderer);

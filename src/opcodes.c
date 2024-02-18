@@ -213,7 +213,7 @@ s16 pz2;
 
 void clivin(void);
 void shrinkprog(s32 start, s32 length, u16 script_id);
-void killent(u16 d0w, u16 d5w);
+void killent(u16 entidx);
 void sviewtyp(void);
 void putval(s16 d7w);
 
@@ -809,7 +809,7 @@ static void ckill(void) {
     if (alis.varD7 < 0)
         return;
 
-     killent(alis.varD7, alis.varD5);
+     killent(alis.varD7);
 }
 
 static void cstopret(void) {
@@ -829,7 +829,7 @@ static void cexit(void) {
         return;
     }
 
-    killent(alis.varD5, alis.varD5);
+    killent(alis.varD5);
     alis.script->running = 0;
 }
 
@@ -1925,6 +1925,7 @@ static void cdefcolor(void) {
     mpalet[index + 1] = g;
     mpalet[index + 2] = b;
     
+    sys_update_cursor();
     setmpalet();
 }
 
@@ -3170,6 +3171,7 @@ static void cmovcolor(void) {
             mpalet[index * 3 + 0] = addcol(change >> 8  , mpalet[index * 3 + 0] >> 5) << 5;
         }
         
+        sys_update_cursor();
         ftopal = 0xff;
         thepalet = 0;
         defpalet = 0;
@@ -5462,58 +5464,24 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0xff, czoom, "TODO: add desc")
 };
 
-void killent(u16 killent, u16 testent)
+void killent(u16 killent)
 {
-    s32 contextsize = get_context_size();
-
-    // script
-    
-    sAlisScriptLive *killscript = ENTSCR(killent);
-    sAlisScriptLive *prevscript = alis.script;
-    
-    // NOTE: to accomodate cerasall()
-    alis.script = killscript;
-    
-    u32 script_vram = killscript->vram_org;
-
-    debug(EDebugInfo, "\n killent: [%.2x, %.6x][%.6x] \n", killent, script_vram, prevscript->vram_org);
-    debug(EDebugInfo, " killent: [%.2x, %.6x] \n", xread16(alis.atent + 4 + killent), xread32(alis.atent + killent));
-
-    u16 tent = 0;
-    u32 loop = alis.nbent;
-    for (int i = 0; i < loop; i++)
-    {
-        tent = alis.atent_ptr[i].offset;
-
-        sAlisScriptLive *s = alis.live_scripts[i];
-        if (s && s->vram_org)
-        {
-            u32 datasize = contextsize + s->data->header.w_unknown5 + s->data->header.w_unknown7;
-            s32 vramsize = s->data->header.vram_alloc_sz;
-            s32 shrinkby = datasize + vramsize;
-            
-            debug(EDebugInfo, "%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", script_vram == s->vram_org ? '*' : ' ', s->name, s->data->header.id, get_0x10_script_id(s->vram_org), xswap16(tent), s->vram_org, shrinkby);
-        }
-        else
-        {
-            debug(EDebugInfo, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
-            loop++;
-        }
-    }
-
-    if (script_vram == 0)
+    s32 vram = xread32(alis.atent + killent);
+    if (vram == 0)
     {
         alis.ferase = 0;
         return;
     }
     
+    alis.script = ENTSCR(killent);
     cerasall();
+    alis.script = ENTSCR(alis.varD5);
 
-    u32 datasize = contextsize + killscript->data->header.w_unknown5 + killscript->data->header.w_unknown7;
-    s32 vramsize = killscript->data->header.vram_alloc_sz;
-    s32 shrinkby = datasize + vramsize;
-
-    u32 target = script_vram - datasize;
+    s32 shrinkby = xread32(vram - 0x14);
+    s32 contextsize = get_context_size();
+    u32 datasize = xread16(shrinkby + 0x16) + xread16(shrinkby + 0x12) + contextsize;
+    u32 target = vram - datasize;
+    shrinkby = xread16(shrinkby + 0x14) + datasize;
     u32 source = target + shrinkby;
 
     // copy work mem to freed space
@@ -5527,76 +5495,45 @@ void killent(u16 killent, u16 testent)
     while (source < alis.finent);
 
     alis.finent -= shrinkby;
-
-    // change work addresses of next scripts to match new locations
     
     u16 curent = 0;
     u16 prevent = 0;
     u16 nextent;
-    
-    s32 vram_org = killscript->vram_org;
 
-    do
+    while (true)
     {
         nextent = xread16(alis.atent + 4 + prevent);
         if (killent == nextent)
         {
             curent = prevent;
         }
-
-        prevent = nextent;
         
-        sAlisScriptLive *curscript = ENTSCR(nextent);
-        if (vram_org <= curscript->vram_org)
+        if (nextent == 0)
         {
+            break;
+        }
+        
+        prevent = nextent;
+        if (vram <= xread32(alis.atent + nextent))
+        {
+            sAlisScriptLive *curscript = ENTSCR(nextent);
             curscript->vram_org -= shrinkby;
-            xsub32(alis.atent + nextent, shrinkby);
+            xwrite32(alis.atent + nextent, xread32(alis.atent + nextent) - shrinkby);
         }
     }
-    while (nextent);
 
     xwrite16(alis.atent + curent + 4, xread16(alis.atent + 4 + killent));
     xwrite16(alis.atent + killent + 4, alis.dernent);
     xwrite32(alis.atent + killent, 0);
-
-    killscript->vram_org = 0;
-
     alis.dernent = killent;
     alis.nbent --;
 
     // if we deleted currently running script, set previous script and restart loop
-    if (testent == killent)
+    if (alis.varD5 == killent)
     {
         alis.varD5 = curent;
         alis.restart_loop = 1;
         cstop();
-    }
-    else
-    {
-        alis.script = prevscript;
-    }
-
-    debug(EDebugInfo, "\n");
-
-    loop = alis.nbent;
-    for (int i = 0; i < loop; i++)
-    {
-        tent = alis.atent_ptr[i].offset;
-
-        sAlisScriptLive *s = alis.live_scripts[i];
-        if (s && s->vram_org)
-        {
-            u32 datasize = contextsize + s->data->header.w_unknown5 + s->data->header.w_unknown7;
-            s32 vramsize = s->data->header.vram_alloc_sz;
-            s32 shrinkby = datasize + vramsize;
-            
-            debug(EDebugInfo, "%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", ' ', s->name, s->data->header.id, get_0x10_script_id(s->vram_org), xswap16(tent), s->vram_org, shrinkby);
-        }
-        else
-        {
-            debug(EDebugInfo, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
-            loop++;
-        }
     }
 }
 
@@ -5693,7 +5630,7 @@ void shrinkprog(s32 start, s32 length, u16 id)
 
             if (id == get_0x10_script_id(script->vram_org))
             {
-                killent(entidx, alis.varD5);
+                killent(entidx);
                 entidx = prevent; //alis.varD5;
                 debug(EDebugInfo, "removed");
             }
