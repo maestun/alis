@@ -73,14 +73,14 @@ void set_scr_state(u32 scridx, s8 val)           { xwrite8(alis.basemain + scrid
 s8  get_scr_numelem(u32 scridx)                  { return xread8(alis.basemain + scridx + 0x1); }
 void set_scr_numelem(u32 scridx, s8 val)         { xwrite8(alis.basemain + scridx + 0x1, val); }
 
-s16 get_scr_screen_id(u32 scridx)                { return xread16(alis.basemain + scridx + 0x2); }
-void set_scr_screen_id(u32 scridx, s16 val)      { xwrite16(alis.basemain + scridx + 0x2, val); }
+u16 get_scr_screen_id(u32 scridx)                { return xread16(alis.basemain + scridx + 0x2); }
+void set_scr_screen_id(u32 scridx, u16 val)      { xwrite16(alis.basemain + scridx + 0x2, val); }
 
-s16 get_scr_to_next(u32 scridx)                  { return xread16(alis.basemain + scridx + 0x4); }
-void set_scr_to_next(u32 scridx, s16 val)        { xwrite16(alis.basemain + scridx + 0x4, val); }
+u16 get_scr_to_next(u32 scridx)                  { return xread16(alis.basemain + scridx + 0x4); }
+void set_scr_to_next(u32 scridx, u16 val)        { xwrite16(alis.basemain + scridx + 0x4, val); }
 
-s16 get_scr_link(u32 scridx)                     { return xread16(alis.basemain + scridx + 0x6); }
-void set_scr_link(u32 scridx, s16 val)           { xwrite16(alis.basemain + scridx + 0x6, val); }
+u16 get_scr_link(u32 scridx)                     { return xread16(alis.basemain + scridx + 0x6); }
+void set_scr_link(u32 scridx, u16 val)           { xwrite16(alis.basemain + scridx + 0x6, val); }
 
 s16 get_scr_unknown0x08(u32 scridx)              { return xread16(alis.basemain + scridx + 0x8); }
 void set_scr_unknown0x08(u32 scridx, s16 val)    { xwrite16(alis.basemain + scridx + 0x8, val); }

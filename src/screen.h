@@ -58,14 +58,14 @@ void set_scr_state(u32 scridx, s8 val);
 s8  get_scr_numelem(u32 scridx);
 void set_scr_numelem(u32 scridx, s8 val);
 
-s16 get_scr_screen_id(u32 scridx);
-void set_scr_screen_id(u32 scridx, s16 val);
+u16 get_scr_screen_id(u32 scridx);
+void set_scr_screen_id(u32 scridx, u16 val);
 
-s16 get_scr_to_next(u32 scridx);
-void set_scr_to_next(u32 scridx, s16 val);
+u16 get_scr_to_next(u32 scridx);
+void set_scr_to_next(u32 scridx, u16 val);
 
-s16 get_scr_link(u32 scridx);
-void set_scr_link(u32 scridx, s16 val);
+u16 get_scr_link(u32 scridx);
+void set_scr_link(u32 scridx, u16 val);
 
 s16 get_scr_unknown0x08(u32 scridx);
 void set_scr_unknown0x08(u32 scridx, s16 val);

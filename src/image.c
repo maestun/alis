@@ -166,8 +166,9 @@ void topalet(void)
         }
     }
     
-    sys_update_cursor();
     ftopal = 1;
+
+    set_update_cursor();
 }
 
 void topalette(u8 *paldata, s32 duration)
@@ -224,13 +225,14 @@ void topalette(u8 *paldata, s32 duration)
         }
     }
     
-    if (image.fdarkpal)
+    if (image.fdarkpal && thepalet == 0)
     {
         u16 *dkpalptr = (u16 *)image.dkpalet;
+        s16 colors = alis.platform.bpp <= 4 ? 16 : 256;
 
         s16 to = 0;
-
-        for (s32 i = 0; i < 256; i++, dkpalptr += 3)
+        
+        for (s32 i = 0; i < colors; i++, dkpalptr += 3)
         {
             atpalet[to++] *= (dkpalptr[0] / 256.0);
             atpalet[to++] *= (dkpalptr[1] / 256.0);
@@ -260,7 +262,7 @@ void topalette(u8 *paldata, s32 duration)
         ftopal = 0xff;
     }
     
-    sys_update_cursor();
+    set_update_cursor();
 }
 
 void toblackpal(s16 duration)
@@ -461,8 +463,8 @@ void log_sprites(void)
     
     debug(EDebugInfo, "  list\n");
 
-    s16 curidx;
-    s16 scsprite = screen.ptscreen;
+    u16 curidx;
+    u16 scsprite = screen.ptscreen;
     
     while (scsprite != 0)
     {
@@ -472,7 +474,7 @@ void log_sprites(void)
 
             u8 *bitmap = 0;
             sSprite *sprite;
-            s16 lastidx = 0;
+            u16 lastidx = 0;
             for (curidx = get_scr_screen_id(scsprite); curidx != 0; curidx = SPRITE_VAR(curidx)->link)
             {
                 lastidx = curidx;
@@ -555,8 +557,8 @@ u8 verifyintegrity(void)
     
     debug(EDebugVerbose, "  list\n");
 
-    s16 previdx = 0;
-    s16 curidx = get_0x18_unknown(alis.script->vram_org);
+    u16 previdx = 0;
+    u16 curidx = get_0x18_unknown(alis.script->vram_org);
     while (curidx != 0)
     {
         cursprvar = SPRITE_VAR(curidx);
@@ -594,7 +596,7 @@ u8 verifyintegrity(void)
 void inisprit(void)
 {
     image.debsprit = 0;
-    image.finsprit = 0x7fff;
+    image.finsprit = 0xffff;
 
     s32 cursprit = image.debsprit;
     image.tvsprite = 0x8000;
@@ -620,7 +622,7 @@ void inisprit(void)
     sprite->to_next = 0;
 }
 
-u8 searchelem(s16 *curidx, s16 *previdx)
+u8 searchelem(u16 *curidx, u16 *previdx)
 {
     *curidx = get_0x18_unknown(alis.script->vram_org);
     if (*curidx != 0)
@@ -659,7 +661,7 @@ u8 searchelem(s16 *curidx, s16 *previdx)
     return 0;
 }
 
-s8 searchtete(s16 *curidx, s16 *previdx)
+s8 searchtete(u16 *curidx, u16 *previdx)
 {
     *previdx = 0;
     *curidx = get_0x18_unknown(alis.script->vram_org);
@@ -688,13 +690,13 @@ s8 searchtete(s16 *curidx, s16 *previdx)
     return 0;
 }
 
-u8 testnum(s16 *curidx)
+u8 testnum(u16 *curidx)
 {
     sSprite *cursprvar = SPRITE_VAR(*curidx);
     return (cursprvar != NULL && cursprvar->screen_id == get_0x16_screen_id(alis.script->vram_org) && cursprvar->numelem == image.numelem) ? 1 : 0;
 }
 
-u8 nextnum(s16 *curidx, s16 *previdx)
+u8 nextnum(u16 *curidx, u16 *previdx)
 {
     *previdx = *curidx;
     *curidx = SPRITE_VAR(*curidx)->to_next;
@@ -702,14 +704,14 @@ u8 nextnum(s16 *curidx, s16 *previdx)
     return (cursprvar != NULL && cursprvar->screen_id == get_0x16_screen_id(alis.script->vram_org) && cursprvar->numelem == image.numelem) ? 1 : 0;
 }
 
-void createlem(s16 *curidx, s16 *previdx)
+void createlem(u16 *curidx, u16 *previdx)
 {
     sSprite *cursprvar = SPRITE_VAR(image.libsprit);
 
     if (image.libsprit != 0)
     {
-        s16 sprit = image.libsprit;
-        s16 nextsprit = cursprvar->to_next;
+        u16 sprit = image.libsprit;
+        u16 nextsprit = cursprvar->to_next;
 
         if (*previdx == 0)
         {
@@ -739,7 +741,7 @@ void createlem(s16 *curidx, s16 *previdx)
 //    VERIFYINTEGRITY;
 }
 
-void delprec(s16 elemidx)
+void delprec(u16 elemidx)
 {
     sSprite *cursprvar = SPRITE_VAR(elemidx);
     s16 scridx = cursprvar->screen_id;
@@ -749,7 +751,7 @@ void delprec(s16 elemidx)
         return;
     }
 
-    s16 spridx = get_scr_screen_id(scridx);
+    u16 spridx = get_scr_screen_id(scridx);
     sSprite *tmpsprvar = SPRITE_VAR(spridx);
     while (tmpsprvar != NULL && elemidx != tmpsprvar->link)
     {
@@ -763,7 +765,7 @@ void delprec(s16 elemidx)
     }
 }
 
-void killelem(s16 *curidx, s16 *previdx)
+void killelem(u16 *curidx, u16 *previdx)
 {
     sSprite *cursprvar = SPRITE_VAR(*curidx);
 //    sAlisScriptLive *s = ENTSCR(cursprvar->script_ent);
@@ -813,7 +815,7 @@ void killelem(s16 *curidx, s16 *previdx)
 //    VERIFYINTEGRITY;
 }
 
-void getelem(s16 *newidx, s16 *oldidx)
+void getelem(u16 *newidx, u16 *oldidx)
 {
     u8 ret = searchelem(newidx, oldidx);
     if (ret)
@@ -906,8 +908,8 @@ void putin(u16 idx)
     }
     else
     {
-        s16 newidx = 0;
-        s16 oldidx = 0;
+        u16 newidx = 0;
+        u16 oldidx = 0;
         
         if (alis.fadddes == 0)
         {
@@ -928,7 +930,7 @@ void putin(u16 idx)
         {
             getelem(&newidx, &oldidx);
         }
-        
+
         addr = adresdes(idx);
 
         sSprite *cursprvar = SPRITE_VAR(newidx);
@@ -969,8 +971,8 @@ void putin(u16 idx)
     
     if (alis.fmuldes == 0)
     {
-        s16 newidx = 0;
-        s16 oldidx = 0;
+        u16 newidx = 0;
+        u16 oldidx = 0;
 
         if (searchelem(&newidx, &oldidx) == 0)
             return;
@@ -1137,7 +1139,7 @@ s16 inilink(s16 elemidx)
     return SPRITE_VAR(elemidx)->clinking;
 }
 
-void calcfen(s16 elemidx1, s16 elemidx3)
+void calcfen(u16 elemidx1, u16 elemidx3)
 {
     if (joints == 0)
     {
@@ -1217,7 +1219,7 @@ u8 clipfen(sSprite *sprite)
     return fclip;
 }
 
-s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
+u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3)
 {
     sSprite *idx1sprvar = SPRITE_VAR(elemidx1);
     s16 newd1  =  idx1sprvar->newd;
@@ -1228,8 +1230,8 @@ s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
         image.pback = 1;
     }
 
-    s16 previdx3 = elemidx3;
-    s16 nextidx3 = SPRITE_VAR(elemidx3)->link;
+    u16 previdx3 = elemidx3;
+    u16 nextidx3 = SPRITE_VAR(elemidx3)->link;
     sSprite *idx3sprvar = NULL;
 
     while (nextidx3 != 0)
@@ -1260,7 +1262,7 @@ s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3)
     return elemidx2;
 }
 
-void tstjoints(s16 elemidx)
+void tstjoints(u16 elemidx)
 {
     sSprite *sprvar = SPRITE_VAR(elemidx);
     s16 tmpx = sprvar->newx + sprvar->width;
@@ -1311,7 +1313,7 @@ void scalaire(s16 scene, s16 *x, s16 *y, s16 *z)
     }
 }
 
-void depscreen(s16 scene, s16 elemidx)
+void depscreen(u16 scene, u16 elemidx)
 {
     set_scr_depx(scene, get_scr_depx(scene) + get_scr_unknown0x2a(scene));
     set_scr_depy(scene, get_scr_depy(scene) + get_scr_unknown0x2c(scene));
@@ -1332,7 +1334,7 @@ void depscreen(s16 scene, s16 elemidx)
     }
 }
 
-void deptopix(s16 scene, s16 elemidx)
+void deptopix(u16 scene, u16 elemidx)
 {
     if ((get_scr_numelem(scene) & 2) == 0)
     {
@@ -1592,7 +1594,7 @@ u8 *folscreen(u8 *scene)
     return scene;
 }
 
-void addlink(s16 elemidx)
+void addlink(u16 elemidx)
 {
     sSprite *elemsprvar = SPRITE_VAR(elemidx);
     if (-1 < elemsprvar->newd)
@@ -1615,7 +1617,7 @@ void addlink(s16 elemidx)
     }
 }
 
-s16 inouvlink(s16 scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
+u16 inouvlink(u16 scene, u16 elemidx1, u16 elemidx2, u16 elemidx3)
 {
     deptopix(scene, elemidx1);
     
@@ -1637,7 +1639,7 @@ s16 inouvlink(s16 scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
     return rangesprite(elemidx1, elemidx2, elemidx3);
 }
 
-s16 iremplink(s16 scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
+u16 iremplink(u16 scene, u16 elemidx1, u16 elemidx2, u16 elemidx3)
 {
     addlink(elemidx1);
     
@@ -1667,7 +1669,7 @@ s16 iremplink(s16 scene, s16 elemidx1, s16 elemidx2, s16 elemidx3)
     return rangesprite(elemidx1, elemidx2, elemidx3);
 }
 
-s16 iefflink(s16 elemidx1, s16 elemidx2)
+u16 iefflink(u16 elemidx1, u16 elemidx2)
 {
     addlink(elemidx1);
 
@@ -1725,7 +1727,7 @@ void clipback(void)
     image.cback = -1;
 }
 
-void drawmap(sSprite *sprite, uint mapaddr)
+void drawmap(sSprite *sprite, u32 mapaddr)
 {
     s32 vram = xread32(xread16(mapaddr - 0x24) + alis.atent);
     if (vram != 0)
@@ -2105,7 +2107,8 @@ void destofen(sSprite *sprite)
             // ST image
             
             clear = bitmap[0] == 0 ? 0 : -1;
-            
+            // NOTE: values for ST ishar 3
+            palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
             at = bitmap + 6;
             
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
@@ -2119,7 +2122,7 @@ void destofen(sSprite *sprite)
                     if (color != clear)
                     {
                         tgt = logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                        *tgt = color;
+                        *tgt = color;// + palidx;
                     }
                 }
             }
@@ -2257,10 +2260,10 @@ void fentotv(void)
     trsfen(logic, physic);
 }
 
-void fenetre(s16 scene, s16 elemidx1, s16 elemidx3)
+void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
 {
-    s16 tmpidx;
-    s16 scridx;
+    u16 tmpidx;
+    u16 scridx;
     sSprite *sprite;
 
     if ((get_scr_state(scene) & 0x40) != 0)
@@ -2524,14 +2527,14 @@ void scrolpage(void)
 }
 
 
-void affiscr(s16 scene, s16 elemidx3)
+void affiscr(u16 scene, u16 elemidx3)
 {
     s8 state;
-    s16 elemidx1;
-    s16 elemidx2;
-    s16 tmpidx1;
-    s16 tmpidx2;
-    s16 tmpidx3;
+    u16 elemidx1;
+    u16 elemidx2;
+    u16 tmpidx1;
+    u16 tmpidx2;
+    u16 tmpidx3;
     u8 issprit;
     u8 isback;
     
@@ -2904,7 +2907,7 @@ void draw(void)
     {
         if ((get_scr_state(scnidx) & 0x40) == 0)
         {
-            s16 sprite3 = get_scr_screen_id(scnidx);
+            u16 sprite3 = get_scr_screen_id(scnidx);
             affiscr(scnidx, sprite3);
         }
         

@@ -1,6 +1,7 @@
 ALIS
 - cbackstar
 - cstarring
+- NOTE: Silmarils are drawing UI and game window to separate logic screens. On 4 bit platforms we can easily use separate palettes for each screen to have true 32 color versions
 
 Le Fetiche Maya
 - sidebar not displayed
@@ -21,21 +22,18 @@ Transarctica
 - wrong background color in map
 
 Ishar I
-- when entering load name, previous name is not cleared. So if we load 12345.sav and than try to load abc.sav it fail, because game attempt to load abc45.sav.
+- BG music plays after every second map segment load
+x when entering load name, previous name is not cleared. So if we load 12345.sav and than try to load abc.sav it fail, because game attempt to load abc45.sav.
     this is bug in original game!
 
 Ishar II
-- DOS implement FM instruments
-- FIX drawing/or palette in 256 colors
 - BG music plays after every second map segment load
+- DOS implement FM instruments
 
 Ishar III
-? giving money to officer to get city pass don't work
+x giving money to officer to get city pass don't work
     we are picking wrong entity when clicking on part of sprite that is in the same position as some soldier in the background.
     this is bug in original game!
-    
-- drawing bug when reading scrolls
-- ATARI/AMIGA leaving shop updates all active palettes (it shouldn't affetct linepalette)
 
 Robinson's Requiem
 - cavtstmov

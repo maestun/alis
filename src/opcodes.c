@@ -938,8 +938,8 @@ static void cputnat(void) {
 }
 
 static void cerase(void) {
-    s16 curidx = 0;
-    s16 previdx = 0;
+    u16 curidx = 0;
+    u16 previdx = 0;
 
     if (searchtete(&curidx, &previdx))
     {
@@ -964,16 +964,16 @@ static void cerasen(void) {
     readexec_opername_saveD7();
     image.numelem = alis.varD7;
     
-    s16 curidx = 0;
-    s16 previdx = 0;
+    u16 curidx = 0;
+    u16 previdx = 0;
 
     while (1)
     {
-        u8 ret = searchelem((s16*)&curidx, (s16*)&previdx);
+        u8 ret = searchelem(&curidx, &previdx);
         if (ret == 0)
             break;
         
-        killelem((s16*)&curidx, (s16*)&previdx);
+        killelem(&curidx, &previdx);
     }
     
     alis.ferase = 0;
@@ -1012,11 +1012,11 @@ static void cclosesc(void) {
 }
 
 static void cerasall(void) {
-    s16 tmpidx = 0;
-    s16 curidx = get_0x18_unknown(alis.script->vram_org);
+    u16 tmpidx = 0;
+    u16 curidx = get_0x18_unknown(alis.script->vram_org);
     while (curidx)
     {
-        killelem((s16*)&curidx, (s16*)&tmpidx);
+        killelem(&curidx, &tmpidx);
     }
     
     alis.ferase = 0;
@@ -1925,8 +1925,8 @@ static void cdefcolor(void) {
     mpalet[index + 1] = g;
     mpalet[index + 2] = b;
     
-    sys_update_cursor();
     setmpalet();
+    set_update_cursor();
 }
 
 static void ctiming(void) {
@@ -2368,7 +2368,7 @@ static void cdefmouse(void) {
     if (*ptr == 0 || *ptr == 0x10 || *ptr == 0x14)
     {
         alis.desmouse = ptr;
-        sys_update_cursor();
+        set_update_cursor();
     }
 }
 
@@ -3171,10 +3171,11 @@ static void cmovcolor(void) {
             mpalet[index * 3 + 0] = addcol(change >> 8  , mpalet[index * 3 + 0] >> 5) << 5;
         }
         
-        sys_update_cursor();
         ftopal = 0xff;
         thepalet = 0;
         defpalet = 0;
+
+        set_update_cursor();
     }
 }
 
@@ -3734,11 +3735,11 @@ static void ccancel(void) {
 static void ccancall(void) {
     alis.ferase = 1;
     
-    s16 tmpidx = 0;
-    s16 curidx = get_0x18_unknown(alis.script->vram_org);
+    u16 tmpidx = 0;
+    u16 curidx = get_0x18_unknown(alis.script->vram_org);
     while (curidx)
     {
-        killelem((s16*)&curidx, (s16*)&tmpidx);
+        killelem(&curidx, &tmpidx);
     }
     
     alis.ferase = 0;
@@ -4142,8 +4143,8 @@ void putmap(s16 spridx, s32 bitmap)
     
     if (alis.fmuldes == 0)
     {
-        s16 newidx;
-        s16 oldidx;
+        u16 newidx;
+        u16 oldidx;
 
         if (!searchelem(&newidx, &oldidx))
         {
@@ -4201,8 +4202,8 @@ static void cputmap(void) {
     xwrite16(mapram - 0x22, (s16)uVar2);
     alis.fmuldes = 0;
     
-    s16 newidx = 0;
-    s16 oldidx = 0;
+    u16 newidx = 0;
+    u16 oldidx = 0;
     if (!searchelem(&newidx, &oldidx))
     {
         createlem(&newidx, &oldidx);

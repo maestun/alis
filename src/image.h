@@ -121,12 +121,12 @@ extern u8 *sprit_mem;
 
 void inisprit(void);
 
-void createlem(s16 *curidx, s16 *previdx);
-u8 searchelem(s16 *curidx, s16 *previdx);
-s8 searchtete(s16 *curidx, s16 *previdx);
-void killelem(s16 *curidx, s16 *previdx);
-u8 testnum(s16 *curidx);
-u8 nextnum(s16 *curidx, s16 *previdx);
+void createlem(u16 *curidx, u16 *previdx);
+u8 searchelem(u16 *curidx, u16 *previdx);
+s8 searchtete(u16 *curidx, u16 *previdx);
+void killelem(u16 *curidx, u16 *previdx);
+u8 testnum(u16 *curidx);
+u8 nextnum(u16 *curidx, u16 *previdx);
 
 void put(u16 idx);
 void put_char(s8 character);
@@ -149,7 +149,7 @@ void setmpalet(void);
 void setlinepalet(void);
 
 s16 debprotf(s16 d2w);
-s16 rangesprite(s16 elemidx1, s16 elemidx2, s16 elemidx3);
+u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3);
 
 void valtostr(char *string, s16 value);
 

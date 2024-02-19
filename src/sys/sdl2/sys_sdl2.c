@@ -54,6 +54,7 @@ SDL_Event       _event;
 Uint32 *        _pixels;
 SDL_Texture *   _texture;
 SDL_Cursor *    _cursor;
+bool            _update_cursor;
 float           _scale = 2;
 float           _aspect_ratio = 1.2;
 float           _scaleX;
@@ -99,6 +100,7 @@ void sys_init(void) {
     SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
     
     _cursor = NULL;
+    _update_cursor = 0;
     
     SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
 
@@ -170,15 +172,21 @@ u8 sys_poll_event(void) {
         }
 		case SDL_WINDOWEVENT:
 		{
-			if (_event.window.event == SDL_WINDOWEVENT_RESIZED)
+			if (_event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
 			{
                 SDL_RenderGetScale(_renderer, &_scaleX, &_scaleY);
                 _scaleY *= _aspect_ratio;
                 
-                sys_update_cursor();
+                _update_cursor = true;
 			}
 		}
     };
+    
+    if (_update_cursor)
+    {
+        _update_cursor = false;
+        sys_update_cursor();
+    }
 
     return running;
 }
@@ -785,11 +793,16 @@ void sys_enable_mouse(u8 enable) {
     _mouse.enabled = enable;
     
     if (_mouse.enabled)
-        sys_update_cursor();
+        _update_cursor = true;
     else
         alis.desmouse = NULL;
     
     SDL_ShowCursor(_mouse.enabled);
+}
+
+void set_update_cursor(void) {
+    
+    _update_cursor = true;
 }
 
 void sys_update_cursor(void) {
