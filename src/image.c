@@ -1412,6 +1412,11 @@ void waitphysic(void)
 
 void trsfen(u8 *src, u8 *tgt)
 {
+    if (fenx2 > 320 && feny2 > 200)
+    {
+        return;
+    }
+    
     src += fenx1 + feny1 * 320;
     tgt += fenx1 + feny1 * 320;
     
@@ -1693,8 +1698,6 @@ u8 fdoland = 0;
 void clrfen(void)
 {
     s16 tmpx = fenx2 - fenx1;
-    // s16 tmpy = feny2 - feny1;
-    
     for (s16 y = feny1; y < feny2; y++)
     {
         memset(physic + fenx1 + y * 320, 0, tmpx);
@@ -2021,7 +2024,7 @@ void destofen(sSprite *sprite)
     if (xpos2 < clipx1)
         return;
 
-    if (ypos2 < clipx1)
+    if (ypos2 < clipy1)
         return;
 
     blocx1 = posx1;
@@ -2133,7 +2136,7 @@ void destofen(sSprite *sprite)
         case 0x10:
         case 0x12:
         {
-            if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameBostonBombClub))
+            if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameBostonBombClub || alis.platform.uid == EGameMadShow))
             {
                 // 5 bit image
                 

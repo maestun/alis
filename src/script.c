@@ -320,7 +320,7 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
 
         // convert images if needed
         
-        if (alis.platform.kind != EPlatformPC)
+        if (alis.platform.kind == EPlatformAtari)
         {
             u8 pixels[16];
             
@@ -354,6 +354,52 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
                         {
                             bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
                         }
+                    }
+                }
+            }
+        }
+        else if (alis.platform.kind == EPlatformAmiga && alis.platform.uid == EGameMadShow)
+        {
+            s32 sprites = read16(data + l + 4);
+            
+            for (s32 i = 0; i < sprites; i++)
+            {
+                s32 a = read32(data + l) + l + i * 4;
+                u32 at = read32(data + a) + a;
+                u8 *bitmap = data + at;
+                
+                if (bitmap[0] == 0 || bitmap[0] == 2)
+                {
+                    u16 width = read16(bitmap + 2) + 1;
+                    u16 height = read16(bitmap + 4) + 1;
+                    
+                    u8 temp[width * height];
+                    
+                    at = 6;
+                    
+                    s32 px = 0;
+                    u32 planesize = (width * height) / 8;
+                    u8 c0, c1, c2, c3;
+
+                    for (s32 h = 0; h < height; h++)
+                    {
+                        u8 *tgt = temp + (h * width);
+                        for (s32 w = 0; w < width; w++, tgt++, px++)
+                        {
+                            s32 idx = at + (w + h * width) / 8;
+                            c0 = *(bitmap + idx);
+                            c1 = *(bitmap + (idx += planesize));
+                            c2 = *(bitmap + (idx += planesize));
+                            c3 = *(bitmap + (idx += planesize));
+
+                            int bit = 7 - (w % 8);
+                            *tgt = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3;
+                        }
+                    }
+                    
+                    for (int b = 0; b < width * height / 2; b++)
+                    {
+                        bitmap[at++] = (temp[b * 2 + 0] << 4) | (temp[b * 2 + 1]);
                     }
                 }
             }
