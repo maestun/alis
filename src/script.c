@@ -313,6 +313,48 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
     debug(EDebugInfo, "\n");
     debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
+    if (alis.platform.kind == EPlatformMac)
+    {
+        data = alis.mem + script->data_org;
+        s32 l = read32(data + 0xe);
+
+        u8 pixels[16];
+        
+        s32 sprites = read16(data + l + 4);
+        
+        for (s32 i = 0; i < sprites; i++)
+        {
+            s32 a = read32(data + l) + l + i * 4;
+            u32 at = read32(data + a) + a;
+            u8 *bitmap = data + at;
+            
+            if (bitmap[0] == 0 || bitmap[0] == 2)
+            {
+                u16 width = read16(bitmap + 2) + 1;
+                u16 height = read16(bitmap + 4) + 1;
+                
+                at = 6;
+                
+                for (int b = 0; b < width * height; b+=16)
+                {
+                    memset(pixels, 0, 16);
+                    for (int c = 0; c < 8; c++)
+                    {
+                        uint32_t rot = (7 - c);
+                        uint32_t mask = 1 << rot;
+                        pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1);
+                        pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1);
+                    }
+                    
+                    for (int d = 0; d < 4; d++)
+                    {
+                        bitmap[at++] = (pixels[d * 4 + 0] << 6) | (pixels[d * 4 + 1] << 4 | pixels[d * 4 + 2] << 2) | (pixels[d * 4 + 3]);
+                    }
+                }
+            }
+        }
+    }
+    
     if ((script->type & 1) == 0)
     {
         data = alis.mem + script->data_org;
@@ -358,7 +400,7 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
                 }
             }
         }
-        else if (alis.platform.kind == EPlatformAmiga && alis.platform.uid == EGameMadShow)
+        else if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya))
         {
             s32 sprites = read16(data + l + 4);
             
@@ -688,7 +730,7 @@ sAlisScriptData * script_load(const char * script_path) {
             // read file into buffer
             // NOTE: unpacker actualy reads past loaded data, adding few bytes is easy hacky "fix"
             u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8) + 16);
-            memset(depak_buf, 0, pak_sz + 16);
+            memset(pak_buf, 0, pak_sz + 16);
             fread(pak_buf, sizeof(u8), pak_sz, fp);
 
             depak_sz = unpack_script(script_path, &depak_buf);

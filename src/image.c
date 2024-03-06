@@ -2107,25 +2107,83 @@ void destofen(sSprite *sprite)
         case 0x00:
         case 0x02:
         {
-            // ST image
-            
-            clear = bitmap[0] == 0 ? 0 : -1;
-            // NOTE: values for ST ishar 3
-            palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
-            at = bitmap + 6;
-            
-            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+            if (alis.platform.kind == EPlatformMac)
             {
-                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                // Macintosh image
+                
+                clear = bitmap[0] == 0 ? 2 : -1;
+                // NOTE: values for ST ishar 3
+                palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
+                at = bitmap + 6;
+                
+                s16 wh;
+                u8 c0, c1, c2, c3;
+                
+                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
-                    s16 wh = (flip ? (width - (w + 1)) : w) / 2;
-                    color = *(at + wh + h * (width / 2));
-                    color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                    if (color != clear)
+                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w+=4)
                     {
-                        tgt = logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                        *tgt = color;// + palidx;
+                        if (flip)
+                        {
+                            wh = (width - (w + 1)) / 4;
+                            color = *(at + wh + h * (width / 4));
+                            c0 = (color & 0b00000011);
+                            c1 = (color & 0b00001100) >> 2;
+                            c2 = (color & 0b00110000) >> 4;
+                            c3 = (color & 0b11000000) >> 6;
+                        }
+                        else
+                        {
+                            wh = w / 4;
+                            color = *(at + wh + h * (width / 4));
+                            c3 = (color & 0b00000011);
+                            c2 = (color & 0b00001100) >> 2;
+                            c1 = (color & 0b00110000) >> 4;
+                            c0 = (color & 0b11000000) >> 6;
+                        }
+
+                        if (c0 != clear) { *tgt = c0; } tgt++;
+                        if (c1 != clear) { *tgt = c1; } tgt++;
+                        if (c2 != clear) { *tgt = c2; } tgt++;
+                        if (c3 != clear) { *tgt = c3; } tgt++;
+                    }
+                }
+            }
+            else
+            {
+                // ST image
+                
+                clear = bitmap[0] == 0 ? 0 : -1;
+                // NOTE: values for ST ishar 3
+                palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
+                at = bitmap + 6;
+                
+                s16 wh;
+                u8 c0, c1;
+                
+                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                {
+                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w+=2)
+                    {
+                        if (flip)
+                        {
+                            wh = (width - (w + 1)) / 2;
+                            color = *(at + wh + h * (width / 2));
+                            c0 = (color & 0b00001111);
+                            c1 = (color & 0b11110000) >> 4;
+                        }
+                        else
+                        {
+                            wh = w / 2;
+                            color = *(at + wh + h * (width / 2));
+                            c1 = (color & 0b00001111);
+                            c0 = (color & 0b11110000) >> 4;
+                        }
+
+                        if (c0 != clear) { *tgt = c0; } tgt++;
+                        if (c1 != clear) { *tgt = c1; } tgt++;
                     }
                 }
             }
@@ -2136,7 +2194,7 @@ void destofen(sSprite *sprite)
         case 0x10:
         case 0x12:
         {
-            if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameBostonBombClub || alis.platform.uid == EGameMadShow))
+            if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameBostonBombClub || alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya || alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1 || alis.platform.uid == EGameWindsurfWilly))
             {
                 // 5 bit image
                 
