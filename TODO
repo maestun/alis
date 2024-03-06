@@ -1,4 +1,7 @@
 ALIS
+
+- use platform resolution instead of hardcoded 320 x 200
+
 - NOTE: Silmarils are drawing UI and game window to separate logic screens. On 4 bit platforms we can easily use separate palettes for each screen to have true 32 color versions
 - NOTE: script loading is wastly faster on all current platforms, some loadings screens are never displayed or just breafly flash on the screen. We can delay loading for some of those scripts to make it behave more like original.
 - cbackstar
@@ -8,17 +11,12 @@ Windsurf Willy
 - AMIGA infinite loop while decompressing 'awpres.co'
 
 Targhan
-- Mac main script is not properly executed
-- Mac add support for 2 bit graphics
-- Amiga can't unpack 'enmort.co'
-- Amiga crash when accessing samples in 'gen.co'
 - After executing targhan script no other clive is called
 
 Mad Show
 - DOS can't unpack main script
 
 Le Fetiche Maya
-- AMIGA crash in script decompression
 
 Colorado
 - palette flickering after saving at camp fire
