@@ -65,6 +65,14 @@ typedef struct {
     
     u8 *spritemem;
 
+    u8 *physic;
+    u8 *logic;
+
+    s16 logx1;
+    s16 logx2;
+    s16 logy1;
+    s16 logy2;
+
     s8 numelem;
     u8 invert_x;
 
@@ -154,3 +162,5 @@ u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3);
 void valtostr(char *string, s16 value);
 
 void log_sprites(void);
+
+void mac_update_pos(short *x,short *y);

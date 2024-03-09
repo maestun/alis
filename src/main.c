@@ -36,7 +36,7 @@ int main(int argc, const char* argv[]) {
     else {
         sPlatform *pl = pl_guess(argv[1]);
         if(pl_supported(pl)) {
-            sys_init();
+            sys_init(pl);
             alis_init(*pl);
             alis_start();
             alis_deinit();

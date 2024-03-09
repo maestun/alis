@@ -1,17 +1,15 @@
 ALIS
 
-- use platform resolution instead of hardcoded 320 x 200
-
 - NOTE: Silmarils are drawing UI and game window to separate logic screens. On 4 bit platforms we can easily use separate palettes for each screen to have true 32 color versions
 - NOTE: script loading is wastly faster on all current platforms, some loadings screens are never displayed or just breafly flash on the screen. We can delay loading for some of those scripts to make it behave more like original.
 - cbackstar
 - cstarring
 
 Windsurf Willy
-- AMIGA infinite loop while decompressing 'awpres.co'
 
 Targhan
-- After executing targhan script no other clive is called
+- ATARI after executing targhan script no other clive is called
+- ATARI/AMIGA health bar not updated (wee need to add support for direct drawing rectangles/lines/etc)
 
 Mad Show
 - DOS can't unpack main script

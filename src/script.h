@@ -196,6 +196,8 @@ void            script_guess_game(const char * script_path);
 sAlisScriptData *script_load(const char * script_path);
 void            script_unload(sAlisScriptData * script);
 
+bool            is_delay_script(char * name);
+
 sAlisScriptLive *script_live(sAlisScriptData * script);
 
 // read data from script, these will increase the virtual program counter

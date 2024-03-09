@@ -193,23 +193,32 @@ void script_guess_game(const char * script_path) {
                 alis.header.val4 = fread32(fp);
                 
                 alis.platform.uid = alis.header.val3 * alis.header.val4;
+                
+                EPxFormat px_format = EPxFormatChunky;
+                switch (alis.platform.kind)
+                {
+                    case EPlatformMac: px_format = EPxFormatSTPlanar; break;
+                    case EPlatformAtari: px_format = EPxFormatSTPlanar; break;
+                    case EPlatformAmiga: px_format = EPxFormatAmPlanar; break;
+                    default: px_format = EPxFormatChunky;
+                }
 
                 switch (alis.platform.uid)
                 {
-                    case EGameXyphoesFantasy:        strcpy(alis.platform.name, "Xyphoes Fantasy");         alis.platform.version = 0;  alis.platform.bpp = 4; alis.basemem = 0x22400; break;
-                    case EGameManhattanDealers:      strcpy(alis.platform.name, "Manhattan Dealers");       alis.platform.version = 10; alis.platform.bpp = 4; alis.basemem = 0x22400; break;
-                    case EGameMadShow:               strcpy(alis.platform.name, "Mad Show");                alis.platform.version = 11; alis.platform.bpp = 4; alis.basemem = 0x23e00; break;
+                    case EGameXyphoesFantasy:        strcpy(alis.platform.name, "Xyphoes Fantasy");         alis.platform.version = 0;  alis.platform.bpp = 4; alis.platform.dbl_buf = 0; alis.basemem = 0x22400; break;
+                    case EGameManhattanDealers:      strcpy(alis.platform.name, "Manhattan Dealers");       alis.platform.version = 10; alis.platform.bpp = 4; alis.platform.dbl_buf = 0; alis.basemem = 0x22400; break;
+                    case EGameMadShow:               strcpy(alis.platform.name, "Mad Show");                alis.platform.version = 11; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x23e00; break;
                     case EGameTarghan0:
-                    case EGameTarghan1:              strcpy(alis.platform.name, "Targhan");                 alis.platform.version = 12; alis.platform.bpp = 4; alis.basemem = 0x26000; break;
-                    case EGameWindsurfWilly:         strcpy(alis.platform.name, "Windsurf Willy");          alis.platform.version = 12; alis.platform.bpp = 4; alis.basemem = 0x25400; break;
-                    case EGameLeFeticheMaya:         strcpy(alis.platform.name, "Le Fetiche Maya");         alis.platform.version = 13; alis.platform.bpp = 4; alis.basemem = 0x25e00; break;
-                    case EGameColorado:              strcpy(alis.platform.name, "Colorado");                alis.platform.version = 13; alis.platform.bpp = 4; alis.basemem = 0x26000; break;
-                    case EGameStarblade:             strcpy(alis.platform.name, "Starblade");               alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x21400; break;
+                    case EGameTarghan1:              strcpy(alis.platform.name, "Targhan");                 alis.platform.version = 12; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x26000; break;
+                    case EGameWindsurfWilly:         strcpy(alis.platform.name, "Windsurf Willy");          alis.platform.version = 12; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x25400; break;
+                    case EGameLeFeticheMaya:         strcpy(alis.platform.name, "Le Fetiche Maya");         alis.platform.version = 13; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x25e00; break;
+                    case EGameColorado:              strcpy(alis.platform.name, "Colorado");                alis.platform.version = 13; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x26000; break;
+                    case EGameStarblade:             strcpy(alis.platform.name, "Starblade");               alis.platform.version = 20; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x21400; break;
                     case EGameStormMaster:           strcpy(alis.platform.name, "Storm Master");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1ff00; break;
                     case EGameMetalMutant:           strcpy(alis.platform.name, "Metal Mutant");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x20800; break;
                     case EGameCrystalsOfArborea0:
                     case EGameCrystalsOfArborea1:    strcpy(alis.platform.name, "Crystals Of Arborea");     alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1f300;  break;
-                    case EGameBostonBombClub:        strcpy(alis.platform.name, "Boston Bomb Club");        alis.platform.version = 21; alis.platform.bpp = 4; alis.basemem = 0x27d00;  break;
+                    case EGameBostonBombClub:        strcpy(alis.platform.name, "Boston Bomb Club");        alis.platform.version = 21; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x27d00;  break;
                     case EGameTransartica:           strcpy(alis.platform.name, "Transartica");             alis.platform.version = 22; alis.basemem = 0x21d00;  break;
                     case EGameBunnyBricks:           strcpy(alis.platform.name, "Bunny Bricks");            alis.platform.version = 21; alis.basemem = 0x22200;  break;
                     case EGameIshar_1:               strcpy(alis.platform.name, "Ishar 1");                 alis.platform.version = 20; alis.basemem = 0x20000;  break;
@@ -400,7 +409,7 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
                 }
             }
         }
-        else if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya))
+        else if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya || alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1))
         {
             s32 sprites = read16(data + l + 4);
             
@@ -786,6 +795,42 @@ void script_unload(sAlisScriptData * script) {
     // free(script);
 }
 
+bool is_delay_script(char *name) {
+    
+    if (alis.platform.uid == EGameIshar_1 && strstr(name, "auteur."))
+    {
+        alis.unload_delay = 5000000;
+        return true;
+    }
+    else if (alis.platform.uid == EGameLeFeticheMaya)
+    {
+        if (strstr(name, "abomaya."))
+        {
+            alis.load_delay = 1000000;
+        }
+        else if (strstr(name, "presente."))
+        {
+            alis.load_delay = alis.platform.kind == EPlatformPC ? 2500000 : 30000000;
+        }
+        else if (strstr(name, "sdivers."))
+        {
+            alis.load_delay = 2500000;
+        }
+
+        return true;
+    }
+    else if (alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1)
+    {
+        if (strstr(name, "gen."))
+        {
+            alis.load_delay = alis.platform.kind == EPlatformPC || alis.platform.kind == EPlatformMac ? 2500000 : 60000000;
+        }
+
+        return true;
+    }
+
+    return false;
+}
 
 // =============================================================================
 // MARK: - Script data access

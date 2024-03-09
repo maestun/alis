@@ -120,11 +120,6 @@ s16 clipl;
 s16 cliph;
 u8 fclip;
 
-u8 buffer0[320*200];
-u8 buffer1[320*200];
-
-u8 *physic = buffer0;
-u8 *logic = buffer1;
 u8 fitroutine = 0;
 u8 fphysic = 0;
 u8 fphytolog = 0;
@@ -141,10 +136,6 @@ s16 wlogx2;
 s16 wlogy1;
 s16 wlogy2;
 s16 wloglarg;
-s32 logx1 = 0;          // originx 0x0
-s32 logx2 = 0x13f; // 0x013f00c7; // dimensions 319x199
-s16 logy1 = 0;
-s16 logy2 = 0xc7;
 s16 loglarg = 0xa0; // 0x50 for st
 u8 insid = 0;
 
@@ -173,6 +164,16 @@ void topalet(void)
 
 void topalette(u8 *paldata, s32 duration)
 {
+    if (alis.platform.kind == EPlatformMac)
+    {
+        memset(atpalet, 0, 3);
+        memset(ampalet, 0, 3);
+        memset(atpalet + 3, 0xff, 768);
+        memset(ampalet + 3, 0xff, 768);
+        ftopal = 0xff;
+        return;
+    }
+    
     selpalet();
 
     s16 colors = paldata[1];
@@ -362,7 +363,7 @@ void linepal(void)
     for (int i = 0; i < 4; i++)
     {
         line = tlinepal_ptr[0];
-        if (200 < line)
+        if (alis.platform.height < line)
             break;
         
         dummy = line == 0 ? line : ((u16)(line * begline) >> 8) + endline;
@@ -393,9 +394,9 @@ void setlinepalet(void) {
         return;
     }
     
-    if (199 <= alis.varD7)
+    if (image.logy2 <= alis.varD7)
     {
-        alis.varD7 = 199;
+        alis.varD7 = image.logy2;
     }
 
     s16 *tlinepal_ptr = tlinepal;
@@ -417,7 +418,7 @@ void setlinepalet(void) {
         
         tlinepal_ptr = prevtlpal_ptr + 2;
     }
-    while (prevtlpal_ptr[0] < 200);
+    while (prevtlpal_ptr[0] < alis.platform.height);
     
     // check whether we are not using too many palettes
     if (prevtlpal_ptr - (tlinepal + 8) < 0)
@@ -601,10 +602,10 @@ void inisprit(void)
     s32 cursprit = image.debsprit;
     image.tvsprite = 0x8000;
     image.basesprite = image.debsprit + 0x8000;
-    *(s32 *)(image.spritemem + cursprit + 0x0c) = 0;
-    *(s16 *)(image.spritemem + cursprit + 0x16) = 0x13f;
-    *(s16 *)(image.spritemem + cursprit + 0x18) = 199;
-    *(s8 *) (image.spritemem + cursprit + 0x29) = 0;
+    *(s32 *)(image.spritemem + cursprit + 0x0c) = image.logx1;
+    *(s16 *)(image.spritemem + cursprit + 0x16) = image.logx2;
+    *(s16 *)(image.spritemem + cursprit + 0x18) = image.logy2;
+    *(s8 *) (image.spritemem + cursprit + 0x29) = image.logy1;
     image.backsprite = 0x000e; // 0x8028;
     image.texsprite = 0x0042; // 0x8050;
     *(s32 *)(image.spritemem + cursprit + 0x5c) = 0;
@@ -1399,6 +1400,12 @@ void deptopix(u16 scene, u16 elemidx)
         newh = read16(spritedata + 4);
         newzoomx = 0;
         newzoomy = 0;
+        
+        if (alis.platform.kind == EPlatformMac)
+        {
+            mac_update_pos(&tmpdepx, &tmpdepy);
+        }
+        
         newx = tmpdepx - (newl >> 1);
         newy = tmpdepy - (newh >> 1);
         newd = tmpdepz;
@@ -1412,15 +1419,15 @@ void waitphysic(void)
 
 void trsfen(u8 *src, u8 *tgt)
 {
-    if (fenx2 > 320 && feny2 > 200)
+    if (fenx2 > alis.platform.width && feny2 > alis.platform.height)
     {
         return;
     }
     
-    src += fenx1 + feny1 * 320;
-    tgt += fenx1 + feny1 * 320;
+    src += fenx1 + feny1 * alis.platform.width;
+    tgt += fenx1 + feny1 * alis.platform.width;
     
-    s16 skip = 320 - (fenx2 - fenx1);
+    s16 skip = alis.platform.width - (fenx2 - fenx1);
 
     for (s32 y = feny1; y < feny2; y++)
     {
@@ -1438,9 +1445,9 @@ void phytolog(void)
 {
     fenx1 = 0;
     feny1 = 0;
-    fenx2 = 0x13f;
-    feny2 = 199;
-    trsfen(physic, logic);
+    fenx2 = alis.platform.width - 1;
+    feny2 = alis.platform.height - 1;
+    trsfen(image.physic, image.logic);
 }
 
 void mouserase(void)
@@ -1504,7 +1511,7 @@ void mouserase(void)
 void tvtofen(void)
 {
     // fenx2 = fenlargw * 4 + fenx1 - 1;
-    trsfen(physic, logic);
+    trsfen(image.physic, image.logic);
 }
 
 void memfen(void)
@@ -1541,10 +1548,10 @@ void setphysic(void)
 {
     if (insid == 0)
     {
-        host.pixelbuf.data = physic;
+        host.pixelbuf.data = image.physic;
     }
 
-    bufpack = logic;
+    bufpack = image.logic;
     fphysic = 1;
 }
 
@@ -1700,7 +1707,7 @@ void clrfen(void)
     s16 tmpx = fenx2 - fenx1;
     for (s16 y = feny1; y < feny2; y++)
     {
-        memset(physic + fenx1 + y * 320, 0, tmpx);
+        memset(image.physic + fenx1 + y * alis.platform.width, 0, tmpx);
     }
 }
 
@@ -1781,8 +1788,8 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                 if (xread8(tileaddr) != 0 && (tileidx = (xread8(tileaddr) + tileadd) - 1) <= tilecount)
                 {
                     vram = addr + (s16)(tileidx * 4);
-                    u32 image = xread32(vram) + vram;
-                    u8 *bitmap = (alis.mem + image);
+                    u32 img = xread32(vram) + vram;
+                    u8 *bitmap = (alis.mem + img);
                     s16 width = (s16)read16(bitmap + 2) + 1;
                     s16 height = (s16)read16(bitmap + 4) + 1;
 
@@ -1811,19 +1818,19 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                             
                             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                             {
-                                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                                 {
                                     if ((w + posx1) < 0)
                                         continue;
 
-                                    if ((w + posx1) >= 320)
+                                    if ((w + posx1) >= alis.platform.width)
                                         continue;
 
                                     if ((h + posy1) < 0)
                                         continue;
 
-                                    if ((h + posy1) >= 200)
+                                    if ((h + posy1) >= alis.platform.height)
                                         continue;
 
                                     *tgt = color;
@@ -1841,7 +1848,7 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                             
                             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                             {
-                                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                                 {
                                     s16 wh = (flip ? (width - (w + 1)) : w) / 2;
@@ -1852,16 +1859,16 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                                         if ((w + posx1) < 0)
                                             continue;
 
-                                        if ((w + posx1) >= 320)
+                                        if ((w + posx1) >= alis.platform.width)
                                             continue;
 
                                         if ((h + posy1) < 0)
                                             continue;
 
-                                        if ((h + posy1) >= 200)
+                                        if ((h + posy1) >= alis.platform.height)
                                             continue;
 
-                                        tgt = logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                        tgt = image.logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
                                         *tgt = color;
                                     }
                                 }
@@ -1882,7 +1889,7 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                             
                             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                             {
-                                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                                 {
                                     s16 wh = (flip ? (width - (w + 1)) : w) / 2;
@@ -1893,13 +1900,13 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                                         if ((w + posx1) < 0)
                                             continue;
 
-                                        if ((w + posx1) >= 320)
+                                        if ((w + posx1) >= alis.platform.width)
                                             continue;
 
                                         if ((h + posy1) < 0)
                                             continue;
 
-                                        if ((h + posy1) >= 200)
+                                        if ((h + posy1) >= alis.platform.height)
                                             continue;
 
                                         *tgt = palidx + color;
@@ -1922,7 +1929,7 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                             
                             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                             {
-                                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                                 {
                                     color = *(at + (flip ? width - (w + 1) : w) + h * width);
@@ -1931,13 +1938,13 @@ void drawmap(sSprite *sprite, u32 mapaddr)
                                         if ((w + posx1) < 0)
                                             continue;
                                         
-                                        if ((w + posx1) >= 320)
+                                        if ((w + posx1) >= alis.platform.width)
                                             continue;
                                         
                                         if ((h + posy1) < 0)
                                             continue;
                                         
-                                        if ((h + posy1) >= 200)
+                                        if ((h + posy1) >= alis.platform.height)
                                             continue;
                                         
                                         *tgt = color;
@@ -2092,10 +2099,14 @@ void destofen(sSprite *sprite)
             // rectangle
             
             color = bitmap[1];
+            if (alis.platform.kind == EPlatformMac)
+            {
+                color = !bitmap[1];
+            }
             
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
             {
-                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
                     *tgt = color;
@@ -2111,8 +2122,6 @@ void destofen(sSprite *sprite)
             {
                 // Macintosh image
                 
-                clear = bitmap[0] == 0 ? 2 : -1;
-                // NOTE: values for ST ishar 3
                 palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
                 at = bitmap + 6;
                 
@@ -2121,7 +2130,7 @@ void destofen(sSprite *sprite)
                 
                 for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
-                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                     for (s32 w = bmpx1; w < bmpx1 + bmpx2; w+=4)
                     {
                         if (flip)
@@ -2143,10 +2152,10 @@ void destofen(sSprite *sprite)
                             c0 = (color & 0b11000000) >> 6;
                         }
 
-                        if (c0 != clear) { *tgt = c0; } tgt++;
-                        if (c1 != clear) { *tgt = c1; } tgt++;
-                        if (c2 != clear) { *tgt = c2; } tgt++;
-                        if (c3 != clear) { *tgt = c3; } tgt++;
+                        if (!(c0 & 2)) { *tgt = !(c0 & 1); } tgt++;
+                        if (!(c1 & 2)) { *tgt = !(c1 & 1); } tgt++;
+                        if (!(c2 & 2)) { *tgt = !(c2 & 1); } tgt++;
+                        if (!(c3 & 2)) { *tgt = !(c3 & 1); } tgt++;
                     }
                 }
             }
@@ -2164,7 +2173,7 @@ void destofen(sSprite *sprite)
                 
                 for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
-                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                     for (s32 w = bmpx1; w < bmpx1 + bmpx2; w+=2)
                     {
                         if (flip)
@@ -2194,7 +2203,7 @@ void destofen(sSprite *sprite)
         case 0x10:
         case 0x12:
         {
-            if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameBostonBombClub || alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya || alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1 || alis.platform.uid == EGameWindsurfWilly))
+            if (alis.platform.px_format == EPxFormatAmPlanar)
             {
                 // 5 bit image
                 
@@ -2206,7 +2215,7 @@ void destofen(sSprite *sprite)
                 
                 for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
-                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                     for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                     {
                         s16 wh = (flip ? (width - (w + 1)) : w);
@@ -2234,7 +2243,7 @@ void destofen(sSprite *sprite)
                 
                 for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
-                    u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                     for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                     {
                         s16 wh = (flip ? (width - (w + 1)) : w) / 2;
@@ -2268,7 +2277,7 @@ void destofen(sSprite *sprite)
 
             for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
             {
-                u8 *tgt = logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
                 for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                 {
                     color = *(at + (flip ? width - (w + 1) : w) + h * width);
@@ -2318,7 +2327,7 @@ void calctop(void)
 
 void fentotv(void)
 {
-    trsfen(logic, physic);
+    trsfen(image.logic, image.physic);
 }
 
 void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
@@ -2401,11 +2410,11 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                                             }
                                         }
 
-                                        wlogic = logic;
-                                        wlogx1 = logx1;
-                                        wlogx2 = logx2;
-                                        wlogy1 = logy1;
-                                        wlogy2 = logy2;
+                                        wlogic = image.logic;
+                                        wlogx1 = image.logx1;
+                                        wlogx2 = image.logx2;
+                                        wlogy1 = image.logy1;
+                                        wlogy2 = image.logy2;
                                         wloglarg = loglarg;
                                     }
                                 }
@@ -2432,11 +2441,11 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
 
                                 if (image.sback != 0 && tmpidx == image.backsprite)
                                 {
-                                    wlogic = logic;
-                                    wlogx1 = logx1;
-                                    wlogx2 = logx2;
-                                    wlogy1 = logy1;
-                                    wlogy2 = logy2;
+                                    wlogic = image.logic;
+                                    wlogx1 = image.logx1;
+                                    wlogx2 = image.logx2;
+                                    wlogy1 = image.logy1;
+                                    wlogy2 = image.logy2;
                                     wloglarg = loglarg;
                                 }
   fenetre31:
@@ -2951,18 +2960,18 @@ void draw(void)
     }
     
     switchgo = 0;
-    wlogic = logic;
-    wlogx1 = logx1;
-    wlogx2 = logx2;
-    wlogy1 = logy1;
-    wlogy2 = logy2;
+    wlogic = image.logic;
+    wlogx1 = image.logx1;
+    wlogx2 = image.logx2;
+    wlogy1 = image.logy1;
+    wlogy2 = image.logy2;
     wloglarg = loglarg;
     
     // hack
     fremap = 1;
     
     s16 scnidx = screen.ptscreen;
-    u8 *oldphys = physic;
+    u8 *oldphys = image.physic;
     
     while (scnidx != 0)
     {
@@ -2978,12 +2987,12 @@ void draw(void)
     fremap = 0;
     if (alis.fswitch != 0)
     {
-        physic = logic;
+        image.physic = image.logic;
         
         // NOTE: targhan doesn't use double buffering
-        if (alis.platform.uid != EGameTarghan0 && alis.platform.uid != EGameTarghan1)
+        if (alis.platform.dbl_buf)
         {
-            logic = oldphys;
+            image.logic = oldphys;
         }
         
         setphysic();
@@ -3032,4 +3041,10 @@ s16 debprotf(s16 target_id)
     while (start <= end);
     
     return -1;
+}
+
+void mac_update_pos(short *x,short *y)
+{
+    *x *= 1.5;
+    *y *= 1.5;
 }

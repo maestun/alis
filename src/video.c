@@ -30,9 +30,6 @@
 #include "video.h"
 
 
-extern u8 *logic;
-extern u8 *physic;
-
 extern u8 ftopal;
 extern u8 thepalet;
 extern u8 defpalet;
@@ -89,7 +86,7 @@ u16 pal[16] = {
 
 u8 pvgalogic[1024 * 1024];
 u8 *vgalogic = pvgalogic + 0x40;
-u8 *vgalogic_df = pvgalogic + 0xdf00 + 0x13f;
+u8 *vgalogic_df = pvgalogic + 0xdf00 + 319;
 extern u8 tpalet[768 * 4];
 
 void fls_savscreen(void)
@@ -336,20 +333,20 @@ void fli_blackdata(void)
 void fli_data(u8 *addr)
 {
     u8 *ptr = vgalogic;
-    for (int i = 0; i < 200; i++, ptr += 320, addr += 320)
+    for (int i = 0; i < alis.platform.height; i++, ptr += alis.platform.width, addr += alis.platform.width)
     {
-        memcpy(ptr, addr, 320);
+        memcpy(ptr, addr, alis.platform.width);
     }
 }
 
 void fli_decomp(u8 *addr, u8 partial)
 {
     u32 index = 0;
-    u16 len = 200;
+    u16 len = alis.platform.height;
     
     if (partial)
     {
-        index = *(u16 *)(addr) * 320; addr+=2;
+        index = *(u16 *)(addr) * alis.platform.width; addr+=2;
         len = *(u16 *)(addr); addr+=2;
     }
     
@@ -371,9 +368,9 @@ void fli_decomp(u8 *addr, u8 partial)
                 if (count == 0)
                     count = 256;
                 
-                if (col + count > 320)
+                if (col + count > alis.platform.width)
                 {
-                    count = 320 - col;
+                    count = alis.platform.width - col;
                     len = packets = 0;
                 }
                 
@@ -382,9 +379,9 @@ void fli_decomp(u8 *addr, u8 partial)
             else
             {
                 count = -count;
-                if (col + count > 320)
+                if (col + count > alis.platform.width)
                 {
-                    count = 320 - col;
+                    count = alis.platform.width - col;
                     len = packets = 0;
                 }
                 
@@ -394,7 +391,7 @@ void fli_decomp(u8 *addr, u8 partial)
             col += count;
         }
         
-        index += 320;
+        index += alis.platform.width;
     }
 }
 
@@ -431,8 +428,8 @@ void fli_elements(u8 *addr)
 
     fli_elements(addr + offset - 6);
     
-    memcpy(physic, vgalogic, 320*200);
-    memcpy(logic, vgalogic, 320*200);
+    memcpy(image.physic, vgalogic, alis.platform.width*alis.platform.height);
+    memcpy(image.logic, vgalogic, alis.platform.width*alis.platform.height);
 }
 
 void fli_init(u8 *flcaddr)

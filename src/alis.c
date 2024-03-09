@@ -280,6 +280,16 @@ void alis_init(sPlatform platform) {
 
     image.spritemem = (u8 *)malloc(1024 * 1024);
     memset(image.spritemem, 0x0, 1024 * 1024);
+    
+    image.physic = (u8 *)malloc(alis.platform.width * alis.platform.height);
+    memset(image.physic, 0, alis.platform.width * alis.platform.height);
+    image.logic  = (u8 *)malloc(alis.platform.width * alis.platform.height);
+    memset(image.logic, 0, alis.platform.width * alis.platform.height);
+
+    image.logx1 = 0;
+    image.logx2 = alis.platform.width - 1;
+    image.logy1 = 0;
+    image.logy2 = alis.platform.height - 1;
 
     // NOTE: cswitching is never called for older games
     alis.fswitch = 1;
@@ -353,6 +363,9 @@ void alis_init(sPlatform platform) {
     host.pixelbuf.palette = ampalet;
     memset(host.pixelbuf.palette, 0xff, 768);
 
+    alis.load_delay = 0;
+    alis.unload_delay = 0;
+    
     // load main script
     alis_load_main();
     alis.script = alis.main;

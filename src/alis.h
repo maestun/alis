@@ -337,6 +337,9 @@ typedef struct {
     struct timeval  time;
 
     u8              swap_endianness;
+    
+    s32             load_delay;
+    s32             unload_delay;
 
 } sAlisVM;
 
