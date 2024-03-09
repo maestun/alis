@@ -27,6 +27,7 @@
 #include "channel.h"
 #include "image.h"
 #include "mem.h"
+#include "platform.h"
 #include "utils.h"
 
 #include "emu2149.h"
@@ -81,7 +82,11 @@ u8 pblanc10(sChannel *a0, u8 d1b);
 
 void sys_audio_callback(void *userdata, Uint8 *stream, int len);
 
-void sys_init(void) {
+void sys_init(sPlatform *pl) {
+    
+    _width = pl->width;
+    _height = pl->height;
+
     _scaleX = _scale;
     _scaleY = _scale * _aspect_ratio;
     
@@ -91,7 +96,7 @@ void sys_init(void) {
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
-    SDL_RenderSetLogicalSize(_renderer, 320, 240);
+    SDL_RenderSetLogicalSize(_renderer, _width, _height * _aspect_ratio);
 
     _pixels = malloc(_width * _height * sizeof(*_pixels));
     memset(_pixels, 0, _width * _height * sizeof(*_pixels));
@@ -149,11 +154,6 @@ u8 sys_poll_event(void) {
     _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
     _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
     
-    if (_mouse.lb)
-    {
-        debug(EDebugInfo, "\nx: %d, y: %d \n", _mouse.x, _mouse.y);
-    }
-    
     switch (_event.type) {
         case SDL_QUIT:
         {
@@ -181,6 +181,11 @@ u8 sys_poll_event(void) {
 			}
 		}
     };
+
+    return running;
+}
+
+void sys_render(pixelbuf_t buffer) {
     
     if (_update_cursor)
     {
@@ -188,11 +193,6 @@ u8 sys_poll_event(void) {
         sys_update_cursor();
     }
 
-    return running;
-}
-
-void sys_render(pixelbuf_t buffer) {
-    
     if (fls_ham6)
     {
         u8 *bitmap = vgalogic_df + 0xa0;
@@ -381,7 +381,7 @@ void sys_render(pixelbuf_t buffer) {
             u8 *palette = *(u8 **)&(palentry[2]);
             
             palentry += 2 + (sizeof(u8 *) >> 1);
-            s16 y2 = palentry[0] == 0xff ? 200 : min(palentry[1], 200);
+            s16 y2 = palentry[0] == 0xff ? _height : min(palentry[1], _height);
 
             int index;
             for (int y = y1; y < y2; y++)
@@ -952,7 +952,7 @@ void sys_update_cursor(void) {
 
 u8 io_inkey(void)
 {
-    SDL_PumpEvents();
+    sys_poll_event();
     
     const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
     if (!currentKeyStates[button.scancode])
@@ -1051,23 +1051,13 @@ u8 io_joykey(u8 test) {
 }
 
 char sys_get_key(void) {
-    sys_poll_event();
-    char result = io_inkey();
-    if ((char)result != 0)
-    {
-        while (io_inkey() != 0)
-        {
-            sys_poll_event();
-            sys_render(host.pixelbuf);
-            usleep(100);
-        }
 
-        return result;
-    }
-    
     sys_render(host.pixelbuf);
-    usleep(100);
-    return sys_get_key();
+
+    char result = 0;
+    while ((result = io_inkey()) == 0) {}
+    while (io_inkey() != 0) {}
+    return result;
 }
 
 
@@ -1141,8 +1131,8 @@ u16 sys_get_model(void) {
         case EPlatformAtari:        return 1110;
         case EPlatformPC:           return 2000;
         case EPlatformAmiga:        return 3000;
-        case EPlatformMac:          return 4000;
-        case EPlatformFalcon:       return 5000;
+        case EPlatformMac:          return 4001;
+        case EPlatformFalcon:       return 5000;    // NOTE: 256 color mac also use fo extension but 4000 model value
         case EPlatformAmigaAGA:     return 6000;
             
         // TODO: find correct values

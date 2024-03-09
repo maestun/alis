@@ -94,6 +94,14 @@ typedef enum {
 
 } EGame;
 
+typedef enum {
+    
+    EPxFormatChunky             = 0,
+    EPxFormatSTPlanar           = 1,
+    EPxFormatAmPlanar           = 2,
+
+} EPxFormat;
+
 typedef struct {
     EPlatform   kind;
     char        name[32];
@@ -106,6 +114,8 @@ typedef struct {
     u16         width;              // screen info
     u16         height;
     u8          bpp;
+    EPxFormat   px_format;
+    u8          dbl_buf;
     u8          is_little_endian;
     char        path[kPathMaxLen];  // path to scripts
     char        main[kPathMaxLen];  // path to main script

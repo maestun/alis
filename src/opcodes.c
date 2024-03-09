@@ -647,32 +647,28 @@ static void cunload(void) {
 
             sAlisScriptData *script = alis.loaded_scripts[index];
             debug(EDebugVerbose, "\n (NAME: %s, ID: 0x%x ORG: 0x%x (0x%x) SZ: %d (%d)) \n", script->name, script->header.id, script->data_org, data_org, script->sz, data_end - data_org);
+            
+            // NOTE: interuptable delay to make everything work more like on original platforms
+            struct timeval now, prev;
+            gettimeofday(&now, NULL);
 
-            if (script->data_org != data_org)
+            int64_t intr = alis.unload_delay - 100000;
+            int64_t loop = alis.unload_delay;
+            while (loop > intr || (loop > 0 && io_inkey() == 0))
             {
-                sleep(0);
+                prev = now;
+                gettimeofday(&now, NULL);
+                sys_render(host.pixelbuf);
+                loop -= (now.tv_sec * 1000000 + now.tv_usec) - (prev.tv_sec * 1000000 + prev.tv_usec);
             }
-
-            if (script->header.id != id)
+            
+            alis.unload_delay = 0;
+            if (is_delay_script(script->name))
             {
-                sleep(0);
-            }
-
-            if (script->data_org != data_org)
-            {
-                sleep(0);
-            }
-
-            s32 sz = data_end - data_org;
-            if (script->sz != sz)
-            {
-                sleep(0);
+                alis.load_delay = 0;
             }
 
             shrinkprog(data_org, data_end - data_org, id);
-//
-//            debug(EDebugVerbose, " (NAME: %s, ID: 0x%x SZ: %d (%d)) ", script->name, script->header.id, script->sz, sz);
-//            shrinkprog(script->data_org, script->sz, script->header.id);
         }
     }
 }
@@ -834,16 +830,36 @@ static void cexit(void) {
 }
 
 static void cload(void) {
+
+    // NOTE: interuptable delay to make everything work more like on original platforms
+    struct timeval now, prev;
+    gettimeofday(&now, NULL);
+
+    int64_t intr = alis.load_delay - 100000;
+    int64_t loop = alis.load_delay;
+    while (loop > intr || (loop > 0 && io_inkey() == 0))
+    {
+        prev = now;
+        gettimeofday(&now, NULL);
+        sys_render(host.pixelbuf);
+        loop -= (now.tv_sec * 1000000 + now.tv_usec) - (prev.tv_sec * 1000000 + prev.tv_usec);
+    }
     
+    alis.load_delay = 0;
+
     // get script ID
     u16 id = script_read16();
     if(id != 0) {
         // not main script, depack and load into vm
         char path[kPathMaxLen] = {0};
         strcpy(path, alis.platform.path);
-        script_read_until_zero((path + strlen(alis.platform.path)));
-        strcpy(strrchr(path, '.') + 1, alis.platform.ext);
+        char name[16] = {0};
+        script_read_until_zero(name);
+        strcpy(strrchr(name, '.') + 1, alis.platform.ext);
+        strcat(path, name);
         script_load(strlower((char *)path));
+        
+        is_delay_script(name);
     }
     else
     {
@@ -854,7 +870,6 @@ static void cload(void) {
         readexec_opername_swap();
     }
 }
-
 
 // reads 35 bytes
 static void cdefsc(void) {
@@ -884,11 +899,23 @@ static void cdefsc(void) {
     sSprite *sprite = SPRITE_VAR(image.libsprit);
     sprite->link = 0;
     sprite->numelem = get_scr_numelem(scridx);
-    sprite->newx = get_scr_newx(scridx);// & 0xfff0;
-    sprite->newy = get_scr_newy(scridx);
+    
+    s16 x = get_scr_newx(scridx);
+    s16 y = get_scr_newy(scridx);
+    s16 w = get_scr_width(scridx);
+    s16 h = get_scr_height(scridx);
+
+    if (alis.platform.kind == EPlatformMac)
+    {
+        mac_update_pos(&x, &y);
+        mac_update_pos(&w, &h);
+    }
+    
+    sprite->newx = x;
+    sprite->newy = y;
     sprite->newd = 0x7fff;
-    sprite->depx = get_scr_newx(scridx) + get_scr_width(scridx);// | 0xf;
-    sprite->depy = get_scr_newy(scridx) + get_scr_height(scridx);
+    sprite->depx = x + w;
+    sprite->depy = y + h;
 
     image.libsprit = sprite->to_next;
 
@@ -1899,8 +1926,6 @@ static void cpalette(void) {
 }
 
 static void cdefcolor(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     readexec_opername();
     readexec_opername_saveD6();
 
@@ -1909,15 +1934,15 @@ static void cdefcolor(void) {
     u8 r, g, b;
     if (alis.platform.kind == EPlatformAmiga)
     {
-        r = (rawcolor[0] & 0b00001111) << 4;
-        g = (rawcolor[1] >> 4) << 4;
-        b = (rawcolor[1] & 0b00001111) << 4;
+        r = (rawcolor[1] & 0b00001111) << 4;
+        g = (rawcolor[0] >> 4) << 4;
+        b = (rawcolor[0] & 0b00001111) << 4;
     }
     else
     {
-        r = (rawcolor[0] & 0b00000111) << 5;
-        g = (rawcolor[1] >> 4) << 5;
-        b = (rawcolor[1] & 0b00000111) << 5;
+        r = (rawcolor[1] & 0b00000111) << 5;
+        g = (rawcolor[0] >> 4) << 5;
+        b = (rawcolor[0] & 0b00000111) << 5;
     }
     
     s16 index = alis.varD7 * 3;
@@ -2229,13 +2254,12 @@ static void cfwriteb(void) {
 s16 adptsin[2];
 u8 acolor = 12;
 
-extern u8 *logic;
-extern u8 *physic;
+//TODO: this will get imediatelly overwritten!
+// keep colors and coordinates somewhere and redraw in destofen
 
 void plot(s16 x0, s16 y0)
 {
-    logic[x0 + y0 * 320] = acolor;
-    physic[x0 + y0 * 320] = acolor;
+    image.logic[x0 + y0 * alis.platform.width] = acolor;
 }
 
 void SYS_PutPixel(void)
@@ -2297,6 +2321,12 @@ void io_box(s16 x1,s16 y1,s16 x2,s16 y2)
 {
     // TODO: implement me
     
+    if (alis.platform.kind == EPlatformMac)
+    {
+        mac_update_pos(&x1, &y1);
+        mac_update_pos(&x2, &y2);
+    }
+
     io_drawline(x1, y1, x2, y1);
     io_drawline(x2, y1, x2, y2);
     io_drawline(x2, y2, x1, y2);
@@ -2307,11 +2337,16 @@ void io_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
 {
     // TODO: implement me
     
+    if (alis.platform.kind == EPlatformMac)
+    {
+        mac_update_pos(&x1, &y1);
+        mac_update_pos(&x2, &y2);
+    }
+    
     s16 tmpx = x2 - x1;
     for (s16 y = y1; y < y2; y++)
     {
-        memset(logic + x1 + y * 320, acolor, tmpx);
-        memset(physic + x1 + y * 320, acolor, tmpx);
+        memset(image.logic + x1 + y * alis.platform.width, acolor, tmpx);
     }
 }
 
@@ -3300,6 +3335,11 @@ static void cscpos(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
+        if (alis.platform.kind == EPlatformMac)
+        {
+            mac_update_pos(&alis.varD7, &alis.varD6);
+        }
+        
         set_scr_newx(screen_id, alis.varD7);
         set_scr_newy(screen_id, alis.varD6);
         set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
@@ -3315,6 +3355,15 @@ static void cscsize(void) {
     {
         if (alis.platform.version < 30)
         {
+            if (alis.platform.kind == EPlatformMac)
+            {
+                alis.varD7--;
+                alis.varD6--;
+                mac_update_pos(&alis.varD7, &alis.varD6);
+                alis.varD7++;
+                alis.varD6++;
+            }
+            
             set_scr_width(screen_id, alis.varD7);
             set_scr_height(screen_id, alis.varD6);
         }

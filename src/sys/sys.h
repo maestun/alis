@@ -23,6 +23,7 @@
 
 #include "../config.h"
 #include "../debug.h"
+#include "../platform.h"
 
 
 // =============================================================================
@@ -30,7 +31,7 @@
 // =============================================================================
 typedef void (*vmStep)(void);
 void    sys_main(vmStep fStep);
-void    sys_init(void);
+void    sys_init(sPlatform *pl);
 u8      sys_poll_event(void);
 void    sys_deinit(void);
 
