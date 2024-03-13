@@ -1128,7 +1128,7 @@ u16 sys_get_model(void) {
     // TODO: find all values
     switch (alis.platform.kind) {
             
-        case EPlatformAtari:        return 1110;
+        case EPlatformAtari:        return alis.platform.version < 20 ? 1010 : 1110;
         case EPlatformPC:           return 2000;
         case EPlatformAmiga:        return 3000;
         case EPlatformMac:          return 4001;
