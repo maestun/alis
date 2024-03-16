@@ -24,6 +24,7 @@
 #include "config.h"
 
 #define kMainScriptName         ("main")
+#define kManhattanScriptName    ("man.sng")
 
 // try to identify game using unique script name
 
@@ -37,6 +38,7 @@ typedef enum {
     EPlatformAmstradCPC,
     EPlatform3DO,
     EPlatformJaguar,
+    EPlatformOldAtari,
     EPlatformUnknown
 } EPlatform;
 
@@ -65,7 +67,7 @@ typedef enum {
 
 typedef enum {
     
-    EGameManhattanDealers        = -1,
+    EGameManhattanDealers        = 0x019bfcc0,
     EGameMadShow                 = 0x00244140,
     EGameWindsurfWilly           = 0x00325aa0,
     EGameTarghan0                = 0x0044aa20,
