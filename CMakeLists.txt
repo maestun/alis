@@ -18,7 +18,6 @@ add_executable(alis
                src/emu2149/emu2149.c
                src/sys/sdl2/sys_sdl2.c
                src/audio/audio.c src/audio/music_v1.c src/audio/music_v2.c
-               src/ayumi/ayumi.c
                src/main.c
                src/addnames.c src/alis.c src/channel.c src/debug.c src/escnames.c src/image.c 
                src/opcodes.c src/opernames.c src/platform.c src/screen.c src/video.c
