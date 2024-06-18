@@ -78,6 +78,7 @@
 		68AC2DA22A5F52B60046C6EB /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		68AC2DA52A5F52EF0046C6EB /* unpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unpack.h; sourceTree = "<group>"; };
 		68AC2DA62A5F52EF0046C6EB /* unpack.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = unpack.c; sourceTree = "<group>"; };
+		68F3B86A2B6EF13100268B2B /* mess.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mess.c; sourceTree = "<group>"; };
 		68F3BDE42A7F2F64008E516A /* mem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mem.h; sourceTree = "<group>"; };
 		8B28A6802507C5A600E3F0FF /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		8B28A6822507C5AA00E3F0FF /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
@@ -217,6 +218,7 @@
 				8B9C402F250A2F9300C947F9 /* utils.c */,
 				6838DE3A2B57685B005078DD /* video.c */,
 				6838DE392B57685B005078DD /* video.h */,
+				68F3B86A2B6EF13100268B2B /* mess.c */,
 			);
 			name = alis;
 			path = ../src;

@@ -886,12 +886,6 @@ static void cdefsc(void) {
         *ptr = script_read8();
     
     set_scr_to_next(scridx, 0);
-//    set_scr_newx(scridx, swap16(get_scr_newx(scridx)));
-//    set_scr_newy(scridx, swap16(get_scr_newy(scridx)));
-//    set_scr_width(scridx, swap16((u8 *)&(scridx->width)));
-//    set_scr_height(scridx, swap16((u8 *)&(scridx->height)));
-//    set_scr_unknown0x0a(scridx, swap16((u8 *)&(scridx->unknown0x0a)));
-//    set_scr_unknown0x0c(scridx, swap16((u8 *)&(scridx->unknown0x0c)));
     set_scr_unknown0x2a(scridx, 0);
     set_scr_unknown0x2c(scridx, 0);
     set_scr_unknown0x2e(scridx, 0);
@@ -994,12 +988,8 @@ static void cerasen(void) {
     u16 curidx = 0;
     u16 previdx = 0;
 
-    while (1)
+    while (searchelem(&curidx, &previdx))
     {
-        u8 ret = searchelem(&curidx, &previdx);
-        if (ret == 0)
-            break;
-        
         killelem(&curidx, &previdx);
     }
     
@@ -2252,14 +2242,10 @@ static void cfwriteb(void) {
 }
 
 s16 adptsin[2];
-u8 acolor = 12;
-
-//TODO: this will get imediatelly overwritten!
-// keep colors and coordinates somewhere and redraw in destofen
 
 void plot(s16 x0, s16 y0)
 {
-    image.logic[x0 + y0 * alis.platform.width] = acolor;
+    image.logic[x0 + y0 * alis.platform.width] = image.inkcolor;
 }
 
 void SYS_PutPixel(void)
@@ -2282,8 +2268,6 @@ static void cplot(void) {
 
 void io_drawline(s16 x0, s16 y0, s16 x1, s16 y1)
 {
-    // TODO: implement me
-    
     s32 dx = abs(x1 - x0);
     s32 sx = x0 < x1 ? 1 : -1;
     s32 dy = -abs(y1 - y0);
@@ -2319,8 +2303,6 @@ void io_drawline(s16 x0, s16 y0, s16 x1, s16 y1)
 
 void io_box(s16 x1,s16 y1,s16 x2,s16 y2)
 {
-    // TODO: implement me
-    
     if (alis.platform.kind == EPlatformMac)
     {
         mac_update_pos(&x1, &y1);
@@ -2335,18 +2317,19 @@ void io_box(s16 x1,s16 y1,s16 x2,s16 y2)
 
 void io_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
 {
-    // TODO: implement me
-    
     if (alis.platform.kind == EPlatformMac)
     {
         mac_update_pos(&x1, &y1);
         mac_update_pos(&x2, &y2);
     }
     
-    s16 tmpx = x2 - x1;
-    for (s16 y = y1; y < y2; y++)
+    s16 tmpx = min(x1, x2);
+    x2 = max(x1, x2);
+    x1 = tmpx;
+    tmpx = x2 - x1;
+    for (s16 y = y1; y <= y2; y++)
     {
-        memset(image.logic + x1 + y * alis.platform.width, acolor, tmpx);
+        memset(image.logic + x1 + y * alis.platform.width, image.inkcolor, tmpx);
     }
 }
 
@@ -2399,7 +2382,7 @@ static void cink(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
     
-    // TODO: ...
+    image.inkcolor = alis.varD7;
 }
 
 static void cpset(void) {
@@ -2414,8 +2397,7 @@ static void cpmode(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
     readexec_opername();
-    // u8 pmode = alis.varD7;
-    // io_mode(); sets pal line start
+    image.line_a_mode = alis.varD7;
 }
 
 static void cpicture(void) {
@@ -3409,17 +3391,15 @@ static void cscvertic(void) {
 
 static void cscreduce(void) {
     readexec_opername();
-    s16 creducing = alis.varD7;
     readexec_opername_saveD6();
-    s16 clinkingA = alis.varD6 - 1;
+
     u16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
     {
-        readexec_opername();
-        s16 clinkingB = alis.varD7;
+        set_scr_creducing(screen_id, alis.varD7);
         
-        set_scr_creducing(screen_id, creducing);
-        set_scr_clinking(screen_id, clinkingA << 8 | clinkingB);
+        readexec_opername();
+        set_scr_clinking(screen_id, (alis.varD6 - 1) << 8 | alis.varD7);
         set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
@@ -3646,7 +3626,8 @@ static void cbackstar(void) {
             break;
         }
 
-        case EGameManhattanDealers:
+        case EGameManhattanDealers0:
+        case EGameManhattanDealers1:
         case EGameMadShow:
         case EGameWindsurfWilly:
         case EGameLeFeticheMaya:

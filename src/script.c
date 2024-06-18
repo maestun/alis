@@ -206,7 +206,8 @@ void script_guess_game(const char * script_path) {
                 switch (alis.platform.uid)
                 {
                     case EGameXyphoesFantasy:        strcpy(alis.platform.name, "Xyphoes Fantasy");         alis.platform.version = 0;  alis.platform.bpp = 4; alis.platform.dbl_buf = 0; alis.basemem = 0x22400; break;
-                    case EGameManhattanDealers:      strcpy(alis.platform.name, "Manhattan Dealers");       alis.platform.version = 10; alis.platform.bpp = 4; alis.platform.dbl_buf = 0; alis.basemem = 0x22400; break;
+                    case EGameManhattanDealers0:
+                    case EGameManhattanDealers1:     strcpy(alis.platform.name, "Manhattan Dealers");       alis.platform.version = 10; alis.platform.bpp = 4; alis.platform.dbl_buf = 0; alis.basemem = 0x22400; break;
                     case EGameMadShow:               strcpy(alis.platform.name, "Mad Show");                alis.platform.version = 11; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x23e00; break;
                     case EGameTarghan0:
                     case EGameTarghan1:              strcpy(alis.platform.name, "Targhan");                 alis.platform.version = 12; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x26000; break;
@@ -215,7 +216,7 @@ void script_guess_game(const char * script_path) {
                     case EGameColorado:              strcpy(alis.platform.name, "Colorado");                alis.platform.version = 13; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x26000; break;
                     case EGameStarblade:             strcpy(alis.platform.name, "Starblade");               alis.platform.version = 20; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x21400; break;
                     case EGameStormMaster:           strcpy(alis.platform.name, "Storm Master");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1ff00; break;
-                    case EGameMetalMutant:           strcpy(alis.platform.name, "Metal Mutant");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x20800; break;
+                    case EGameMetalMutant:           strcpy(alis.platform.name, "Metal Mutant");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x20800; alis.platform.dbl_buf = 0; break;
                     case EGameCrystalsOfArborea0:
                     case EGameCrystalsOfArborea1:    strcpy(alis.platform.name, "Crystals Of Arborea");     alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1f300;  break;
                     case EGameBostonBombClub:        strcpy(alis.platform.name, "Boston Bomb Club");        alis.platform.version = 21; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x27d00;  break;

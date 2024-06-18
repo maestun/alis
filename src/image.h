@@ -46,7 +46,7 @@ typedef union {
         s16 depz;               // 0x1a
         u8 credon_off;          // 0x1c
         u8 creducing;           // 0x1d
-        u16 clinking;           // 0x1e
+        s16 clinking;           // 0x1e
         u8 cordspr;             // 0x20
         u8 chsprite;            // 0x21
         u16 script_ent;         // 0x22
@@ -120,6 +120,9 @@ typedef struct {
     u8 wback;
     s8 cback;
     u8 pback;
+    
+    u16 inkcolor;
+    u16 line_a_mode;
 
 } sImage;
 

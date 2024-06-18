@@ -108,7 +108,7 @@ sPlatform* pl_guess(const char * path) {
         if(ent->d_type == DT_REG)
         {
             // look for main script
-            if(!strncasecmp(ent->d_name, kMainScriptName, strlen(kMainScriptName)) || !strncasecmp(ent->d_name, kManhattanScriptName, strlen(kManhattanScriptName)))
+            if(!strncasecmp(ent->d_name, kMainScriptName, strlen(kMainScriptName)) || !strncasecmp(ent->d_name, kManAtariScriptName, strlen(kManAtariScriptName)) || !strncasecmp(ent->d_name, kManMSDOSScriptName, strlen(kManMSDOSScriptName)))
             {
                 strcpy(main_path, data_path);
                 strcat(main_path, ent->d_name);

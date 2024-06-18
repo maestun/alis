@@ -23,8 +23,12 @@
 
 #include "config.h"
 
-#define kMainScriptName         ("main")
-#define kManhattanScriptName    ("man.sng")
+#define kMainScriptName         ("main.")
+
+// NOTE: unlike newer games, Manhattan Dealers used different main script name for different platforms
+#define kManAtariScriptName     ("man.sng")
+#define kManAmigaScriptName     ("prog.oo")
+#define kManMSDOSScriptName     ("prog.io")
 
 // try to identify game using unique script name
 
@@ -67,7 +71,8 @@ typedef enum {
 
 typedef enum {
     
-    EGameManhattanDealers        = 0x019bfcc0,
+    EGameManhattanDealers0       = 0x019bfcc0,
+    EGameManhattanDealers1       = 0x02255100,
     EGameMadShow                 = 0x00244140,
     EGameWindsurfWilly           = 0x00325aa0,
     EGameTarghan0                = 0x0044aa20,

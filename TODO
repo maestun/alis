@@ -8,8 +8,8 @@ ALIS
 Windsurf Willy
 
 Targhan
-- ATARI after executing targhan script no other clive is called
-- ATARI/AMIGA health bar not updated (wee need to add support for direct drawing rectangles/lines/etc)
+- MAC manual check is not displayed properly
+- MAC music playback not yet implemented
 
 Mad Show
 - DOS can't unpack main script
@@ -27,7 +27,6 @@ Crystals of Arborea
 Bunny Bricks
 
 Transarctica
-- wrong background color in map
 
 Ishar I
 - BG music plays after every second map segment load
