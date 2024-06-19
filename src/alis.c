@@ -256,6 +256,7 @@ void alis_init(sPlatform platform) {
     
     audio.fsound = 1;
     audio.fmusic = 1;
+    audio.musicId = 0xffff;
 
 //    alis.nmode = 0; // 0 = atari 16 colors
 //                    // 3 = mono

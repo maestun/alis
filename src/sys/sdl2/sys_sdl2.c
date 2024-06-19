@@ -576,6 +576,9 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
             audio.smpidx = buflen - smpcopy;
         }
     }
+    
+    if (audio.muflag == 0)
+        audio.working = 0;
 
     // handle sounds
     

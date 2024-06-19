@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <stdatomic.h>
 #include "channel.h"
 #include "config.h"
 
@@ -61,6 +62,9 @@ typedef struct {
 
 typedef struct {
 
+    u16 musicId;
+    atomic_int working;
+
     sAudioInstrument tabinst[128];
     
     u8 fsound;
@@ -79,7 +83,7 @@ typedef struct {
     u16 dattac;
     u16 dchute;
 
-    u16 muflag;
+    atomic_int muflag;
     u16 mutaloop;
     s16 muadresse[0xffff];
     u32 smpidx;

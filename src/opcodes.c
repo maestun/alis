@@ -612,16 +612,6 @@ static void cwlive(void) {
 
 static void cunload(void) {
     
-    int count = 0;
-    while (audio.muflag)
-    {
-        // 1 000 000
-        usleep(1000);
-        
-        if (count++ == 1000)
-            audio.muflag = 0;
-    }
-    
     s16 id = script_read16();
     if (id != -1 && id != get_0x10_script_id(alis.script->vram_org))
     {
@@ -2661,6 +2651,10 @@ static void cfindtyp(void) {
 }
 
 void music(void) {
+    
+    u16 scriptId = alis.flagmain ? alis.main->data->header.id : alis.script->data->header.id;
+    audio.musicId = scriptId;
+    
     readexec_opername();
     s16 idx = alis.varD7;
     s32 addr = adresmus(idx);
@@ -2702,7 +2696,6 @@ void music(void) {
         }
 
         audio.mustate = 1;
-
     }
     else if (type == 4)
     {
@@ -6118,6 +6111,27 @@ sAlisOpcode opcodes[] = {
 
 void killent(u16 killent)
 {
+    // make sure music playback is stopped
+    
+    sAlisScriptLive *script = ENTSCR(killent);
+    if (script->data->header.id == audio.musicId)
+    {
+        audio.working = 1;
+
+        for (int count = 0; count < 1000 && audio.muflag; count++)
+        {
+            usleep(1000);
+        }
+
+        audio.muflag = 0;
+        audio.musicId = 0xffff;
+
+        while (audio.working)
+        {
+            usleep(1000);
+        }
+    }
+    
     s32 vram = xread32(alis.atent + killent);
     if (vram == 0)
     {
