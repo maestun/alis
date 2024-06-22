@@ -50,10 +50,6 @@ s8 old_read_byte(u8** ptr_packed, u8* ptr_packed_end) {
     return *ptr_packed == ptr_packed_end ? 0 : *(*ptr_packed)++;
 }
 
-
-extern u8 fphytolog;
-extern u8 *bufpack;
-
 s16 modpack = 0;
 
 void old_write_byte(u8** ptr_unpacked, u8 byte, u8 inc) {

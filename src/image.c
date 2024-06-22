@@ -59,105 +59,25 @@ sImage image = {
     .pback = 0
 };
 
-u8 tvmode = 0;
-
-u8 svpalet[768];
-u8 svpalet2[768];
-u8 tpalet[768 * 4];
-u8 mpalet[768 * 4];
-float dpalet[768];
-
-u8 *atpalet = tpalet;
-u8 *ampalet = mpalet;
-
-u8 flinepal = 0;
-s16 firstpal[64];
-s16 tlinepal[64] = { 0, 0, 0xff, 0 };
-
-u8 palc = 0;
-u8 palt = 0;
-u8 palt0 = 0;
-u8 ftopal = 0;
-u8 thepalet = 0;
-u8 defpalet = 0;
-
-s16 tabfen[640];
-s16 *ptabfen = tabfen;
-
-s32 bufrvb;
-
-s32 mousflag;
-
-u8 *bufpack = 0;
-
-u8 timing = 0;
-s8 fmouse = 0xff;
-s16 fonum = 0xffff;
-
-u32 newad;
-s16 newx;
-s16 newy;
-s16 newd;
-s16 newf;
-s16 newh;
-s16 newl;
-s16 newzoomx;
-s16 newzoomy;
-s16 blocx1;
-s16 blocy1;
-s16 blocx2;
-s16 blocy2;
-u8 joints;
-s16 fenx1;
-s16 feny1;
-s16 fenx2;
-s16 feny2;
-s16 clipx1;
-s16 clipy1;
-s16 clipx2;
-s16 clipy2;
-s16 clipl;
-s16 cliph;
-u8 fclip;
-
-u8 fitroutine = 0;
-u8 fphysic = 0;
-u8 fphytolog = 0;
-u8 fremouse = 0;
-u8 fremap = 0;
-u8 fremouse2 = 0;
-u8 vtiming = 0;
-s16 savmouse[2];
-u32 savmouse2[8];
-u8 switchgo;
-u8 *wlogic;
-s16 wlogx1;
-s16 wlogx2;
-s16 wlogy1;
-s16 wlogy2;
-s16 wloglarg;
-s16 loglarg = 0xa0; // 0x50 for st
-u8 insid = 0;
-
 
 void topalet(void)
 {
-    ftopal = 0;
+    image.ftopal = 0;
 
-    if (palc == 1)
+    if (image.palc == 1)
     {
-        memcpy(ampalet, atpalet, 768);
+        memcpy(image.ampalet, image.atpalet, 768);
     }
     else
     {
         for (s32 i = 0; i < 768; i++)
         {
-            if (ampalet[i] != atpalet[i])
-                ampalet[i] = atpalet[i] + dpalet[i] * palc;
+            if (image.ampalet[i] != image.atpalet[i])
+                image.ampalet[i] = image.atpalet[i] + image.dpalet[i] * image.palc;
         }
     }
     
-    ftopal = 1;
+    image.ftopal = 1;
 
     set_update_cursor();
 }
@@ -166,11 +86,11 @@ void topalette(u8 *paldata, s32 duration)
 {
     if (alis.platform.kind == EPlatformMac)
     {
-        memset(atpalet, 0, 3);
-        memset(ampalet, 0, 3);
-        memset(atpalet + 3, 0xff, 768);
-        memset(ampalet + 3, 0xff, 768);
-        ftopal = 0xff;
+        memset(image.atpalet, 0, 3);
+        memset(image.ampalet, 0, 3);
+        memset(image.atpalet + 3, 0xff, 768);
+        memset(image.ampalet + 3, 0xff, 768);
+        image.ftopal = 0xff;
         return;
     }
     
@@ -179,7 +99,7 @@ void topalette(u8 *paldata, s32 duration)
     s16 colors = paldata[1];
     if (colors == 0) // 4 bit palette
     {
-        palc = 0;
+        image.palc = 0;
         u8 *palptr = &paldata[2];
 
         s16 to = 0;
@@ -187,18 +107,18 @@ void topalette(u8 *paldata, s32 duration)
         {
             for (s32 i = 0; i < 16; i++)
             {
-                atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
-                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
-                atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
+                image.atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
+                image.atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
+                image.atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
             }
         }
         else
         {
             for (s32 i = 0; i < 16; i++)
             {
-                atpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
-                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
-                atpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
+                image.atpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
+                image.atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
+                image.atpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
             }
         }
     }
@@ -206,27 +126,27 @@ void topalette(u8 *paldata, s32 duration)
     {
         if (alis.platform.kind == EPlatformAmiga)
         {
-            palc = 0;
+            image.palc = 0;
             u8 *palptr = &paldata[2];
 
             s16 to = 0;
 
             for (s32 i = 0; i < 32; i++)
             {
-                atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
-                atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
-                atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
+                image.atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
+                image.atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
+                image.atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
             }
         }
         else
         {
-            palc = 0;
+            image.palc = 0;
             u8 offset = paldata[2];
-            memcpy(atpalet + (offset * 3), paldata + 4, (1 + colors) * 3);
+            memcpy(image.atpalet + (offset * 3), paldata + 4, (1 + colors) * 3);
         }
     }
     
-    if (image.fdarkpal && thepalet == 0)
+    if (image.fdarkpal && image.thepalet == 0)
     {
         u16 *dkpalptr = (u16 *)image.dkpalet;
         s16 colors = alis.platform.bpp <= 4 ? 16 : 256;
@@ -235,14 +155,14 @@ void topalette(u8 *paldata, s32 duration)
         
         for (s32 i = 0; i < colors; i++, dkpalptr += 3)
         {
-            atpalet[to++] *= (dkpalptr[0] / 256.0);
-            atpalet[to++] *= (dkpalptr[1] / 256.0);
-            atpalet[to++] *= (dkpalptr[2] / 256.0);
+            image.atpalet[to++] *= (dkpalptr[0] / 256.0);
+            image.atpalet[to++] *= (dkpalptr[1] / 256.0);
+            image.atpalet[to++] *= (dkpalptr[2] / 256.0);
         }
     }
 
-    thepalet = 0;
-    defpalet = 0;
+    image.thepalet = 0;
+    image.defpalet = 0;
     
     if (duration != 0)
     {
@@ -250,17 +170,17 @@ void topalette(u8 *paldata, s32 duration)
 
         for (s32 i = 0; i < 768; i++)
         {
-            dpalet[i] = (ampalet[i] - atpalet[i]) / (float)duration;
+            image.dpalet[i] = (image.ampalet[i] - image.atpalet[i]) / (float)duration;
         }
 
-        palt = 1;
-        palt0 = 1;
-        palc = duration;
+        image.palt = 1;
+        image.palt0 = 1;
+        image.palc = duration;
     }
     else
     {
-        memcpy(ampalet, atpalet, 768);
-        ftopal = 0xff;
+        memcpy(image.ampalet, image.atpalet, 768);
+        image.ftopal = 0xff;
     }
     
     set_update_cursor();
@@ -270,16 +190,16 @@ void toblackpal(s16 duration)
 {
     selpalet();
 
-    memset(atpalet, 0, 768);
+    memset(image.atpalet, 0, 768);
     
-    thepalet = 0;
-    defpalet = 0;
+    image.thepalet = 0;
+    image.defpalet = 0;
 
     if (duration == 0)
     {
-        memset(ampalet, 0, 768);
-        ftopal = 0xff;
-        palc = 0;
+        memset(image.ampalet, 0, 768);
+        image.ftopal = 0xff;
+        image.palc = 0;
     }
     else
     {
@@ -287,12 +207,12 @@ void toblackpal(s16 duration)
 
         for (s32 i = 0; i < 768; i++)
         {
-            dpalet[i] = (ampalet[i] - atpalet[i]) / (float)duration;
+            image.dpalet[i] = (image.ampalet[i] - image.atpalet[i]) / (float)duration;
         }
 
-        palt = 1;
-        palt0 = 1;
-        palc = duration;
+        image.palt = 1;
+        image.palt0 = 1;
+        image.palc = duration;
     }
 }
 
@@ -300,8 +220,8 @@ void savepal(s16 mode)
 {
     if (mode < 0 && -3 < mode)
     {
-        u8 *tgt = (mode != -1) ? svpalet2 : svpalet;
-        memcpy(tgt, tpalet, 768);
+        u8 *tgt = (mode != -1) ? image.svpalet2 : image.svpalet;
+        memcpy(tgt, image.tpalet, 768);
     }
 }
 
@@ -313,29 +233,29 @@ void restorepal(s16 mode, s32 duration)
         return;
     }
 
-    u8 *src = (mode != -1) ? svpalet2 : svpalet;
-    memcpy(tpalet, src, 768);
+    u8 *src = (mode != -1) ? image.svpalet2 : image.svpalet;
+    memcpy(image.tpalet, src, 768);
 
-    thepalet = 0;
-    defpalet = 0;
+    image.thepalet = 0;
+    image.defpalet = 0;
     
     if (duration == 0)
     {
-        memcpy(mpalet, src, 768);
-        ftopal = 0xff;
-        palc = 0;
+        memcpy(image.mpalet, src, 768);
+        image.ftopal = 0xff;
+        image.palc = 0;
     }
     else
     {
         for (s32 i = 0; i < 768; i++)
         {
-            dpalet[i] = (mpalet[i] - tpalet[i]) / (float)duration;
+            image.dpalet[i] = (image.mpalet[i] - image.tpalet[i]) / (float)duration;
         }
 
         topalet();
-        palt = 1;
-        palt0 = 1;
-        palc = duration;
+        image.palt = 1;
+        image.palt0 = 1;
+        image.palc = duration;
     }
 }
 
@@ -343,9 +263,9 @@ void selpalet(void)
 {
     if (alis.platform.bpp != 8)
     {
-        s16 offset = thepalet * 64 * 3;
-        ampalet = mpalet + offset;
-        atpalet = tpalet + offset;
+        s16 offset = image.thepalet * 64 * 3;
+        image.ampalet = image.mpalet + offset;
+        image.atpalet = image.tpalet + offset;
     }
 }
 
@@ -357,8 +277,8 @@ void linepal(void)
     s16 line;
     s16 dummy;
     
-    s16 *tlinepal_ptr = tlinepal;
-    s16 *palentry = firstpal;
+    s16 *tlinepal_ptr = image.tlinepal;
+    s16 *palentry = image.firstpal;
     
     for (int i = 0; i < 4; i++)
     {
@@ -370,7 +290,7 @@ void linepal(void)
         
         palentry[0] = dummy;
         palentry[1] = line;
-        *(u8 **)&(palentry[2]) = mpalet + (tlinepal_ptr[1] * 64 * 3);
+        *(u8 **)&(palentry[2]) = image.mpalet + (tlinepal_ptr[1] * 64 * 3);
 
         tlinepal_ptr += 2;
         palentry += 2 + (sizeof(u8 *) >> 1);
@@ -378,18 +298,18 @@ void linepal(void)
     
     *(s16 *)(palentry + 0) = 0xff;
     *(s16 *)(palentry + 2) = 0;
-    *(u8 **)(palentry + 4) = mpalet;
+    *(u8 **)(palentry + 4) = image.mpalet;
 }
 
 void setlinepalet(void) {
     
     if (alis.varD7 < 0)
     {
-        flinepal = 0;
-        tlinepal[0] = 0;
-        tlinepal[1] = 0;
-        tlinepal[2] = 0xff;
-        tlinepal[3] = 0;
+        image.flinepal = 0;
+        image.tlinepal[0] = 0;
+        image.tlinepal[1] = 0;
+        image.tlinepal[2] = 0xff;
+        image.tlinepal[3] = 0;
         linepal();
         return;
     }
@@ -399,7 +319,7 @@ void setlinepalet(void) {
         alis.varD7 = image.logy2;
     }
 
-    s16 *tlinepal_ptr = tlinepal;
+    s16 *tlinepal_ptr = image.tlinepal;
     s16 *prevtlpal_ptr;
     
     do
@@ -411,7 +331,7 @@ void setlinepalet(void) {
                 return;
             
             prevtlpal_ptr[1] = alis.varD6;
-            flinepal = 1;
+            image.flinepal = 1;
             linepal();
             return;
         }
@@ -421,7 +341,7 @@ void setlinepalet(void) {
     while (prevtlpal_ptr[0] < alis.platform.height);
     
     // check whether we are not using too many palettes
-    if (prevtlpal_ptr - (tlinepal + 8) < 0)
+    if (prevtlpal_ptr - (image.tlinepal + 8) < 0)
     {
         do
         {
@@ -434,7 +354,7 @@ void setlinepalet(void) {
         
         prevtlpal_ptr[0] = alis.varD7;
         prevtlpal_ptr[1] = alis.varD6;
-        flinepal = 1;
+        image.flinepal = 1;
         linepal();
     }
 }
@@ -1132,26 +1052,26 @@ void valtostr(char *string, s16 value)
 
 s16 inilink(s16 elemidx)
 {
-    blocx1 = 0x7fff;
-    blocy1 = 0x7fff;
-    blocx2 = 0x8000;
-    blocy2 = 0x8000;
+    image.blocx1 = 0x7fff;
+    image.blocy1 = 0x7fff;
+    image.blocx2 = 0x8000;
+    image.blocy2 = 0x8000;
 
     return SPRITE_VAR(elemidx)->clinking;
 }
 
 u8 calcfen(u16 elemidx1, u16 elemidx3)
 {
-    if (joints == 0)
+    if (image.joints == 0)
     {
         sSprite *idx1sprvar = SPRITE_VAR(elemidx1);
         if (idx1sprvar->newd < 0)
             return 0;
         
-        blocx1 = idx1sprvar->newx;
-        blocy1 = idx1sprvar->newy;
-        blocx2 = blocx1 + idx1sprvar->width + 1;
-        blocy2 = blocy1 + idx1sprvar->height + 1;
+        image.blocx1 = idx1sprvar->newx;
+        image.blocy1 = idx1sprvar->newy;
+        image.blocx2 = image.blocx1 + idx1sprvar->width + 1;
+        image.blocy2 = image.blocy1 + idx1sprvar->height + 1;
     }
     
     sSprite *idx3sprvar = SPRITE_VAR(elemidx3);
@@ -1160,23 +1080,23 @@ u8 calcfen(u16 elemidx1, u16 elemidx3)
     s16 tmpw = idx3sprvar->depx + 1;
     s16 tmph = idx3sprvar->depy + 1;
     
-    if (blocx1 <= tmpw && blocy1 <= tmph && tmpx <= blocx2 && tmpy <= blocy2)
+    if (image.blocx1 <= tmpw && image.blocy1 <= tmph && tmpx <= image.blocx2 && tmpy <= image.blocy2)
     {
-        fenx1 = blocx1;
-        if (blocx1 < tmpx)
-            fenx1 = tmpx;
+        image.fenx1 = image.blocx1;
+        if (image.blocx1 < tmpx)
+            image.fenx1 = tmpx;
         
-        feny1 = blocy1;
-        if (blocy1 < tmpy)
-            feny1 = tmpy;
+        image.feny1 = image.blocy1;
+        if (image.blocy1 < tmpy)
+            image.feny1 = tmpy;
         
-        fenx2 = blocx2;
-        if (tmpw < blocx2)
-            fenx2 = tmpw;
+        image.fenx2 = image.blocx2;
+        if (tmpw < image.blocx2)
+            image.fenx2 = tmpw;
         
-        feny2 = blocy2;
-        if (tmph < blocy2)
-            feny2 = tmph;
+        image.feny2 = image.blocy2;
+        if (tmph < image.blocy2)
+            image.feny2 = tmph;
         
         return 1;
     }
@@ -1186,44 +1106,44 @@ u8 calcfen(u16 elemidx1, u16 elemidx3)
 
 u8 clipfen(sSprite *sprite)
 {
-    fclip = 0;
+    image.fclip = 0;
     s16 spritex1 = sprite->newx;
-    if (fenx2 < spritex1)
-        return fclip;
+    if (image.fenx2 < spritex1)
+        return image.fclip;
 
     s16 spritey1 = sprite->newy;
-    if (feny2 < spritey1)
-        return fclip;
+    if (image.feny2 < spritey1)
+        return image.fclip;
 
-    s16 spritex2 = sprite->depx + 1;
-    if (spritex2 < fenx1)
-        return fclip;
+    s16 spritex2 = sprite->depx;
+    if (spritex2 < image.fenx1)
+        return image.fclip;
 
-    s16 spritey2 = sprite->depy + 1;
-    if (spritey2 < feny1)
-        return fclip;
+    s16 spritey2 = sprite->depy;
+    if (spritey2 < image.feny1)
+        return image.fclip;
 
-    if (spritex1 < fenx1)
-        spritex1 = fenx1;
+    if (spritex1 < image.fenx1)
+        spritex1 = image.fenx1;
 
-    if (spritey1 < feny1)
-        spritey1 = feny1;
+    if (spritey1 < image.feny1)
+        spritey1 = image.feny1;
 
-    if (fenx2 < spritex2)
-        spritex2 = fenx2;
+    if (image.fenx2 < spritex2)
+        spritex2 = image.fenx2;
 
-    if (feny2 < spritey2)
-        spritey2 = feny2;
+    if (image.feny2 < spritey2)
+        spritey2 = image.feny2;
 
-    clipx1 = spritex1;
-    clipy1 = spritey1;
-    clipx2 = spritex2;
-    clipy2 = spritey2;
+    image.clipx1 = spritex1;
+    image.clipy1 = spritey1;
+    image.clipx2 = spritex2;
+    image.clipy2 = spritey2;
     
-    clipl = (clipx2 - clipx1) + 1;
-    cliph = (clipy2 - clipy1) + 1;
-    fclip = 1;
-    return fclip;
+    image.clipl = (image.clipx2 - image.clipx1) + 1;
+    image.cliph = (image.clipy2 - image.clipy1) + 1;
+    image.fclip = 1;
+    return image.fclip;
 }
 
 u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3)
@@ -1263,30 +1183,30 @@ void tstjoints(u16 elemidx)
     s16 tmpx = sprvar->newx + sprvar->width;
     s16 tmpy = sprvar->newy + sprvar->height;
     
-    if (-1 < sprvar->newd && -1 < newd && sprvar->newx <= newx + newl && sprvar->newy <= newy + newh && newx <= tmpx && newy <= tmpy)
+    if (-1 < sprvar->newd && -1 < image.newd && sprvar->newx <= image.newx + image.newl && sprvar->newy <= image.newy + image.newh && image.newx <= tmpx && image.newy <= tmpy)
     {
-        blocx1 = sprvar->newx;
-        if (newx < sprvar->newx)
-            blocx1 = newx;
+        image.blocx1 = sprvar->newx;
+        if (image.newx < sprvar->newx)
+            image.blocx1 = image.newx;
 
-        blocy1 = sprvar->newy;
-        if (newy < sprvar->newy)
-            blocy1 = newy;
+        image.blocy1 = sprvar->newy;
+        if (image.newy < sprvar->newy)
+            image.blocy1 = image.newy;
 
-        if (tmpx < (s16)(newx + newl))
-            tmpx = newx + newl;
+        if (tmpx < (s16)(image.newx + image.newl))
+            tmpx = image.newx + image.newl;
 
-        if (tmpy < (s16)(newy + newh))
-            tmpy = newy + newh;
+        if (tmpy < (s16)(image.newy + image.newh))
+            tmpy = image.newy + image.newh;
 
-        blocx2 = tmpx;
-        blocy2 = tmpy;
-        joints = 1;
+        image.blocx2 = tmpx;
+        image.blocy2 = tmpy;
+        image.joints = 1;
 
         return;
     }
     
-    joints = 0;
+    image.joints = 0;
 }
 
 void scalaire(s16 scene, s16 *x, s16 *y, s16 *z)
@@ -1333,7 +1253,7 @@ void deptopix(u16 scene, u16 elemidx)
         sSprite *elemsprvar = SPRITE_VAR(elemidx);
         
         scene = elemsprvar->screen_id;
-        newf = elemsprvar->flaginvx;
+        image.newf = elemsprvar->flaginvx;
         s16 tmpdepx = elemsprvar->depx - get_scr_depx(scene);
         s16 tmpdepy = elemsprvar->depy - get_scr_depy(scene);
         s16 tmpdepz = elemsprvar->depz - get_scr_depz(scene);
@@ -1371,58 +1291,58 @@ void deptopix(u16 scene, u16 elemidx)
         tmpdepx = (tmpdepx >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0a(scene);
         tmpdepy = (tmpdepy >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0c(scene);
 
-        newad = elemsprvar->data + offset;
+        image.newad = elemsprvar->data + offset;
         
-        u8 *spritedata = (alis.mem + newad + xread32(newad));
+        u8 *spritedata = (alis.mem + image.newad + xread32(image.newad));
         if (spritedata[0] == 3)
         {
             tmpdepx += (elemsprvar->flaginvx ? -1 : 1) * read16(spritedata + 4);
             tmpdepy += read16(spritedata + 6);
             if (spritedata[1] != 0)
             {
-                newf ^= 1;
+                image.newf ^= 1;
             }
             
-            newad += (s16)(read16(spritedata + 2) << 2);
-            spritedata = alis.mem + newad + xread32(newad);
+            image.newad += (s16)(read16(spritedata + 2) << 2);
+            spritedata = alis.mem + image.newad + xread32(image.newad);
         }
         
-        newl = read16(spritedata + 2);
-        newh = read16(spritedata + 4);
-        newzoomx = 0;
-        newzoomy = 0;
+        image.newl = read16(spritedata + 2);
+        image.newh = read16(spritedata + 4);
+        image.newzoomx = 0;
+        image.newzoomy = 0;
         
         if (alis.platform.kind == EPlatformMac)
         {
             mac_update_pos(&tmpdepx, &tmpdepy);
         }
         
-        newx = tmpdepx - (newl >> 1);
-        newy = tmpdepy - (newh >> 1);
-        newd = tmpdepz;
+        image.newx = tmpdepx - (image.newl >> 1);
+        image.newy = tmpdepy - (image.newh >> 1);
+        image.newd = tmpdepz;
     }
 }
 
 void waitphysic(void)
 {
-    do {} while (fphysic != 0);
+    do {} while (image.fphysic != 0);
 }
 
 void trsfen(u8 *src, u8 *tgt)
 {
-    if (fenx2 > alis.platform.width && feny2 > alis.platform.height)
+    if (image.fenx2 > alis.platform.width && image.feny2 > alis.platform.height)
     {
         return;
     }
     
-    src += fenx1 + feny1 * alis.platform.width;
-    tgt += fenx1 + feny1 * alis.platform.width;
+    src += image.fenx1 + image.feny1 * alis.platform.width;
+    tgt += image.fenx1 + image.feny1 * alis.platform.width;
     
-    s16 skip = alis.platform.width - (fenx2 - fenx1);
+    s16 skip = alis.platform.width - (image.fenx2 - image.fenx1);
 
-    for (s32 y = feny1; y < feny2; y++)
+    for (s32 y = image.feny1; y < image.feny2; y++)
     {
-        for (s32 x = fenx1; x < fenx2; x++, src++, tgt++)
+        for (s32 x = image.fenx1; x < image.fenx2; x++, src++, tgt++)
         {
             *tgt = *src;
         }
@@ -1434,10 +1354,10 @@ void trsfen(u8 *src, u8 *tgt)
 
 void phytolog(void)
 {
-    fenx1 = 0;
-    feny1 = 0;
-    fenx2 = alis.platform.width - 1;
-    feny2 = alis.platform.height - 1;
+    image.fenx1 = 0;
+    image.feny1 = 0;
+    image.fenx2 = alis.platform.width - 1;
+    image.feny2 = alis.platform.height - 1;
     trsfen(image.physic, image.logic);
 }
 
@@ -1501,20 +1421,20 @@ void mouserase(void)
 
 void tvtofen(void)
 {
-    // fenx2 = fenlargw * 4 + fenx1 - 1;
+    // image.fenx2 = fenlargw * 4 + image.fenx1 - 1;
     trsfen(image.physic, image.logic);
 }
 
 void memfen(void)
 {
-    ptabfen[0] = fenx1;
-    ptabfen[1] = fenx2;
-    ptabfen[2] = feny1;
-    ptabfen[3] = feny2;
-    ptabfen += 4;
+    image.ptabfen[0] = image.fenx1;
+    image.ptabfen[1] = image.fenx2;
+    image.ptabfen[2] = image.feny1;
+    image.ptabfen[3] = image.feny2;
+    image.ptabfen += 4;
 
-    s16 *endtabfen = tabfen + sizeof(tabfen);
-    if (ptabfen < endtabfen)
+    s16 *endtabfen = image.tabfen + sizeof(image.tabfen);
+    if (image.ptabfen < endtabfen)
     {
         return;
     }
@@ -1525,25 +1445,25 @@ void memfen(void)
 
 void oldfen(void)
 {
-    for (s16 *tabptr = tabfen; tabptr < ptabfen; tabptr += 4)
+    for (s16 *tabptr = image.tabfen; tabptr < image.ptabfen; tabptr += 4)
     {
-        fenx1 = tabptr[0];
-        fenx2 = tabptr[1];
-        feny1 = tabptr[2];
-        feny2 = tabptr[3];
+        image.fenx1 = tabptr[0];
+        image.fenx2 = tabptr[1];
+        image.feny1 = tabptr[2];
+        image.feny2 = tabptr[3];
         tvtofen();
     }
 }
 
 void setphysic(void)
 {
-    if (insid == 0)
+    if (image.insid == 0)
     {
         host.pixelbuf.data = image.physic;
     }
 
-    bufpack = image.logic;
-    fphysic = 1;
+    image.bufpack = image.logic;
+    image.fphysic = 1;
 }
 
 u8 *folscreen(u8 *scene)
@@ -1603,20 +1523,20 @@ void addlink(u16 elemidx)
     if (-1 < elemsprvar->newd)
     {
         s16 tmp = elemsprvar->newx;
-        if (tmp <= blocx1)
-            blocx1 = tmp;
+        if (tmp <= image.blocx1)
+            image.blocx1 = tmp;
 
         tmp += elemsprvar->width + 1;
-        if (blocx2 <= tmp)
-            blocx2 = tmp;
+        if (image.blocx2 <= tmp)
+            image.blocx2 = tmp;
 
         tmp = elemsprvar->newy;
-        if (tmp <= blocy1)
-            blocy1 = tmp;
+        if (tmp <= image.blocy1)
+            image.blocy1 = tmp;
 
         tmp += elemsprvar->height + 1;
-        if (blocy2 <= tmp)
-            blocy2 = tmp;
+        if (image.blocy2 <= tmp)
+            image.blocy2 = tmp;
     }
 }
 
@@ -1625,15 +1545,15 @@ u16 inouvlink(u16 scene, u16 elemidx1, u16 elemidx2, u16 elemidx3)
     deptopix(scene, elemidx1);
     
     sSprite *elem1sprvar = SPRITE_VAR(elemidx1);
-    elem1sprvar->newad = newad;
-    elem1sprvar->newx = newx;
-    elem1sprvar->newy = newy;
-    elem1sprvar->newd = newd;
-    elem1sprvar->newf = newf;
-    elem1sprvar->width = newl;
-    elem1sprvar->height = newh;
-    elem1sprvar->newzoomx = newzoomx;
-    elem1sprvar->newzoomy = newzoomy;
+    elem1sprvar->newad = image.newad;
+    elem1sprvar->newx = image.newx;
+    elem1sprvar->newy = image.newy;
+    elem1sprvar->newd = image.newd;
+    elem1sprvar->newf = image.newf;
+    elem1sprvar->width = image.newl;
+    elem1sprvar->height = image.newh;
+    elem1sprvar->newzoomx = image.newzoomx;
+    elem1sprvar->newzoomy = image.newzoomy;
 
     sSprite *elem2sprvar = SPRITE_VAR(elemidx2);
     elem2sprvar->link = elem1sprvar->link;
@@ -1655,15 +1575,15 @@ u16 iremplink(u16 scene, u16 elemidx1, u16 elemidx2, u16 elemidx3)
     
     deptopix(scene, elemidx1);
     
-    elem1sprvar->newad = newad;
-    elem1sprvar->newx = newx;
-    elem1sprvar->newy = newy;
-    elem1sprvar->newd = newd;
-    elem1sprvar->newf = newf;
-    elem1sprvar->width = newl;
-    elem1sprvar->height = newh;
-    elem1sprvar->newzoomx = newzoomx;
-    elem1sprvar->newzoomy = newzoomy;
+    elem1sprvar->newad = image.newad;
+    elem1sprvar->newx = image.newx;
+    elem1sprvar->newy = image.newy;
+    elem1sprvar->newd = image.newd;
+    elem1sprvar->newf = image.newf;
+    elem1sprvar->width = image.newl;
+    elem1sprvar->height = image.newh;
+    elem1sprvar->newzoomx = image.newzoomx;
+    elem1sprvar->newzoomy = image.newzoomy;
 
     sSprite *elem2sprvar = SPRITE_VAR(elemidx2);
     elem2sprvar->link = elem1sprvar->link;
@@ -1695,31 +1615,31 @@ u8 fdoland = 0;
 
 void clrfen(void)
 {
-    s16 tmpx = fenx2 - fenx1;
-    for (s16 y = feny1; y < feny2; y++)
+    s16 tmpx = image.fenx2 - image.fenx1;
+    for (s16 y = image.feny1; y < image.feny2; y++)
     {
-        memset(image.physic + fenx1 + y * alis.platform.width, 0, tmpx);
+        memset(image.physic + image.fenx1 + y * alis.platform.width, 0, tmpx);
     }
 }
 
 void clipback(void)
 {
-    if (clipy1 < ((s16 *)(&image.backx1))[1])
+    if (image.clipy1 < ((s16 *)(&image.backx1))[1])
     {
-        if (clipy2 < ((s16 *)(&image.backx1))[1])
+        if (image.clipy2 < ((s16 *)(&image.backx1))[1])
         {
             return;
         }
     }
     else
     {
-        if (clipy2 <= ((s16 *)(&image.backx2))[1])
+        if (image.clipy2 <= ((s16 *)(&image.backx2))[1])
         {
             image.cback = 1;
             return;
         }
         
-        if (((s16 *)(&image.backx2))[1] < clipy1)
+        if (((s16 *)(&image.backx2))[1] < image.clipy1)
         {
             return;
         }
@@ -1744,18 +1664,18 @@ void drawmap(sSprite *sprite, u32 mapaddr, s16 limx1, s16 limy1, s16 limx2, s16 
         vram = xread32(addr + 0xe) + addr;
         
         addr = xread32(vram) + vram;
-        u16 tempy = (blocy1 - sprite->newy) + xread16(mapaddr - 6);
+        u16 tempy = (image.blocy1 - sprite->newy) + xread16(mapaddr - 6);
         
         s32 yc = tempy / (u16)tiley;
-        s16 yo = blocy1 - tempy % (u16)tiley;
+        s16 yo = image.blocy1 - tempy % (u16)tiley;
 
         u32 tileaddr = mapaddr + 0x28;
-        s16 t1 = blocx1 - sprite->newx;
+        s16 t1 = image.blocx1 - sprite->newx;
         s16 t2 = xread16(mapaddr - 10);
         
         tileaddr += (tileoffset * ((u16)(t1 + t2) / tilex) + yc);
-        s16 mapheight = ((blocy2 - sprite->newy) + xread16(mapaddr - 6)) / (u16)tiley - yc;
-        s16 mapwidth = (blocx2 - blocx1) / tilex;
+        s16 mapheight = ((image.blocy2 - sprite->newy) + xread16(mapaddr - 6)) / (u16)tiley - yc;
+        s16 mapwidth = (image.blocx2 - image.blocx1) / tilex;
 
         if ((xread8(mapaddr - 0x26) & 2) != 0)
         {
@@ -1988,33 +1908,33 @@ void destofen(sSprite *sprite)
     s32 width = sprite->width + 1;
     s32 height = sprite->height + 1;
 
-    if (clipx2 < posx1)
+    if (image.clipx2 < posx1)
         return;
 
-    if (clipy2 < posy1)
+    if (image.clipy2 < posy1)
         return;
 
-    if (xpos2 < clipx1)
+    if (xpos2 < image.clipx1)
         return;
 
-    if (ypos2 < clipy1)
+    if (ypos2 < image.clipy1)
         return;
 
-    blocx1 = posx1;
-    if (posx1 < clipx1)
-        blocx1 = clipx1;
+    image.blocx1 = posx1;
+    if (posx1 < image.clipx1)
+        image.blocx1 = image.clipx1;
 
-    blocy1 = posy1;
-    if (posy1 < clipy1)
-        blocy1 = clipy1;
+    image.blocy1 = posy1;
+    if (posy1 < image.clipy1)
+        image.blocy1 = image.clipy1;
 
-    blocx2 = xpos2;
-    if (clipx2 < xpos2)
-        blocx2 = clipx2;
+    image.blocx2 = xpos2;
+    if (image.clipx2 < xpos2)
+        image.blocx2 = image.clipx2;
 
-    blocy2 = ypos2;
-    if (clipy2 < ypos2)
-        blocy2 = clipy2;
+    image.blocy2 = ypos2;
+    if (image.clipy2 < ypos2)
+        image.blocy2 = image.clipy2;
 
     u8 *at = bitmap + 6;
 
@@ -2027,32 +1947,32 @@ void destofen(sSprite *sprite)
     
     s32 bmpx1 = 0;
     s32 bmpx2 = width;
-    if (blocx1 < 0)
+    if (image.blocx1 < 0)
     {
-        bmpx1 -= blocx1;
-        bmpx2 += blocx1;
+        bmpx1 -= image.blocx1;
+        bmpx2 += image.blocx1;
     }
     
-    if (blocx1 > posx1)
+    if (image.blocx1 > posx1)
     {
-        bmpx1 += (blocx1 - posx1);
-        bmpx2 -= (blocx1 - posx1);
+        bmpx1 += (image.blocx1 - posx1);
+        bmpx2 -= (image.blocx1 - posx1);
     }
     
-    if (blocx2 < xpos2)
+    if (image.blocx2 <= xpos2)
     {
-        bmpx2 -= (xpos2 - blocx2);
+        bmpx2 -= (xpos2 - image.blocx2);
     }
 
-    if (blocy1 > posy1)
+    if (image.blocy1 > posy1)
     {
-        bmpy1 += (blocy1 - posy1);
-        bmpy2 -= (blocy1 - posy1);
+        bmpy1 += (image.blocy1 - posy1);
+        bmpy2 -= (image.blocy1 - posy1);
     }
 
-    if (blocy2 < ypos2)
+    if (image.blocy2 < ypos2)
     {
-        bmpy2 -= (ypos2 - blocy2);
+        bmpy2 -= (ypos2 - image.blocy2);
     }
     
     // NOTE: just a hack to write directly to output buffer
@@ -2328,7 +2248,7 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                 {
                     clipfen(SPRITE_VAR(tmpidx));
                     
-                    if (fclip != 0)
+                    if (image.fclip != 0)
                     {
                         if ((get_scr_numelem(scridx) & 2) == 0)
                         {
@@ -2349,18 +2269,18 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                                 {
                                     if ((image.wback != 0) && (image.pback != 0))
                                     {
-                                        wlogic = image.backmap;
-                                        wlogx1 = image.backx1;
-                                        wlogx2 = image.backx2;
-                                        wlogy1 = image.backy1;
-                                        wlogy2 = image.backy2;
-                                        wloglarg = image.backlarg;
+                                        image.wlogic = image.backmap;
+                                        image.wlogx1 = image.backx1;
+                                        image.wlogx2 = image.backx2;
+                                        image.wlogy1 = image.backy1;
+                                        image.wlogy2 = image.backy2;
+                                        image.wloglarg = image.backlarg;
                                         
-                                        if (clipy1 <= image.backx1)
-                                            clipy1 = image.backx1;
+                                        if (image.clipy1 <= image.backx1)
+                                            image.clipy1 = image.backx1;
                                         
-                                        if (image.backx2 <= clipy2)
-                                            clipy2 = image.backx2;
+                                        if (image.backx2 <= image.clipy2)
+                                            image.clipy2 = image.backx2;
                                         
                                         sprite = SPRITE_VAR(tmpidx);
                                         while (true)
@@ -2376,12 +2296,12 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                                             }
                                         }
                                         
-                                        wlogic = image.logic;
-                                        wlogx1 = image.logx1;
-                                        wlogx2 = image.logx2;
-                                        wlogy1 = image.logy1;
-                                        wlogy2 = image.logy2;
-                                        wloglarg = loglarg;
+                                        image.wlogic = image.logic;
+                                        image.wlogx1 = image.logx1;
+                                        image.wlogx2 = image.logx2;
+                                        image.wlogy1 = image.logy1;
+                                        image.wlogy2 = image.logy2;
+                                        image.wloglarg = image.loglarg;
                                     }
                                 }
                                 else
@@ -2389,12 +2309,12 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                                     if (image.pback == 0)
                                         goto fenetre31;
                                     
-                                    wlogic = image.backmap;
-                                    wlogx1 = image.backx1;
-                                    wlogx2 = image.backx2;
-                                    wlogy1 = image.backy1;
-                                    wlogy2 = image.backy2;
-                                    wloglarg = image.backlarg;
+                                    image.wlogic = image.backmap;
+                                    image.wlogx1 = image.backx1;
+                                    image.wlogx2 = image.backx2;
+                                    image.wlogy1 = image.backy1;
+                                    image.wlogy2 = image.backy2;
+                                    image.wloglarg = image.backlarg;
                                 }
                             }
                             
@@ -2403,12 +2323,12 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                             {
                                 if (image.sback != 0 && tmpidx == image.backsprite)
                                 {
-                                    wlogic = image.logic;
-                                    wlogx1 = image.logx1;
-                                    wlogx2 = image.logx2;
-                                    wlogy1 = image.logy1;
-                                    wlogy2 = image.logy2;
-                                    wloglarg = loglarg;
+                                    image.wlogic = image.logic;
+                                    image.wlogx1 = image.logx1;
+                                    image.wlogx2 = image.logx2;
+                                    image.wlogy1 = image.logy1;
+                                    image.wlogy2 = image.logy2;
+                                    image.wloglarg = image.loglarg;
                                 }
                                 
                             fenetre31:
@@ -2417,7 +2337,7 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                                 if (-1 < sprite->state && -1 < sprite->newf && -1 < sprite->newd)
                                 {
                                     destofen(sprite);
-                                    switchgo = 1;
+                                    image.switchgo = 1;
                                 }
                             }
                         }
@@ -2581,7 +2501,7 @@ u16 suitlin1(u16 a2, u16 d1w, u16 d2w, u16 d3w, u16 d4w)
         }
     }
 
-    joints = 1;
+    image.joints = 1;
     return d1w;
 }
 
@@ -2596,7 +2516,7 @@ void affiscr(u16 scene, u16 screenidx)
 //        a2 = folscreen(a2);
 //    }
     
-    if ((fremap != 0) || ((s8)get_scr_state(scene) < 0))
+    if ((image.fremap != 0) || ((s8)get_scr_state(scene) < 0))
     {
         depscreen(scene, screenidx);
     }
@@ -2623,7 +2543,7 @@ void affiscr(u16 scene, u16 screenidx)
                 s8 state = SPRITE_VAR(spriteidx)->state;
                 if (state != 0)
                 {
-                    joints = 0;
+                    image.joints = 0;
                     image.pback = 0;
                     if (state == 2)
                     {
@@ -2651,7 +2571,7 @@ void affiscr(u16 scene, u16 screenidx)
                             deptopix(scene, spriteidx);
                             tstjoints(spriteidx);
                             
-                            if (joints == 0)
+                            if (image.joints == 0)
                             {
                                 SPRITE_VAR(prevspidx)->link = sprite->link;
                                 fenetre(scene, spriteidx, screenidx);
@@ -2661,15 +2581,15 @@ void affiscr(u16 scene, u16 screenidx)
                                 SPRITE_VAR(prevspidx)->link = sprite->link;
                             }
                             
-                            sprite->newad = newad;
-                            sprite->newx = newx;
-                            sprite->newy = newy;
-                            sprite->newd = newd;
-                            sprite->newf = newf;
-                            sprite->width = newl;
-                            sprite->height = newh;
-                            sprite->newzoomx = newzoomx;
-                            sprite->newzoomy = newzoomy;
+                            sprite->newad = image.newad;
+                            sprite->newx = image.newx;
+                            sprite->newy = image.newy;
+                            sprite->newd = image.newd;
+                            sprite->newf = image.newf;
+                            sprite->width = image.newl;
+                            sprite->height = image.newh;
+                            sprite->newzoomx = image.newzoomx;
+                            sprite->newzoomy = image.newzoomy;
                             
                             prevspidx = rangesprite(spriteidx, prevspidx, screenidx);
                         }
@@ -2689,7 +2609,7 @@ void affiscr(u16 scene, u16 screenidx)
                         
                         if (linkidx < 0)
                         {
-                            joints = 1;
+                            image.joints = 1;
                         }
                         else
                         {
@@ -2704,17 +2624,17 @@ void affiscr(u16 scene, u16 screenidx)
         }
         else
         {
-            fenx1 = get_scr_newx(scene);
-            feny1 = get_scr_newy(scene);
-            fenx2 = fenx1 + get_scr_width(scene);
-            feny2 = feny1 + get_scr_height(scene);
-            clipl = (fenx2 - fenx1) + 1;
-            cliph = (feny2 - feny1) + 1;
+            image.fenx1 = get_scr_newx(scene);
+            image.feny1 = get_scr_newy(scene);
+            image.fenx2 = image.fenx1 + get_scr_width(scene);
+            image.feny2 = image.feny1 + get_scr_height(scene);
+            image.clipl = (image.fenx2 - image.fenx1) + 1;
+            image.cliph = (image.feny2 - image.feny1) + 1;
             
-            clipx1 = fenx1;
-            clipy1 = feny1;
-            clipx2 = fenx2;
-            clipy2 = feny2;
+            image.clipx1 = image.fenx1;
+            image.clipy1 = image.feny1;
+            image.clipx2 = image.fenx2;
+            image.clipy2 = image.feny2;
             
             if ((get_scr_numelem(scene) & 0x40) == 0)
             {
@@ -2738,15 +2658,15 @@ void affiscr(u16 scene, u16 screenidx)
                     {
                         deptopix(scene, spriteidx);
                         psprite->link = csprite->link;
-                        csprite->newad = newad;
-                        csprite->newx = newx;
-                        csprite->newy = newy;
-                        csprite->newd = newd;
-                        csprite->newad = newf;
-                        csprite->width = newl;
-                        csprite->height = newh;
-                        csprite->newzoomx = newzoomx;
-                        csprite->newzoomy = newzoomy;
+                        csprite->newad = image.newad;
+                        csprite->newx = image.newx;
+                        csprite->newy = image.newy;
+                        csprite->newd = image.newd;
+                        csprite->newad = image.newf;
+                        csprite->width = image.newl;
+                        csprite->height = image.newh;
+                        csprite->newzoomx = image.newzoomx;
+                        csprite->newzoomy = image.newzoomy;
                         spriteidx = rangesprite(spriteidx, prevspidx, screenidx);
                     }
                 }
@@ -2758,14 +2678,14 @@ void affiscr(u16 scene, u16 screenidx)
                 {
                     clipfen(SPRITE_VAR(prevspidx));
                     
-                    if (fclip != 0)
+                    if (image.fclip != 0)
                     {
                         while ((prevspidx = SPRITE_VAR(prevspidx)->link) != 0)
                         {
                             if (-1 < SPRITE_VAR(prevspidx)->state && -1 < SPRITE_VAR(prevspidx)->newf && -1 < SPRITE_VAR(prevspidx)->newd)
                             {
                                 destofen(SPRITE_VAR(prevspidx));
-                                switchgo = 1;
+                                image.switchgo = 1;
                             }
                         }
                     }
@@ -2786,14 +2706,14 @@ void affiscr(u16 scene, u16 screenidx)
             {
                 clipfen(SPRITE_VAR(prevspidx));
                 
-                if (fclip != 0)
+                if (image.fclip != 0)
                 {
                     while ((prevspidx = SPRITE_VAR(prevspidx)->link) != 0)
                     {
                         if (-1 < SPRITE_VAR(prevspidx)->state && -1 < SPRITE_VAR(prevspidx)->newf && -1 < SPRITE_VAR(prevspidx)->newd)
                         {
                             destofen(SPRITE_VAR(prevspidx));
-                            switchgo = 1;
+                            image.switchgo = 1;
                         }
                     }
                 }
@@ -2809,10 +2729,10 @@ void affiscr(u16 scene, u16 screenidx)
     if (image.wpag < 0)
     {
         set_scr_state(scene, get_scr_state(scene) & 0xdf);
-        fenx1 = get_scr_newx(scene);
-        feny1 = get_scr_newy(scene);
-        fenx2 = get_scr_newx(scene) + get_scr_width(scene);
-        feny2 = get_scr_newy(scene) + get_scr_height(scene);
+        image.fenx1 = get_scr_newx(scene);
+        image.feny1 = get_scr_newy(scene);
+        image.fenx2 = get_scr_newx(scene) + get_scr_width(scene);
+        image.feny2 = get_scr_newy(scene) + get_scr_height(scene);
         scrolpage();
     }
     
@@ -2826,19 +2746,19 @@ void affiscr(u16 scene, u16 screenidx)
 
 u32 itroutine(u32 interval, void *param)
 {
-    u8 prevtiming = vtiming;
+    u8 prevtiming = image.vtiming;
     alis.timeclock ++;
-    fitroutine = 1;
-    vtiming = vtiming + 1;
-    if (vtiming == 0) {
-        vtiming = prevtiming;
+    image.fitroutine = 1;
+    image.vtiming ++;
+    if (image.vtiming == 0) {
+        image.vtiming = prevtiming;
     }
     
-    if (palc != 0 && (--palt) == 0)
+    if (image.palc != 0 && (--image.palt) == 0)
     {
-        palt = palt0;
+        image.palt = image.palt0;
         topalet();
-        palc --;
+        image.palc --;
     }
     
     // TODO: audio
@@ -2863,7 +2783,7 @@ u32 itroutine(u32 interval, void *param)
 //        canal();
 //    }
     
-    fitroutine = 0;
+    image.fitroutine = 0;
     return 20;
 }
 
@@ -2884,18 +2804,18 @@ void draw(void)
     waitframe();
     
 //    waitphysic();
-    if ((alis.fswitch != 0) && (fphytolog != 0))
+    if ((alis.fswitch != 0) && (image.fphytolog != 0))
     {
-        fphytolog = 0;
+        image.fphytolog = 0;
         phytolog();
     }
     
-    vtiming = 0;
+    image.vtiming = 0;
     
     if (alis.fswitch != 0)
     {
         // TODO: mouse
-        if (fmouse < 0)
+        if (image.fmouse < 0)
         {
             oldfen();
         }
@@ -2904,19 +2824,16 @@ void draw(void)
             oldfen();
         }
 
-        ptabfen = tabfen;
+        image.ptabfen = image.tabfen;
     }
     
-    switchgo = 0;
-    wlogic = image.logic;
-    wlogx1 = image.logx1;
-    wlogx2 = image.logx2;
-    wlogy1 = image.logy1;
-    wlogy2 = image.logy2;
-    wloglarg = loglarg;
-    
-    // TODO: hack
-    // fremap = 1;
+    image.switchgo = 0;
+    image.wlogic = image.logic;
+    image.wlogx1 = image.logx1;
+    image.wlogx2 = image.logx2;
+    image.wlogy1 = image.logy1;
+    image.wlogy2 = image.logy2;
+    image.wloglarg = image.loglarg;
     
     s16 scnidx = screen.ptscreen;
     u8 *oldphys = image.physic;
@@ -2931,7 +2848,7 @@ void draw(void)
         scnidx = get_scr_to_next(scnidx);
     }
 
-    fremap = 0;
+    image.fremap = 0;
     if (alis.fswitch != 0)
     {
         image.physic = image.logic;
@@ -2954,9 +2871,9 @@ u8 *buffer = 0;
 
 void setmpalet(void)
 {
-    ftopal = 0xff;
-    thepalet = 0;
-    defpalet = 0;
+    image.ftopal = 0xff;
+    image.thepalet = 0;
+    image.defpalet = 0;
 }
 
 s16 debprotf(s16 target_id)

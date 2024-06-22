@@ -30,28 +30,6 @@
 #include "video.h"
 
 
-extern u8 ftopal;
-extern u8 thepalet;
-extern u8 defpalet;
-extern u8 mpalet[768 * 4];
-
-extern s16 fenx1;
-extern s16 feny1;
-extern s16 fenx2;
-extern s16 feny2;
-extern s16 clipx1;
-extern s16 clipy1;
-extern s16 clipx2;
-extern s16 clipy2;
-extern s16 clipl;
-extern s16 cliph;
-extern s16 wlogx1;
-extern s16 wlogx2;
-extern s16 wlogy1;
-extern s16 wlogy2;
-extern s16 wloglarg;
-extern s16 loglarg;
-
 u8 *endframe = NULL;
 
 sFLICData bfilm;
@@ -87,7 +65,6 @@ u16 pal[16] = {
 u8 pvgalogic[1024 * 1024];
 u8 *vgalogic = pvgalogic + 0x40;
 u8 *vgalogic_df = pvgalogic + 0xdf00 + 319;
-extern u8 tpalet[768 * 4];
 
 void fls_savscreen(void)
 {
@@ -199,9 +176,9 @@ u8 *fls_pal(u8 *addr)
     int c = 0;
     for (int i = 0; i < 16; i++, palette += 2, c += 3)
     {
-        mpalet[c + 0] = (palette[0] & 0b00001111) << 4;
-        mpalet[c + 1] = (palette[1] >> 4) << 4;
-        mpalet[c + 2] = (palette[1] & 0b00001111) << 4;
+        image.mpalet[c + 0] = (palette[0] & 0b00001111) << 4;
+        image.mpalet[c + 1] = (palette[1] >> 4) << 4;
+        image.mpalet[c + 2] = (palette[1] & 0b00001111) << 4;
     }
     
     return addr;
@@ -309,7 +286,7 @@ void fli_palette(u8 *addr)
             packets = 1;
         }
 
-        u8 *ptr = mpalet + 3 * index;
+        u8 *ptr = image.mpalet + 3 * index;
         for (int c = 0; c < len; c++)
         {
             ptr[0] = *(addr) << 2; addr++;
@@ -322,7 +299,7 @@ void fli_palette(u8 *addr)
     }
     while (--packets);
 
-    ftopal = 0xff;
+    image.ftopal = 0xff;
 }
 
 void fli_blackdata(void)
@@ -487,19 +464,19 @@ void inifilm(void)
 void runfilm(void)
 {
     u32 basemain = bfilm.basemain;
-    fenx1 = *(u16 *)(alis.mem + basemain + 0xe);
-    fenx2 = *(u16 *)(alis.mem + basemain + 0x12) + fenx1;
-    clipl = *(u16 *)(alis.mem + basemain + 0x12) + 1;
-    feny1 = *(u16 *)(alis.mem + basemain + 0x10);
-    feny2 = *(u16 *)(alis.mem + basemain + 0x14) + feny1;
-    cliph = *(u16 *)(alis.mem + basemain + 0x14) + 1;
-    wloglarg = loglarg;
-    wlogx1 = 0;
-    wlogy1 = 0;
-    clipx1 = fenx1;
-    clipy1 = feny1;
-    clipx2 = fenx2;
-    clipy2 = feny2;
+    image.fenx1 = *(u16 *)(alis.mem + basemain + 0xe);
+    image.fenx2 = *(u16 *)(alis.mem + basemain + 0x12) + image.fenx1;
+    image.clipl = *(u16 *)(alis.mem + basemain + 0x12) + 1;
+    image.feny1 = *(u16 *)(alis.mem + basemain + 0x10);
+    image.feny2 = *(u16 *)(alis.mem + basemain + 0x14) + image.feny1;
+    image.cliph = *(u16 *)(alis.mem + basemain + 0x14) + 1;
+    image.wloglarg = image.loglarg;
+    image.wlogx1 = 0;
+    image.wlogy1 = 0;
+    image.clipx1 = image.fenx1;
+    image.clipy1 = image.feny1;
+    image.clipx2 = image.fenx2;
+    image.clipy2 = image.feny2;
     
     bfilm.playing = 1;
     

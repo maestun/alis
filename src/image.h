@@ -123,12 +123,90 @@ typedef struct {
     
     u16 inkcolor;
     u16 line_a_mode;
+    
+    u8 tvmode;
+
+    u8 svpalet[768];
+    u8 svpalet2[768];
+    u8 tpalet[768 * 4];
+    u8 mpalet[768 * 4];
+    float dpalet[768];
+
+    u8 *atpalet;
+    u8 *ampalet;
+
+    u8 flinepal;
+    s16 firstpal[64];
+    s16 tlinepal[64];
+
+    u8 palc;
+    u8 palt;
+    u8 palt0;
+    u8 ftopal;
+    u8 thepalet;
+    u8 defpalet;
+
+    s16 tabfen[640];
+    s16 *ptabfen;
+
+    s32 bufrvb;
+
+    s32 mousflag;
+
+    u8 *bufpack;
+
+    u8 timing;
+    s8 fmouse;
+    s16 fonum;
+
+    u32 newad;
+    s16 newx;
+    s16 newy;
+    s16 newd;
+    s16 newf;
+    s16 newh;
+    s16 newl;
+    s16 newzoomx;
+    s16 newzoomy;
+    s16 blocx1;
+    s16 blocy1;
+    s16 blocx2;
+    s16 blocy2;
+    u8 joints;
+    s16 fenx1;
+    s16 feny1;
+    s16 fenx2;
+    s16 feny2;
+    s16 clipx1;
+    s16 clipy1;
+    s16 clipx2;
+    s16 clipy2;
+    s16 clipl;
+    s16 cliph;
+    u8 fclip;
+
+    u8 fitroutine;
+    u8 fphysic;
+    u8 fphytolog;
+    u8 fremouse;
+    u8 fremap;
+    u8 fremouse2;
+    u8 vtiming;
+    s16 savmouse[2];
+    u32 savmouse2[8];
+    u8 switchgo;
+    u8 *wlogic;
+    s16 wlogx1;
+    s16 wlogx2;
+    s16 wlogy1;
+    s16 wlogy2;
+    s16 wloglarg;
+    s16 loglarg; // 0x50 for st
+    u8 insid;
 
 } sImage;
 
 extern sImage image;
-
-extern u8 *sprit_mem;
 
 void inisprit(void);
 

@@ -70,9 +70,6 @@ extern u8       fls_ham6;
 extern u8       fls_s512;
 extern u8       *vgalogic_df;
 
-extern u8       flinepal;
-extern s16      firstpal[64];
-
 double isr_step;
 double isr_counter;
 
@@ -167,7 +164,18 @@ u8 sys_poll_event(void) {
                 shift = 1;
             }
 
-            button = _event.key.keysym;
+            if (_event.key.keysym.sym == SDLK_F11)
+            {
+                alis_save_state();
+            }
+            else if (_event.key.keysym.sym == SDLK_F12)
+            {
+                alis_load_state();
+            }
+            else
+            {
+                button = _event.key.keysym;
+            }
             break;
         }
 		case SDL_WINDOWEVENT:
@@ -358,7 +366,7 @@ void sys_render(pixelbuf_t buffer) {
         return;
     }
 
-    if (flinepal == 0)
+    if (image.flinepal == 0)
     {
         int index;
         for (int px = 0; px < buffer.w * buffer.h; px++)
@@ -369,7 +377,7 @@ void sys_render(pixelbuf_t buffer) {
     }
     else
     {
-        s16 *palentry = firstpal;
+        s16 *palentry = image.firstpal;
 
         for (int i = 0; i < 3; i++)
         {
@@ -826,9 +834,9 @@ void sys_update_cursor(void) {
         {
             u8 *palette = host.pixelbuf.palette;
 
-            if (flinepal)
+            if (image.flinepal)
             {
-                s16 *palentry = firstpal;
+                s16 *palentry = image.firstpal;
 
                 for (int i = 0; i < 3; i++)
                 {

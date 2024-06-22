@@ -361,6 +361,10 @@ extern sHost host;
 void            alis_init(sPlatform platform);
 u8              alis_start(void);
 void            alis_deinit(void);
+
+void            alis_save_state(void);
+void            alis_load_state(void);
+
 void            alis_start_script(sAlisScriptData * script);
 void            alis_error(int errnum, ...);
 void            alis_debug_ram(void);

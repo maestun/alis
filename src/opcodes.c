@@ -45,12 +45,6 @@
 #pragma mark - Experimental
 // ============================================================================
 
-extern u8 ftopal;
-extern u8 thepalet;
-extern u8 defpalet;
-
-extern u8 mpalet[768 * 4];
-
 int putdataidx = 0;
 
 s16 putdata[][4] = {
@@ -1926,9 +1920,9 @@ static void cdefcolor(void) {
     }
     
     s16 index = alis.varD7 * 3;
-    mpalet[index + 0] = r;
-    mpalet[index + 1] = g;
-    mpalet[index + 2] = b;
+    image.mpalet[index + 0] = r;
+    image.mpalet[index + 1] = g;
+    image.mpalet[index + 2] = b;
     
     setmpalet();
     set_update_cursor();
@@ -2324,8 +2318,6 @@ void io_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
 }
 
 static void cdraw(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
     readexec_opername();
     readexec_opername_saveD6();
     
@@ -2339,8 +2331,6 @@ static void cdraw(void) {
 }
 
 static void cbox(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
     readexec_opername();
     readexec_opername_saveD6();
     
@@ -2354,8 +2344,6 @@ static void cbox(void) {
 }
 
 static void cboxf(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
     readexec_opername();
     readexec_opername_saveD6();
     
@@ -2369,9 +2357,7 @@ static void cboxf(void) {
 }
 
 static void cink(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
-    
     image.inkcolor = alis.varD7;
 }
 
@@ -3238,20 +3224,20 @@ static void cmovcolor(void) {
         {
             change = -change;
  
-            mpalet[index * 3 + 0] = subcol(change       , mpalet[index * 3 + 0] >> 5) << 5;
-            mpalet[index * 3 + 0] = subcol(change >> 4  , mpalet[index * 3 + 0] >> 5) << 5;
-            mpalet[index * 3 + 0] = subcol(change >> 8  , mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 3 + 0] = subcol(change       , image.mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 3 + 0] = subcol(change >> 4  , image.mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 3 + 0] = subcol(change >> 8  , image.mpalet[index * 3 + 0] >> 5) << 5;
         }
         else
         {
-            mpalet[index * 3 + 0] = addcol(change       , mpalet[index * 3 + 0] >> 5) << 5;
-            mpalet[index * 3 + 0] = addcol(change >> 4  , mpalet[index * 3 + 0] >> 5) << 5;
-            mpalet[index * 3 + 0] = addcol(change >> 8  , mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 3 + 0] = addcol(change       , image.mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 3 + 0] = addcol(change >> 4  , image.mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 3 + 0] = addcol(change >> 8  , image.mpalet[index * 3 + 0] >> 5) << 5;
         }
         
-        ftopal = 0xff;
-        thepalet = 0;
-        defpalet = 0;
+        image.ftopal = 0xff;
+        image.thepalet = 0;
+        image.defpalet = 0;
 
         set_update_cursor();
     }
@@ -3788,8 +3774,8 @@ static void chsprite(void) {
 static void cselpalet(void) {
     readexec_opername();
     alis.varD7 &= 0x3; // 4 palettes: 0...3
-    thepalet = alis.varD7;
-    defpalet = 1;
+    image.thepalet = alis.varD7;
+    image.defpalet = 1;
 }
 
 static void clinepalet(void) {

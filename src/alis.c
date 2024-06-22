@@ -28,12 +28,6 @@
 #include "utils.h"
 
 
-extern u8 *ampalet;
-extern u8 *atpalet;
-
-extern u8 mpalet[768 * 4];
-extern u8 tpalet[768 * 4];
-
 sAlisVM alis;
 sHost host;
 
@@ -267,13 +261,28 @@ void alis_init(sPlatform platform) {
     alis.restart_loop = 0;
     alis.automode = 0;
     
-    memset(tpalet, 0, 768 * 4);
-    memset(mpalet, 0, 768 * 4);
+    memset(&image, 0, sizeof(image));
+    
+    memset(image.tpalet, 0, 768 * 4);
+    memset(image.mpalet, 0, 768 * 4);
     
     for (int i = 0; i < 768; i++)
         image.dkpalet[i] = 0x100;
     
-    image.fdarkpal = 0;
+    image.atpalet = image.tpalet;
+    image.ampalet = image.mpalet;
+
+    image.flinepal = 0;
+    image.tlinepal[0] = 0;
+    image.tlinepal[1] = 0;
+    image.tlinepal[2] = 0xff;
+    image.tlinepal[3] = 0;
+
+    image.ptabfen = image.tabfen;
+    image.fmouse = 0xff;
+    image.fonum = 0xffff;
+    image.loglarg = 0xa0; // 0x50 for st
+
 
     // init virtual ram
     alis.mem = malloc(sizeof(u8) * kHostRAMSize);
@@ -361,7 +370,7 @@ void alis_init(sPlatform platform) {
     host.pixelbuf.h = alis.platform.height;
     host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
     memset(host.pixelbuf.data, 0x0, host.pixelbuf.w * host.pixelbuf.h);
-    host.pixelbuf.palette = ampalet;
+    host.pixelbuf.palette = image.ampalet;
     memset(host.pixelbuf.palette, 0xff, 768);
 
     alis.load_delay = 0;
@@ -388,6 +397,237 @@ void alis_deinit(void) {
     //vram_deinit(alis.vram);
     // free(host.pixelbuf.data);
     free(alis.mem);
+}
+
+void alis_save_state(void)
+{
+    char path[kPathMaxLen] = {0};
+    strcpy(path, alis.platform.path);
+    strcat(path, "alis.state");
+
+    FILE *fp = fopen(path, "wb");
+    fwrite("ALIS", 5, 1, fp);
+    fwrite("0001", 5, 1, fp);
+    fwrite(&(alis), sizeof(alis), 1, fp);
+    fwrite(alis.mem, sizeof(u8) * kHostRAMSize, 1, fp);
+
+    u32 scriptdooff = (u32)((int64_t)alis.script_data_orgs - (int64_t)alis.mem);
+    fwrite(&scriptdooff, 4, 1, fp);
+    
+    u32 tabentoff = (u32)((int64_t)alis.ptrent - (int64_t)alis.tablent);
+    fwrite(&tabentoff, 4, 1, fp);
+    
+    u32 accoff = (u32)((int64_t)alis.acc - (int64_t)alis.mem);
+    fwrite(&accoff, 4, 1, fp);
+
+    u32 accorgoff = (u32)((int64_t)alis.acc_org - (int64_t)alis.mem);
+    fwrite(&accorgoff, 4, 1, fp);
+    
+    u32 loadedScrippts = 0;
+    for (int i = 0; i < kMaxScripts; i++)
+    {
+        if (alis.loaded_scripts[i])
+            loadedScrippts++;
+    }
+
+    fwrite(&loadedScrippts, 4, 1, fp);
+    
+    for (int i = 0; i < kMaxScripts; i++)
+    {
+        if (alis.loaded_scripts[i])
+        {
+            fwrite(&i, 2, 1, fp);
+            fwrite(alis.loaded_scripts[i], sizeof(sAlisScriptData), 1, fp);
+        }
+    }
+
+    u32 mainIdx = 0;
+    u32 scriptIdx = 0;
+    u32 liveScrippts = 0;
+    for (int i = 0; i < kMaxScripts; i++)
+    {
+        if (alis.live_scripts[i])
+            liveScrippts++;
+        
+        if (alis.live_scripts[i] == alis.main)
+            mainIdx = i;
+        
+        if (alis.live_scripts[i] == alis.script)
+            scriptIdx = i;
+    }
+
+    fwrite(&liveScrippts, 4, 1, fp);
+    
+    for (int i = 0; i < kMaxScripts; i++)
+    {
+        if (alis.live_scripts[i])
+        {
+            fwrite(&i, 2, 1, fp);
+            fwrite(&(alis.live_scripts[i]->data->header.id), 2, 1, fp);
+            fwrite(alis.live_scripts[i], sizeof(sAlisScriptLive), 1, fp);
+        }
+    }
+    
+    fwrite(&mainIdx, 4, 1, fp);
+    fwrite(&scriptIdx, 4, 1, fp);
+
+
+    fwrite(&(image), sizeof(image), 1, fp);
+    fwrite(image.spritemem, 1024 * 1024, 1, fp);
+    fwrite(image.physic, alis.platform.width * alis.platform.height, 1, fp);
+    fwrite(image.logic, alis.platform.width * alis.platform.height, 1, fp);
+    fclose(fp);
+}
+
+void alis_load_state(void)
+{
+    char path[kPathMaxLen] = {0};
+    strcpy(path, alis.platform.path);
+    strcat(path, "alis.state");
+    
+//    sAlisVM alis;
+    memset(&alis, 0, sizeof(alis));
+    
+    char buffer[1024];
+
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL)
+    {
+        return;
+    }
+    
+    fread(buffer, 5, 1, fp);
+    if (strcmp("ALIS", buffer))
+    {
+        return;
+    }
+
+    fread(buffer, 5, 1, fp);
+    int ver = atoi(buffer);
+    if (ver != 1)
+    {
+        return;
+    }
+
+    fread(&(alis), sizeof(alis), 1, fp);
+    //newAlis.mem = malloc(sizeof(u8) * kHostRAMSize);
+    fread(alis.mem, sizeof(u8) * kHostRAMSize, 1, fp);
+    
+    alis.vram_org = alis.mem + alis.basemem;
+    
+    // sd7
+    
+    if (alis.bsd7 == alis.sd7)
+    {
+        alis.sd7 = alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
+    }
+    else if (alis.bsd7 == alis.sd6)
+    {
+        alis.sd6 = alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
+    }
+    else if (alis.bsd7 == alis.oldsd7)
+    {
+        alis.oldsd7 = alis.bsd7 = (char *)(alis.mem + 0x1a1e6);
+    }
+
+    // sd6
+    
+    if (alis.bsd6 == alis.sd7)
+    {
+        alis.sd7 = alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
+    }
+    else if (alis.bsd6 == alis.sd6)
+    {
+        alis.sd6 = alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
+    }
+    else if (alis.bsd6 == alis.oldsd7)
+    {
+        alis.oldsd7 = alis.bsd6 = (char *)(alis.mem + 0x1a2e6);
+    }
+
+    // oldsd7
+    
+    if (alis.bsd7bis == alis.sd7)
+    {
+        alis.sd7 = alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
+    }
+    else if (alis.bsd7bis == alis.sd6)
+    {
+        alis.sd6 = alis.bsd6 = (char *)(alis.mem + 0x1a3e6);
+    }
+    else if (alis.bsd7bis == alis.oldsd7)
+    {
+        alis.oldsd7 = alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
+    }
+    
+    alis.atprog_ptr = (u32 *)(alis.mem + alis.atprog);
+    alis.atent_ptr = (sScriptLoc *)(alis.vram_org + alis.specs.script_data_tab_len * 4);
+
+    u32 value;
+
+    fread(&value, 4, 1, fp);
+    alis.script_data_orgs = (u32 *)(alis.mem + value);
+
+    fread(&value, 4, 1, fp);
+    alis.ptrent = (s16 *)(alis.tablent + value);
+
+    fread(&value, 4, 1, fp);
+    alis.acc = (s16 *)(alis.mem + value);
+
+    fread(&value, 4, 1, fp);
+    alis.acc_org = (s16 *)(alis.mem + value);
+    
+    u16 idx = 0;
+    u16 id = 0;
+
+    memset(alis.loaded_scripts, 0, sizeof(alis.loaded_scripts));
+
+    fread(&value, 4, 1, fp);
+    for (int i = 0; i < value; i++)
+    {
+        fread(&idx, 2, 1, fp);
+        alis.loaded_scripts[idx] = malloc(sizeof(sAlisScriptData));
+        fread(alis.loaded_scripts[idx], sizeof(sAlisScriptData), 1, fp);
+    }
+    
+    memset(alis.live_scripts, 0, sizeof(alis.live_scripts));
+
+    fread(&value, 4, 1, fp);
+    for (int i = 0; i < value; i++)
+    {
+        fread(&idx, 2, 1, fp);
+        fread(&id, 2, 1, fp);
+        alis.live_scripts[idx] = malloc(sizeof(sAlisScriptLive));
+        fread(alis.live_scripts[idx], sizeof(sAlisScriptLive), 1, fp);
+        
+        for (int d = 0; d < kMaxScripts; d++)
+        {
+            if (alis.loaded_scripts[d] && alis.loaded_scripts[d]->header.id == id)
+            {
+                alis.live_scripts[idx]->name = alis.loaded_scripts[d]->name;
+                alis.live_scripts[idx]->data = alis.loaded_scripts[d];
+                break;
+            }
+        }
+    }
+
+    fread(&value, 4, 1, fp);
+    alis.main = alis.live_scripts[value];
+
+    fread(&value, 4, 1, fp);
+    alis.script = alis.live_scripts[value];
+    
+    // image
+    
+    //sImage image;
+    memset(&image, 0, sizeof(image));
+    fread(&(image), sizeof(image), 1, fp);
+    // image.spritemem = (u8 *)malloc(1024 * 1024);
+    fread(image.spritemem, 1024 * 1024, 1, fp);
+    fread(image.physic, alis.platform.width * alis.platform.height, 1, fp);
+    fread(image.logic, alis.platform.width * alis.platform.height, 1, fp);
+
+    fclose(fp);
 }
 
 void alis_loop(void) {
