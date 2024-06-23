@@ -774,16 +774,54 @@ sAlisScriptData * script_load(const char * script_path) {
         fclose(fp);
         
         if (depak_sz < 0) {
-            debug(EDebugFatal,
-                  "Failed to unpack script at path '%s'\n",
-                  script_path);
+            debug(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
             exit(-1);
         }
     }
     else {
-        debug(EDebugWarning,
-              "Failed to open script at path '%s'\n",
-              script_path);
+        debug(EDebugFatal, "Failed to open script at path '%s'\n", script_path);
+    }
+    
+    // HACK: patch main script of Mad Show to work from hdd
+    // NOTE: game was distributed on two single-sided 3.5" disks and check disk by loading disk.fic containig number of diskette
+    if (alis.platform.uid == EGameMadShow && alis.platform.kind == EPlatformAtari)
+    {
+        if (script->header.id == 0)
+        {
+            char *locations[2] = { NULL, NULL };
+            if ((locations[0] = strarr((char *)alis.mem + script->data_org, "disk.fic", depak_sz)))
+            {
+                if ((locations[1] = strarr(locations[0] + 8, "disk.fic", depak_sz)))
+                {
+                    for (u8 i = 1; i < 3; i++)
+                    {
+                        char name[16] = { 0 };
+                        sprintf(name, "dsk%d.fic", i);
+                        
+                        strcpy(locations[i - 1], name);
+
+                        char path[kPathMaxLen] = {0};
+                        strcpy(path, alis.platform.path);
+                        strcat(path, name);
+
+                        if (sys_fexists(path) == false)
+                        {
+                            FILE *fp = fopen(path, "wb");
+                            if (fp)
+                            {
+                                fputc(0, fp);
+                                fputc(i, fp);
+                                fclose(fp);
+                            }
+                            else
+                            {
+                                debug(EDebugFatal, "Failed to create '%s'\n", path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     
     return script;

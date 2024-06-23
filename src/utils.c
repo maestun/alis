@@ -39,6 +39,29 @@ char * strupper(char * str) {
     return str;
 }
 
+char *strarr(char *haystack, const char *needle, int length) {
+    
+    size_t needle_len = strlen(needle);
+    for (int i = 0, j = 0; i < length; i++)
+    {
+        if (haystack[i] == needle[j])
+        {
+            ++j;
+            if (j == needle_len)
+            {
+                return 1 + haystack + i - needle_len;
+            }
+        }
+        else
+        {
+           i -= j;
+           j = 0;
+        }
+    }
+    
+    return NULL;
+}
+
 int is_host_le(void) {
     static unsigned int x = 1;
     char* c = (char*)&x;
