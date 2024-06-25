@@ -2,5 +2,5 @@ DerivedData/
 .DS_Store
 build
 **/xcuserdata
-.vscode/
+.vscode/settings.json
 data/
