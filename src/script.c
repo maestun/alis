@@ -782,12 +782,13 @@ sAlisScriptData * script_load(const char * script_path) {
         debug(EDebugFatal, "Failed to open script at path '%s'\n", script_path);
     }
     
-    // HACK: patch main script of Mad Show to work from hdd
-    // NOTE: game was distributed on two single-sided 3.5" disks and check disk by loading disk.fic containig number of diskette
     if (alis.platform.uid == EGameMadShow && alis.platform.kind == EPlatformAtari)
     {
         if (script->header.id == 0)
         {
+            // HACK: patch main script of Mad Show to work from hdd
+            // NOTE: game was distributed on two single-sided 3.5" disks and check disk by loading disk.fic containig number of diskette
+
             char *locations[2] = { NULL, NULL };
             if ((locations[0] = strarr((char *)alis.mem + script->data_org, "disk.fic", depak_sz)))
             {
@@ -823,7 +824,25 @@ sAlisScriptData * script_load(const char * script_path) {
             }
         }
     }
-    
+    else if (alis.platform.uid == EGameWindsurfWilly && alis.platform.kind == EPlatformPC)
+    {
+        if (script->header.id == 79)
+        {
+            // HACK: load and apply logo palette
+
+            u32 addr = script->data_org;
+            s32 l = xread32(addr + 0xe);
+            s32 e = xread16(addr + l + 4);
+            if (e > 6)
+            {
+                s32 a = xread32(addr + l) + l + 6 * 4;
+                addr += a;
+                u8 *paldata = alis.mem + addr + xread32(addr);
+                topalette(paldata, 0);
+            }
+        }
+    }
+        
     return script;
 }
 

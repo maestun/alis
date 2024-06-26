@@ -50,8 +50,6 @@ s8 old_read_byte(u8** ptr_packed, u8* ptr_packed_end) {
     return *ptr_packed == ptr_packed_end ? 0 : *(*ptr_packed)++;
 }
 
-s16 modpack = 0;
-
 void old_write_byte(u8** ptr_unpacked, u8 byte, u8 inc) {
 
     **ptr_unpacked = byte;
@@ -63,48 +61,71 @@ void unpack_old(u8* ptr_packed, const u32 packed_sz,
                 u8 is_interlaced) {
 
     u8* ptr_packed_end = ptr_packed + packed_sz;
-    u8* ptr_unpacked_beg = ptr_unpacked;
+    u8* ptr_packed_beg = ptr_packed;
     u8* ptr_unpacked_end = ptr_unpacked + unpacked_sz;
 
-    const u8 inc = is_interlaced ? 8 : 1;
-    u8 cnt = inc;
+    const s8 modpack = is_interlaced ? 8 : 1;
+    s8 cnt = modpack;
 
     do {
         s8 byte = old_read_byte(&ptr_packed, ptr_packed_end);
-        s8 counter = byte & 0x7f;
-
         if (byte < 0) {
-            // read byte, and repeat copy
-            byte = old_read_byte(&ptr_packed, ptr_packed_end);
-            while (counter--) {
-                if (ptr_unpacked >= ptr_unpacked_end)
-                {
-                    cnt--;
-                    ptr_unpacked = ptr_unpacked_beg + (inc - cnt);
-                    ptr_packed--;
-                    byte = old_read_byte(&ptr_packed, ptr_packed_end);
-                }
 
-                *ptr_unpacked = byte;
-                ptr_unpacked += inc;
+            s8 counter = (byte & 0x7f) - 1;
+            s8 value = old_read_byte(&ptr_packed, ptr_packed_end);
+
+            do
+            {
+                if (ptr_unpacked < ptr_unpacked_end)
+                {
+                    *ptr_unpacked = value;
+                    ptr_unpacked += modpack;
+                }
+                else
+                {
+                    ptr_unpacked = ptr_packed_beg + (modpack - cnt);
+                    cnt--;
+                    if (cnt >= 0)
+                    {
+                        *ptr_unpacked = value;
+                        ptr_unpacked += modpack;
+                    }
+                    else
+                    {
+                        counter = 0;
+                    }
+                }
             }
+            while ((counter --));
         }
         else {
-            // read & copy bytes
-            while (counter--) {
 
-                byte = old_read_byte(&ptr_packed, ptr_packed_end);
-                if (ptr_unpacked >= ptr_unpacked_end)
+            s8 counter = (s8)byte - 1;
+            
+            do
+            {
+                s8 value = old_read_byte(&ptr_packed, ptr_packed_end);
+                if (ptr_unpacked < ptr_unpacked_end)
                 {
-                    cnt--;
-                    ptr_unpacked = ptr_unpacked_beg + (inc - cnt);
-                    ptr_packed--;
-                    byte = old_read_byte(&ptr_packed, ptr_packed_end);
+                    *ptr_unpacked = value;
+                    ptr_unpacked += modpack;
                 }
-
-                *ptr_unpacked = byte;
-                ptr_unpacked += inc;
+                else
+                {
+                    ptr_unpacked = ptr_packed_beg + (modpack - cnt);
+                    cnt--;
+                    if (cnt >= 0)
+                    {
+                        *ptr_unpacked = value;
+                        ptr_unpacked += modpack;
+                    }
+                    else
+                    {
+                        counter = 0;
+                    }
+                }
             }
+            while ((counter --));
         }
     }
     while (ptr_unpacked < ptr_unpacked_end || cnt > 1);

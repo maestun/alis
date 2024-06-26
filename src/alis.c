@@ -48,7 +48,7 @@ sAlisError errors[] = {
 // =============================================================================
 // MARK: - Private
 // =============================================================================
-alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
+void readexec(sAlisOpcode * table, char * name, u8 identation) {
     
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
@@ -59,47 +59,41 @@ alisRet readexec(sAlisOpcode * table, char * name, u8 identation) {
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
         debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
-        return opcode.fptr();
+        opcode.fptr();
     }
 }
 
-alisRet readexec_opcode(void) {
+void readexec_opcode(void) {
     debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
-    return readexec(opcodes, "opcode", 0);
+    readexec(opcodes, "opcode", 0);
 }
 
-alisRet readexec_opername(void) {
-    return readexec(opernames, "opername", 1);
+void readexec_opername(void) {
+    readexec(opernames, "opername", 1);
 }
 
-alisRet readexec_storename(void) {
-    return readexec(storenames, "storename", 2);
+void readexec_storename(void) {
+    readexec(storenames, "storename", 2);
 }
 
-alisRet readexec_addname(void) {
-    return readexec(addnames, "addname", 2);
+void readexec_addname(void) {
+    readexec(addnames, "addname", 2);
 }
 
-alisRet readexec_addname_swap(void) {
+void readexec_addname_swap(void) {
     char *tmp = alis.sd7;
     alis.sd7 = alis.oldsd7;
     alis.oldsd7 = tmp;
-    
-//    s32 t0 = (s32)(alis.sd7 - alis.mem);
-//    s32 t1 = (s32)(alis.oldsd7 - alis.mem);
-//
-//    printf("ReadExecAddName(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
-//    printf("ReadExecAddName(void): Write to address $0195ec, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
 
-    return readexec_addname();
+    readexec_addname();
 }
 
-alisRet readexec_opername_saveD7(void) {
+void readexec_opername_saveD7(void) {
     alis.varD6 = alis.varD7;
-    return readexec_opername();
+    readexec_opername();
 }
 
-alisRet readexec_opername_saveD6(void) {
+void readexec_opername_saveD6(void) {
     
     s16 tmp = alis.varD7;
     readexec_opername_saveD7();
@@ -107,18 +101,12 @@ alisRet readexec_opername_saveD6(void) {
     alis.varD7 = tmp;
 }
 
-alisRet readexec_opername_swap(void) {
+void readexec_opername_swap(void) {
     char *tmp = alis.sd7;
     alis.sd7 = alis.sd6;
     alis.sd6 = tmp;
-    
-//    s32 t0 = (s32)(alis.sd7 - alis.mem);
-//    s32 t1 = (s32)(alis.sd6 - alis.mem);
-//
-//    printf("ReadExecAddName(void): Write to address $0195e4, new value is %d ($%x)\n", t0 & 0xffff, t0 & 0xffff);
-//    printf("ReadExecAddName(void): Write to address $0195e8, new value is %d ($%x)\n", t1 & 0xffff, t1 & 0xffff);
 
-    return readexec_opername();
+    readexec_opername();
 }
 
 
@@ -792,33 +780,27 @@ void alis_main_V2(void) {
 
                 looptime = now;
                 
-                if (alis.restart_loop != 0)
+                if (alis.restart_loop == 0)
                 {
-                    alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
-                    if (alis.varD5 == 0)
+                    set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
+                    set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
+                    
+                    s32 script_offset = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 6);
+                    if (script_offset != 0)
                     {
-                        alis.script = ENTSCR(alis.varD5);
-                        draw();
+                        alis.fseq = 0;
+                        alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                        alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 6 + script_offset;
+                        alis_loop();
                     }
-
-                    continue;
+                    
+                    if (alis.restart_loop == 0)
+                    {
+                        updtcoord(alis.script->vram_org);
+                        
+                        set_0x01_wait_count(alis.script->vram_org, get_0x02_wait_cycles(alis.script->vram_org));
+                    }
                 }
-
-                set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
-                set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
-                
-                s32 script_offset = swap32(alis.mem + get_0x14_script_org_offset(alis.script->vram_org) + 6);
-                if (script_offset != 0)
-                {
-                    alis.fseq = 0;
-                    alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
-                    alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 6 + script_offset;
-                    alis_loop();
-                }
-                
-                updtcoord(alis.script->vram_org);
-                
-                set_0x01_wait_count(alis.script->vram_org, get_0x02_wait_cycles(alis.script->vram_org));
             }
         }
         
@@ -877,31 +859,25 @@ void alis_main_V3(void) {
                 alis.fseq++;
                 alis_loop();
                 
-                if (alis.restart_loop != 0)
+                if (alis.restart_loop == 0)
                 {
-                    alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
-                    if (alis.varD5 == 0)
+                    set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
+                    set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
+                    
+                    s32 script_offset = xread32(get_0x14_script_org_offset(alis.script->vram_org) + 6);
+                    if (script_offset != 0)
                     {
-                        alis.script = ENTSCR(alis.varD5);
-                        draw();
+                        alis.fseq = 0;
+                        alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
+                        alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 6 + script_offset;
+                        alis_loop();
                     }
-
-                    continue;
+                    
+                    if (alis.restart_loop == 0)
+                    {
+                        updtcoord(alis.script->vram_org);
+                    }
                 }
-
-                set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
-                set_0x08_script_ret_offset(alis.script->vram_org, alis.script->pc);
-                
-                s32 script_offset = xread32(get_0x14_script_org_offset(alis.script->vram_org) + 6);
-                if (script_offset != 0)
-                {
-                    alis.fseq = 0;
-                    alis.script->vacc_off = alis.saversp = get_0x0a_vacc_offset(alis.script->vram_org);
-                    alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 6 + script_offset;
-                    alis_loop();
-                }
-                
-                updtcoord(alis.script->vram_org);
             }
         }
         

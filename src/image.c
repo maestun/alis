@@ -765,6 +765,11 @@ void put(u16 idx)
 
 void putin(u16 idx)
 {
+    // if there is no scene opened, there is nowhere to add sprite
+    s16 scrnidx = get_scr_screen_id((get_0x16_screen_id(alis.script->vram_org)));
+    if (scrnidx == 0)
+        return;
+    
     s16 x = image.depx;
     s16 z = image.depz;
     s16 y = image.depy;

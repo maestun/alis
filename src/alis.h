@@ -87,8 +87,7 @@ typedef struct {
 // =============================================================================
 // MARK: - OPCODES
 // =============================================================================
-typedef void    alisRet;
-typedef alisRet (*alisOpcode)(void);
+typedef void (*alisOpcode)(void);
 
 #define DECL_OPCODE(n, f, d)    { n, f, #f, d }
 

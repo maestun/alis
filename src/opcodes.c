@@ -1746,7 +1746,15 @@ static void cneartyp(void) {
     alis.fview = 0;
     readexec_opername();
     alis.valnorme = (u32)alis.varD7 * (u32)alis.varD7;
-    readexec_opername();
+    if (alis.platform.kind == EPlatformPC)
+    {
+        alis.varD7 = script_read16();
+    }
+    else
+    {
+        readexec_opername();
+    }
+    
     sviewtyp();
 }
 
@@ -1775,7 +1783,15 @@ static void cviewtyp(void) {
     alis.valnorme = (u32)alis.varD7 * (u32)alis.varD7;
     readexec_opername();
     alis.valchamp = alis.varD7;
-    readexec_opername();
+    if (alis.platform.kind == EPlatformPC)
+    {
+        alis.varD7 = script_read16();
+    }
+    else
+    {
+        readexec_opername();
+    }
+
     sviewtyp();
 }
 
@@ -2804,8 +2820,7 @@ static void clistent(void) {
     crstent();
 }
 
-static void csound(void) {
-    alis.flagmain = 0;
+static void sound(void) {
     readexec_opername();
     u8 index = alis.varD7;
     readexec_opername();
@@ -2825,35 +2840,22 @@ static void csound(void) {
             speedsam = xread8(alis.script->data->data_org + addr + 1);
 
         u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
+        if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly))
+            longsam = (longsam >> 0x10) / 13;
+
         u32 startsam = alis.script->data->data_org + addr + 0x10;
         playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam);
     }
 }
 
+static void csound(void) {
+    alis.flagmain = 0;
+    sound();
+}
+
 static void cmsound(void) {
     alis.flagmain = 1;
-    readexec_opername();
-    u8 index = alis.varD7;
-    readexec_opername();
-    u8 priorson = alis.varD7;
-    readexec_opername();
-    u8 volson = alis.varD7;
-    readexec_opername();
-    u16 loopsam = alis.varD7;
-    readexec_opername();
-    u8 speedsam = alis.varD7;
-    
-    s32 addr = adresmus(index);
-    s8 type = xread8(alis.script->data->data_org + addr);
-    if (type == 1 || type == 2)
-    {
-        if (speedsam == 0)
-            speedsam = xread8(alis.script->data->data_org + addr + 1);
-
-        u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
-        u32 startsam = alis.script->data->data_org + addr + 0x10;
-        playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam);
-    }
+    sound();
 }
 
 static void credon(void) {

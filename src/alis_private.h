@@ -25,14 +25,14 @@
 #include "debug.h"
 #include "sys/sys.h"
 
-alisRet readexec_opcode(void);
-alisRet readexec_opername(void);
-alisRet readexec_storename(void);
-alisRet readexec_addname(void);
-alisRet readexec_opername_saveD7(void);
-alisRet readexec_opername_saveD6(void);
-alisRet readexec_addname_swap(void);
-alisRet readexec_opername_swap(void);
+void readexec_opcode(void);
+void readexec_opername(void);
+void readexec_storename(void);
+void readexec_addname(void);
+void readexec_opername_saveD7(void);
+void readexec_opername_saveD6(void);
+void readexec_addname_swap(void);
+void readexec_opername_swap(void);
 
 void cstore_continue(void);
 

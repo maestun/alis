@@ -15,9 +15,11 @@ Mad Show
 - DOS can't unpack main script
 
 Le Fetiche Maya
+- DOS something is wrong with getting scaled sprites (road section)
 
 Colorado
 - palette flickering after saving at camp fire
+- DOS something is wrong with getting scaled sprites (river section)
 
 Metal Mutant
 
@@ -29,6 +31,8 @@ Bunny Bricks
 Transarctica
 
 Ishar I
+- DOS screen corrupted after hitting 'cscmov()'
+    (setting xyz 0, ot not setting it at all seams to solve the issue)
 x when entering load name, previous name is not cleared. So if we load 12345.sav and than try to load abc.sav it fail, because game attempt to load abc45.sav.
     this is bug in original game!
 
