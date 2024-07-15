@@ -24,12 +24,6 @@
 #include "unpack.h"
 #include "utils.h"
 
-const u8 kPackerKindOld = 0x81;
-const u8 kPackerKindOldInterlaced = 0x80;
-const u8 kPackerKindNew = 0xa1;
-const u8 kPackerKindNewInterlaced = 0xa0;
-const u8 kPackerKindMac = 0xc1;
-const u8 kPackerKindMacInterlaced = 0xc0;
 const u8 kPackedHeaderSize = 6;
 const u8 kPackedDictionarySize = 8;
 const u8 kVMSpecsSize = 16;
@@ -44,8 +38,6 @@ const u8 kVMSpecsSize = 16;
 #pragma mark - Old Silmarils unpacker
 // ============================================================================
 
-void FUN_UnpackScript(s8 *ptr_packedA1, s8* unpacked_buffer, s32 size);
-
 s8 old_read_byte(u8** ptr_packed, u8* ptr_packed_end) {
     return *ptr_packed == ptr_packed_end ? 0 : *(*ptr_packed)++;
 }
@@ -56,81 +48,53 @@ void old_write_byte(u8** ptr_unpacked, u8 byte, u8 inc) {
     *ptr_unpacked += inc;
 }
 
-void unpack_old(u8* ptr_packed, const u32 packed_sz, 
-                u8* ptr_unpacked, const u32 unpacked_sz,
-                u8 is_interlaced) {
+void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32 unpacked_sz, s8 modpack) {
 
     u8* ptr_packed_end = ptr_packed + packed_sz;
-    u8* ptr_packed_beg = ptr_packed;
+    u8* ptr_unpacked_beg = ptr_unpacked;
     u8* ptr_unpacked_end = ptr_unpacked + unpacked_sz;
 
-    const s8 modpack = is_interlaced ? 8 : 1;
-    s8 cnt = modpack;
+    u8 cnt = modpack;
 
     do {
         s8 byte = old_read_byte(&ptr_packed, ptr_packed_end);
+        s8 counter = byte & 0x7f;
+
         if (byte < 0) {
+            // read byte, and repeat copy
+            byte = old_read_byte(&ptr_packed, ptr_packed_end);
+            while (counter--) {
+                if (ptr_unpacked >= ptr_unpacked_end) {
+                    if ((cnt--) < 1)
+                        break;
 
-            s8 counter = (byte & 0x7f) - 1;
-            s8 value = old_read_byte(&ptr_packed, ptr_packed_end);
+                    ptr_unpacked = ptr_unpacked_beg + (modpack - cnt);
+                }
 
-            do
-            {
-                if (ptr_unpacked < ptr_unpacked_end)
-                {
-                    *ptr_unpacked = value;
-                    ptr_unpacked += modpack;
-                }
-                else
-                {
-                    ptr_unpacked = ptr_packed_beg + (modpack - cnt);
-                    cnt--;
-                    if (cnt >= 0)
-                    {
-                        *ptr_unpacked = value;
-                        ptr_unpacked += modpack;
-                    }
-                    else
-                    {
-                        counter = 0;
-                    }
-                }
+                *ptr_unpacked = byte;
+                ptr_unpacked += modpack;
             }
-            while ((counter --));
         }
         else {
+            // read & copy bytes
+            while (counter--) {
 
-            s8 counter = (s8)byte - 1;
-            
-            do
-            {
-                s8 value = old_read_byte(&ptr_packed, ptr_packed_end);
-                if (ptr_unpacked < ptr_unpacked_end)
-                {
-                    *ptr_unpacked = value;
-                    ptr_unpacked += modpack;
+                byte = old_read_byte(&ptr_packed, ptr_packed_end);
+                if (ptr_unpacked >= ptr_unpacked_end) {
+                    if ((cnt--) < 1)
+                        break;
+
+                    ptr_unpacked = ptr_unpacked_beg + (modpack - cnt);
                 }
-                else
-                {
-                    ptr_unpacked = ptr_packed_beg + (modpack - cnt);
-                    cnt--;
-                    if (cnt >= 0)
-                    {
-                        *ptr_unpacked = value;
-                        ptr_unpacked += modpack;
-                    }
-                    else
-                    {
-                        counter = 0;
-                    }
-                }
+
+                *ptr_unpacked = byte;
+                ptr_unpacked += modpack;
             }
-            while ((counter --));
         }
     }
-    while (ptr_unpacked < ptr_unpacked_end || cnt > 1);
+    while (ptr_packed != ptr_packed_end && cnt > 0);
 }
-
+//9
 
 // ============================================================================
 #pragma mark - New Silmarils unpacker
@@ -298,30 +262,6 @@ u8 is_packed(u8 packer_kind) {
     return packer_kind < 0;
 }
 
-int unpack_buffer(u8 packer_kind, u8* packed_buffer, u32 packed_size, u8** unpacked_buffer, u32 unpacked_size) {
-    
-    u8 dict[kPackedDictionarySize];
-
-    // unpack
-    if (packer_kind == kPackerKindNew) {
-        unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
-        // depak(packed_buffer, unpacked_buffer, packed_size, unpacked_size, dict);
-    }
-    else if (packer_kind == kPackerKindOld) {
-        unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 0);
-    }
-    else if (packer_kind == kPackerKindOldInterlaced) {
-        unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
-    }
-    else if (packer_kind == kPackerKindNewInterlaced || packer_kind == kPackerKindMac || packer_kind == kPackerKindMacInterlaced) {
-        debug(EDebugFatal, "Unpacker not yet implemented\n");
-        free(packed_buffer);
-        return EUnpackErrorFormat;
-    }
-    
-    return 0;
-}
-
 /// @brief Unpacks a script file to buffer
 /// @param packed_file_path full path to packed file
 /// @param unpacked_buffer output buffer
@@ -339,17 +279,7 @@ int unpack_script(const char* packed_file_path,
         rewind(pfp);
 
         u32 magic = fread32(pfp);
-        u8 packer_kind = magic >> 24;
         
-        if ((alis.typepack & 0xf0) == 0xa0)
-        {
-            packer_kind = kPackerKindNew;
-        }
-        else
-        {
-            packer_kind = ((alis.typepack & 0x40) != 0) ? kPackerKindOldInterlaced : kPackerKindOld;
-        }
-
         u16 is_main = fread16(pfp) == 0;
         u32 unpacked_size = (magic & 0x00ffffff);
         u8 dict[kPackedDictionarySize];
@@ -363,7 +293,7 @@ int unpack_script(const char* packed_file_path,
             unpacked_size -= kVMSpecsSize; // TODO: not sure about that
         }
 
-        if(packer_kind == kPackerKindNew) {
+        if (alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0) {
             // read dictionary
             fread(dict, sizeof(u8), kPackedDictionarySize, pfp);
             packed_size -= kPackedDictionarySize;
@@ -377,21 +307,27 @@ int unpack_script(const char* packed_file_path,
         // alloc unpack buffer
         *unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
         
-        // unpack
-        if (packer_kind == kPackerKindNew) {
+        if (alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
+        {
             unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
         }
-        else if (packer_kind == kPackerKindOld) {
-            unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 0);
+        else 
+        {
+            if (alis.platform.kind == EPlatformPC)
+            {
+                alis.typepack &= 0xfe;
+                
+                s8 modpack = ((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8;
+                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, modpack);
+            }
+            else
+            {
+                s8 modpack = (((u8)alis.typepack & 0x40) == 0) ? 1 : 8;
+                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, modpack);
+            }
         }
-        else if (packer_kind == kPackerKindOldInterlaced) {
-            unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
-        }
-
-        debug(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n",
-                packed_file_path, packed_size, unpacked_size,
-                100 - (int)((packed_size * 100) / unpacked_size),
-                packer_kind == kPackerKindNew ? "new" : "old");
+        
+        debug(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_file_path, packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
         free(packed_buffer);
         packed_buffer = NULL;
         ret = unpacked_size;
@@ -400,87 +336,6 @@ int unpack_script(const char* packed_file_path,
         // error
         debug(EDebugFatal, "Cannot open input file (%s)\n", packed_file_path);
         ret = EUnpackErrorInput;
-    }
-    return ret;
-}
-
-int unpack_script_fp(FILE* pfp, u8** unpacked_buffer) {
-    int ret = 0;
-    if(pfp) {
-        // get packed sz
-        fseek(pfp, 0, SEEK_END);
-        u32 packed_size = (u32)ftell(pfp);
-        rewind(pfp);
-
-        u32 magic = fread32(pfp);
-        u8 packer_kind = magic >> 24;
-
-        if(is_packed(packer_kind)) {
-            u16 is_main = fread16(pfp) == 0;
-            u32 unpacked_size = (magic & 0x00ffffff);
-            u8 dict[kPackedDictionarySize];
-
-            packed_size -= kPackedHeaderSize; // size of magic + is_main
-            unpacked_size -= kPackedHeaderSize; // TODO: not sure about that
-            if(is_main) {
-                // skip vm specs
-                fseek(pfp, kVMSpecsSize, SEEK_CUR);
-                packed_size -= kVMSpecsSize;
-                unpacked_size -= kVMSpecsSize; // TODO: not sure about that
-            }
-
-            if(packer_kind == kPackerKindNew) {
-                // read dictionary
-                fread(dict, sizeof(u8), kPackedDictionarySize, pfp);
-                packed_size -= kPackedDictionarySize;
-            }
-
-            // read packed bytes in alloc'd buffer
-            u8* packed_buffer = (u8*)malloc(packed_size * sizeof(u8));
-            fread(packed_buffer, sizeof(u8), packed_size, pfp);
-            fclose(pfp);
-
-            // alloc unpack buffer
-            *unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
-            
-// TODO: remove
-// u8 ref[25328];
-// FILE* f=fopen("/home/olivier/dev/self/unpack/data/ishar1/atari/MAIN.AO.ref", "rb");
-// for(int i = 0; i < 25328; i++) {
-//     ref[i]=fgetc(f);
-// }
-// fclose(f);
-
-            // unpack
-            if (packer_kind == kPackerKindNew) {
-                unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
-                // depak(packed_buffer, unpacked_buffer, packed_size, unpacked_size, dict);
-            }
-            else if (packer_kind == kPackerKindOld) {
-                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 0);
-            }
-            else if (packer_kind == kPackerKindOldInterlaced) {
-                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, 1);
-            }
-            else if (packer_kind == kPackerKindNewInterlaced || packer_kind == kPackerKindMac || packer_kind == kPackerKindMacInterlaced) {
-                debug(EDebugFatal, "Unpacker not yet implemented\n");
-                free(packed_buffer);
-                return EUnpackErrorFormat;
-            }
-
-            debug(EDebugInfo, "Unpacked %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n",
-                    packed_size, unpacked_size,
-                    100 - (int)((packed_size * 100) / unpacked_size),
-                    packer_kind == kPackerKindNew ? "new" : "old");
-            free(packed_buffer);
-            packed_buffer = NULL;
-            ret = unpacked_size;
-        }
-        else {
-            // do nothing
-            debug(EDebugWarning, "File is not packed, or packer format is unknown (0x%02x)\n", (magic >> 24));
-            ret = EUnpackErrorFormat;
-        }
     }
     return ret;
 }

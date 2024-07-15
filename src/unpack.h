@@ -33,14 +33,9 @@ extern const u8 kPackedHeaderSize;
 extern const u8 kPackedDictionarySize;
 extern const u8 kVMSpecsSize;
 
-int unpack_buffer(u8 packer_kind, u8* packed_buffer, u32 packed_size, u8** unpacked_buffer, u32 unpacked_size);
-
 /// @brief Unpacks a script file to buffer
 /// @param packed_file_path full path to packed file
-/// @param unpacked_data output buffer
+/// @param unpacked_buffer output buffer
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed
 int unpack_script(const char* packed_file_path, u8** unpacked_buffer);
-
-
-int unpack_script_fp(FILE* fp, u8** unpacked_buffer);

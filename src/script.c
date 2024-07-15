@@ -824,7 +824,7 @@ sAlisScriptData * script_load(const char * script_path) {
             }
         }
     }
-    else if (alis.platform.uid == EGameWindsurfWilly && alis.platform.kind == EPlatformPC)
+    else if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameWindsurfWilly))
     {
         if (script->header.id == 79)
         {
