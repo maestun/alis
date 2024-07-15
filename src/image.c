@@ -41,6 +41,34 @@
 # define VERIFYINTEGRITY
 #endif
 
+
+u8 cga_palette[] = {
+    0x00, 0x00, 0x00,
+    0x55, 0xff, 0xff,
+    0xff, 0x55, 0xff,
+    0xff, 0xff, 0xff };
+
+u8 ega_palette[] = {
+    0x00, 0x00, 0x00,
+    0x00, 0x00, 0xaa,
+    0x00, 0xaa, 0x00,
+    0x00, 0xaa, 0xaa,
+    0xaa, 0x00, 0x00,
+    0xaa, 0x00, 0xaa,
+    0xaa, 0x55, 0x00,
+    0xaa, 0xaa, 0xaa,
+    0x55, 0x55, 0x55,
+    0x55, 0x55, 0xff,
+    0x55, 0xff, 0x55,
+    0x55, 0xff, 0xff,
+    0xff, 0x55, 0x55,
+    0xff, 0x55, 0xff,
+    0xff, 0xff, 0x55,
+    0xff, 0xff, 0xff};
+
+u8 masks[4] = { 0b11000000, 0b00110000, 0b00001100, 0b00000011 };
+u8 rots[4] = { 6, 4, 2, 0 };
+
 sImage image = {
     .backprof = 0,
     .numelem = 0,
@@ -88,9 +116,15 @@ void topalette(u8 *paldata, s32 duration)
     {
         memset(image.atpalet, 0, 3);
         memset(image.ampalet, 0, 3);
-        memset(image.atpalet + 3, 0xff, 768);
-        memset(image.ampalet + 3, 0xff, 768);
+        memset(image.atpalet + 3, 0xff, 765);
+        memset(image.ampalet + 3, 0xff, 765);
         image.ftopal = 0xff;
+        return;
+    }
+    else if (alis.platform.kind == EPlatformPC && alis.platform.uid == EGameMadShow)
+    {
+        memcpy(image.atpalet, cga_palette, sizeof(cga_palette));
+        memcpy(image.ampalet, cga_palette, sizeof(cga_palette));
         return;
     }
     
@@ -1317,6 +1351,23 @@ void deptopix(u16 scene, u16 elemidx)
         image.newzoomx = 0;
         image.newzoomy = 0;
         
+        
+        // TODO:
+//        u32 reducing = elemsprvar->calign2c;
+//        if (reducing != 0)
+//        {
+//            if ((-1 < (char)elemsprvar->calign2d && (bVar3 = (u8)(offset >> 2), elemsprvar->calign2d < bVar3))
+//            {
+//                bVar1 = get_scr_clinking(scene) - elemsprvar->calign2d;
+//                if ((-1 < (short)((ushort)bVar1 << 8)) && (bVar1 != 0))
+//                {
+//                    reducing = ((uint)(char)reducing * (uint)(ushort)(short)(char)(bVar3 - elemsprvar->calign2d)) / (uint)(ushort)(short)(char)bVar1 & 0xffff;
+//                }
+//            }
+//
+//            tmpdepx = (tmpdepx >> (reducing & 0x3f)) << (reducing & 0x3f);
+//        }
+        
         if (alis.platform.kind == EPlatformMac)
         {
             mac_update_pos(&tmpdepx, &tmpdepy);
@@ -2031,37 +2082,73 @@ void destofen(sSprite *sprite)
                 
                 at = bitmap + 6;
                 
+                u8 index;
                 s16 wh;
-                u8 c0, c1, c2, c3;
                 
                 for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
                 {
                     u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w+=4)
+                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
                     {
-                        if (flip)
-                        {
-                            wh = (width - (w + 1)) / 4;
-                            color = *(at + wh + h * (width / 4));
-                            c0 = (color & 0b00000011);
-                            c1 = (color & 0b00001100) >> 2;
-                            c2 = (color & 0b00110000) >> 4;
-                            c3 = (color & 0b11000000) >> 6;
-                        }
-                        else
-                        {
-                            wh = w / 4;
-                            color = *(at + wh + h * (width / 4));
-                            c3 = (color & 0b00000011);
-                            c2 = (color & 0b00001100) >> 2;
-                            c1 = (color & 0b00110000) >> 4;
-                            c0 = (color & 0b11000000) >> 6;
-                        }
+                        wh = (flip ? (width - (w + 1)) : w) / 4;
 
-                        if (!(c0 & 2)) { *tgt = !(c0 & 1); } tgt++;
-                        if (!(c1 & 2)) { *tgt = !(c1 & 1); } tgt++;
-                        if (!(c2 & 2)) { *tgt = !(c2 & 1); } tgt++;
-                        if (!(c3 & 2)) { *tgt = !(c3 & 1); } tgt++;
+                        index = flip ? 3 - w % 4 : w % 4;
+                        color = *(at + wh + h * (width / 4));
+                        color = (color & masks[index]) >> rots[index];
+                        if (!(color & 2))
+                        {
+                            *tgt = !(color & 1);
+                        }
+                    }
+                }
+            }
+            else if (alis.platform.kind == EPlatformPC && alis.platform.uid == EGameMadShow)
+            {
+                if (bitmap[0] == 2)
+                {
+                    at = bitmap + 6;
+                    
+                    u8 index;
+                    s16 wh;
+                    
+                    for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                    {
+                        u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                        for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                        {
+                            wh = ((flip ? (width - (w + 1)) : w) / 4);
+
+                            index = flip ? 3 - w % 4 : w % 4;
+                            color = *(at + wh + h * (width / 4));
+                            color = (color & masks[index]) >> rots[index];
+                            *tgt = color;
+                        }
+                    }
+                }
+                else
+                {
+                    at = bitmap + 6;
+                    
+                    u8 opacity, index;
+                    s16 wh;
+                    
+                    for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                    {
+                        u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                        for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                        {
+                            wh = ((flip ? (width - (w + 1)) : w) / 4) * 2;
+                            opacity = *(at + wh + h * (width / 2));
+
+                            index = flip ? 3 - w % 4 : w % 4;
+                            opacity = (opacity & masks[index]) >> rots[index];
+                            if (!opacity)
+                            {
+                                color = *(at + wh + 1 + h * (width / 2));
+                                color = (color & masks[index]) >> rots[index];
+                                *tgt = color;
+                            }
+                        }
                     }
                 }
             }
@@ -2667,7 +2754,7 @@ void affiscr(u16 scene, u16 screenidx)
                         csprite->newx = image.newx;
                         csprite->newy = image.newy;
                         csprite->newd = image.newd;
-                        csprite->newad = image.newf;
+                        csprite->newf = image.newf;
                         csprite->width = image.newl;
                         csprite->height = image.newh;
                         csprite->newzoomx = image.newzoomx;
