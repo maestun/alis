@@ -88,6 +88,28 @@ sImage image = {
 };
 
 
+void draw_mac_rect(sRect *pos, sRect *bmp, u8 color);
+void draw_rect(sRect *pos, sRect *bmp, u8 color);
+void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_mac_mono_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_dos_cga_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_dos_cga_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_st_4bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_st_4bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 flip);
+void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 flip);
+void draw_4to8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_4to8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
+void draw_fli_video(u8 *bitmap);
+void draw_map(sSprite *sprite, u32 mapaddr, sRect lim);
+
+
+#pragma mark -
+#pragma mark Palette management
+
+
 void topalet(void)
 {
     image.ftopal = 0;
@@ -392,6 +414,18 @@ void setlinepalet(void) {
         linepal();
     }
 }
+
+void setmpalet(void)
+{
+    image.ftopal = 0xff;
+    image.thepalet = 0;
+    image.defpalet = 0;
+}
+
+
+#pragma mark -
+#pragma mark Sprite management
+
 
 void printelem(void)
 {
@@ -1089,6 +1123,10 @@ void valtostr(char *string, s16 value)
 }
 
 
+#pragma mark -
+#pragma mark calculate what to draw and where
+
+
 s16 inilink(s16 elemidx)
 {
     image.blocx1 = 0x7fff;
@@ -1353,19 +1391,26 @@ void deptopix(u16 scene, u16 elemidx)
         
         
         // TODO:
-//        u32 reducing = elemsprvar->calign2c;
-//        if (reducing != 0)
+//        if (alis.platform.version < 30)
 //        {
-//            if ((-1 < (char)elemsprvar->calign2d && (bVar3 = (u8)(offset >> 2), elemsprvar->calign2d < bVar3))
+//            u32 reducing = elemsprvar->calign2c;
+//            if (reducing != 0)
 //            {
-//                bVar1 = get_scr_clinking(scene) - elemsprvar->calign2d;
-//                if ((-1 < (short)((ushort)bVar1 << 8)) && (bVar1 != 0))
+//                if ((-1 < (char)elemsprvar->calign2d)
 //                {
-//                    reducing = ((uint)(char)reducing * (uint)(ushort)(short)(char)(bVar3 - elemsprvar->calign2d)) / (uint)(ushort)(short)(char)bVar1 & 0xffff;
+//                    u8 bVar3 = (u8)(offset >> 2)
+//                    if (elemsprvar->calign2d < bVar3)
+//                    {
+//                        u8 bVar1 = get_scr_clinking(scene) - elemsprvar->calign2d;
+//                        if ((-1 < (short)((ushort)bVar1 << 8)) && (bVar1 != 0))
+//                        {
+//                            reducing *= (reducing * (bVar3 - elemsprvar->calign2d)) / bVar1 & 0xffff;
+//                        }
+//                    }
 //                }
-//            }
 //
-//            tmpdepx = (tmpdepx >> (reducing & 0x3f)) << (reducing & 0x3f);
+//                tmpdepx = (tmpdepx >> (reducing & 0x3f)) << (reducing & 0x3f);
+//            }
 //        }
         
         if (alis.platform.kind == EPlatformMac)
@@ -1704,248 +1749,6 @@ void clipback(void)
     image.cback = -1;
 }
 
-void drawmap(sSprite *sprite, u32 mapaddr, s16 limx1, s16 limy1, s16 limx2, s16 limy2)
-{
-    s32 vram = xread32(xread16(mapaddr - 0x24) + alis.atent);
-    if (vram != 0)
-    {
-        u16 tileidx;
-        u16 tileoffset = xread16(mapaddr + 0x24);
-        u16 tileadd = xread16(mapaddr - 0x22);
-        u16 tilecount = xread16(mapaddr - 0x20);
-        u16 tilex = xread16(mapaddr - 0x1c);
-        u16 tiley = xread16(mapaddr - 0x18);
-        
-        s32 addr = get_0x14_script_org_offset(vram);
-        vram = xread32(addr + 0xe) + addr;
-        
-        addr = xread32(vram) + vram;
-        u16 tempy = (image.blocy1 - sprite->newy) + xread16(mapaddr - 6);
-        
-        s32 yc = tempy / (u16)tiley;
-        s16 yo = image.blocy1 - tempy % (u16)tiley;
-
-        u32 tileaddr = mapaddr + 0x28;
-        s16 t1 = image.blocx1 - sprite->newx;
-        s16 t2 = xread16(mapaddr - 10);
-        
-        tileaddr += (tileoffset * ((u16)(t1 + t2) / tilex) + yc);
-        s16 mapheight = ((image.blocy2 - sprite->newy) + xread16(mapaddr - 6)) / (u16)tiley - yc;
-        s16 mapwidth = (image.blocx2 - image.blocx1) / tilex;
-
-        if ((xread8(mapaddr - 0x26) & 2) != 0)
-        {
-            yo += ((u16)(tiley - 1) >> 1);
-            if (yc != 0)
-            {
-                mapheight ++;
-                tileaddr --;
-                yo -= tiley;
-            }
-            
-            mapheight ++;
-        }
-        
-        s32 addy = alis.platform.kind == EPlatformPC ? 0 : 1;
-
-        if (alis.platform.bpp == 8)
-        {
-            u8 color = 63;
-            
-            for (s32 h = limy1; h < limy2; h++)
-            {
-                u8 *tgt = image.logic + limx1 + ((limy1 + h) * host.pixelbuf.w);
-                for (s32 w = limx1; w < limx2; w++, tgt++)
-                {
-                    *tgt = color;
-                }
-            }
-        }
-
-        for (int mh = mapheight; mh >= 0; mh--)
-        {
-            for (int mw = mapwidth; mw >= 0; mw--)
-            {
-                if (xread8(tileaddr) != 0 && (tileidx = (xread8(tileaddr) + tileadd) - 1) <= tilecount)
-                {
-                    vram = addr + (s16)(tileidx * 4);
-                    u32 img = xread32(vram) + vram;
-                    u8 *bitmap = (alis.mem + img);
-                    s16 width = (s16)read16(bitmap + 2) + 1;
-                    s16 height = (s16)read16(bitmap + 4) + 1;
-
-                    u8 *at = bitmap + 6;
-
-                    s16 posx1 = (mapwidth - mw) * tilex;
-                    s16 posy1 = ((mapheight - mh) - addy) * tiley + (((tiley - 1) - height) / 2);
-
-                    u8 flip = 0;
-                    u8 color = 0;
-                    u8 clear = 0;
-                    u8 palidx = 0;
-
-                    s16 bmpx1 = 0;
-                    s16 bmpx2 = width;
-                    s16 bmpy1 = 0;
-                    s16 bmpy2 = height;
-                    
-                    switch (bitmap[0])
-                    {
-                        case 0x01:
-                        {
-                            // rectangle
-                            
-                            color = bitmap[1];
-                            
-                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                            {
-                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                                {
-                                    if ((w + posx1) < limx1)
-                                        continue;
-
-                                    if ((w + posx1) >= limx2)
-                                        continue;
-
-                                    if ((h + posy1) < limy1)
-                                        continue;
-
-                                    if ((h + posy1) >= limy2)
-                                        continue;
-
-                                    *tgt = color;
-                                }
-                            }
-                            break;
-                        }
-                            
-                        case 0x00:
-                        case 0x02:
-                        {
-                            // ST image
-                            
-                            clear = bitmap[0] == 0 ? 0 : -1;
-                            
-                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                            {
-                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                                {
-                                    s16 wh = (flip ? (width - (w + 1)) : w) / 2;
-                                    color = *(at + wh + h * (width / 2));
-                                    color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                                    if (color != clear)
-                                    {
-                                        if ((w + posx1) < limx1)
-                                            continue;
-
-                                        if ((w + posx1) >= limx2)
-                                            continue;
-
-                                        if ((h + posy1) < limy1)
-                                            continue;
-
-                                        if ((h + posy1) >= limy2)
-                                            continue;
-
-                                        // tgt = image.logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                                        *tgt = color;
-                                    }
-                                }
-                            }
-
-                            break;
-                        }
-                            
-                        case 0x10:
-                        case 0x12:
-                        {
-                            // 4 bit image
-                            
-                            palidx = bitmap[6];
-                            clear = bitmap[0] == 0x10 ? bitmap[7] : -1;
-                            
-                            at = bitmap + 8;
-                            
-                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                            {
-                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                                {
-                                    s16 wh = (flip ? (width - (w + 1)) : w) / 2;
-                                    color = *(at + wh + h * (width / 2));
-                                    color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                                    if (color != clear)
-                                    {
-                                        if ((w + posx1) < limx1)
-                                            continue;
-
-                                        if ((w + posx1) >= limx2)
-                                            continue;
-
-                                        if ((h + posy1) < limy1)
-                                            continue;
-
-                                        if ((h + posy1) >= limy2)
-                                            continue;
-
-                                        *tgt = palidx + color;
-                                    }
-                                }
-                            }
-                            
-                            break;
-                        }
-                            
-                        case 0x14:
-                        case 0x16:
-                        {
-                            // 8 bit image
-                            
-                            palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
-                            clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
-                            
-                            at = bitmap + 8;
-                            
-                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                            {
-                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                                {
-                                    color = *(at + (flip ? width - (w + 1) : w) + h * width);
-                                    if (color != clear)
-                                    {
-                                        if ((w + posx1) < limx1)
-                                            continue;
-                                        
-                                        if ((w + posx1) >= limx2)
-                                            continue;
-                                        
-                                        if ((h + posy1) < limy1)
-                                            continue;
-                                        
-                                        if ((h + posy1) >= limy2)
-                                            continue;
-                                        
-                                        *tgt = color + palidx;
-                                    }
-                                }
-                            }
-                            
-                            break;
-                        }
-                    };
-                }
-                
-                tileaddr += tileoffset;
-            }
-
-            tileaddr += (s16)(1 - ((s16)mapwidth + 1) * tileoffset);
-        }
-    }
-}
-
 void destofen(sSprite *sprite)
 {
     if (sprite->newad == 0)
@@ -1955,41 +1758,42 @@ void destofen(sSprite *sprite)
     if (*bitmap < 0)
         return;
 
-    s16 posx1 = sprite->newx;
-    s16 posy1 = sprite->newy;
-    s16 xpos2 = posx1 + (s16)read16(bitmap + 2);
-    s16 ypos2 = posy1 + (s16)read16(bitmap + 4);
+    sRect pos = {
+        .x1 = sprite->newx,
+        .y1 = sprite->newy,
+        .x2 = sprite->newx + (s16)read16(bitmap + 2),
+        .y2 = sprite->newy + (s16)read16(bitmap + 4) };
 
     s8 flip = sprite->newf;
     s32 width = sprite->width + 1;
     s32 height = sprite->height + 1;
 
-    if (image.clipx2 < posx1)
+    if (image.clipx2 < pos.x1)
         return;
 
-    if (image.clipy2 < posy1)
+    if (image.clipy2 < pos.y1)
         return;
 
-    if (xpos2 < image.clipx1)
+    if (pos.x2 < image.clipx1)
         return;
 
-    if (ypos2 < image.clipy1)
+    if (pos.y2 < image.clipy1)
         return;
 
-    image.blocx1 = posx1;
-    if (posx1 < image.clipx1)
+    image.blocx1 = pos.x1;
+    if (pos.x1 < image.clipx1)
         image.blocx1 = image.clipx1;
 
-    image.blocy1 = posy1;
-    if (posy1 < image.clipy1)
+    image.blocy1 = pos.y1;
+    if (pos.y1 < image.clipy1)
         image.blocy1 = image.clipy1;
 
-    image.blocx2 = xpos2;
-    if (image.clipx2 < xpos2)
+    image.blocx2 = pos.x2;
+    if (image.clipx2 < pos.x2)
         image.blocx2 = image.clipx2;
 
-    image.blocy2 = ypos2;
-    if (image.clipy2 < ypos2)
+    image.blocy2 = pos.y2;
+    if (image.clipy2 < pos.y2)
         image.blocy2 = image.clipy2;
 
     u8 *at = bitmap + 6;
@@ -1998,302 +1802,139 @@ void destofen(sSprite *sprite)
     u16 clear = 0;
     u8 palidx = 0;
 
-    s32 bmpy1 = 0;
-    s32 bmpy2 = height;
-    
-    s32 bmpx1 = 0;
-    s32 bmpx2 = width;
+    sRect bmp = {
+        .x1 = 0,
+        .y1 = 0,
+        .x2 = width,
+        .y2 = height };
+
     if (image.blocx1 < 0)
     {
-        bmpx1 -= image.blocx1;
-        bmpx2 += image.blocx1;
+        bmp.x1 -= image.blocx1;
+        bmp.x2 += image.blocx1;
     }
     
-    if (image.blocx1 > posx1)
+    if (image.blocx1 > pos.x1)
     {
-        bmpx1 += (image.blocx1 - posx1);
-        bmpx2 -= (image.blocx1 - posx1);
+        bmp.x1 += (image.blocx1 - pos.x1);
+        bmp.x2 -= (image.blocx1 - pos.x1);
     }
     
-    if (image.blocx2 <= xpos2)
+    if (image.blocx2 <= pos.x2)
     {
-        bmpx2 -= (xpos2 - image.blocx2);
+        bmp.x2 -= (pos.x2 - image.blocx2);
     }
 
-    if (image.blocy1 > posy1)
+    if (image.blocy1 > pos.y1)
     {
-        bmpy1 += (image.blocy1 - posy1);
-        bmpy2 -= (image.blocy1 - posy1);
+        bmp.y1 += (image.blocy1 - pos.y1);
+        bmp.y2 -= (image.blocy1 - pos.y1);
     }
 
-    if (image.blocy2 < ypos2)
+    if (image.blocy2 < pos.y2)
     {
-        bmpy2 -= (ypos2 - image.blocy2);
+        bmp.y2 -= (pos.y2 - image.blocy2);
     }
-    
-    // NOTE: just a hack to write directly to output buffer
     
     switch (bitmap[0])
     {
         case 0x01:
         {
-            // rectangle
-            
-            color = bitmap[1];
             if (alis.platform.kind == EPlatformMac)
             {
-                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                {
-                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                    {
-                        switch (color) {
-                            case 15:
-                                *tgt = (w + h) % 2;
-                                break;
-                                
-                            default:
-                                *tgt = !bitmap[1];;
-                                break;
-                        }
-                    }
-                }
+                draw_mac_rect(&pos, &bmp, bitmap[1]);
             }
             else
             {
-                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                {
-                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                    {
-                        *tgt = color;
-                    }
-                }
+                draw_rect(&pos, &bmp, bitmap[1]);
             }
             break;
         }
             
         case 0x00:
+        {
+            if (alis.platform.kind == EPlatformMac)
+            {
+                draw_mac_mono_0(at, &pos, &bmp, width, flip);
+            }
+            else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
+            {
+                draw_dos_cga_0(at, &pos, &bmp, width, flip);
+            }
+            else
+            {
+                draw_st_4bit_0(at, &pos, &bmp, width, flip);
+            }
+
+            break;
+        }
+            
         case 0x02:
         {
             if (alis.platform.kind == EPlatformMac)
             {
-                // Macintosh image
-                
-                at = bitmap + 6;
-                
-                u8 index;
-                s16 wh;
-                
-                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                {
-                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                    {
-                        wh = (flip ? (width - (w + 1)) : w) / 4;
-
-                        index = flip ? 3 - w % 4 : w % 4;
-                        color = *(at + wh + h * (width / 4));
-                        color = (color & masks[index]) >> rots[index];
-                        if (!(color & 2))
-                        {
-                            *tgt = !(color & 1);
-                        }
-                    }
-                }
+                draw_mac_mono_0(at, &pos, &bmp, width, flip);
             }
             else if (alis.platform.kind == EPlatformPC && alis.platform.uid == EGameMadShow)
             {
-                if (bitmap[0] == 2)
-                {
-                    at = bitmap + 6;
-                    
-                    u8 index;
-                    s16 wh;
-                    
-                    for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                    {
-                        u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                        for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                        {
-                            wh = ((flip ? (width - (w + 1)) : w) / 4);
-
-                            index = flip ? 3 - w % 4 : w % 4;
-                            color = *(at + wh + h * (width / 4));
-                            color = (color & masks[index]) >> rots[index];
-                            *tgt = color;
-                        }
-                    }
-                }
-                else
-                {
-                    at = bitmap + 6;
-                    
-                    u8 opacity, index;
-                    s16 wh;
-                    
-                    for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                    {
-                        u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                        for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                        {
-                            wh = ((flip ? (width - (w + 1)) : w) / 4) * 2;
-                            opacity = *(at + wh + h * (width / 2));
-
-                            index = flip ? 3 - w % 4 : w % 4;
-                            opacity = (opacity & masks[index]) >> rots[index];
-                            if (!opacity)
-                            {
-                                color = *(at + wh + 1 + h * (width / 2));
-                                color = (color & masks[index]) >> rots[index];
-                                *tgt = color;
-                            }
-                        }
-                    }
-                }
+                draw_dos_cga_2(at, &pos, &bmp, width, flip);
             }
             else
             {
-                // ST image
-                
-                clear = bitmap[0] == 0 ? 0 : -1;
-                // NOTE: values for ST ishar 3
-                // palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
-                at = bitmap + 6;
-                
-                s16 wh;
-
-                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                {
-                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                    {
-                        wh = (flip ? (width - (w + 1)) : w) / 2;
-                        color = *(at + wh + h * (width / 2));
-                        color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                        if (color != clear)
-                        {
-                            *tgt = color;
-                        }
-                    }
-                }
+                draw_st_4bit_2(at, &pos, &bmp, width, flip);
             }
 
             break;
         }
             
         case 0x10:
+        {
+            if (alis.platform.px_format == EPxFormatAmPlanar)
+            {
+                draw_ami_5bit_2(at, &pos, &bmp, width, height, flip);
+            }
+            else
+            {
+                draw_4to8bit_0(at, &pos, &bmp, width, flip);
+            }
+
+            break;
+        }
+
         case 0x12:
         {
             if (alis.platform.px_format == EPxFormatAmPlanar)
             {
-                // 5 bit image
-                
-                clear = bitmap[0] == 0x10 ? 0 : -1;
-
-                u32 planesize = (width * height) / 8;
-                
-                u8 c0, c1, c2, c3, c4;
-                
-                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                {
-                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                    {
-                        s16 wh = (flip ? (width - (w + 1)) : w);
-                        s32 idx = (wh + h * width) / 8;
-                        c0 = *(at + idx);
-                        c1 = *(at + (idx += planesize));
-                        c2 = *(at + (idx += planesize));
-                        c3 = *(at + (idx += planesize));
-                        c4 = *(at + (idx += planesize));
-                        
-                        int bit = 7 - (wh % 8);
-                        
-                        color = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3 | ((c4 >> bit) & 1) << 4;
-                        if (color != clear)
-                            *tgt = color;
-                    }
-                }
+                draw_ami_5bit_2(at, &pos, &bmp, width, height, flip);
             }
             else
             {
-                // 4 bit image
-                palidx = bitmap[6];
-                clear = bitmap[0] == 0x10 ? bitmap[7] : -1;
-                at = bitmap + 8;
-                
-                for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-                {
-                    u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                    for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                    {
-                        s16 wh = (flip ? (width - (w + 1)) : w) / 2;
-                        color = *(at + wh + h * (width / 2));
-                        color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                        if (color != clear)
-                            *tgt = palidx + color;
-                    }
-                }
+                draw_4to8bit_2(at, &pos, &bmp, width, flip);
             }
             break;
         }
             
         case 0x14:
+        {
+            draw_8bit_0(at, &pos, &bmp, width, flip);
+            break;
+        }
+
         case 0x16:
         {
-            // 8 bit image
-            
-//            palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
-            
-            // Ishar 1 & 3
-            clear = 0;
-
-            if (alis.platform.uid == EGameIshar_2)
-            {
-                // Ishar 2
-                clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
-            }
-            
-            at = bitmap + 8;
-
-            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
-            {
-                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
-                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
-                {
-                    color = *(at + (flip ? width - (w + 1) : w) + h * width);
-                    if (color != clear)
-                        *tgt = color;
-                }
-            }
-            
+            draw_8bit_2(at, &pos, &bmp, width, flip);
             break;
         }
             
         case 0x40:
         {
-            // FLI video
-            
-            uint32_t size1 = read32(bitmap + 2);
-            s8 *fliname = (s8 *)&bitmap[6];
-            debug(EDebugVerbose, "FLI video (%s) %d bytes [", fliname, size1);
-
-            uint32_t size2 = (*(uint32_t *)(&bitmap[32]));
-            uint16_t frames = (*(uint16_t *)(&bitmap[38]));
-
-            debug(EDebugVerbose, "size: %d frames: %d]\n", size2, frames);
-
-            // TODO: ...
-            
+             draw_fli_video(bitmap);
             break;
         }
             
         case 0x7f:
         {
-            // transarctica map
-            
-            drawmap(sprite, sprite->newad + xread32(sprite->newad), (bmpx1 + posx1), (bmpy1 + posy1), (bmpx1 + bmpx2 + posx1), (bmpy1 + bmpy2 + posy1));
+            draw_map(sprite, sprite->newad + xread32(sprite->newad), (sRect){ .x1 = (bmp.x1 + pos.x1), .y1 = (bmp.y1 + pos.y1), .x2 = (bmp.x1 + bmp.x2 + pos.x1), .y2 = (bmp.y1 + bmp.y2 + pos.y1) });
             break;
         }
             
@@ -2959,15 +2600,7 @@ void draw(void)
     VERIFYINTEGRITY;
 }
 
-u8 *buffer = 0;
-
-void setmpalet(void)
-{
-    image.ftopal = 0xff;
-    image.thepalet = 0;
-    image.defpalet = 0;
-}
-
+// TODO: move to script.c
 s16 debprotf(s16 target_id)
 {
     s16 current_id;
@@ -2998,6 +2631,578 @@ s16 debprotf(s16 target_id)
     
     return -1;
 }
+
+
+#pragma mark -
+#pragma mark Draw functions
+
+
+void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
+{
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            *tgt = color == 15 ? (w + h) % 2 : !color;
+        }
+    }
+}
+
+void draw_rect(sRect *pos, sRect *bmp, u8 color)
+{
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            *tgt = color;
+        }
+    }
+}
+
+void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // Macintosh image
+    
+    u8 index, color;
+    s16 wh;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = (flip ? (width - (w + 1)) : w) / 4;
+
+            index = flip ? 3 - w % 4 : w % 4;
+            color = *(at + wh + h * (width / 4));
+            color = (color & masks[index]) >> rots[index];
+            if (!(color & 2))
+            {
+                *tgt = !(color & 1);
+            }
+        }
+    }
+}
+
+void draw_mac_mono_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // Macintosh image
+    
+    u8 index, color;
+    s16 wh;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = (flip ? (width - (w + 1)) : w) / 4;
+
+            index = flip ? 3 - w % 4 : w % 4;
+            color = *(at + wh + h * (width / 4));
+            color = (color & masks[index]) >> rots[index];
+            *tgt = !(color & 1);
+        }
+    }
+}
+
+void draw_dos_cga_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    u8 index, opacity, color;
+    s16 wh;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = ((flip ? (width - (w + 1)) : w) / 4) * 2;
+            opacity = *(at + wh + h * (width / 2));
+
+            index = flip ? 3 - w % 4 : w % 4;
+            opacity = (opacity & masks[index]) >> rots[index];
+            if (!opacity)
+            {
+                color = *(at + wh + 1 + h * (width / 2));
+                color = (color & masks[index]) >> rots[index];
+                *tgt = color;
+            }
+        }
+    }
+}
+
+void draw_dos_cga_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    u8 index, color;
+    s16 wh;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = ((flip ? (width - (w + 1)) : w) / 4);
+
+            index = flip ? 3 - w % 4 : w % 4;
+            color = *(at + wh + h * (width / 4));
+            color = (color & masks[index]) >> rots[index];
+            *tgt = color;
+        }
+    }
+}
+
+void draw_st_4bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // ST image
+    
+    // NOTE: values for ST ishar 3
+    // palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
+    
+    u8 color;
+    s16 wh;
+
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = (flip ? (width - (w + 1)) : w) / 2;
+            color = *(at + wh + h * (width / 2));
+            color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+            if (color != 0)
+            {
+                *tgt = color;
+            }
+        }
+    }
+}
+
+void draw_st_4bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // ST image
+    
+    // NOTE: values for ST ishar 3
+    // palidx = sprite->screen_id != 82 && image.fdarkpal ? 128 : 0;
+    
+    u8 color;
+    s16 wh;
+
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = (flip ? (width - (w + 1)) : w) / 2;
+            color = *(at + wh + h * (width / 2));
+            *tgt = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+        }
+    }
+}
+
+void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 flip)
+{
+    // 5 bit image
+    
+    u32 planesize = (width * height) / 8;
+    
+    u8 color, c0, c1, c2, c3, c4;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            s16 wh = (flip ? (width - (w + 1)) : w);
+            s32 idx = (wh + h * width) / 8;
+            c0 = *(at + idx);
+            c1 = *(at + (idx += planesize));
+            c2 = *(at + (idx += planesize));
+            c3 = *(at + (idx += planesize));
+            c4 = *(at + (idx += planesize));
+            
+            int bit = 7 - (wh % 8);
+            
+            color = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3 | ((c4 >> bit) & 1) << 4;
+            if (color != 0)
+                *tgt = color;
+        }
+    }
+}
+
+void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 flip)
+{
+    // 5 bit image
+    
+    u32 planesize = (width * height) / 8;
+    
+    u8 c0, c1, c2, c3, c4;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            s16 wh = (flip ? (width - (w + 1)) : w);
+            s32 idx = (wh + h * width) / 8;
+            c0 = *(at + idx);
+            c1 = *(at + (idx += planesize));
+            c2 = *(at + (idx += planesize));
+            c3 = *(at + (idx += planesize));
+            c4 = *(at + (idx += planesize));
+            
+            int bit = 7 - (wh % 8);
+            
+            *tgt = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3 | ((c4 >> bit) & 1) << 4;
+        }
+    }
+}
+
+void draw_4to8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // 4 bit image
+    
+    u8 color;
+    s16 wh;
+
+    u8 palidx = at[0];
+    at += 2;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = (flip ? (width - (w + 1)) : w) / 2;
+            color = *(at + wh + h * (width / 2));
+            color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+            if (color != 0)
+                *tgt = palidx + color;
+        }
+    }
+}
+
+void draw_4to8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // 4 bit image
+    
+    u8 color;
+    s16 wh;
+
+    u8 palidx = at[0];
+    at += 2;
+    
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            wh = (flip ? (width - (w + 1)) : w) / 2;
+            color = *(at + wh + h * (width / 2));
+            *tgt = palidx + (w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111));
+        }
+    }
+}
+
+void draw_8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // 8 bit image
+    
+    u8 color;
+    
+    at += 2;
+
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            color = *(at + (flip ? width - (w + 1) : w) + h * width);
+            if (color != 0)
+                *tgt = color;
+        }
+    }
+}
+
+void draw_8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
+{
+    // 8 bit image
+    
+    at += 2;
+
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            *tgt = *(at + (flip ? width - (w + 1) : w) + h * width);
+        }
+    }
+}
+
+void draw_fli_video(u8 *bitmap)
+{
+    // FLI video
+    
+    uint32_t size1 = read32(bitmap + 2);
+    s8 *fliname = (s8 *)&bitmap[6];
+    debug(EDebugVerbose, "FLI video (%s) %d bytes [", fliname, size1);
+
+    uint32_t size2 = (*(uint32_t *)(&bitmap[32]));
+    uint16_t frames = (*(uint16_t *)(&bitmap[38]));
+
+    debug(EDebugVerbose, "size: %d frames: %d]\n", size2, frames);
+
+    // TODO: ...
+}
+
+void draw_map(sSprite *sprite, u32 mapaddr, sRect lim)
+{
+    s32 vram = xread32(xread16(mapaddr - 0x24) + alis.atent);
+    if (vram != 0)
+    {
+        u16 tileidx;
+        u16 tileoffset = xread16(mapaddr + 0x24);
+        u16 tileadd = xread16(mapaddr - 0x22);
+        u16 tilecount = xread16(mapaddr - 0x20);
+        u16 tilex = xread16(mapaddr - 0x1c);
+        u16 tiley = xread16(mapaddr - 0x18);
+        
+        s32 addr = get_0x14_script_org_offset(vram);
+        vram = xread32(addr + 0xe) + addr;
+        
+        addr = xread32(vram) + vram;
+        u16 tempy = (image.blocy1 - sprite->newy) + xread16(mapaddr - 6);
+        
+        s32 yc = tempy / (u16)tiley;
+        s16 yo = image.blocy1 - tempy % (u16)tiley;
+
+        u32 tileaddr = mapaddr + 0x28;
+        s16 t1 = image.blocx1 - sprite->newx;
+        s16 t2 = xread16(mapaddr - 10);
+        
+        tileaddr += (tileoffset * ((u16)(t1 + t2) / tilex) + yc);
+        s16 mapheight = ((image.blocy2 - sprite->newy) + xread16(mapaddr - 6)) / (u16)tiley - yc;
+        s16 mapwidth = (image.blocx2 - image.blocx1) / tilex;
+
+        if ((xread8(mapaddr - 0x26) & 2) != 0)
+        {
+            yo += ((u16)(tiley - 1) >> 1);
+            if (yc != 0)
+            {
+                mapheight ++;
+                tileaddr --;
+                yo -= tiley;
+            }
+            
+            mapheight ++;
+        }
+        
+        s32 addy = alis.platform.kind == EPlatformPC ? 0 : 1;
+
+        if (alis.platform.bpp == 8)
+        {
+            u8 color = 63;
+            
+            for (s32 h = lim.y1; h < lim.y2; h++)
+            {
+                u8 *tgt = image.logic + lim.x1 + ((lim.y1 + h) * host.pixelbuf.w);
+                for (s32 w = lim.x1; w < lim.x2; w++, tgt++)
+                {
+                    *tgt = color;
+                }
+            }
+        }
+
+        for (int mh = mapheight; mh >= 0; mh--)
+        {
+            for (int mw = mapwidth; mw >= 0; mw--)
+            {
+                if (xread8(tileaddr) != 0 && (tileidx = (xread8(tileaddr) + tileadd) - 1) <= tilecount)
+                {
+                    vram = addr + (s16)(tileidx * 4);
+                    u32 img = xread32(vram) + vram;
+                    u8 *bitmap = (alis.mem + img);
+                    s16 width = (s16)read16(bitmap + 2) + 1;
+                    s16 height = (s16)read16(bitmap + 4) + 1;
+
+                    u8 *at = bitmap + 6;
+
+                    s16 posx1 = (mapwidth - mw) * tilex;
+                    s16 posy1 = ((mapheight - mh) - addy) * tiley + (((tiley - 1) - height) / 2);
+
+                    u8 flip = 0;
+                    u8 color = 0;
+                    u8 clear = 0;
+                    u8 palidx = 0;
+
+                    s16 bmpx1 = 0;
+                    s16 bmpx2 = width;
+                    s16 bmpy1 = 0;
+                    s16 bmpy2 = height;
+                    
+                    switch (bitmap[0])
+                    {
+                        case 0x01:
+                        {
+                            // rectangle
+                            
+                            color = bitmap[1];
+                            
+                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                            {
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                                {
+                                    if ((w + posx1) < lim.x1)
+                                        continue;
+
+                                    if ((w + posx1) >= lim.x2)
+                                        continue;
+
+                                    if ((h + posy1) < lim.y1)
+                                        continue;
+
+                                    if ((h + posy1) >= lim.y2)
+                                        continue;
+
+                                    *tgt = color;
+                                }
+                            }
+                            break;
+                        }
+                            
+                        case 0x00:
+                        case 0x02:
+                        {
+                            // ST image
+                            
+                            clear = bitmap[0] == 0 ? 0 : -1;
+                            
+                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                            {
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                                {
+                                    s16 wh = (flip ? (width - (w + 1)) : w) / 2;
+                                    color = *(at + wh + h * (width / 2));
+                                    color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                                    if (color != clear)
+                                    {
+                                        if ((w + posx1) < lim.x1)
+                                            continue;
+
+                                        if ((w + posx1) >= lim.x2)
+                                            continue;
+
+                                        if ((h + posy1) < lim.y1)
+                                            continue;
+
+                                        if ((h + posy1) >= lim.y2)
+                                            continue;
+
+                                        // tgt = image.logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                        *tgt = color;
+                                    }
+                                }
+                            }
+
+                            break;
+                        }
+                            
+                        case 0x10:
+                        case 0x12:
+                        {
+                            // 4 bit image
+                            
+                            palidx = bitmap[6];
+                            clear = bitmap[0] == 0x10 ? bitmap[7] : -1;
+                            
+                            at = bitmap + 8;
+                            
+                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                            {
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                                {
+                                    s16 wh = (flip ? (width - (w + 1)) : w) / 2;
+                                    color = *(at + wh + h * (width / 2));
+                                    color = w % 2 == flip ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                                    if (color != clear)
+                                    {
+                                        if ((w + posx1) < lim.x1)
+                                            continue;
+
+                                        if ((w + posx1) >= lim.x2)
+                                            continue;
+
+                                        if ((h + posy1) < lim.y1)
+                                            continue;
+
+                                        if ((h + posy1) >= lim.y2)
+                                            continue;
+
+                                        *tgt = palidx + color;
+                                    }
+                                }
+                            }
+                            
+                            break;
+                        }
+                            
+                        case 0x14:
+                        case 0x16:
+                        {
+                            // 8 bit image
+                            
+                            palidx = bitmap[6]; // NOTE: not realy sure what it is, but definetly not palette index
+                            clear = bitmap[0] == 0x14 ? bitmap[7] : -1;
+                            
+                            at = bitmap + 8;
+                            
+                            for (s32 h = bmpy1; h < bmpy1 + bmpy2; h++)
+                            {
+                                u8 *tgt = image.logic + (bmpx1 + posx1) + ((posy1 + h) * host.pixelbuf.w);
+                                for (s32 w = bmpx1; w < bmpx1 + bmpx2; w++, tgt++)
+                                {
+                                    color = *(at + (flip ? width - (w + 1) : w) + h * width);
+                                    if (color != clear)
+                                    {
+                                        if ((w + posx1) < lim.x1)
+                                            continue;
+                                        
+                                        if ((w + posx1) >= lim.x2)
+                                            continue;
+                                        
+                                        if ((h + posy1) < lim.y1)
+                                            continue;
+                                        
+                                        if ((h + posy1) >= lim.y2)
+                                            continue;
+                                        
+                                        *tgt = color + palidx;
+                                    }
+                                }
+                            }
+                            
+                            break;
+                        }
+                    };
+                }
+                
+                tileaddr += tileoffset;
+            }
+
+            tileaddr += (s16)(1 - ((s16)mapwidth + 1) * tileoffset);
+        }
+    }
+}
+
+
+#pragma mark -
+#pragma mark Helper functions
+
 
 void mac_update_pos(short *x,short *y)
 {

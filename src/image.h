@@ -62,6 +62,13 @@ typedef union {
 } sSprite;
 
 typedef struct {
+    s16 x1;
+    s16 y1;
+    s16 x2;
+    s16 y2;
+} sRect;
+
+typedef struct {
     
     u8 *spritemem;
 

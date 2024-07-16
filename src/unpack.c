@@ -65,7 +65,7 @@ void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32
             byte = old_read_byte(&ptr_packed, ptr_packed_end);
             while (counter--) {
                 if (ptr_unpacked >= ptr_unpacked_end) {
-                    if ((cnt--) < 1)
+                    if ((--cnt) < 1)
                         break;
 
                     ptr_unpacked = ptr_unpacked_beg + (modpack - cnt);
@@ -81,7 +81,7 @@ void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32
 
                 byte = old_read_byte(&ptr_packed, ptr_packed_end);
                 if (ptr_unpacked >= ptr_unpacked_end) {
-                    if ((cnt--) < 1)
+                    if ((--cnt) < 1)
                         break;
 
                     ptr_unpacked = ptr_unpacked_beg + (modpack - cnt);
@@ -94,7 +94,6 @@ void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32
     }
     while (ptr_packed != ptr_packed_end && cnt > 0);
 }
-//9
 
 // ============================================================================
 #pragma mark - New Silmarils unpacker
