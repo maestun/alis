@@ -251,8 +251,23 @@ void alis_init(sPlatform platform) {
     
     memset(&image, 0, sizeof(image));
     
-    memset(image.tpalet, 0, 768 * 4);
-    memset(image.mpalet, 0, 768 * 4);
+    switch (alis.platform.kind) {
+        case EPlatformAtari:
+        case EPlatformFalcon:
+            memset(image.tpalet, 0xff, 768 * 4);
+            memset(image.mpalet, 0xff, 768 * 4);
+            break;
+            
+        case EPlatformPC:
+            memcpy(image.tpalet, cga_palette, sizeof(cga_palette));
+            memcpy(image.mpalet, cga_palette, sizeof(cga_palette));
+            break;
+            
+        default:
+            memset(image.tpalet, 0, 768 * 4);
+            memset(image.mpalet, 0, 768 * 4);
+            break;
+    }
     
     for (int i = 0; i < 768; i++)
         image.dkpalet[i] = 0x100;
@@ -270,7 +285,6 @@ void alis_init(sPlatform platform) {
     image.fmouse = 0xff;
     image.fonum = 0xffff;
     image.loglarg = 0xa0; // 0x50 for st
-
 
     // init virtual ram
     alis.mem = malloc(sizeof(u8) * kHostRAMSize);
@@ -359,7 +373,6 @@ void alis_init(sPlatform platform) {
     host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
     memset(host.pixelbuf.data, 0x0, host.pixelbuf.w * host.pixelbuf.h);
     host.pixelbuf.palette = image.ampalet;
-    memset(host.pixelbuf.palette, 0xff, 768);
 
     alis.load_delay = 0;
     alis.unload_delay = 0;

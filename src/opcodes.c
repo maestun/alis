@@ -864,9 +864,11 @@ static void cdefsc(void) {
     set_scr_state(scridx, 0x40);
     set_scr_numelem(scridx, script_read8());
     set_scr_screen_id(scridx, image.libsprit);
+    
+    u16 length = alis.platform.version == 10 ? 26 : 32;
 
     u8 *ptr = alis.mem + alis.basemain + scridx + 6;
-    for (int i = 0; i < 32; i++, ptr++)
+    for (int i = 0; i < length; i++, ptr++)
         *ptr = script_read8();
     
     set_scr_to_next(scridx, 0);
@@ -2653,6 +2655,15 @@ static void cfindtyp(void) {
 }
 
 void music(void) {
+    if (alis.platform.version <= 10)
+    {
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        return;
+    }
     
     u16 scriptId = alis.flagmain ? alis.main->data->header.id : alis.script->data->header.id;
     audio.musicId = scriptId;
@@ -2753,6 +2764,9 @@ static void cmusic(void) {
 }
 
 static void cdelmusic(void) {
+    if (alis.platform.version <= 10)
+        return;
+    
     readexec_opername();
     
     if (alis.platform.version < 21)
@@ -2840,8 +2854,9 @@ static void sound(void) {
             speedsam = xread8(alis.script->data->data_org + addr + 1);
 
         u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
-        if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly))
-            longsam = (longsam >> 0x10) / 13;
+        if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly || alis.platform.uid == EGameMadShow)) {
+            longsam = ((u16)xpcread16(alis.script->data->data_org + addr + 4)) - 0x10;
+        }
 
         u32 startsam = alis.script->data->data_org + addr + 0x10;
         playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam);

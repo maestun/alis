@@ -252,3 +252,5 @@ void valtostr(char *string, s16 value);
 void log_sprites(void);
 
 void mac_update_pos(short *x,short *y);
+
+extern u8 cga_palette[12];

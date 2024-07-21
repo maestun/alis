@@ -323,6 +323,9 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
     debug(EDebugInfo, "\n");
     debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
+    if (alis.platform.version == 10)
+        return script;
+    
     if (alis.platform.kind == EPlatformMac)
     {
         data = alis.mem + script->data_org;

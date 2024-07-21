@@ -89,6 +89,7 @@ sImage image = {
 
 
 void draw_mac_rect(sRect *pos, sRect *bmp, u8 color);
+void draw_cga_rect(sRect *pos, sRect *bmp, u8 color);
 void draw_rect(sRect *pos, sRect *bmp, u8 color);
 void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
 void draw_mac_mono_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
@@ -143,7 +144,7 @@ void topalette(u8 *paldata, s32 duration)
         image.ftopal = 0xff;
         return;
     }
-    else if (alis.platform.kind == EPlatformPC && alis.platform.uid == EGameMadShow)
+    else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
     {
         memcpy(image.atpalet, cga_palette, sizeof(cga_palette));
         memcpy(image.ampalet, cga_palette, sizeof(cga_palette));
@@ -1798,10 +1799,6 @@ void destofen(sSprite *sprite)
 
     u8 *at = bitmap + 6;
 
-    u8 color;
-    u16 clear = 0;
-    u8 palidx = 0;
-
     sRect bmp = {
         .x1 = 0,
         .y1 = 0,
@@ -1843,6 +1840,10 @@ void destofen(sSprite *sprite)
             if (alis.platform.kind == EPlatformMac)
             {
                 draw_mac_rect(&pos, &bmp, bitmap[1]);
+            }
+            else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
+            {
+                draw_cga_rect(&pos, &bmp, bitmap[1]);
             }
             else
             {
@@ -2254,7 +2255,11 @@ void affiscr(u16 scene, u16 screenidx)
         depscreen(scene, screenidx);
     }
     
-    if ((get_scr_numelem(scene) & 2) == 0 || (get_scr_state(scene) & 0x80) == 0)
+    u8 draw = alis.platform.version == 0
+                    ? alis.fswitch == 0
+                    : ((get_scr_numelem(scene) & 2) == 0 || (get_scr_state(scene) & 0x80) == 0);
+    
+    if (draw)
     {
         image.wback = (get_scr_numelem(scene) & 4) != 0;
         image.wpag = 0;
@@ -2645,6 +2650,18 @@ void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
         for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
         {
             *tgt = color == 15 ? (w + h) % 2 : !color;
+        }
+    }
+}
+
+void draw_cga_rect(sRect *pos, sRect *bmp, u8 color)
+{
+    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
+    {
+        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
+        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
+        {
+            *tgt = color % 4;
         }
     }
 }
