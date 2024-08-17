@@ -113,7 +113,7 @@ Sad ending, but at least:
 
 Fast forward many more years, I've gained some coding experience and decided to finally understand how this Ishar games were really working !
 
-Luckily, when checking the files present on the Silmarils Trilogy CD-ROM that I bought a few years back, I ran into some C files that were not part of the DOSBox sources (but had to be shipped, do to the GPL license), and looked like custom opcode tables.
+Luckily, when checking the files present on the Silmarils Collection CD-ROM that I bought a few years back, I ran into some C files that were not part of the DOSBox sources (but had to be shipped, due to the GPL license), and looked like custom opcode tables.
 
 Since Silmarils was a company producing several games for all platforms of the 90's at a very fast pace, I thought that they were probably running on a custom virtual machine of some kind ([yep, they did](https://www.youtube.com/watch?v=TKAg3JMLXzM)).
 
