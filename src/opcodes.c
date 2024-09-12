@@ -4528,7 +4528,7 @@ static void cwalkmap(void) {
 }
 
 // TODO: Looks like some precomputed values
-u8 testaima[] = {
+u8 tabatan[] = {
     
     0x2D, 0x2D, 0x2D, 0x2D,
     0x2D, 0x2D, 0x2D, 0x2D,
@@ -4986,10 +4986,10 @@ u8 testaima[] = {
     0x59, 0x59, 0x59, 0x59,
     0x59, 0x59, 0x59, 0x59,
     0x59, 0x59, 0x59, 0x59,
-    0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00  // TODO four redundant entries?
 };
 
-s16 testaimx[] = {
+s16 tabsin[] = {
     
     0x0000, 0x0008, 0x0011, 0x001a, 0x0023, 0x002c, 0x0035, 0x003e, 0x0047, 0x0050, 0x0058, 0x0061, 0x006a, 0x0073, 0x007b, 0x0084, 0x008d, 0x0095, 0x009e, 0x00a6, 0x00af, 0x00b7, 0x00bf,
     0x00c8, 0x00d0, 0x00d8, 0x00e0, 0x00e8, 0x00f0, 0x00f8, 0x0100, 0x0107, 0x010f, 0x0116, 0x011e, 0x0125, 0x012c, 0x0134, 0x013b, 0x0142, 0x0149, 0x014f, 0x0156, 0x015d, 0x0163, 0x016a,
@@ -4997,7 +4997,7 @@ s16 testaimx[] = {
     0x01dd, 0x01e1, 0x01e4, 0x01e6, 0x01e9, 0x01ec, 0x01ee, 0x01f0, 0x01f2, 0x01f4, 0x01f6, 0x01f8, 0x01f9, 0x01fb, 0x01fc, 0x01fd, 0x01fe, 0x01fe, 0x01ff, 0x01ff, 0x01ff, 0x0200
 };
 
-s16 testaimy[] = {
+s16 tabcos[] = {
     0x0200, 0x01ff, 0x01ff, 0x01ff, 0x01fe, 0x01fe, 0x01fd, 0x01fc, 0x01fb, 0x01f9, 0x01f8, 0x01f6, 0x01f4, 0x01f2, 0x01f0, 0x01ee, 0x01ec, 0x01e9, 0x01e6, 0x01e4, 0x01e1, 0x01dd, 0x01da,
     0x01d7, 0x01d3, 0x01d0, 0x01cc, 0x01c8, 0x01c4, 0x01bf, 0x01bb, 0x01b6, 0x01b2, 0x01ad, 0x01a8, 0x01a3, 0x019e, 0x0198, 0x0193, 0x018d, 0x0188, 0x0182, 0x017c, 0x0176, 0x0170, 0x016a,
     0x0163, 0x015d, 0x0156, 0x014f, 0x0149, 0x0142, 0x013b, 0x0134, 0x012c, 0x0125, 0x011e, 0x0116, 0x010f, 0x0107, 0x0100, 0x00f8, 0x00f0, 0x00e8, 0x00e0, 0x00d8, 0x00d0, 0x00c8, 0x00bf,
@@ -5073,9 +5073,9 @@ static void catstmap(void) {
     s16 wcax = xread16(alis.script->vram_org + ALIS_SCR_WCAX);
     s16 wcay = xread16(alis.script->vram_org + ALIS_SCR_WCAY);
     s16 wcaz = xread16(alis.script->vram_org + ALIS_SCR_WCAZ);
-    
-    wcx2 = (testaimy[wcaz * 2] * wcx2 - (testaimx[wcaz] * testaimy[wcax] >> 9) * wcy2) * 0x80;
-    wcy2 = (testaimx[wcax * 2] * wcy2 + wcz2 * testaimy[wcax]) * 0x80;
+    // polarmov
+    wcx2 = (tabcos[wcaz * 2] * wcx2 - (tabsin[wcaz] * tabcos[wcax] >> 9) * wcy2) * 0x80;
+    wcy2 = (tabsin[wcax * 2] * wcy2 + wcz2 * tabcos[wcax]) * 0x80;
     
     alis.matmask = 0;
     // atstmap((short)((uint)(*unaff_A6 + CONCAT22(extraout_D0u,(short)((uint)iVar3 >> 0x10))) >> 0x10),  (short)((uint)(unaff_A6[2] + extraout_D1) >> 0x10),addr,DAT_0001c50c,(int)unaff_A6);
@@ -5099,11 +5099,11 @@ static void cavtstmov(void) {
     {
 //        wcax *= 2;
 //        wcaz *= 2;
-//        wcay = *(s16 *)((u8 *)testaimx + wcax);
-//        s16 d7w = *(s16 *)((u8 *)testaimx + wcaz);
+//        wcay = *(s16 *)((u8 *)tabsin + wcax);
+//        s16 d7w = *(s16 *)((u8 *)tabsin + wcaz);
 //
-//        s16 d6w = *(s16 *)((u8 *)testaimy + wcaz);
-//        wcax = *(s16 *)((u8 *)testaimy + wcax);
+//        s16 d6w = *(s16 *)((u8 *)tabcos + wcaz);
+//        wcax = *(s16 *)((u8 *)tabcos + wcax);
 //
 //        wcz2 *= wcax;
 //        wcaz = wcy2;
@@ -5136,10 +5136,10 @@ static void cavtstmov(void) {
 //        wcx2 = wcaz;
 //        wcy2 = wcax;
 //        
-//        s16 test = testaimy[wcax];
-        
-        wcx2 = (testaimy[wcaz * 2] * wcx2 - (testaimx[wcaz] * testaimy[wcax] >> 9) * wcy2) * 0x80;
-        wcy2 = (testaimx[wcax * 2] * wcy2 + wcz2 * testaimy[wcax]) * 0x80;
+//        s16 test = tabcos[wcax];
+        // polarmov
+        wcx2 = (tabcos[wcaz * 2] * wcx2 - (tabsin[wcaz] * tabcos[wcax] >> 9) * wcy2) * 0x80;
+        wcy2 = (tabsin[wcax * 2] * wcy2 + wcz2 * tabcos[wcax]) * 0x80;
     }
 
     alis.wcx = xread32(vram + ALIS_SCR_WCX) + wcx2;
@@ -5157,7 +5157,7 @@ static void cavmov(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
-void calcaim2(s16 *atx, s16 *aty)
+void getangle(s16 *atx, s16 *aty)
 {
     s16 uVar2;
     s16 uVar3;
@@ -5166,7 +5166,7 @@ void calcaim2(s16 *atx, s16 *aty)
     s16 naty = *aty;
     if (atx == 0)
     {
-calcaim3:
+getangle3:
         natx = 0;
         if (*aty == 0)
         {
@@ -5197,7 +5197,7 @@ calcaim3:
             {
                 natx = 0x5a;
                 uVar2 = (((s32)uVar2 << 5) / uVar3);
-                if (0x73f < uVar2 || (natx = testaima[uVar2]) != 0)
+                if (0x73f < uVar2 || (natx = tabatan[uVar2]) != 0)
                 {
                     if (aty < 0)
                     {
@@ -5209,16 +5209,16 @@ calcaim3:
                         natx = -natx;
                     }
                     
-                    naty = (*atx * 0x200) / testaimx[natx] & 0xffff;
-                    goto calcaim4;
+                    naty = (*atx * 0x200) / tabsin[natx] & 0xffff;
+                    goto getangle4;
                 }
                 
-                goto calcaim3;
+                goto getangle3;
             }
             
             natx = 0x5a;
             uVar2 = (((s32)uVar3 << 5) / uVar2);
-            if (0x73f < uVar2 || (natx = testaima[uVar2]) != 0)
+            if (0x73f < uVar2 || (natx = tabatan[uVar2]) != 0)
             {
                 if (aty < 0)
                 {
@@ -5231,8 +5231,8 @@ calcaim3:
                     natx = -natx;
                 }
                 
-                naty = (*aty * 0x200) / testaimy[natx] & 0xffff;
-                goto calcaim4;
+                naty = (*aty * 0x200) / tabcos[natx] & 0xffff;
+                goto getangle4;
             }
         }
         
@@ -5244,7 +5244,7 @@ calcaim3:
         }
     }
     
-calcaim4:
+getangle4:
     
     if (naty < 0)
     {
@@ -5255,20 +5255,20 @@ calcaim4:
     *aty = natx;
 }
 
-void calcaim(s16 *cx, s16 *cy, s16 *cz, s16 *oldcx, s16 *oldcy, s16 *oldcz)
+void polarang(s16 *cx, s16 *cy, s16 *cz, s16 *oldcx, s16 *oldcy, s16 *oldcz)
 {
     *cx -= *oldcx;
     *cy -= *oldcy;
     *cz -= *oldcz;
     
-    calcaim2(cx, cy);
+    getangle(cx, cy);
     
     s16 ncx = 0;
 
     if (*cz != 0)
     {
         ncx = -(*cz);
-        calcaim2(&ncx, cy);
+        getangle(&ncx, cy);
     }
     
     *cz = *cy;
@@ -5289,7 +5289,7 @@ static void caim(void) {
     s16 oldcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
     s16 oldcz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
     
-    calcaim(&cx, &cy, &cz, &oldcx, &oldcy, &oldcz);
+    polarang(&cx, &cy, &cz, &oldcx, &oldcy, &oldcz);
     
     if (cz == 0)
     {
@@ -5592,6 +5592,17 @@ static void cclock(void)    {
     set_0x3e_wait_time(alis.script->vram_org, alis.varD7 + alis.timeclock);
 }
 
+static void casleepfar(void) {
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+}
+
+static void casleepon(void) {
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0xfb); // TODO check if byte ptr is OK: btr dword ptr es:[ebp-24h], 2
+}
+
+static void casleepoff(void) {
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 4); // TODO check if byte ptr is OK: bts dword ptr es:[ebp-24h], 2
+}
 
 // ============================================================================
 #pragma mark - Unimplemented opcodes
@@ -6032,9 +6043,9 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0xaf, cgettime,     "get current time"),
     DECL_OPCODE(0xb0, cvinput, "TODO: add desc"),
     DECL_OPCODE(0xb1, csinput, "TODO: add desc"),
-    DECL_OPCODE(0xb2, cnul,         "[N/I]"),
-    DECL_OPCODE(0xb3, cnul,         "[N/I]"),
-    DECL_OPCODE(0xb4, cnul,         "[N/I]"),
+    DECL_OPCODE(0xb2, casleepfar, "TODO: add desc"),
+    DECL_OPCODE(0xb3, casleepon, "TODO: add desc"),
+    DECL_OPCODE(0xb4, casleepoff, "TODO: add desc"),
     DECL_OPCODE(0xb5, crunfilm, "TODO: add desc"),
     DECL_OPCODE(0xb6, cvpicprint, "TODO: add desc"),
     DECL_OPCODE(0xb7, cspicprint, "TODO: add desc"),
