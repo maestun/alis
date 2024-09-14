@@ -68,6 +68,10 @@ void readexec_opcode(void) {
     readexec(opcodes, "opcode", 0);
 }
 
+void readexec_escname(void) {
+    readexec(escnames, "escname", 1);
+}
+
 void readexec_opername(void) {
     readexec(opernames, "opername", 1);
 }
