@@ -5604,17 +5604,19 @@ static void casleepoff(void) {
     set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 4); // TODO check if byte ptr is OK: bts dword ptr es:[ebp-24h], 2
 }
 
+static void cesc1(void)     {
+//    u16 code = script_read8() | 0x100;
+//    sAlisOpcode opcode = opcodes[code];
+//    debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+//    return opcode.fptr();
+    readexec_escname();
+}
+
 // ============================================================================
 #pragma mark - Unimplemented opcodes
 // ============================================================================
 static void cnul(void)      {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-static void cesc1(void)     {
-    u16 code = script_read8() | 0x100;
-    sAlisOpcode opcode = opcodes[code];
-    debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
-    return opcode.fptr();
 }
 static void cesc2(void)     {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);

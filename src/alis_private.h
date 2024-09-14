@@ -26,6 +26,7 @@
 #include "sys/sys.h"
 
 void readexec_opcode(void);
+void readexec_escname(void);
 void readexec_opername(void);
 void readexec_storename(void);
 void readexec_addname(void);
@@ -37,6 +38,7 @@ void readexec_opername_swap(void);
 void cstore_continue(void);
 
 extern sAlisOpcode  opcodes[];
+extern sAlisOpcode  escnames[];
 extern sAlisOpcode  opernames[];
 extern sAlisOpcode  storenames[];
 extern sAlisOpcode  addnames[];
