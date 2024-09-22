@@ -91,7 +91,7 @@ void sys_init(sPlatform *pl) {
     _timerID = SDL_AddTimer(20, itroutine, NULL);
     _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
-    SDL_SetRenderDrawColor(_renderer, 255, 255, 255, 255);
+    SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
     SDL_RenderSetLogicalSize(_renderer, _width, _height * _aspect_ratio);
 
