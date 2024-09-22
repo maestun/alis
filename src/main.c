@@ -24,7 +24,7 @@
 #include "sys/sys.h"
 
 void usage(void) {
-    printf("%s v%s\nUsage:\n\t%s <data_path>\n\n\t%s <script_path>\n",
+    printf("%s v%s\nUsage:\n\t%s [-f] <data_path>\n\n\t%s <script_path>\n",
            kProgName, kProgVersion, kProgName, kProgName);
 }
 
@@ -34,9 +34,26 @@ int main(int argc, const char* argv[]) {
         usage();
     }
     else {
-        sPlatform *pl = pl_guess(argv[1]);
+        
+        int fullscreen = 0;
+        const char *path = NULL;
+        
+        for (int c = 1; c < argc; c++)
+        {
+            const char * cmd = argv[c];
+            if (strcmp(cmd, "-f") == 0)
+            {
+                fullscreen = 1;
+            }
+            else
+            {
+                path = argv[c];
+            }
+        }
+        
+        sPlatform *pl = pl_guess(path);
         if(pl_supported(pl)) {
-            sys_init(pl);
+            sys_init(pl, fullscreen);
             alis_init(*pl);
             alis_start();
             alis_deinit();

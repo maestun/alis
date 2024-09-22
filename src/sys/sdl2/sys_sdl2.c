@@ -79,7 +79,7 @@ u8 pblanc10(sChannel *a0, u8 d1b);
 
 void sys_audio_callback(void *userdata, Uint8 *stream, int len);
 
-void sys_init(sPlatform *pl) {
+void sys_init(sPlatform *pl, int fullscreen) {
     
     _width = pl->width;
     _height = pl->height;
@@ -89,7 +89,7 @@ void sys_init(sPlatform *pl) {
     
     SDL_Init(SDL_INIT_VIDEO);
     _timerID = SDL_AddTimer(20, itroutine, NULL);
-    _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE);
+    _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE | fullscreen * SDL_WINDOW_FULLSCREEN_DESKTOP);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);

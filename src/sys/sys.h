@@ -31,7 +31,7 @@
 // =============================================================================
 typedef void (*vmStep)(void);
 void    sys_main(vmStep fStep);
-void    sys_init(sPlatform *pl);
+void    sys_init(sPlatform *pl, int fullscreen);
 u8      sys_poll_event(void);
 void    sys_deinit(void);
 
