@@ -89,7 +89,6 @@ sImage image = {
 
 
 void draw_mac_rect(sRect *pos, sRect *bmp, u8 color);
-void draw_cga_rect(sRect *pos, sRect *bmp, u8 color);
 void draw_rect(sRect *pos, sRect *bmp, u8 color);
 void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
 void draw_mac_mono_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
@@ -1843,7 +1842,7 @@ void destofen(sSprite *sprite)
             }
             else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
             {
-                draw_cga_rect(&pos, &bmp, bitmap[1]);
+                draw_rect(&pos, &bmp, bitmap[1] % 4);
             }
             else
             {
@@ -2645,18 +2644,6 @@ void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
         for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
         {
             *tgt = color == 15 ? (w + h) % 2 : !color;
-        }
-    }
-}
-
-void draw_cga_rect(sRect *pos, sRect *bmp, u8 color)
-{
-    for (s32 h = bmp->y1; h < bmp->y1 + bmp->y2; h++)
-    {
-        u8 *tgt = image.logic + (bmp->x1 + pos->x1) + ((pos->y1 + h) * host.pixelbuf.w);
-        for (s32 w = bmp->x1; w < bmp->x1 + bmp->x2; w++, tgt++)
-        {
-            *tgt = color % 4;
         }
     }
 }
