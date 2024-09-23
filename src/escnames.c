@@ -27,20 +27,32 @@
 // ============================================================================
 #pragma mark - Escnames routines
 // ============================================================================
+
+// Escname no. 01 opcode 0x00 cnul
 static void cnul(void) {
 }
+
+// Escname no. 02 opcode 0x01 consound
 void consound(void) {
     audio.fsound = 1;
 }
+
+// Escname no. 03 opcode 0x02 coffsound
 void coffsound(void) {
     audio.fsound = 0;
 }
+
+// Escname no. 04 opcode 0x03 conmusic
 void conmusic(void) {
     audio.fmusic = 1;
 }
+
+// Escname no. 05 opcode 0x04 coffmusic
 void coffmusic(void) {
     audio.fmusic = 0;
 }
+
+// Escname no. 06 opcode 0x05 cdelfilm
 void cdelfilm(void) {
     endfilm();
     
@@ -49,6 +61,8 @@ void cdelfilm(void) {
 
     memset(&bfilm, 0, sizeof(bfilm));
 }
+
+// Escname no. 07 opcode 0x06 copenfilm
 void copenfilm(void) {
     memset(&bfilm, 0, sizeof(bfilm));
 
