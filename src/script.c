@@ -121,7 +121,19 @@ void invdigit(u8 *sample)
     u32 length = read32(sample + 2) - 0x10;
     u8 *smpdata = sample + 0x10;
     
-    if (alis.platform.kind == EPlatformAtari)
+    if (alis.platform.kind == EPlatformMac)
+    {
+        if (sample[0] == 2)
+        {
+            for (int i = 0; i < length; i++)
+            {
+                smpdata[i] += 0x80;
+                if (smpdata[i] == 0)
+                    smpdata[i] = 1;
+            }
+        }
+    }
+    else if (alis.platform.kind == EPlatformAtari)
     {
         for (int i = 0; i < length; i++)
         {
