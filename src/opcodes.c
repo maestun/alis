@@ -228,32 +228,38 @@ void io_mfree(s32 addr);
 #pragma mark - Opcodes
 // ============================================================================
 
+// Codopname no. 031 opcode 0x1e cstore
 static void cstore(void) {
     readexec_opername_saveD7();
     cstore_continue();
 }
 
+// Codopname no. 032 opcode 0x1f ceval
 static void ceval(void) {
     readexec_opername_saveD7();
 }
 
+// Codopname no. 033 opcode 0x20 cadd
 static void cadd(void) {
     readexec_opername_saveD7();
     readexec_addname_swap();
 }
 
+// Codopname no. 034 opcode 0x21 csub
 static void csub(void) {
     readexec_opername_saveD7();
     alis.varD7 *= -1;
     readexec_addname_swap();
 }
 
+// Codopname no. 037 opcode 0x24 cvprint
 static void cvprint(void) {
     alis.charmode = 0;
     readexec_opername_saveD7();
     putval(alis.varD7);
 }
 
+// Codopname no. 038 opcode 0x25 csprinti
 static void csprinti(void) {
     alis.charmode = 0;
     for (u8 c = script_read8(); c != 0; c = script_read8())
@@ -262,12 +268,14 @@ static void csprinti(void) {
     }
 }
 
+// Codopname no. 039 opcode 0x26 csprinta
 static void csprinta(void) {
     alis.charmode = 0;
     readexec_opername_saveD7();
     put_string();
 }
 
+// Codopname no. 040 opcode 0x27 clocate
 static void clocate(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
@@ -278,10 +286,12 @@ static void clocate(void) {
 //    io_locate();
 }
 
+// Codopname no. 041 opcode 0x28 ctab
 static void ctab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 042 opcode 0x29 cdim
 // copy values to vram
 // cdim(u16 offset, u8 counter, u8 value, optional u16[] values)
 static void cdim(void) {
@@ -329,6 +339,7 @@ static void cdim(void) {
     }
 }
 
+// Codopname no. 043 opcode 0x2a crandom
 static void crandom(void) {
     readexec_opername();
     alis.random_number = alis.varD7;
@@ -358,18 +369,22 @@ static void cloop(s32 offset) {
     }
 }
 
+// Codopname no. 044 opcode 0x2b cloop8
 static void cloop8(void) {
     cloop((s8)script_read8());
 }
 
+// Codopname no. 045 opcode 0x2c cloop16
 static void cloop16(void) {
     cloop((s16)script_read16());
 }
 
+// Codopname no. 046 opcode 0x2d cloop24
 static void cloop24(void) {
     cloop(script_read24());
 }
 
+// Codopname no. 047 opcode 0x2e cswitch1
 static void cswitch1(void) {
     readexec_opername();
 
@@ -399,6 +414,7 @@ static void cswitch1(void) {
     }
 }
 
+// Codopname no. 048 opcode 0x2f cswitch2
 static void cswitch2(void) {
     readexec_opername();
     
@@ -421,6 +437,7 @@ static void cswitch2(void) {
     }
 }
 
+// Codopname no. 052 opcode 0x33 cleave
 static void cleave(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     if (alis.fseq == 0)
@@ -450,11 +467,13 @@ static void cleave(void) {
     debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 }
 
+// Codopname no. 053 opcode 0x34 cprotect
 static void cprotect(void) {
     readexec_opername();
     alis.vprotect = alis.varD7;
 }
 
+// Codopname no. 054 opcode 0x35 casleep
 static void casleep(void) {
     readexec_opername();
     
@@ -468,6 +487,7 @@ static void casleep(void) {
     }
 }
 
+// Codopname no. 057 opcode 0x38 cscmov
 static void cscmov(void) {
     readexec_opername_saveD7();
     s16 x = alis.varD7;
@@ -506,6 +526,7 @@ static void cscmov(void) {
     }
 }
 
+// Codopname no. 058 opcode 0x39 cscset
 static void cscset(void) {
     readexec_opername();
     s16 x = alis.varD7;
@@ -545,10 +566,12 @@ static void cscset(void) {
     }
 }
 
+// Codopname no. 059 opcode 0x3a cclipping
 static void cclipping(void) {
     alis.fswitch = 0;
 }
 
+// Codopname no. 060 opcode 0x3b cswitching
 static void cswitching(void) {
     alis.fswitch = 1;
 }
@@ -597,6 +620,7 @@ void get_vector(s16 *x, s16 *y, s16 *z)
     }
 }
 
+// Codopname no. 061 opcode 0x3c cwlive
 static void cwlive(void) {
     get_vector(&alis.wcx, &alis.wcy, &alis.wcz);
     
@@ -604,6 +628,7 @@ static void cwlive(void) {
     clivin();
 }
 
+// Codopname no. 062 opcode 0x3d cunload
 static void cunload(void) {
     
     s16 id = script_read16();
@@ -657,6 +682,7 @@ static void cunload(void) {
     }
 }
 
+// Codopname no. 063 opcode 0x3e cwakeup
 static void cwakeup(void) {
     readexec_opername();
  
@@ -670,12 +696,14 @@ static void cwakeup(void) {
     }
 }
 
+// Codopname no. 067 opcode 0x42 cstop
 static void cstop(void) {
     // in real program, adds 4 to real stack pointer
     alis.script->running = 0;
     debug(EDebugInfo, "\n-- CSTOP --");
 }
 
+// Codopname no. 064 opcode 0x3f csleep
 static void csleep(void) {
     set_0x04_cstart_csleep(alis.script->vram_org, 0);
     if (alis.fseq)
@@ -684,6 +712,7 @@ static void csleep(void) {
     }
 }
 
+// Codopname no. 065 opcode 0x40 clive
 static void clive(void) {
     alis.wcx = 0;
     alis.wcy = 0;
@@ -784,6 +813,7 @@ void clivin(void)
     cstore_continue();
 }
 
+// Codopname no. 066 opcode 0x41 ckill
 static void ckill(void) {
     readexec_opername_saveD7();
     if (alis.varD7 < 0)
@@ -792,6 +822,7 @@ static void ckill(void) {
      killent(alis.varD7);
 }
 
+// Codopname no. 068 opcode 0x43 cstopret
 static void cstopret(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     if (alis.fseq == 0)
@@ -802,6 +833,7 @@ static void cstopret(void) {
     cret();
 }
 
+// Codopname no. 069 opcode 0x44 cexit
 static void cexit(void) {
     if (alis.varD5 == 0)
     {
@@ -813,6 +845,7 @@ static void cexit(void) {
     alis.script->running = 0;
 }
 
+// Codopname no. 070 opcode 0x45 cload
 static void cload(void) {
 
     // NOTE: interuptable delay to make everything work more like on original platforms
@@ -855,6 +888,7 @@ static void cload(void) {
     }
 }
 
+// Codopname no. 071 opcode 0x46 cdefsc
 // reads 35 bytes
 static void cdefsc(void) {
     if (image.libsprit == 0)
@@ -903,6 +937,7 @@ static void cdefsc(void) {
     vectoriel(scridx);
 }
 
+// Codopname no. 072 opcode 0x47 cscreen
 static void cscreen(void) {
     u16 screen_id = script_read16();
     if (screen_id != get_0x16_screen_id(alis.script->vram_org)) {
@@ -910,6 +945,7 @@ static void cscreen(void) {
     }
 }
 
+// Codopname no. 073 opcode 0x48 cput
 static void cput(void) {
     alis.flagmain = 0;
     image.invert_x = get_0x03_xinv(alis.script->vram_org);
@@ -926,6 +962,7 @@ static void cput(void) {
     put(idx);
 }
 
+// Codopname no. 074 opcode 0x49 cputnat
 static void cputnat(void) {
     alis.flagmain = 0;
     image.invert_x = get_0x03_xinv(alis.script->vram_org);
@@ -944,6 +981,7 @@ static void cputnat(void) {
     put(idx);
 }
 
+// Codopname no. 075 opcode 0x4a cerase
 static void cerase(void) {
     u16 curidx = 0;
     u16 previdx = 0;
@@ -967,6 +1005,7 @@ static void cerase(void) {
     alis.ferase = 0;
 }
 
+// Codopname no. 076 opcode 0x4b cerasen
 static void cerasen(void) {
     readexec_opername_saveD7();
     image.numelem = alis.varD7;
@@ -982,6 +1021,7 @@ static void cerasen(void) {
     alis.ferase = 0;
 }
 
+// Codopname no. 077 opcode 0x4c cset
 static void cset(void) {
     readexec_opername();
     xwrite16(alis.script->vram_org + ALIS_SCR_WCX, alis.varD7);
@@ -991,6 +1031,7 @@ static void cset(void) {
     xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, alis.varD7);
 }
 
+// Codopname no. 078 opcode 0x4d cmov
 static void cmov(void) {
     readexec_opername();
     xadd16(alis.script->vram_org + ALIS_SCR_WCX, alis.varD7);
@@ -1000,6 +1041,7 @@ static void cmov(void) {
     xadd16(alis.script->vram_org + ALIS_SCR_WCZ, alis.varD7);
 }
 
+// Codopname no. 079 opcode 0x4e copensc
 static void copensc(void) {
     u16 id = script_read16();
     *(alis.mem + alis.basemain + id) &= 0xbf;
@@ -1009,11 +1051,13 @@ static void copensc(void) {
     scadd(id);
 }
 
+// Codopname no. 080 opcode 0x4f cclosesc
 static void cclosesc(void) {
     u16 id = script_read16();
     *(alis.mem + alis.basemain + id) |= 0x40;
 }
 
+// Codopname no. 081 opcode 0x50 cerasall
 static void cerasall(void) {
     u16 tmpidx = 0;
     u16 curidx = get_0x18_unknown(alis.script->vram_org);
@@ -1025,11 +1069,13 @@ static void cerasall(void) {
     alis.ferase = 0;
 }
 
+// Codopname no. 082 opcode 0x51 cforme
 static void cforme(void) {
     readexec_opername();
     set_0x1a_cforme(alis.script->vram_org, alis.varD7);
 }
 
+// Codopname no. 083 opcode 0x52 cdelforme
 static void cdelforme(void) {
     set_0x1a_cforme(alis.script->vram_org, -1);
 }
@@ -1334,6 +1380,7 @@ void clipform(void) {
     }
 }
 
+// Codopname no. 088 opcode 0x57 csuccent
 static void csuccent(void) {
     
     alis.varD7 = *alis.ptrent;
@@ -1344,11 +1391,13 @@ static void csuccent(void) {
     cstore_continue();
 }
 
+// Codopname no. 097 opcode 0x60 crstent
 static void crstent(void) {
     alis.ptrent = alis.tablent;
     csuccent();
 }
 
+// Codopname no. 084 opcode 0x53 ctstmov
 static void ctstmov(void) {
     readexec_opername();
     alis.wcx = xread16(alis.script->vram_org + ALIS_SCR_WCX) + alis.varD7;
@@ -1363,10 +1412,12 @@ static void ctstmov(void) {
     crstent();
 }
 
+// Codopname no. 085 opcode 0x54 ctstset
 static void ctstset(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 086 opcode 0x55 cftstmov
 static void cftstmov(void) {
     readexec_opername();
     alis.wcx = xread16(alis.script->vram_org + ALIS_SCR_WCX) + alis.varD7;
@@ -1382,6 +1433,7 @@ static void cftstmov(void) {
     crstent();
 }
 
+// Codopname no. 087 opcode 0x56 cftstset
 static void cftstset(void) {
     readexec_opername();
     alis.wcx = alis.varD7;
@@ -1397,6 +1449,7 @@ static void cftstset(void) {
     crstent();
 }
 
+// Codopname no. 089 opcode 0x58 cpredent
 static void cpredent(void) {
     if (alis.ptrent != alis.tablent)
     {
@@ -1735,6 +1788,7 @@ cnearen2:
     }
 }
 
+// Codopname no. 090 opcode 0x59 cnearent
 void cnearent(void)
 {
     alis.fview = 0;
@@ -1744,6 +1798,7 @@ void cnearent(void)
     sviewent();
 }
 
+// Codopname no. 091 opcode 0x5a cneartyp
 static void cneartyp(void) {
     alis.fview = 0;
     readexec_opername();
@@ -1760,6 +1815,7 @@ static void cneartyp(void) {
     sviewtyp();
 }
 
+// Codopname no. 092 opcode 0x5b cnearmat
 static void cnearmat(void) {
     alis.fview = 0;
     readexec_opername();
@@ -1769,6 +1825,7 @@ static void cnearmat(void) {
     sviewmat();
 }
 
+// Codopname no. 093 opcode 0x5c cviewent
 static void cviewent(void) {
     alis.fview = 1;
     readexec_opername();
@@ -1779,6 +1836,7 @@ static void cviewent(void) {
     sviewent();
 }
 
+// Codopname no. 094 opcode 0x5d cviewtyp
 static void cviewtyp(void) {
     alis.fview = 1;
     readexec_opername();
@@ -1797,6 +1855,7 @@ static void cviewtyp(void) {
     sviewtyp();
 }
 
+// Codopname no. 095 opcode 0x5e cviewmat
 static void cviewmat(void) {
     alis.fview = 1;
     readexec_opername();
@@ -1808,6 +1867,7 @@ static void cviewmat(void) {
     sviewmat();
 }
 
+// Codopname no. 096 opcode 0x5f corient
 static void corient(void) {
     readexec_opername();
     alis.varD7 *= 3;
@@ -1818,6 +1878,7 @@ static void corient(void) {
     xwrite8(alis.script->vram_org + ALIS_SCR_WCZ2, xread8(addr + 2 + alis.varD7));
 }
 
+// Codopname no. 098 opcode 0x61 csend
 static void csend(void) {
     s16 length = script_read8();
 
@@ -1874,32 +1935,39 @@ static void csend(void) {
     }
 }
 
+// Codopname no. 103 opcode 0x66 cscanclr
 static void cscanclr(void) {
     set_0x1e_scan_clr(alis.script->vram_org, get_0x1c_scan_clr(alis.script->vram_org));
     set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
 }
 
+// Codopname no. 099 opcode 0x62 cscanon
 static void cscanon(void) {
     set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0xfe);
 }
 
+// Codopname no. 100 opcode 0x63 cscanoff
 static void cscanoff(void) {
     set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 1);
     cscanclr();
 }
 
+// Codopname no. 101 opcode 0x64 cinteron
 static void cinteron(void) {
     set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0xfd);
 }
 
+// Codopname no. 102 opcode 0x65 cinteroff
 static void cinteroff(void) {
     set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 2);
 }
 
+// Codopname no. 104 opcode 0x67 callentity
 static void callentity(void) {
     alis.fallent = 1;
 }
 
+// Codopname no. 105 opcode 0x68 cpalette
 static void cpalette(void) {
     alis.flagmain = 0;
 
@@ -1917,6 +1985,7 @@ static void cpalette(void) {
     }
 }
 
+// Codopname no. 106 opcode 0x69 cdefcolor
 static void cdefcolor(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -1946,11 +2015,13 @@ static void cdefcolor(void) {
     set_update_cursor();
 }
 
+// Codopname no. 107 opcode 0x6a ctiming
 static void ctiming(void) {
     readexec_opername();
     alis.ctiming = (u8)(alis.varD7 & 0xff);
 }
 
+// Codopname no. 108 opcode 0x6b czap
 static void czap(void) {
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
@@ -1972,6 +2043,7 @@ static void czap(void) {
     runson(eChannelTypeDingZap, pereson, priorson, volson, freqson, longson, 0, dfreqson);
 }
 
+// Codopname no. 109 opcode 0x6c cexplode
 static void cexplode(void) {
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
@@ -1996,6 +2068,7 @@ static void cexplode(void) {
     runson(eChannelTypeExplode, pereson, priorson, volson, freqson, longson, -(s16)dvolson, 0);
 }
 
+// Codopname no. 110 opcode 0x6d cding
 static void cding(void) {
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
@@ -2020,6 +2093,7 @@ static void cding(void) {
     runson(eChannelTypeDingZap, pereson, priorson, volson, freqson, longson, -(s16)dvolson, 0);
 }
 
+// Codopname no. 111 opcode 0x6e cnoise
 static void cnoise(void) {
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
@@ -2044,10 +2118,12 @@ static void cnoise(void) {
     runson(eChannelTypeNoise, pereson, priorson, volson, freqson, longson, -(s16)dvolson, 0);
 }
 
+// Codopname no. 112 opcode 0x6f cinitab
 static void cinitab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 113 opcode 0x70 cfopen
 static void cfopen(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
@@ -2076,6 +2152,7 @@ static void cfopen(void) {
     }
 }
 
+// Codopname no. 114 opcode 0x71 cfclose
 static void cfclose(void) {
     if(sys_fclose(alis.fp) < 0) {
         alis_error(ALIS_ERR_FCLOSE);
@@ -2084,14 +2161,17 @@ static void cfclose(void) {
     alis.fp = NULL;
 }
 
+// Codopname no. 115 opcode 0x72 cfcreat
 static void cfcreat(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 116 opcode 0x73 cfdel
 static void cfdel(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 117 opcode 0x74 cfreadv
 static void cfreadv(void) {
     fread(alis.buffer, 2, 1, alis.fp);
     alis.varD7 = xswap16(*(s16 *)alis.buffer);
@@ -2100,6 +2180,7 @@ static void cfreadv(void) {
     cstore_continue();
 }
 
+// Codopname no. 118 opcode 0x75 cfwritev
 static void cfwritev(void) {
     readexec_opername();
     *(s16 *)alis.buffer = xswap16(alis.varD7);
@@ -2109,10 +2190,12 @@ static void cfwritev(void) {
     fwrite(&val, 2, 1, alis.fp);
 }
 
+// Codopname no. 119 opcode 0x76 cfwritei
 static void cfwritei(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 120 opcode 0x77 cfreadb
 static void cfreadb(void) {
     
     s32 addr = (s16)script_read16();
@@ -2206,6 +2289,7 @@ void writeswap(u32 addr, u32 length)
     fwrite(alis.mem + addr, length, 1, alis.fp);
 }
 
+// Codopname no. 121 opcode 0x78 cfwriteb
 static void cfwriteb(void) {
     s32 addr = (s16)script_read16();
     if (addr == 0)
@@ -2258,6 +2342,7 @@ void SYS_PutPixel(void)
     plot(alis.poldx, alis.poldy);
 }
 
+// Codopname no. 122 opcode 0x79 cplot
 static void cplot(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -2335,6 +2420,7 @@ void io_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
     }
 }
 
+// Codopname no. 123 opcode 0x7a cdraw
 static void cdraw(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -2348,6 +2434,7 @@ static void cdraw(void) {
     io_drawline(oldx, oldy, alis.poldx, alis.poldy);
 }
 
+// Codopname no. 124 opcode 0x7b cbox
 static void cbox(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -2361,6 +2448,7 @@ static void cbox(void) {
     io_box(oldx, oldy, alis.poldx, alis.poldy);
 }
 
+// Codopname no. 125 opcode 0x7c cboxf
 static void cboxf(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -2374,19 +2462,23 @@ static void cboxf(void) {
     io_boxf(oldx, oldy, alis.poldx, alis.poldy);
 }
 
+// Codopname no. 126 opcode 0x7d cink
 static void cink(void) {
     readexec_opername();
     image.inkcolor = alis.varD7;
 }
 
+// Codopname no. 127 opcode 0x7e cpset
 static void cpset(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 128 opcode 0x7f cpmove
 static void cpmove(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 129 opcode 0x80 cpmode
 static void cpmode(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
@@ -2394,28 +2486,34 @@ static void cpmode(void) {
     image.line_a_mode = alis.varD7;
 }
 
+// Codopname no. 130 opcode 0x81 cpicture
 static void cpicture(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 131 opcode 0x82 cxyscroll
 static void cxyscroll(void) {
     readexec_opername();
     readexec_opername();
 }
 
+// Codopname no. 132 opcode 0x83 clinking
 static void clinking(void) {
     readexec_opername();
     set_0x2a_clinking(alis.script->vram_org, alis.varD7);
 }
 
+// Codopname no. 133 opcode 0x84 cmouson
 static void cmouson(void) {
     sys_enable_mouse(1);
 }
 
+// Codopname no. 134 opcode 0x85 cmousoff
 static void cmousoff(void) {
     sys_enable_mouse(0);
 }
 
+// Codopname no. 135 opcode 0x86 cmouse
 // 0x86 - 14d62
 static void cmouse(void) {
     mouse_t mouse = sys_get_mouse();
@@ -2435,6 +2533,7 @@ static void cmouse(void) {
     alis.cbutmouse = 0;
 }
 
+// Codopname no. 136 opcode 0x87 cdefmouse
 static void cdefmouse(void) {
     alis.flagmain = 0;
     readexec_opername();
@@ -2447,6 +2546,7 @@ static void cdefmouse(void) {
     }
 }
 
+// Codopname no. 137 opcode 0x88 csetmouse
 static void csetmouse(void) {
     readexec_opername();
     u16 x = alis.varD7;
@@ -2455,6 +2555,7 @@ static void csetmouse(void) {
     sys_set_mouse(x, y);
 }
 
+// Codopname no. 138 opcode 0x89 cdefvect
 static void cdefvect(void) {
     s16 offset = script_read8();
     offset += offset * 2;
@@ -2463,6 +2564,7 @@ static void cdefvect(void) {
     alis.script->pc += offset;
 }
 
+// Codopname no. 139 opcode 0x8a csetvect
 static void csetvect(void) {
     s16 value = script_read16();
     set_0x20_set_vect(alis.script->vram_org, value);
@@ -2497,6 +2599,7 @@ s32 calscal(s8 *address, s16 wcx, s16 wcy, s16 wcz)
     return result;
 }
 
+// Codopname no. 141 opcode 0x8c capproach
 static void capproach(void) {
     readexec_opername();
     if (alis.varD7 != -1)
@@ -2530,6 +2633,7 @@ static void capproach(void) {
     }
 }
 
+// Codopname no. 142 opcode 0x8d cescape
 static void cescape(void) {
     readexec_opername();
     if (alis.varD7 != -1)
@@ -2563,6 +2667,7 @@ static void cescape(void) {
     }
 }
 
+// Codopname no. 143 opcode 0x8e cvtstmov
 static void cvtstmov(void) {
     alis.wcx = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2) + xread16(alis.script->vram_org + ALIS_SCR_WCX);
     alis.wcy = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2) + xread16(alis.script->vram_org + ALIS_SCR_WCY);
@@ -2574,6 +2679,7 @@ static void cvtstmov(void) {
     crstent();
 }
 
+// Codopname no. 144 opcode 0x8f cvftstmov
 static void cvftstmov(void) {
     alis.wcx = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2) + xread16(alis.script->vram_org + ALIS_SCR_WCX);
     alis.wcy = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2) + xread16(alis.script->vram_org + ALIS_SCR_WCY);
@@ -2586,12 +2692,14 @@ static void cvftstmov(void) {
     crstent();
 }
 
+// Codopname no. 145 opcode 0x90 cvmov
 static void cvmov(void) {
     xadd16(alis.script->vram_org + ALIS_SCR_WCX, (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2));
     xadd16(alis.script->vram_org + ALIS_SCR_WCY, (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2));
     xadd16(alis.script->vram_org + ALIS_SCR_WCZ, (s8)xread8(alis.script->vram_org + ALIS_SCR_WCZ2));
 }
 
+// Codopname no. 146 opcode 0x91 cdefworld
 static void cdefworld(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     s16 offset = script_read16();
@@ -2601,15 +2709,18 @@ static void cdefworld(void) {
     }
 }
 
+// Codopname no. 147 opcode 0x92 cworld
 static void cworld(void) {
     xwrite8(alis.script->vram_org + 0xffde, script_read8());
     xwrite8(alis.script->vram_org + 0xffdf, script_read8());
 }
 
+// Codopname no. 148 opcode 0x93 cfindmat
 static void cfindmat(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 149 opcode 0x94 cfindtyp
 static void cfindtyp(void) {
     
     if (alis.platform.kind == EPlatformPC)
@@ -2758,11 +2869,13 @@ void music(void) {
     }
 }
 
+// Codopname no. 150 opcode 0x95 cmusic
 static void cmusic(void) {
     alis.flagmain = 0;
     music();
 }
 
+// Codopname no. 151 opcode 0x96 cdelmusic
 static void cdelmusic(void) {
     if (alis.platform.version <= 10)
         return;
@@ -2779,6 +2892,7 @@ static void cdelmusic(void) {
     }
 }
 
+// Codopname no. 152 opcode 0x97 ccadence
 static void ccadence(void) {
     readexec_opername();
     if (alis.varD7 == 0)
@@ -2788,6 +2902,7 @@ static void ccadence(void) {
     audio.mutemp = (u8)((audio.mutempo * 6) / 0x20);
 }
 
+// Codopname no. 153 opcode 0x98 csetvolum
 static void csetvolum(void) {
     readexec_opername();
     audio.muvolume = alis.varD7;
@@ -2805,20 +2920,24 @@ static void csetvolum(void) {
     }
 }
 
+// Codopname no. 154 opcode 0x99 cxinv
 static void cxinv(void) {
     u8 xinv = get_0x03_xinv(alis.script->vram_org);
     BIT_CHG(xinv, 0);
     set_0x03_xinv(alis.script->vram_org, xinv);
 }
 
+// Codopname no. 155 opcode 0x9a cxinvon
 static void cxinvon(void) {
     set_0x03_xinv(alis.script->vram_org, 1);
 }
 
+// Codopname no. 156 opcode 0x9b cxinvoff
 static void cxinvoff(void) {
     set_0x03_xinv(alis.script->vram_org, 0);
 }
 
+// Codopname no. 157 opcode 0x9c clistent
 static void clistent(void) {
     s16 entidx = 0;
     s16 tabidx = 0;
@@ -2863,24 +2982,29 @@ static void sound(void) {
     }
 }
 
+// Codopname no. 158 opcode 0x9d csound
 static void csound(void) {
     alis.flagmain = 0;
     sound();
 }
 
+// Codopname no. 159 opcode 0x9e cmsound
 static void cmsound(void) {
     alis.flagmain = 1;
     sound();
 }
 
+// Codopname no. 160 opcode 0x9f credon
 static void credon(void) {
     set_0x25_credon_credoff(alis.script->vram_org, 0x0);
 }
 
+// Codopname no. 161 opcode 0xa0 credoff
 static void credoff(void) {
     set_0x25_credon_credoff(alis.script->vram_org, alis.platform.version < 30 ? 0xff : 0x80);
 }
 
+// Codopname no. 162 opcode 0xa1 cdelsound
 static void cdelsound(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -2901,6 +3025,7 @@ static void cdelsound(void) {
     }
 }
 
+// Codopname no. 163 opcode 0xa2 cwmov
 static void cwmov(void) {
     s16 x, y, z;
     get_vector(&x, &y, &z);
@@ -2909,14 +3034,17 @@ static void cwmov(void) {
     xadd16(alis.script->vram_org + ALIS_SCR_WCZ, z);
 }
 
+// Codopname no. 164 opcode 0xa3 cwtstmov
 static void cwtstmov(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 165 opcode 0xa4 cwftstmov
 static void cwftstmov(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 166 opcode 0xa5 ctstform
 static void ctstform(void) {
     alis.wcx = xread16(alis.script->vram_org + ALIS_SCR_WCX);
     alis.wcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
@@ -2929,6 +3057,7 @@ static void ctstform(void) {
     crstent();
 }
 
+// Codopname no. 167 opcode 0xa6 cxput
 static void cxput(void) {
     alis.flagmain = 0;
     image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
@@ -2942,6 +3071,7 @@ static void cxput(void) {
     put(idx);
 }
 
+// Codopname no. 168 opcode 0xa7 cxputat
 static void cxputat(void) {
     alis.flagmain = 0;
     image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
@@ -2959,6 +3089,7 @@ static void cxputat(void) {
     put(idx);
 }
 
+// Codopname no. 169 opcode 0xa8 cmput
 static void cmput(void) {
     alis.flagmain = 1;
     image.invert_x = get_0x03_xinv(alis.script->vram_org);
@@ -2971,6 +3102,7 @@ static void cmput(void) {
     put(idx);
 }
 
+// Codopname no. 170 opcode 0xa9 cmputat
 static void cmputat(void) {
     alis.flagmain = 1;
     image.invert_x = get_0x03_xinv(alis.script->vram_org);
@@ -2986,6 +3118,7 @@ static void cmputat(void) {
     put(alis.varD7);
 }
 
+// Codopname no. 171 opcode 0xaa cmxput
 static void cmxput(void) {
     alis.flagmain = 1;
     image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
@@ -2997,6 +3130,7 @@ static void cmxput(void) {
     put(alis.varD7);
 }
 
+// Codopname no. 172 opcode 0xab cmxputat
 static void cmxputat(void) {
     alis.flagmain = 1;
     image.invert_x = get_0x03_xinv(alis.script->vram_org) ^ 1;
@@ -3012,16 +3146,19 @@ static void cmxputat(void) {
     put(alis.varD7);
 }
 
+// Codopname no. 173 opcode 0xac cmmusic
 static void cmmusic(void) {
     alis.flagmain = 1;
     music();
 }
 
+// Codopname no. 174 opcode 0xad cmforme
 static void cmforme(void) {
     readexec_opername();
     set_0x1a_cforme(alis.script->vram_org, alis.varD7);
 }
 
+// Codopname no. 175 opcode 0xae csettime
 static void csettime(void) {
     readexec_opername();
     u16 h = alis.varD7;
@@ -3032,6 +3169,7 @@ static void csettime(void) {
     sys_set_time(h, m, s);
 }
 
+// Codopname no. 176 opcode 0xaf cgettime
 static void cgettime(void) {
     time_t t = sys_get_time();
     alis.varD7 = t << 16 & 0xff;
@@ -3078,6 +3216,7 @@ void getval(void)
     oval();
 }
 
+// Codopname no. 177 opcode 0xb0 cvinput
 static void cvinput(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.charmode = 0;
@@ -3118,6 +3257,7 @@ void getstring(void)
     *ptr = 0;
 }
 
+// Codopname no. 178 opcode 0xb1 csinput
 static void csinput(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.charmode = 0;
@@ -3125,6 +3265,22 @@ static void csinput(void) {
     cstore_continue();
 }
 
+// Codopname no. 179 opcode 0xb2 casleepfar
+static void casleepfar(void) {
+    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+}
+
+// Codopname no. 180 opcode 0xb3 casleepon
+static void casleepon(void) {
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0xfb); // TODO check if byte ptr is OK: btr dword ptr es:[ebp-24h], 2
+}
+
+// Codopname no. 181 opcode 0xb4 casleepoff
+static void casleepoff(void) {
+    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 4); // TODO check if byte ptr is OK: bts dword ptr es:[ebp-24h], 2
+}
+
+// Codopname no. 182 opcode 0xb5 crunfilm
 static void crunfilm(void) {
     readexec_opername();
     bfilm.batchframes = alis.varD7;
@@ -3151,6 +3307,7 @@ void putval(s16 d7w)
     printd0(d7w);
 }
 
+// Codopname no. 183 opcode 0xb6 cvpicprint
 static void cvpicprint(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.charmode = 1;
@@ -3158,24 +3315,28 @@ static void cvpicprint(void) {
     putval(alis.varD7);
 }
 
+// Codopname no. 184 opcode 0xb7 cspicprint
 static void cspicprint(void) {
     alis.charmode = 1;
     readexec_opername_swap();
     put_string();
 }
 
+// Codopname no. 185 opcode 0xb8 cvputprint
 static void cvputprint(void) {
     alis.charmode = 2;
     readexec_opername_saveD7();
     putval(alis.varD7);
 }
 
+// Codopname no. 186 opcode 0xb9 csputprint
 static void csputprint(void) {
     alis.charmode = 2;
     readexec_opername_swap();
     put_string();
 }
 
+// Codopname no. 187 opcode 0xba cfont
 static void cfont(void) {
     readexec_opername();
     alis.foasc = alis.varD7;
@@ -3189,6 +3350,7 @@ static void cfont(void) {
     alis.fomax = alis.varD7;
 }
 
+// Codopname no. 188 opcode 0xbb cpaper
 static void cpaper(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
@@ -3196,6 +3358,7 @@ static void cpaper(void) {
     // TODO: ...
 }
 
+// Codopname no. 189 opcode 0xbc ctoblack
 // fade-out to black
 static void ctoblack(void) {
     readexec_opername_saveD6();
@@ -3228,6 +3391,7 @@ s16 addcol(s16 change, s16 component)
     return 7;
 }
 
+// Codopname no. 190 opcode 0xbd cmovcolor
 static void cmovcolor(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -3260,6 +3424,7 @@ static void cmovcolor(void) {
     }
 }
 
+// Codopname no. 191 opcode 0xbe ctopalet
 // fade-in to palette
 static void ctopalet(void) {
     readexec_opername();
@@ -3282,6 +3447,7 @@ static void ctopalet(void) {
     }
 }
 
+// Codopname no. 192 opcode 0xbf cnumput
 static void cnumput(void) {
     readexec_opername();
     image.depx = alis.varD7;
@@ -3293,6 +3459,7 @@ static void cnumput(void) {
     image.numelem = alis.varD7;
 }
 
+// Codopname no. 193 opcode 0xc0 cscheart
 static void cscheart(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -3306,6 +3473,7 @@ static void cscheart(void) {
     }
 }
 
+// Codopname no. 194 opcode 0xc1 cscpos
 static void cscpos(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -3324,6 +3492,7 @@ static void cscpos(void) {
     }
 }
 
+// Codopname no. 195 opcode 0xc2 cscsize
 static void cscsize(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -3357,6 +3526,7 @@ static void cscsize(void) {
     }
 }
 
+// Codopname no. 196 opcode 0xc3 cschoriz
 static void cschoriz(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
@@ -3371,6 +3541,7 @@ static void cschoriz(void) {
     }
 }
 
+// Codopname no. 197 opcode 0xc4 cscvertic
 static void cscvertic(void) {
     s16 screen_id = get_0x16_screen_id(alis.script->vram_org);
     if (screen_id != 0)
@@ -3385,6 +3556,7 @@ static void cscvertic(void) {
     }
 }
 
+// Codopname no. 198 opcode 0xc5 cscreduce
 static void cscreduce(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -3400,6 +3572,7 @@ static void cscreduce(void) {
     }
 }
 
+// Codopname no. 199 opcode 0xc6 cscscale
 static void cscscale(void) {
     readexec_opername();
     s8 scale = alis.varD7;
@@ -3411,6 +3584,7 @@ static void cscscale(void) {
     }
 }
 
+// Codopname no. 200 opcode 0xc7 creducing
 static void creducing(void) {
     readexec_opername();
     set_0x26_creducing(alis.script->vram_org, alis.varD7);
@@ -3418,6 +3592,7 @@ static void creducing(void) {
     set_0x27_creducing(alis.script->vram_org, alis.varD7);
 }
 
+// Codopname no. 201 opcode 0xc8 cscmap
 static void cscmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -3438,10 +3613,12 @@ static void cscmap(void) {
     }
 }
 
+// Codopname no. 202 opcode 0xc9 cscdump
 static void cscdump(void) {
     debug(EDebugInfo, "MISSING (NOP?): %s", __FUNCTION__);
 }
 
+// Codopname no. 203 opcode 0xca cfindcla
 static void cfindcla(void) {
     readexec_opername();
     s32 tabidx = 0;
@@ -3474,14 +3651,17 @@ static void cfindcla(void) {
     crstent();
 }
 
+// Codopname no. 204 opcode 0xcb cnearcla
 static void cnearcla(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 205 opcode 0xcc cviewcla
 static void cviewcla(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 206 opcode 0xcd cinstru
 static void cinstru(void) {
     alis.flagmain = 0;
     readexec_opername();
@@ -3512,6 +3692,7 @@ static void cinstru(void) {
     audio.tabinst[tabidx].unknown = instidx;
 }
 
+// Codopname no. 207 opcode 0xce cminstru
 static void cminstru(void) {
     alis.flagmain = 1;
     readexec_opername();
@@ -3542,11 +3723,13 @@ static void cminstru(void) {
     audio.tabinst[tabidx].unknown = instidx;
 }
 
+// Codopname no. 208 opcode 0xcf cordspr
 static void cordspr(void) {
     readexec_opername();
     set_0x2b_cordspr(alis.script->vram_org, (u8)alis.varD7);
 }
 
+// Codopname no. 209 opcode 0xd0 calign
 static void calign(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -3588,6 +3771,7 @@ void rescmode(s16 at, u8 value)
 
 s16 starbuff[8];
 
+// Codopname no. 210 opcode 0xd1 cbackstar
 static void cbackstar(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
@@ -3705,6 +3889,7 @@ static void cbackstar(void) {
 //    }
 }
 
+// Codopname no. 211 opcode 0xd2 cstarring
 static void cstarring(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
@@ -3731,6 +3916,7 @@ static void cstarring(void) {
     }
 }
 
+// Codopname no. 212 opcode 0xd3 cengine
 static void cengine(void) {
     readexec_opername();
     readexec_opername();
@@ -3738,15 +3924,18 @@ static void cengine(void) {
     readexec_opername();
 }
 
+// Codopname no. 213 opcode 0xd4 cautobase
 static void cautobase(void) {
     debug(EDebugInfo, "MISSING (NOP?): %s", __FUNCTION__);
 }
 
+// Codopname no. 214 opcode 0xd5 cquality
 static void cquality(void) {
     readexec_opername();
     alis.vquality = alis.varD7;
 }
 
+// Codopname no. 215 opcode 0xd6 chsprite
 static void chsprite(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
@@ -3788,6 +3977,7 @@ static void chsprite(void) {
     }
 }
 
+// Codopname no. 216 opcode 0xd7 cselpalet
 static void cselpalet(void) {
     readexec_opername();
     alis.varD7 &= 0x3; // 4 palettes: 0...3
@@ -3795,6 +3985,7 @@ static void cselpalet(void) {
     image.defpalet = 1;
 }
 
+// Codopname no. 217 opcode 0xd8 clinepalet
 static void clinepalet(void) {
     readexec_opername();
     readexec_opername_saveD6();
@@ -3805,10 +3996,12 @@ static void clinepalet(void) {
     }
 }
 
+// Codopname no. 218 opcode 0xd9 cautomode
 static void cautomode(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 219 opcode 0xda cautofile
 static void cautofile(void) {
     readexec_opername_swap();
     
@@ -3822,10 +4015,12 @@ static void cautofile(void) {
     }
 }
 
+// Codopname no. 220 opcode 0xdb ccancel
 static void ccancel(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 221 opcode 0xdc ccancall
 static void ccancall(void) {
     alis.ferase = 1;
     
@@ -3839,11 +4034,13 @@ static void ccancall(void) {
     alis.ferase = 0;
 }
 
+// Codopname no. 222 opcode 0xdd ccancen
 static void ccancen(void) {
     alis.ferase = 1;
     cerasen();
 }
 
+// Codopname no. 223 opcode 0xde cblast
 static void cblast(void) {
     alis.ferase = 1;
     ckill();
@@ -3873,6 +4070,7 @@ void iniback(int addr)
     }
 }
 
+// Codopname no. 224 opcode 0xdf cscback
 void cscback(void)
 {
     s8 oldsback = image.sback;
@@ -3954,7 +4152,7 @@ void cscback(void)
     }
 }
 
-
+// Codopname no. 225 opcode 0xe0 cscrolpage
 static void cscrolpage(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
@@ -3972,12 +4170,14 @@ static void cscrolpage(void) {
     }
 }
 
+// Codopname no. 226 opcode 0xe1 cmatent
 static void cmatent(void) {
     int index = (int)(alis.ptrent - alis.tablent) - 1;
     alis.varD7 = alis.matent[index];
     cstore_continue();
 }
 
+// Codopname no. 227 opcode 0xe2 cshrink
 static void cshrink(void) {
     
     // TODO: this is I3 implementation I2 and older differs verify if its ok!!!
@@ -4050,6 +4250,7 @@ static void cshrink(void) {
     }
 }
 
+// Codopname no. 228 opcode 0xe3 cdefmap
 static void cdefmap(void) {
     if (alis.platform.uid == EGameTransartica)
     {
@@ -4177,6 +4378,7 @@ static void cdefmap(void) {
     }
 }
 
+// Codopname no. 229 opcode 0xe4 csetmap
 static void csetmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -4270,6 +4472,7 @@ void putmap(s16 spridx, s32 bitmap)
     alis.fadddes = 0;
 }
 
+// Codopname no. 230 opcode 0xe5 cputmap
 static void cputmap(void) {
     u32 mapram = alis.script->vram_org;
     
@@ -4323,19 +4526,23 @@ static void cputmap(void) {
     }
 }
 
+// Codopname no. 231 opcode 0xe6 csavepal
 static void csavepal(void) {
     readexec_opername();
     savepal(alis.varD7);
 }
 
+// Codopname no. 232 opcode 0xe7 csczoom
 static void csczoom(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 233 opcode 0xe8 ctexmap
 static void ctexmap(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 234 opcode 0xe9 calloctab
 static void calloctab(void) {
     s16 offset = (s16)script_read16();
     if (offset == 0)
@@ -4352,22 +4559,27 @@ static void calloctab(void) {
     }
 }
 
+// Codopname no. 235 opcode 0xea cfreetab
 static void cfreetab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 236 opcode 0xeb cscantab
 static void cscantab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 237 opcode 0xec cneartab
 static void cneartab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 238 opcode 0xed cscsun
 static void cscsun(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 239 opcode 0xee cdarkpal
 static void cdarkpal(void) {
     readexec_opername();
     s16 darkpar = alis.varD7;
@@ -4424,26 +4636,32 @@ static void cdarkpal(void) {
     }
 }
 
+// Codopname no. 240 opcode 0xef cscdark
 static void cscdark(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 241 opcode 0xf0 caset
 static void caset(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 242 opcode 0xf1 camov
 static void camov(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 243 opcode 0xf2 cscaset
 static void cscaset(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 244 opcode 0xf3 cscamov
 static void cscamov(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 245 opcode 0xf4 cscfollow
 static void cscfollow(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     u32 screen = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
@@ -4465,6 +4683,7 @@ static void cscfollow(void) {
     xwrite16(screen + 0x90, alis.varD7);
 }
 
+// Codopname no. 246 opcode 0xf5 cscview
 static void cscview(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     u32 screen = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
@@ -4483,6 +4702,7 @@ static void cscview(void) {
     xwrite8(screen, xread8(screen) | 0x80);
 }
 
+// Codopname no. 247 opcode 0xf6 cfilm
 static void cfilm(void) {
     memset(&bfilm, 0, sizeof(bfilm));
     readexec_opername();
@@ -4504,6 +4724,7 @@ void walkmap(s32 addr)
     
 }
 
+// Codopname no. 248 opcode 0xf7 cwalkmap
 static void cwalkmap(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
@@ -5050,6 +5271,7 @@ short atstmap(int addr, int a5, short xpos, short ypos)
     return uVar5;
 }
 
+// Codopname no. 249 opcode 0xf8 catstmap
 static void catstmap(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
@@ -5082,6 +5304,7 @@ static void catstmap(void) {
     cstore_continue();
 }
 
+// Codopname no. 250 opcode 0xf9 cavtstmov
 static void cavtstmov(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
@@ -5153,6 +5376,7 @@ static void cavtstmov(void) {
     crstent();
 }
 
+// Codopname no. 251 opcode 0xfa cavmov
 static void cavmov(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
@@ -5275,6 +5499,7 @@ void polarang(s16 *cx, s16 *cy, s16 *cz, s16 *oldcx, s16 *oldcy, s16 *oldcz)
     *cy = ncx;
 }
 
+// Codopname no. 252 opcode 0xfb caim
 static void caim(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
@@ -5377,10 +5602,12 @@ static void caim(void) {
     cstore_continue();
 }
 
+// Codopname no. 253 opcode 0xfc cpointpix
 static void cpointpix(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 254 opcode 0xfd cchartmap
 static void cchartmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -5570,10 +5797,12 @@ static void cchartmap(void) {
     xwrite32(addr - 0x3ba, vram + offset);
 }
 
+// Codopname no. 255 opcode 0xfe cscsky
 static void cscsky(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// Codopname no. 256 opcode 0xff czoom
 static void czoom(void) {
     debug(EDebugWarning, "I3 SPECIFIC ?: %s", __FUNCTION__);
     
@@ -5586,24 +5815,14 @@ static void czoom(void) {
 //    alis.script->context->_0x38 = tmp1;
 }
 
+// Codopname no. 055 opcode 0x36 cclock
 static void cclock(void)    {
     readexec_opername();
     set_0x3a_wait_cycles(alis.script->vram_org, alis.varD7);
     set_0x3e_wait_time(alis.script->vram_org, alis.varD7 + alis.timeclock);
 }
 
-static void casleepfar(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-static void casleepon(void) {
-    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0xfb); // TODO check if byte ptr is OK: btr dword ptr es:[ebp-24h], 2
-}
-
-static void casleepoff(void) {
-    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 4); // TODO check if byte ptr is OK: bts dword ptr es:[ebp-24h], 2
-}
-
+// Codopname no. 002 opcode 0x01 cesc1
 static void cesc1(void)     {
 //    u16 code = script_read8() | 0x100;
 //    sAlisOpcode opcode = opcodes[code];
@@ -5615,39 +5834,65 @@ static void cesc1(void)     {
 // ============================================================================
 #pragma mark - Unimplemented opcodes
 // ============================================================================
+
+// Codopname no. 001 opcode 0x00 cnul
+// Codopname no. 056 opcode 0x37 cnul
+// Codopname no. 140 opcode 0x8b cnul
 static void cnul(void)      {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 003 opcode 0x02 cesc2
 static void cesc2(void)     {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 004 opcode 0x03 cesc3
 static void cesc3(void)     {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 005 opcode 0x04 cbreakpt
 static void cbreakpt(void)  {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 035 opcode 0x22 cmul
 static void cmul(void)      {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 036 opcode 0x23 cdiv
 static void cdiv(void)      {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 012 opcode 0x0b cjsrabs
 static void cjsrabs(void)   {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 013 opcode 0x0c cjmpabs
 static void cjmpabs(void)   {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 014 opcode 0x0d cjsrind16
 static void cjsrind16(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 015 opcode 0x0e cjsrind24
 static void cjsrind24(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 016 opcode 0x0f cjmpind16
 static void cjmpind16(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
+
+// Codopname no. 017 opcode 0x10 cjmpind24
 static void cjmpind24(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
@@ -5656,6 +5901,8 @@ static void cjmpind24(void) {
 // ============================================================================
 #pragma mark - Flow control - Subroutines
 // ============================================================================
+
+// Codopname no. 018 opcode 0x11 cret
 static void cret(void) {
     
     if (alis.fseq == 0 && alis.saversp <= alis.script->vacc_off)
@@ -5692,17 +5939,20 @@ static void cjsr(s32 offset) {
     script_jump(offset);
 }
 
+// Codopname no. 006 opcode 0x05 cjsr8
 static void cjsr8(void) {
     // read byte, extend sign
     s16 offset = (s8)script_read8();
     cjsr(offset);
 }
 
+// Codopname no. 007 opcode 0x06 cjsr16
 static void cjsr16(void) {
     s16 offset = script_read16();
     cjsr(offset);
 }
 
+// Codopname no. 008 opcode 0x07 cjsr24
 static void cjsr24(void) {
     s32 offset = script_read24();
     cjsr(offset);
@@ -5713,16 +5963,19 @@ static void cjsr24(void) {
 #pragma mark - Flow control - Jump
 // ============================================================================
 
+// Codopname no. 009 opcode 0x08 cjmp8
 static void cjmp8(void) {
     s16 offset = (s8)script_read8();
     script_jump(offset);
 }
 
+// Codopname no. 010 opcode 0x09 cjmp16
 static void cjmp16(void) {
     s16 offset = script_read16();
     script_jump(offset);
 }
 
+// Codopname no. 011 opcode 0x0a cjmp24
 static void cjmp24(void) {
     s32 offset = script_read24();
     script_jump(offset);
@@ -5733,16 +5986,19 @@ static void cjmp24(void) {
 #pragma mark - Flow control - Branch if zero
 // ============================================================================
 
+// Codopname no. 019 opcode 0x12 cbz8
 static void cbz8(void) {
     s16 offset = alis.varD7 ? 1 : (s8)script_read8();
     script_jump(offset);
 }
 
+// Codopname no. 020 opcode 0x13 cbz16
 static void cbz16(void) {
     s16 offset = alis.varD7 ? 2 : script_read16();
     script_jump(offset);
 }
 
+// Codopname no. 021 opcode 0x14 cbz24
 static void cbz24(void) {
     s32 offset = alis.varD7 ? 3 : script_read24();
     script_jump(offset);
@@ -5753,16 +6009,19 @@ static void cbz24(void) {
 #pragma mark - Flow control - Branch if non-zero
 // ============================================================================
 
+// Codopname no. 022 opcode 0x15 cbnz8
 static void cbnz8(void) {
     s16 offset = alis.varD7 == 0 ? 1 : (s8)script_read8();
     script_jump(offset);
 }
 
+// Codopname no. 023 opcode 0x16 cbnz16
 static void cbnz16(void) {
     s16 offset = alis.varD7 == 0 ? 2 : script_read16();
     script_jump(offset);
 }
 
+// Codopname no. 024 opcode 0x17 cbnz24
 static void cbnz24(void) {
     s32 offset = alis.varD7 == 0 ? 3 : script_read24();
     script_jump(offset);
@@ -5773,14 +6032,19 @@ static void cbnz24(void) {
 #pragma mark - Flow control - Branch if equal
 // ============================================================================
 
+// Codopname no. 025 opcode 0x18 cbeq8
 static void cbeq8(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 1 : (s8)script_read8();
     script_jump(offset);
 }
+
+// Codopname no. 026 opcode 0x19 cbeq16
 static void cbeq16(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 2 : script_read16();
     script_jump(offset);
 }
+
+// Codopname no. 027 opcode 0x1a cbeq24
 static void cbeq24(void) {
     s32 offset = alis.varD7 == alis.varD6 ? 3 : script_read24();
     script_jump(offset);
@@ -5791,14 +6055,19 @@ static void cbeq24(void) {
 #pragma mark - Flow control - Branch if not equal
 // ============================================================================
 
+// Codopname no. 028 opcode 0x1b cbne8
 static void cbne8(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 1 : (s8)script_read8();
     script_jump(offset);
 }
+
+// Codopname no. 029 opcode 0x1c cbne16
 static void cbne16(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 2 : script_read16();
     script_jump(offset);
 }
+
+// Codopname no. 030 opcode 0x1d cbne24
 static void cbne24(void) {
     s32 offset = alis.varD7 != alis.varD6 ? 3 : script_read24();
     script_jump(offset);
@@ -5849,15 +6118,18 @@ static void cstart(s32 offset) {
     }
 }
 
+// Codopname no. 049 opcode 0x30 cstart8
 static void cstart8(void) {
     // read byte, extend sign to word, then to long
     cstart((s8)script_read8());
 }
 
+// Codopname no. 050 opcode 0x31 cstart16
 static void cstart16(void) {
     cstart((s16)script_read16());
 }
 
+// Codopname no. 051 opcode 0x32 cstart24
 static void cstart24(void) {
     cstart(script_read24());
 }
