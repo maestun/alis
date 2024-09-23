@@ -121,21 +121,21 @@ void olocw(void) {
     alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
-// Opername no. 06 opcode 0x0A olocp
+// Opername no. 06 opcode 0x0a olocp
 void olocp(void) {
     s16 offset = script_read16();
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
-// Opername no. 07 opcode 0x0C oloctp
+// Opername no. 07 opcode 0x0c oloctp
 void oloctp(void) {
     s32 addr = tabstring(alis.script->vram_org + script_read16());
     debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
-// Opername no. 08 opcode 0x0E oloctc
+// Opername no. 08 opcode 0x0e oloctc
 void oloctc(void) {
     s32 addr = tabchar(alis.script->vram_org + script_read16());
     alis.varD7 = (s8)xread8(addr);
@@ -179,19 +179,19 @@ void odirtp(void) {
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
-// Opername no. 14 opcode 0x1A odirtc
+// Opername no. 14 opcode 0x1a odirtc
 void odirtc(void) {
     s32 addr = tabchar(alis.script->vram_org + script_read8());
     alis.varD7 = (s8)xread8(addr);
 }
 
-// Opername no. 15 opcode 0x1C odirti
+// Opername no. 15 opcode 0x1c odirti
 void odirti(void) {
     s32 addr = tabint(alis.script->vram_org + script_read8());
     alis.varD7 = xread16(addr);
 }
 
-// Opername no. 16 opcode 0x1E omainb
+// Opername no. 16 opcode 0x1e omainb
 void omainb(void) {
     s16 offset = script_read16();
     alis.varD7 = (s8)xread8(alis.basemain + offset);
@@ -229,7 +229,7 @@ void omainti(void) {
     alis.varD7 = xread16(addr);
 }
 
-// Opername no. 22 opcode 0x2A ohimb
+// Opername no. 22 opcode 0x2a ohimb
 void ohimb(void) {
     u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
@@ -238,7 +238,7 @@ void ohimb(void) {
     alis.varD7 = (s8)xread8(vram_addr + offset);
 }
 
-// Opername no. 23 opcode 0x2C ohimw
+// Opername no. 23 opcode 0x2c ohimw
 void ohimw(void) {
     u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
@@ -247,7 +247,7 @@ void ohimw(void) {
     alis.varD7 = xread16(vram_addr + offset);
 }
 
-// Opername no. 24 opcode 0x2E ohimp
+// Opername no. 24 opcode 0x2e ohimp
 void ohimp(void) {
     u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
@@ -291,7 +291,7 @@ void oeval(void) {
     debug(EDebugInfo, " [ = %d]", (s8)alis.varD7);
 }
 
-// Opername no. 30 opcode 0x3A ofin
+// Opername no. 30 opcode 0x3a ofin
 // stop eval loop
 void ofin(void) {
     alis.oeval_loop = 0;
@@ -334,21 +334,21 @@ void oeqv(void) {
     alis.varD7 = ~alis.varD7;
 }
 
-// Opername no. 38 opcode 0x4A oegal
+// Opername no. 38 opcode 0x4a oegal
 // r6 == r7
 void oegal(void) {
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 == alis.varD7) ? -1 : 0;
 }
 
-// Opername no. 39 opcode 0x4C odiff
+// Opername no. 39 opcode 0x4c odiff
 // r6 != r7
 void odiff(void) {
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 != alis.varD7) ? -1 : 0;
 }
 
-// Opername no. 40 opcode 0x4E oinfeg
+// Opername no. 40 opcode 0x4e oinfeg
 // r6 <= r7
 void oinfeg(void) {
     readexec_opername_saveD7();
@@ -391,7 +391,7 @@ void osub(void) {
     alis.varD7 = alis.varD6;
 }
 
-// Opername no. 46 opcode 0x5A omod
+// Opername no. 46 opcode 0x5a omod
 // r7 %= variable
 void omod(void) {
     readexec_opername_saveD7();
@@ -399,7 +399,7 @@ void omod(void) {
     alis.varD7 = alis.varD6;
 }
 
-// Opername no. 47 opcode 0x5C odiv
+// Opername no. 47 opcode 0x5c odiv
 // r7 /= variable
 void odiv(void) {
     readexec_opername_saveD7();
@@ -407,7 +407,7 @@ void odiv(void) {
     alis.varD7 = alis.varD6;
 }
 
-// Opername no. 48 opcode 0x5E omul
+// Opername no. 48 opcode 0x5e omul
 // r7 *= variable
 void omul(void) {
     readexec_opername_saveD7();
@@ -450,18 +450,18 @@ void onot(void) {
     alis.varD7 = ~alis.varD7;
 }
 
-// Opername no. 54 opcode 0x6A oinkey
+// Opername no. 54 opcode 0x6a oinkey
 void oinkey(void) {
     alis.varD7 = alis.automode ? alis.prevkey : (alis.prevkey = io_inkey());
     debug(EDebugInfo, " [%d] ", alis.varD7);
 }
 
-// Opername no. 55 opcode 0x6C okeyon
+// Opername no. 55 opcode 0x6c okeyon
 void okeyon(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
-// Opername no. 56 opcode 0x6E ojoy
+// Opername no. 56 opcode 0x6e ojoy
 void ojoy(void) {
     if (alis.automode == 0)
     {
@@ -629,19 +629,19 @@ void omodel(void) {
     alis.varD7 = sys_get_model();
 }
 
-// Opername no. 62 opcode 0x7A ogetkey
+// Opername no. 62 opcode 0x7a ogetkey
 void ogetkey(void) {
     alis.varD7 = sys_get_key();
     debug(EDebugInfo, " [%d] ", alis.varD7);
 }
 
-// Opername no. 63 opcode 0x7C oleft
+// Opername no. 63 opcode 0x7c oleft
 void oleft(void) {
     pop_sd7();
     *(u8 *)(alis.sd7 + (alis.varD7 & 0xff)) = 0;
 }
 
-// Opername no. 64 opcode 0x7E oright
+// Opername no. 64 opcode 0x7e oright
 void oright(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
@@ -695,19 +695,19 @@ void osadd(void) {
     alis.sd7 = tmp;
 }
 
-// Opername no. 70 opcode 0x8A osegal
+// Opername no. 70 opcode 0x8a osegal
 void osegal(void) {
     readexec_opername_swap();
     alis.varD7 = strcmp(alis.sd6, alis.sd7) ? 0 : -1;
 }
 
-// Opername no. 71 opcode 0x8C osdiff
+// Opername no. 71 opcode 0x8c osdiff
 void osdiff(void) {
     readexec_opername_swap();
     alis.varD7 = strcmp(alis.sd6, alis.sd7) ? -1 : 0;
 }
 
-// Opername no. 72 opcode 0x8E osinfeg
+// Opername no. 72 opcode 0x8e osinfeg
 void osinfeg(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
@@ -749,7 +749,7 @@ void ospile(void) {
     pop_sd6();
 }
 
-// Opername no. 78 opcode 0x9A oval
+// Opername no. 78 opcode 0x9a oval
 void oval(void) {
     // TODO: compute int value of bssChunk3 string -> d7 ??
 //    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
@@ -812,7 +812,7 @@ void oval(void) {
     alis.varD7 = flip ? -result : result;
 }
 
-// Opername no. 79 opcode 0x9C oexistf
+// Opername no. 79 opcode 0x9c oexistf
 void oexistf(void) {
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
@@ -830,30 +830,30 @@ void oexistf(void) {
     alis.varD7 = sys_fexists(path) ? -1 : 0;
 }
 
-// Opername no. 80 opcode 0x9E ochr
+// Opername no. 80 opcode 0x9e ochr
 void ochr(void) {
     alis.sd7[0] = (u8)alis.varD7;
     alis.sd7[1] = 0;
 }
 
-// Opername no. 81 opcode 0xA0 ochange
+// Opername no. 81 opcode 0xa0 ochange
 void ochange(void) {
     // TODO: change le drive courant ??
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.varD7 = 0;
 }
 
-// Opername no. 82 opcode 0xA2 ocountry
+// Opername no. 82 opcode 0xa2 ocountry
 void ocountry(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
-// Opername no. 83 opcode 0xA4 omip
+// Opername no. 83 opcode 0xa4 omip
 void omip(void) {
     alis.varD7 = 0x64;
 }
 
-// Opername no. 84 opcode 0xA6 ojoykey
+// Opername no. 84 opcode 0xa6 ojoykey
 void ojoykey(void) {
     if (alis.automode == 0)
     {
@@ -861,13 +861,13 @@ void ojoykey(void) {
     }
 }
 
-// Opername no. 85 opcode 0xA8 oconfig
+// Opername no. 85 opcode 0xa8 oconfig
 void oconfig(void) {
     alis.varD7 = 0;
 }
 
-// Opername no. 31 opcode 0x3C cnul
-// Opername no. 32 opcode 0x3E cnul
+// Opername no. 31 opcode 0x3c cnul
+// Opername no. 32 opcode 0x3e cnul
 void cnul(void) {
 }
 
@@ -895,12 +895,12 @@ sAlisOpcode opernames[] = {
     DECL_OPCODE(0x08, olocw,
                 "read offset word from script, read word at vram[offset], copy into r7"),
     {},
-    DECL_OPCODE(0x0A, olocp,
+    DECL_OPCODE(0x0a, olocp,
                 "read offset word from script, read bytes at vram[offset] until zero, copy into str1"),
     {},
-    DECL_OPCODE(0x0C, oloctp, "TODO add desc"),
+    DECL_OPCODE(0x0c, oloctp, "TODO add desc"),
     {},
-    DECL_OPCODE(0x0E, oloctc, "TODO add desc"),
+    DECL_OPCODE(0x0e, oloctc, "TODO add desc"),
     {},
     DECL_OPCODE(0x10, olocti, "TODO add desc"),
     {},
@@ -912,11 +912,11 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x18, odirtp, "TODO add desc"),
     {},
-    DECL_OPCODE(0x1A, odirtc, "TODO add desc"),
+    DECL_OPCODE(0x1a, odirtc, "TODO add desc"),
     {},
-    DECL_OPCODE(0x1C, odirti, "TODO add desc"),
+    DECL_OPCODE(0x1c, odirti, "TODO add desc"),
     {},
-    DECL_OPCODE(0x1E, omainb, "TODO add desc"),
+    DECL_OPCODE(0x1e, omainb, "TODO add desc"),
     {},
     DECL_OPCODE(0x20, omainw, "TODO add desc"),
     {},
@@ -928,11 +928,11 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x28, omainti, "TODO add desc"),
     {},
-    DECL_OPCODE(0x2A, ohimb, "TODO add desc"),
+    DECL_OPCODE(0x2a, ohimb, "TODO add desc"),
     {},
-    DECL_OPCODE(0x2C, ohimw, "TODO add desc"),
+    DECL_OPCODE(0x2c, ohimw, "TODO add desc"),
     {},
-    DECL_OPCODE(0x2E, ohimp, "TODO add desc"),
+    DECL_OPCODE(0x2e, ohimp, "TODO add desc"),
     {},
     DECL_OPCODE(0x30, ohimtp, "TODO add desc"),
     {},
@@ -946,13 +946,13 @@ sAlisOpcode opernames[] = {
     DECL_OPCODE(0x38, oeval,
                 "starts an expression evaluation loop"),
     {},
-    DECL_OPCODE(0x3A, ofin,
+    DECL_OPCODE(0x3a, ofin,
                 "ends an expression evaluation loop"),
     {},
-    DECL_OPCODE(0x3C, cnul,
+    DECL_OPCODE(0x3c, cnul,
                 "[N/I]"),
     {},
-    DECL_OPCODE(0x3E, cnul,
+    DECL_OPCODE(0x3e, cnul,
                 "[N/I]"),
     {},
     DECL_OPCODE(0x40, opushacc,
@@ -970,13 +970,13 @@ sAlisOpcode opernames[] = {
     DECL_OPCODE(0x48, oeqv,
                 "EQV binary operator"),
     {},
-    DECL_OPCODE(0x4A, oegal,
+    DECL_OPCODE(0x4a, oegal,
                 "is equal test"),
     {},
-    DECL_OPCODE(0x4C, odiff,
+    DECL_OPCODE(0x4c, odiff,
                 "is non-equal test"),
     {},
-    DECL_OPCODE(0x4E, oinfeg,
+    DECL_OPCODE(0x4e, oinfeg,
                 "is inferior or equal test"),
     {},
     DECL_OPCODE(0x50, osupeg,
@@ -994,13 +994,13 @@ sAlisOpcode opernames[] = {
     DECL_OPCODE(0x58, osub,
                 "substraction operator"),
     {},
-    DECL_OPCODE(0x5A, omod,
+    DECL_OPCODE(0x5a, omod,
                 "modulo operator"),
     {},
-    DECL_OPCODE(0x5C, odiv,
+    DECL_OPCODE(0x5c, odiv,
                 "division operator"),
     {},
-    DECL_OPCODE(0x5E, omul,
+    DECL_OPCODE(0x5e, omul,
                 "multiplication operator"),
     {},
     DECL_OPCODE(0x60, oneg,
@@ -1018,11 +1018,11 @@ sAlisOpcode opernames[] = {
     DECL_OPCODE(0x68, onot,
                 "binary NOT operator"),
     {},
-    DECL_OPCODE(0x6A, oinkey, "TODO add desc"),
+    DECL_OPCODE(0x6a, oinkey, "TODO add desc"),
     {},
-    DECL_OPCODE(0x6C, okeyon, "TODO add desc"),
+    DECL_OPCODE(0x6c, okeyon, "TODO add desc"),
     {},
-    DECL_OPCODE(0x6E, ojoy, "TODO add desc"),
+    DECL_OPCODE(0x6e, ojoy, "TODO add desc"),
     {},
     DECL_OPCODE(0x70, oprnd, "TODO add desc"),
     {},
@@ -1035,11 +1035,11 @@ sAlisOpcode opernames[] = {
     DECL_OPCODE(0x78, omodel,
                 "get host device model"),
     {},
-    DECL_OPCODE(0x7A, ogetkey, "TODO add desc"),
+    DECL_OPCODE(0x7a, ogetkey, "TODO add desc"),
     {},
-    DECL_OPCODE(0x7C, oleft, "TODO add desc"),
+    DECL_OPCODE(0x7c, oleft, "TODO add desc"),
     {},
-    DECL_OPCODE(0x7E, oright, "TODO add desc"),
+    DECL_OPCODE(0x7e, oright, "TODO add desc"),
     {},
     DECL_OPCODE(0x80, omid, "TODO add desc"),
     {},
@@ -1051,11 +1051,11 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x88, osadd, "TODO add desc"),
     {},
-    DECL_OPCODE(0x8A, osegal, "TODO add desc"),
+    DECL_OPCODE(0x8a, osegal, "TODO add desc"),
     {},
-    DECL_OPCODE(0x8C, osdiff, "TODO add desc"),
+    DECL_OPCODE(0x8c, osdiff, "TODO add desc"),
     {},
-    DECL_OPCODE(0x8E, osinfeg, "TODO add desc"),
+    DECL_OPCODE(0x8e, osinfeg, "TODO add desc"),
     {},
     DECL_OPCODE(0x90, ossupeg, "TODO add desc"),
     {},
@@ -1067,21 +1067,21 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x98, ospile, "TODO add desc"),
     {},
-    DECL_OPCODE(0x9A, oval, "TODO add desc"),
+    DECL_OPCODE(0x9a, oval, "TODO add desc"),
     {},
-    DECL_OPCODE(0x9C, oexistf,
+    DECL_OPCODE(0x9c, oexistf,
                 "if file name in bssChunk3 exists, returns 0xffff in varD7, else 0"),
     {},
-    DECL_OPCODE(0x9E, ochr, "TODO add desc"),
+    DECL_OPCODE(0x9e, ochr, "TODO add desc"),
     {},
-    DECL_OPCODE(0xA0, ochange, "TODO add desc"),
+    DECL_OPCODE(0xa0, ochange, "TODO add desc"),
     {},
-    DECL_OPCODE(0xA2, ocountry, "TODO add desc"),
+    DECL_OPCODE(0xa2, ocountry, "TODO add desc"),
     {},
-    DECL_OPCODE(0xA4, omip, "TODO add desc"),
+    DECL_OPCODE(0xa4, omip, "TODO add desc"),
     {},
-    DECL_OPCODE(0xA6, ojoykey, "TODO add desc"),
+    DECL_OPCODE(0xa6, ojoykey, "TODO add desc"),
     {},
-    DECL_OPCODE(0xA8, oconfig, "unknown"),
+    DECL_OPCODE(0xa8, oconfig, "unknown"),
     {}
 };
