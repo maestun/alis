@@ -31,7 +31,6 @@
 sAlisVM alis;
 sHost host;
 
-
 sAlisError errors[] = {
     { ALIS_ERR_FOPEN,   "fopen", "Failed to open file %s\n" },
     { ALIS_ERR_FWRITE,  "fwrite", "Failed to write to file %s\n" },
@@ -388,7 +387,8 @@ void alis_init(sPlatform platform) {
     
     alis.desmouse = NULL;
     
-    gettimeofday(&alis.time, NULL); // TODO: remove system dependencies
+    gettimeofday(&alis.frametime, NULL); // TODO: remove system dependencies
+    gettimeofday(&alis.looptime, NULL);
 }
 
 
@@ -740,8 +740,6 @@ void updtcoord(u32 addr)
     }
 }
 
-struct timeval  looptime;
-
 void alis_main_V2(void) {
     do {
         
@@ -790,12 +788,7 @@ void alis_main_V2(void) {
                 alis.fseq++;
                 alis_loop();
                 
-                struct timeval now;
-                while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (looptime.tv_sec * 1000000 + looptime.tv_usec) < 4000)) {
-                    usleep(500);
-                }
-
-                looptime = now;
+                sleep_until(&alis.looptime, 4000);
                 
                 if (alis.restart_loop == 0)
                 {
@@ -1404,4 +1397,30 @@ FILE *afopen(char *path, u16 openmode)
     }
     
     return alis.fp;
+}
+
+void sleep_until(struct timeval *start, s32 len)
+{
+    struct timeval now;
+    while ((void)(gettimeofday(&now, NULL)), ((int64_t)(now.tv_sec * 1000000LL + now.tv_usec) - (int64_t)(start->tv_sec * 1000000LL + start->tv_usec)) < len) {
+        usleep(500);
+    }
+
+    *start = now;
+}
+
+void sleep_interactive(s32 *loop, s32 intr)
+{
+    struct timeval now, prev;
+    gettimeofday(&prev, NULL);
+
+    while (*loop > intr || (*loop > 0 && io_inkey() == 0))
+    {
+        gettimeofday(&now, NULL);
+        sys_render(host.pixelbuf);
+        *loop -= ((now.tv_sec * 1000000LL) + now.tv_usec) - ((prev.tv_sec * 1000000LL) + prev.tv_usec);
+        prev = now;
+    }
+    
+    *loop = 0;
 }

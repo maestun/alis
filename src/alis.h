@@ -333,7 +333,8 @@ typedef struct {
     
     u32             timeclock;
 
-    struct timeval  time;
+    struct timeval  frametime;
+    struct timeval  looptime;
 
     u8              swap_endianness;
     
@@ -381,3 +382,6 @@ s32             tabchar(u32 address);
 s32             tabstring(u32 address);
 
 FILE            *afopen(char *path, u16 openmode);
+
+void            sleep_until(struct timeval *start, s32 len);
+void            sleep_interactive(s32 *loop, s32 intr);

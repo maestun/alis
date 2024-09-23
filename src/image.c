@@ -1892,7 +1892,7 @@ void destofen(sSprite *sprite)
         {
             if (alis.platform.px_format == EPxFormatAmPlanar)
             {
-                draw_ami_5bit_2(at, &pos, &bmp, width, height, flip);
+                draw_ami_5bit_0(at, &pos, &bmp, width, height, flip);
             }
             else
             {
@@ -2527,12 +2527,7 @@ u32 itroutine(u32 interval, void *param)
 
 void waitframe(void) {
     
-    struct timeval now;
-    while ((void)(gettimeofday(&now, NULL)), ((now.tv_sec * 1000000 + now.tv_usec) - (alis.time.tv_sec * 1000000 + alis.time.tv_usec) < FRAME_TICKS * alis.ctiming)) {
-        usleep(1000);
-    }
-
-    alis.time = now;
+    sleep_until(&alis.frametime, FRAME_TICKS * alis.ctiming);
 }
 
 void draw(void)
