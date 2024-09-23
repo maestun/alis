@@ -48,5 +48,6 @@ extern sAlisError   errors[];
 extern u16  loctc_common(u16 offset);
 extern u16  locti_common(u16 offset);
 extern u16  loctp_common(u16 offset);
-extern void oeval(void);
-extern void ofin(void);
+extern void oeval(void);  // Opername opcode 0x38 oeval (no. 29)
+extern void ofin(void);   // Opername opcode 0x3a ofin (no. 30)
+                          // Used as Addname & Storename opcode 0x3a ofin as well
