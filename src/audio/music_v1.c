@@ -135,7 +135,7 @@ void mv1_gomusic(void)
         mv1a.tabfrq[i] = mv1_tabfrq_st[i] * ratio;
     }
 
-    mv1a.mumax = 1.0 * 48 / ratio;
+    mv1a.mumax = 48.0 / ratio;
     
     audio.mutaloop = mv1a.mumax * 4;
     
@@ -408,18 +408,18 @@ void mv1_checkcom(void)
     }
 }
 
-void mv1_advance(u32 *address, u32 *unknown, u32 *addvance)
+void mv1_advance(u32 *address, u32 *fraction, u32 *addvance)
 {
     uint64_t adv = *addvance;
     adv <<= 16;
 
     uint64_t addr = *address;
     addr <<= 32;
-    addr |= *unknown;
+    addr |= *fraction;
     addr += adv;
 
     *address = (u32)(addr >> 32);
-    *unknown = (u32)(addr);
+    *fraction = (u32)(addr);
 }
 
 void mv1_playnote(void)
