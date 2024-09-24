@@ -953,7 +953,7 @@ u32 script_read24(void) {
 
 u32 script_read32(void) {
     
-    u16 ret = read32(alis.mem + alis.script->pc);
+    u32 ret = read32(alis.mem + alis.script->pc);
     alis.script->pc += 4;
     script_read_debug(ret, -1);
     return ret;

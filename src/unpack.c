@@ -27,6 +27,7 @@
 const u8 kPackedHeaderSize = 6;
 const u8 kPackedDictionarySize = 8;
 const u8 kVMSpecsSize = 16;
+const u8 kPackedDatHeaderSize = 12;
 
 #define BIT_CLR(v, b)       (v &= ~(1UL << b))
 #define BIT_SET(v, b)       (v |= (1UL << b))
@@ -292,7 +293,9 @@ int unpack_script(const char* packed_file_path,
             unpacked_size -= kVMSpecsSize; // TODO: not sure about that
         }
 
-        if (alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0) {
+        if ((alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
+        // TODO: a quick fix to make the MadShow re-release work
+         || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1)) {
             // read dictionary
             fread(dict, sizeof(u8), kPackedDictionarySize, pfp);
             packed_size -= kPackedDictionarySize;
@@ -306,7 +309,9 @@ int unpack_script(const char* packed_file_path,
         // alloc unpack buffer
         *unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
         
-        if (alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
+        if ((alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
+        // TODO: a quick fix to make the MadShow re-release work
+         || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1))
         {
             unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
         }

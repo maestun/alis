@@ -32,6 +32,7 @@ typedef enum {
 extern const u8 kPackedHeaderSize;
 extern const u8 kPackedDictionarySize;
 extern const u8 kVMSpecsSize;
+extern const u8 kPackedDatHeaderSize;
 
 /// @brief Unpacks a script file to buffer
 /// @param packed_file_path full path to packed file
