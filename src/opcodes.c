@@ -2964,6 +2964,12 @@ static void cmousoff(void) {
 // 0x86 - 14d62
 static void cmouse(void) {
     mouse_t mouse = sys_get_mouse();
+    
+    if (alis.platform.kind == EPlatformMac)
+    {
+        mouse.x /= 1.5;
+        mouse.y /= 1.5;
+    }
    
     alis.varD7 = mouse.x;
     cstore_continue();
@@ -2984,12 +2990,16 @@ static void cmouse(void) {
 static void cdefmouse(void) {
     alis.flagmain = 0;
     readexec_opername();
-    u32 addr = adresdes(alis.varD7);
-    u8 *ptr = alis.mem + addr + xread32(addr);
-    if (*ptr == 0 || *ptr == 0x10 || *ptr == 0x14)
+    
+    if (alis.platform.kind != EPlatformMac)
     {
-        alis.desmouse = ptr;
-        set_update_cursor();
+        u32 addr = adresdes(alis.varD7);
+        u8 *ptr = alis.mem + addr + xread32(addr);
+        if (*ptr == 0 || *ptr == 0x10 || *ptr == 0x14)
+        {
+            alis.desmouse = ptr;
+            set_update_cursor();
+        }
     }
 }
 
