@@ -57,6 +57,9 @@ void            xpush32(s32 value);
 s32             xpeek32(void);
 s32             xpop32(void);
 
+s16             xpcswap16(u16 value);
+s32             xpcswap32(u32 value);
+
 s16             xpcread16(u32 offset);
 s32             xpcread32(u32 offset);
 

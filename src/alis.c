@@ -1051,6 +1051,13 @@ s32 xread32(u32 offset) {
     return (s32)result;
 }
 
+s16 xpcswap16(u16 value) {
+    return _pcconvert16(value);
+}
+
+s32 xpcswap32(u32 value) {
+    return _pcconvert32(value);
+}
 
 s16 xpcread16(u32 offset) {
     u16* ptr = (u16*)(alis.mem + offset);

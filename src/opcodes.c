@@ -2621,9 +2621,7 @@ static void cfdel(void) {
 // Codopname no. 117 opcode 0x74 cfreadv
 static void cfreadv(void) {
     fread(alis.buffer, 2, 1, alis.fp);
-    alis.varD7 = xswap16(*(s16 *)alis.buffer);
-    if (alis.platform.kind == EPlatformPC)
-        alis.varD7 = (alis.varD7 <<  8) | (alis.varD7 >>  8);
+    alis.varD7 = xpcswap16(*(s16 *)alis.buffer);
     cstore_continue();
 }
 
