@@ -698,41 +698,41 @@ void osadd(void) {
 // Opername no. 70 opcode 0x8a osegal
 void osegal(void) {
     readexec_opername_swap();
-    alis.varD7 = strcmp(alis.sd6, alis.sd7) ? 0 : -1;
+    alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) ? 0 : -1;
 }
 
 // Opername no. 71 opcode 0x8c osdiff
 void osdiff(void) {
     readexec_opername_swap();
-    alis.varD7 = strcmp(alis.sd6, alis.sd7) ? -1 : 0;
+    alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) ? -1 : 0;
 }
 
 // Opername no. 72 opcode 0x8e osinfeg
 void osinfeg(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp(alis.sd6, alis.sd7) <= 0 ? -1 : 0;
+    alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) <= 0 ? -1 : 0;
 }
 
 // Opername no. 73 opcode 0x90 ossupeg
 void ossupeg(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp(alis.sd6, alis.sd7) >= 0 ? -1 : 0;
+    alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) >= 0 ? -1 : 0;
 }
 
 // Opername no. 74 opcode 0x92 osinf
 void osinf(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp(alis.sd6, alis.sd7) < 0 ? -1 : 0;
+    alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) < 0 ? -1 : 0;
 }
 
 // Opername no. 75 opcode 0x94 ossup
 void ossup(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
-    alis.varD7 = strcmp(alis.sd6, alis.sd7) > 0 ? -1 : 0;
+    alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) > 0 ? -1 : 0;
 }
 
 // Opername no. 76 opcode 0x96 ospushacc
