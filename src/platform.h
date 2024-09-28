@@ -43,6 +43,7 @@ typedef enum {
     EPlatform3DO,
     EPlatformJaguar,
     EPlatformOldAtari,
+    EPlatformOldAmiga,
     EPlatformUnknown
 } EPlatform;
 
