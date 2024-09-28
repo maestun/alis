@@ -24,7 +24,7 @@
 #include "sys/sys.h"
 
 void usage(void) {
-    printf("%s v%s\nUsage:\n\t%s [-f] <data_path>\n\n\t%s <script_path>\n",
+    printf("%s v%s\nUsage:\n\t%s [-f] <data_path>\n\n\t%s <data_path>\n",
            kProgName, kProgVersion, kProgName, kProgName);
 }
 
