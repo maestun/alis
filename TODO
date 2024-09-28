@@ -5,16 +5,16 @@ ALIS
 - cbackstar
 - cstarring
 
-Windsurf Willy
-
-Targhan
-- MAC music playback not yet implemented
-
-Manhattan Dealers
+Manhattan Dealers / Operation: Cleanstreets
 - add support for original drawing
 
 Mad Show
 - DOS music playback not yet implemented
+
+Targhan
+- MAC music playback not yet implemented
+
+Windsurf Willy
 
 Le Fetiche Maya
 - DOS music playback not yet implemented
@@ -25,14 +25,24 @@ Colorado
 - DOS music playback not yet implemented
 - DOS something is wrong with getting scaled sprites (river section)
 
-Metal Mutant
+Starblade
 
 Crystals of Arborea
 - DOS intro animation doesn't scale falling crystals
 
-Bunny Bricks
+Metal Mutant
 
-Transarctica
+Boston Bomb Club
+
+Xyphoes Fantasy
+
+Killing Fist
+
+Storm Master
+x if the player tried to load a save file and refused to do so by pressing Esc, then when starting a new game the script will not be able to load the INIT.FIC file and initialize variables from it (money = 0, etc.).
+    this is bug in original game!
+x when entering load name, previous name is not cleared. So if we load 12345.sav and than try to load abc.sav it fail, because game attempt to load abc45.sav.
+    this is bug in original game!
 
 Ishar I
 - DOS screen corrupted after hitting 'cscmov()'
@@ -40,13 +50,12 @@ Ishar I
 x when entering load name, previous name is not cleared. So if we load 12345.sav and than try to load abc.sav it fail, because game attempt to load abc45.sav.
     this is bug in original game!
 
+Bunny Bricks
+
+Transarctica / Arctic Baron
+
 Ishar II
 - DOS implement FM instruments
-
-Ishar III
-x giving money to officer to get city pass don't work
-    we are picking wrong entity when clicking on part of sprite that is in the same position as some soldier in the background.
-    this is bug in original game!
 
 Robinson's Requiem
 - cavtstmov
@@ -55,3 +64,24 @@ Robinson's Requiem
 - cchartmap
 - cviewmat
 - Atari ST missing chip music in intro
+- text output in Chinese (Big5) for Taiwanese version of the game not yet implemented
+
+Ishar III
+x giving money to officer to get city pass don't work
+    we are picking wrong entity when clicking on part of sprite that is in the same position as some soldier in the background.
+    this is bug in original game!
+- text output in Chinese (Big5) and Korean (Johab) for Taiwanese/Korean versions of the game not yet implemented
+
+Deus
+
+Time Warriors
+
+Asghan
+
+Tournament Of Warriors
+
+Arabian Nights
+
+Les Visiteurs
+
+Inspector Gadget
