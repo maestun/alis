@@ -52,6 +52,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
         debug(EDebugFatal, "PC OVERFLOW !");
+        alis.running = 0;
     }
     else {
         // fetch code
