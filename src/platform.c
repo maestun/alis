@@ -25,7 +25,10 @@
 #include "platform.h"
 #include "utils.h"
 
-// TODO: Manhattan Dealers, the first game using ALIS engine is different. Its using 'OO' and 'SNG' file extensions and main script is in 'man.sng'
+// TODO: Manhattan Dealers (Operation: Cleanstreets in the US), the first game on the ALIS engine, is different.
+// Atari ST: it uses 'OO' file extension and the main script is in 'man.sng' (not 'OO'!),
+// Amiga:    it uses 'OO' file extension and the main script is in 'prog.oo',
+// PC:       it uses 'IO' file extension and the main script is in 'prog.io'.
 
 static sPlatform platforms[] = {
     { .kind = EPlatformAtari,       .uid = EGameUnknown, .version = 20, .desc = "Atari ST/STe",                 .ext = "AO", .ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
@@ -38,6 +41,7 @@ static sPlatform platforms[] = {
     { .kind = EPlatform3DO,         .uid = EGameUnknown, .version = 20, .desc = "3DO Interactive Multiplayer",  .ext = "3O", .ram_sz = 0x200000, .video_ram_sz = 0x6c000, .width = 384, .height = 288, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformJaguar,      .uid = EGameUnknown, .version = 20, .desc = "Atari Jaguar",                 .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width = 320, .height = 200, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformOldAtari,    .uid = EGameUnknown, .version = 20, .desc = "Atari ST/STe",                 .ext = "sng",.ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
+    { .kind = EPlatformOldAmiga,    .uid = EGameUnknown, .version = 20, .desc = "Amiga",                        .ext = "OO", .ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
     { .kind = EPlatformUnknown,     .uid = EGameUnknown, .version = 20, .desc = "Unknown",                      .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width =   0, .height =   0, .bpp = 0,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
 };
 
@@ -108,7 +112,10 @@ sPlatform* pl_guess(const char * path) {
         if(ent->d_type == DT_REG)
         {
             // look for main script
-            if(!strncasecmp(ent->d_name, kMainScriptName, strlen(kMainScriptName)) || !strncasecmp(ent->d_name, kManAtariScriptName, strlen(kManAtariScriptName)) || !strncasecmp(ent->d_name, kManMSDOSScriptName, strlen(kManMSDOSScriptName)))
+            if(!strncasecmp(ent->d_name, kMainScriptName, strlen(kMainScriptName)) ||
+               !strncasecmp(ent->d_name, kManAtariScriptName, strlen(kManAtariScriptName)) ||
+               !strncasecmp(ent->d_name, kManAmigaScriptName, strlen(kManAmigaScriptName)) ||
+               !strncasecmp(ent->d_name, kManMSDOSScriptName, strlen(kManMSDOSScriptName)))
             {
                 strcpy(main_path, data_path);
                 strcat(main_path, ent->d_name);
@@ -116,6 +123,13 @@ sPlatform* pl_guess(const char * path) {
                 platform = pl_get(main_path);
                 if(platform->kind != EPlatformUnknown)
                 {
+                    // Manhattan Dealers on Atari and Amiga use files with the 'OO' extension,
+                    // but the main script is in the 'main.sng' and 'main.oo' files respectively.
+                    // Hack to get this to work (load the main script first, and then the files
+                    // with the same extension 'OO')
+                    if (platform->kind == EPlatformOldAtari)
+                        strcpy(platform->ext, platforms[EPlatformOldAmiga].ext);
+                    
                     strcpy(platform->main, main_path);
                     strcpy(platform->path, data_path);
                     break;
