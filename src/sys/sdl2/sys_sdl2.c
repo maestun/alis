@@ -164,6 +164,11 @@ u8 sys_poll_event(void) {
                 shift = 1;
             }
 
+            if (_event.key.keysym.sym == SDLK_PAUSE)
+            {
+                running = 0;
+                break;
+            }
             if (_event.key.keysym.sym == SDLK_F11)
             {
                 alis_save_state();
