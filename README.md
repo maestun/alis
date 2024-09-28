@@ -4,7 +4,7 @@ An attempt to reimplement the virtual machine made by the [Silmarils](https://en
 
 ## Build and run
 
-Tested on macOS and Ubuntu.
+Tested on macOS, Ubuntu and Windows.
 
 Install the following packages on your system:
 
@@ -81,6 +81,7 @@ Run the executable by passing the data path:
 - Steem SSE Debugger
 - Pasti DLL
 - Ghidra
+- Ida
 - Some custom python scripts
 
 ### Virtual Machine
