@@ -2221,6 +2221,7 @@ static void cfdel(void) {
 static void cfreadv(void) {
     fread(alis.buffer, 2, 1, alis.fp);
     alis.varD7 = xpcswap16(*(s16 *)alis.buffer);
+    debug(EDebugInfo, " 0x%04x", alis.varD7);
     cstore_continue();
 }
 
