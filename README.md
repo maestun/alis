@@ -4,7 +4,7 @@ An attempt to reimplement the virtual machine made by the [Silmarils](https://en
 
 ## Build and run
 
-Tested on macOS and Ubuntu.
+Tested on macOS, Ubuntu and Windows.
 
 Install the following packages on your system:
 
@@ -52,7 +52,7 @@ Run the executable by passing the data path:
 | Boston Bomb Club        | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
 | Xyphoes Fantasy         | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\small\color{gray}Not \ Working}}$ | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
 | Killing Fist            | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\small\color{gray}Not \ Working}}$ | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
-| Storm Master            | ${\textsf{\color{orange}Bugged}}$            | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
+| Storm Master            | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
 | Ishar 1                 | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
 | Bunny Bricks            | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |${\textsf{\small\color{gray}Not \ Working}}$ | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
 | Transarctica            | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{green}Playable}}$           | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
@@ -81,6 +81,7 @@ Run the executable by passing the data path:
 - Steem SSE Debugger
 - Pasti DLL
 - Ghidra
+- Ida
 - Some custom python scripts
 
 ### Virtual Machine
