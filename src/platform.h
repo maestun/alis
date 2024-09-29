@@ -42,6 +42,8 @@ typedef enum {
     EPlatformAmstradCPC,
     EPlatform3DO,
     EPlatformJaguar,
+    EPlatformPS1,
+    EPlatformPS2,
     EPlatformOldAtari,
     EPlatformOldAmiga,
     EPlatformUnknown
