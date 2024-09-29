@@ -36,11 +36,13 @@ static sPlatform platforms[] = {
     { .kind = EPlatformAmiga,       .uid = EGameUnknown, .version = 20, .desc = "Amiga",                        .ext = "CO", .ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
     { .kind = EPlatformAmigaAGA,    .uid = EGameUnknown, .version = 20, .desc = "Amiga AGA",                    .ext = "DO", .ram_sz = 0x400000, .video_ram_sz = 0xfa00,  .width = 320, .height = 200, .bpp = 8,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
     { .kind = EPlatformMac,         .uid = EGameUnknown, .version = 20, .desc = "Macintosh",                    .ext = "MO", .ram_sz = 0x400000, .video_ram_sz = 0xfa00,  .width = 480, .height = 300, .bpp = 1,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
-    { .kind = EPlatformPC,          .uid = EGameUnknown, .version = 20, .desc = "MS/DOS",                       .ext = "IO", .ram_sz = 0x400000, .video_ram_sz = 0xfa00,  .width = 320, .height = 200, .bpp = 8,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
+    { .kind = EPlatformPC,          .uid = EGameUnknown, .version = 20, .desc = "IBM PC",                       .ext = "IO", .ram_sz = 0x400000, .video_ram_sz = 0xfa00,  .width = 320, .height = 200, .bpp = 8,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformAmstradCPC,  .uid = EGameUnknown, .version = 20, .desc = "Amstrad CPC",                  .ext = "??", .ram_sz = 0x20000,  .video_ram_sz = 0x3e80,  .width = 320, .height = 200, .bpp = 2,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatform3DO,         .uid = EGameUnknown, .version = 20, .desc = "3DO Interactive Multiplayer",  .ext = "3O", .ram_sz = 0x200000, .video_ram_sz = 0x6c000, .width = 384, .height = 288, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformJaguar,      .uid = EGameUnknown, .version = 20, .desc = "Atari Jaguar",                 .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width = 320, .height = 200, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
-    { .kind = EPlatformOldAtari,    .uid = EGameUnknown, .version = 20, .desc = "Atari ST/STe",                 .ext = "sng",.ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
+    { .kind = EPlatformPS1,         .uid = EGameUnknown, .version = 20, .desc = "Sony PlayStation",             .ext = "PO", .ram_sz =        0, .video_ram_sz =      0,  .width = 512, .height = 240, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
+    { .kind = EPlatformPS2,         .uid = EGameUnknown, .version = 20, .desc = "Sony PlayStation 2",           .ext = "2O", .ram_sz =        0, .video_ram_sz =      0,  .width = 640, .height = 512, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
+    { .kind = EPlatformOldAtari,    .uid = EGameUnknown, .version = 20, .desc = "Atari ST/STe",                 .ext = "OO", .ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
     { .kind = EPlatformOldAmiga,    .uid = EGameUnknown, .version = 20, .desc = "Amiga",                        .ext = "OO", .ram_sz = 0x100000, .video_ram_sz = 0x8000,  .width = 320, .height = 200, .bpp = 4,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
     { .kind = EPlatformUnknown,     .uid = EGameUnknown, .version = 20, .desc = "Unknown",                      .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width =   0, .height =   0, .bpp = 0,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
 };
@@ -49,41 +51,48 @@ int pl_supported(sPlatform* platform) {
     return platform->kind != EPlatformUnknown;
 }
 
-
-static sPlatform* pl_get(const char * file_path) {
-    FILE * file = NULL;
+static sPlatform* pl_get(const char * main_script) {
     char * ext = NULL;
     sPlatform* pl = &platforms[EPlatformUnknown];
 
-    // get file extension
-    if((file = fopen(file_path, "r")) != NULL) {
-        fclose(file);
-        ext = strrchr(file_path, '.') + 1;
-    
-        // check platform by script file extension
-        for (int i = 0; i <= EPlatformUnknown; i++) {
-            pl = &platforms[i];
-            if(!strncasecmp(ext, pl->ext, strlen(ext))) {
-                break;
-            }
-        }
-    }
-    return pl;
-}
+     // Manhattan Dealers on Atari and Amiga use files with the same 'OO' extension,
+     // but the main script is in the 'main.sng' and 'main.oo' files respectively.
+     // We identify them by the main script name, not by used extension
+     if (!strncasecmp(main_script, kManAtariScriptName, strlen(kManAtariScriptName))) {
+         pl = &platforms[EPlatformOldAtari];
+         return pl;
+         }
+     if (!strncasecmp(main_script, kManAmigaScriptName, strlen(kManAmigaScriptName))) {
+         pl = &platforms[EPlatformOldAmiga];
+         return pl;
+         } 
 
+    // get file extension
+    ext = strrchr(main_script, '.') + 1;
+
+    // check platform by script file extension
+    for (int i = 0; i <= EPlatformUnknown; i++) {
+        pl = &platforms[i];
+        if(!strncasecmp(ext, pl->ext, strlen(ext))) {
+            break;
+        }
+     }
+ return pl;
+}
 
 sPlatform* pl_guess(const char * path) {
     sPlatform* platform = &platforms[EPlatformUnknown];
+    FILE * file = NULL;
     if (path == NULL)
     {
-        debug(EDebugError,"Enter valid data path.");
+        debug(EDebugError,"Enter valid data path.\n");
         return platform;
     }
     
     size_t pathlen = strlen(path);
     if (pathlen <= 0)
     {
-        debug(EDebugError,"Enter valid data path.");
+        debug(EDebugError,"Enter valid data path.\n");
         return platform;
     }
     
@@ -100,7 +109,7 @@ sPlatform* pl_guess(const char * path) {
     DIR * dir = opendir(data_path);
     if (dir == NULL)
     {
-        debug(EDebugError,"%s is not a valid data path.", data_path);
+        debug(EDebugError,"%s is not a valid data path.\n", data_path);
         return platform;
     }
 
@@ -120,16 +129,17 @@ sPlatform* pl_guess(const char * path) {
                 strcpy(main_path, data_path);
                 strcat(main_path, ent->d_name);
 
-                platform = pl_get(main_path);
+                if ((file = fopen(main_path, "r")) != NULL) {
+                   fclose(file);
+                }
+                else {
+                   debug(EDebugError,"Cannot open %s for reading: No such file or directory.\n", main_path);
+                   return platform;
+                }
+
+                platform = pl_get(ent->d_name);
                 if(platform->kind != EPlatformUnknown)
                 {
-                    // Manhattan Dealers on Atari and Amiga use files with the 'OO' extension,
-                    // but the main script is in the 'main.sng' and 'main.oo' files respectively.
-                    // Hack to get this to work (load the main script first, and then the files
-                    // with the same extension 'OO')
-                    if (platform->kind == EPlatformOldAtari)
-                        strcpy(platform->ext, platforms[EPlatformOldAmiga].ext);
-                    
                     strcpy(platform->main, main_path);
                     strcpy(platform->path, data_path);
                     break;
