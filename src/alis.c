@@ -58,13 +58,29 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
-        debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+        if (!DEBUG_SCRIPT) {
+            debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+        }
+        else {
+            u32 prg_offset = (alis.script->pc - alis.script->pc_org)-1;                        // start with 0 not with 1
+            u32 file_offset = prg_offset + alis.script->data->header.code_loc_offset + 2 + 6;
+            if (alis.script->name == alis.main->name) { file_offset += 16; }
+            if (name == "opcode")
+               {
+                 debug(EDebugInfo, "\n%s [%.6x]%.6x: %.2x: %s ### ", alis.script->name, file_offset, prg_offset, opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+               }
+               else {
+                 debug(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+               }
+        }
         opcode.fptr();
     }
 }
 
 void readexec_opcode(void) {
-    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+    if (!DEBUG_SCRIPT) {
+       debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+    }
     readexec(opcodes, "opcode", 0);
 }
 
