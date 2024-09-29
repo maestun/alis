@@ -134,6 +134,7 @@ sPlatform* pl_guess(const char * path) {
                 }
                 else {
                    debug(EDebugError,"Cannot open %s for reading: No such file or directory.\n", main_path);
+                   closedir(dir);
                    return platform;
                 }
 
