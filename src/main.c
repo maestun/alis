@@ -22,13 +22,14 @@
 #include "alis.h"
 #include "config.h"
 #include "sys/sys.h"
+#include "SDL2/SDL.h"
 
 void usage(void) {
     printf("%s v%s\nUsage:\n\t%s [-f] <data_path>\n\n\t%s <data_path>\n",
            kProgName, kProgVersion, kProgName, kProgName);
 }
 
-int main(int argc, const char* argv[]) {
+int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         usage();
