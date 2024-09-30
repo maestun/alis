@@ -658,7 +658,7 @@ void alis_loop(void) {
         
         readexec_opcode();
         // TODO: Temporary solution. Exiting an idle, broken or slow script by user event
-        alis.running = sys_poll_event();
+        alis.running &= sys_poll_event();
     }
     
     // alis loop was stopped by 'cexit', 'cstop', or user event
