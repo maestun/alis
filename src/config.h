@@ -74,3 +74,5 @@ typedef enum {
 } EDebugLevel;
 
 #define DEBUG_LEVEL         EDebugWarning
+#define DEBUG_SCRIPT        0
+#define VM_IGNORE_ERRORS    0

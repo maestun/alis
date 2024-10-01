@@ -51,20 +51,51 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
     
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
-        debug(EDebugFatal, "PC OVERFLOW !");
+        debug(EDebugFatal, "\nERROR: PC OVERFLOW !");
         alis.running = 0;
     }
     else {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
-        debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
-        opcode.fptr();
+
+        if (!DEBUG_SCRIPT) {
+            debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+        }
+        else {
+            u32 prg_offset = (alis.script->pc - alis.script->pc_org)-1;                        // -1 -> start with 0 not with 1
+            u32 file_offset = prg_offset + alis.script->data->header.code_loc_offset + 2 + 6;  //  2 -> size of code_loc_offset 
+                                                                                               //  6 -> kPackedHeaderSize = 6
+            if (alis.script->name == alis.main->name) { file_offset += 16; }                   // 16 -> kVMSpecsSize = 16
+
+            if (name == "opcode")
+               {
+                 debug(EDebugInfo, "\n%s [%.6x]%.6x: %.2x: %s ### ", alis.script->name, file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+               }
+               else {
+                 debug(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+               }
+        }
+        if (opcode.name[0] == 0)   // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
+                                   // It is necessary to add it to the appropriate name table
+                                   // (codop, codesc1, codesc2, codesc3, oper, store, or add)
+           {
+              debug(EDebugFatal, "\nERROR: Opcode 0x%.2x is missing in %ss table.", code, name);
+              if (!VM_IGNORE_ERRORS) {
+                  debug(EDebugFatal, " The ALIS VM has been stopped.");
+                  alis.running = 0;
+              }
+           }
+           else {
+              opcode.fptr();
+           }
     }
 }
 
 void readexec_opcode(void) {
-    debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+    if (!DEBUG_SCRIPT) {
+       debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+    }
     readexec(opcodes, "opcode", 0);
 }
 
@@ -641,6 +672,8 @@ void alis_loop(void) {
     while (alis.running && alis.script->running) {
         
         readexec_opcode();
+        // TODO: Temporary solution. Exiting an idle, broken or slow script by user event
+        alis.running &= sys_poll_event();
     }
     
     // alis loop was stopped by 'cexit', 'cstop', or user event
