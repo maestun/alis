@@ -27,18 +27,38 @@
 #include <SDL2/SDL.h>
 
 
+#include "emu2149.h"
+
+typedef struct {
+    
+    s16 tvalue;
+    u32 address1;
+    s32 address2;
+    u16 volume;
+    s16 unknown4;
+    u16 notedata;
+    u16 unknownA;
+
+} sChipChannel;
+
+PSG *_mupsg;
+
 void mv2_soundrout(void);
 void mv2_calculfrq(void);
 void mv2_calculvol(void);
 u32 mv2_soundvoix(u32 noteat, sAudioVoice *voice);
 void mv2_checkport(u32 noteat, sAudioVoice *voice);
 void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx);
-void mv2_checkcom(u32 noteat, sAudioVoice *voice);
+void mv2_checkcom(u32 noteat, u16 *volsam);
 void mv2_checkefft(sAudioVoice *voice);
 void mv2_soundcal(sAudioVoice *voice);
 void mv2_stopmusic(void);
 void mv2_onmusic(void);
 
+void mv2_chiprout(void);
+s16 mv2_chipinstr(sChipChannel *chanel, s16 idx);
+void mv2_chipcanal(sChipChannel *chanel, s32 idx);
+u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel);
 
 extern SDL_AudioSpec *_audio_spec;
 
@@ -68,6 +88,7 @@ typedef struct {
 
     sAudioInstrument *tinstrum;
     sAudioVoice voices[4]; //
+    sChipChannel chipch[3];
     u32 tabfrq[0x358];
     u16 defvolins;
     u8 defvol[32];
@@ -90,11 +111,35 @@ typedef struct {
     u16 mutadata;
     u32 frqmod;
     u16 samples;
-    
+    s16 chipmixer;
+
 } sMV2Audio;
 
 sMV2Audio mv2a;
 
+u8 chipdata[] = {
+    0x00, 0x00, 0x00, 0x00,
+    0x01, 0x01, 0x00, 0x00,
+    0x02, 0x02, 0x00, 0x00,
+    0x03, 0x03, 0x00, 0x00,
+    0x04, 0x04, 0x00, 0x00,
+    0x05, 0x05, 0x00, 0x00,
+    0x06, 0x06, 0x00, 0x00,
+    0x07, 0x07, 0xff, 0xff,
+    0x08, 0x08, 0x00, 0x00,
+    0x09, 0x09, 0x00, 0x00,
+    0x0a, 0x0a, 0x00, 0x00,
+    0x0b, 0x0b, 0x00, 0x00,
+    0x0c, 0x0c, 0x00, 0x00,
+};
+
+u16 trkval[] = {
+    0x0358, 0x0328, 0x02fa, 0x02d0, 0x02a6, 0x0280, 0x025c, 0x023a, 0x021a, 0x01fc, 0x01e0, 0x01c5, 0x01ac, 0x0194, 0x017d, 0x0168, 0x0153, 0x0140, 0x012e, 0x011d, 0x010d, 0x00fe, 0x00f0, 0x00e2, 0x00d6, 0x00ca, 0x00be, 0x00b4, 0x00aa, 0x00a0, 0x0097, 0x008f,
+    0x0087, 0x007f, 0x0078, 0x0071, 0x0eee, 0x0e18, 0x0d4d, 0x0c8e, 0x0bda, 0x0b2f, 0x0a8f, 0x09f7, 0x0968, 0x08e1, 0x0861, 0x07e9, 0x0777, 0x070c, 0x06a7, 0x0647, 0x05ed, 0x0598, 0x0547, 0x04fc, 0x04b4, 0x0470, 0x0431, 0x03f4, 0x03bc, 0x0386, 0x0353, 0x0324,
+    0x02f6, 0x02cc, 0x02a4, 0x027e, 0x025a, 0x0238, 0x0218, 0x01fa, 0x01de, 0x01c3, 0x01aa, 0x0192, 0x017b, 0x0166, 0x0152, 0x013f, 0x012d, 0x011c, 0x010c, 0x00fd, 0x00ef, 0x00e1, 0x00d5, 0x00c9, 0x00be, 0x00b3, 0x00a9, 0x009f, 0x0096, 0x008e, 0x0086, 0x007f,
+    0x0077, 0x0071, 0x006a, 0x0064, 0x005f, 0x0059, 0x0054, 0x0050, 0x004b, 0x0047, 0x0043, 0x003f, 0x003c, 0x0038, 0x0035, 0x0032, 0x002f, 0x002d, 0x002a, 0x0028, 0x0026, 0x0024, 0x0022, 0x0020, 0x001e, 0x001c, 0x001b, 0x0019, 0x0018, 0x0016, 0x0015, 0x0014,
+    0x0013, 0x0012, 0x0011, 0x0010,
+ };
 
 void mv2_gomusic(void)
 {
@@ -120,28 +165,65 @@ void mv2_gomusic(void)
         instrument ++;
     }
     
-    if (2 < chipinst)
-        mv2a.muchip = 1;
+    mv2a.muchip = 2 < chipinst;
+    mv2a.muopl2 = 2 < opl2inst;
+    mv2a.mutype = 2 >= chipinst;
     
-    if (2 < opl2inst)
-        mv2a.muopl2 = 1;
-    
-    mv2a.mutype = (2 >= chipinst);
-    mv2a.mutype = 4;// alis.vquality + 1;
+//    mv2a.mutype = 4;// alis.vquality + 1;
     audio.muvol = (audio.muvolume >> 1) + 1;
     audio.mutemp = (u8)(((u32)audio.mutempo * 6) / 0x20);
 
     // init
     if (mv2a.mutype != 0)
     {
+        for (s32 i = 0; i < 4; i++)
+        {
+            mv2a.voices[i].freqsam = 0;
+            mv2a.voices[i].startsam1 = 0;
+            mv2a.voices[i].longsam1 = 0;
+            mv2a.voices[i].volsam = 0;
+            mv2a.voices[i].startsam2 = 0;
+            mv2a.voices[i].longsam2 = 0;
+            mv2a.voices[i].value = 0;
+            mv2a.voices[i].type = 0;
+            mv2a.voices[i].delta = 0;
+        }
+
         // mv2a.tabvol = newaddr;
         mv2a.prevmuvol = 0;
         mv2a.prevmufreq = 0;
         mv2_calculfrq();
         mv2_calculvol();
+        
+        audio.soundrout = mv2_soundrout;
     }
-    
-    audio.soundrout = mv2_soundrout;
+    else
+    {
+        _mupsg = PSG_new(2000000, _audio_spec->freq);
+        PSG_setClockDivider(_mupsg, 1);
+        PSG_setVolumeMode(_mupsg, 1); // YM style
+        PSG_setQuality(_mupsg, 1);
+        PSG_reset(_mupsg);
+        
+        for (int i = 0; i < 0xc; i++)
+        {
+            chipdata[i * 4 + 2] = 0;
+            chipdata[i * 4 + 3] = 0;
+        }
+        
+        for (int i = 0; i < 3; i++)
+        {
+            memset(&mv2a.chipch[i], 0, sizeof(sChipChannel));
+        }
+
+        mv2a.chipmixer = -1;
+        mv2a.prevmuvol = 0;
+        mv2a.prevmufreq = 0;
+        mv2_calculfrq();
+        mv2_calculvol();
+        
+        audio.soundrout = mv2_chiprout;
+    }
 
     for (s32 i = 0; i < 0x20; i++)
     {
@@ -157,19 +239,6 @@ void mv2_gomusic(void)
     mv2a.mubufc = audio.muchute;
     mv2a.muspeed = 1;
     
-    for (s32 i = 0; i < 4; i++)
-    {
-        mv2a.voices[i].freqsam = 0;
-        mv2a.voices[i].startsam1 = 0;
-        mv2a.voices[i].longsam1 = 0;
-        mv2a.voices[i].volsam = 0;
-        mv2a.voices[i].startsam2 = 0;
-        mv2a.voices[i].longsam2 = 0;
-        mv2a.voices[i].value = 0;
-        mv2a.voices[i].type = 0;
-        mv2a.voices[i].delta = 0;
-    }
-    
     audio.smpidx = 0;
     audio.muflag = 1;
 }
@@ -180,7 +249,7 @@ void mv2_calculfrq(void)
     mv2a.frqmod = ratio * 0x48D378;
     mv2a.samples = 0x3E7 / ratio;
 
-    s16 freq = mv2a.mutype;
+    s16 freq = 4; // mv2a.mutype;
     if (freq < 1)
         freq = 1;
     
@@ -245,14 +314,10 @@ void mv2_soundrout(void)
         if (audio.muattac == 0)
         {
             if (audio.muduree == 0)
-            {
                 goto f_soundroutc;
-            }
             
             if (audio.muduree > 0)
-            {
                 audio.muduree--;
-            }
         }
         else
         {
@@ -289,21 +354,22 @@ f_soundroutc:
             s16 prevmucnt = mv2a.mucnt;
             if (-1 < (s16)(mv2a.mucnt - 0x40))
             {
-                prevmucnt = 0;
+                mv2a.mucnt = 0;
                 mv2a.muptr++;
             }
             
-            mv2a.mucnt = prevmucnt + 1;
             if (-1 < (s16)(mv2a.muptr - mv2a.mumax))
             {
                 mv2a.muptr = 0;
             }
             
-            u32 noteat = ((prevmucnt * 0x10 + xread8(audio.mupnote + mv2a.muptr) * 0x400) + audio.mupnote + 0x84);
+            u32 noteat = ((mv2a.mucnt * 0x10 + xread8(audio.mupnote + mv2a.muptr) * 0x400) + audio.mupnote + 0x84);
             noteat = mv2_soundvoix(noteat, &mv2a.voices[0]);
             noteat = mv2_soundvoix(noteat, &mv2a.voices[1]);
             noteat = mv2_soundvoix(noteat, &mv2a.voices[2]);
             noteat = mv2_soundvoix(noteat, &mv2a.voices[3]);
+            
+            mv2a.mucnt++;
         }
         
         mv2_checkefft(&mv2a.voices[0]);
@@ -351,7 +417,7 @@ u32 mv2_soundvoix(u32 noteat, sAudioVoice *voice)
         mv2_soundins(voice, newfreq, instidx);
     }
     
-    mv2_checkcom(nextat, voice);
+    mv2_checkcom(nextat, &voice->volsam);
     return nextat + 2;
 }
 
@@ -405,10 +471,6 @@ void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx)
         voice->startsam2 = ((xread32(sample - 0xe) - 0x10) - xread32(sample - 4)) + sample;
         voice->longsam2 = xread32(sample - 4) - xread32(sample - 8);
     }
-//    else if (type == 5) // YM2149
-//    {
-//
-//    }
 //    else if (type == 5) // YM3812
 //    {
 //
@@ -427,7 +489,7 @@ void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx)
     }
 }
 
-void mv2_checkcom(u32 noteat, sAudioVoice *voice)
+void mv2_checkcom(u32 noteat, u16 *volsam)
 {
     u16 data = xread8(noteat + 1);
 
@@ -445,8 +507,7 @@ void mv2_checkcom(u32 noteat, sAudioVoice *voice)
             if (0x40 < data)
                 data = 0;
             
-            voice->volsam = data;
-//            mv2_audio->defvol[xread8(noteat) >> 4] = (s8)data;
+            *volsam = data;
             break;
         }
         case 0xd:
@@ -689,3 +750,329 @@ void mv2_soundcal(sAudioVoice *voice)
     voice->startsam1 = startsam1;
 }
 
+#pragma mark Atari STE chipmusic
+
+void mv2_chiprout(void)
+{
+    u16 prevmuspeed = mv2a.muspeed;
+    
+    if (audio.muflag == 0)
+        return;
+    
+    if (mv2a.mutype != 0)
+        return;
+    
+    u16 newvolgen = (u16)audio.muvol;
+    if (mv2a.mubreak == 0)
+    {
+        if (audio.muattac == 0)
+        {
+            if (audio.muduree == 0)
+                goto f_chiprouttc;
+            
+            audio.muduree--;
+        }
+        else
+        {
+            audio.muattac--;
+
+            u16 tmpvol = ((u32)audio.muvol * (u32)audio.muattac) / (u32)mv2a.mubufa;
+            newvolgen = (tmpvol & 0xff00) | -((s8)tmpvol - audio.muvol);
+        }
+    }
+    else
+    {
+        
+f_chiprouttc:
+        
+        if (audio.muchute != 0)
+        {
+            audio.muchute--;
+            newvolgen = (u16)(((u32)audio.muvol * (u32)audio.muchute) / (u32)mv2a.mubufc);
+        }
+        else
+        {
+            mv2_stopmusic();
+            return;
+        }
+    }
+    
+    mv2a.muvolgen = newvolgen;
+    if (mv2a.muspeed != 0)
+    {
+        mv2a.muspeed--;
+        
+        if (mv2a.muspeed == 0 || (s16)(prevmuspeed < 1))
+        {
+            mv2a.muspeed = audio.mutemp;
+
+            if (-1 < (s16)(mv2a.mucnt - 0x40))
+            {
+                mv2a.mucnt = 0;
+                mv2a.muptr++;
+            }
+            
+            if (-1 < (s16)(mv2a.muptr - mv2a.mumax))
+            {
+                mv2a.muptr = 0;
+            }
+            
+            u32 noteat = (mv2a.mucnt * 0x10 + xread8(audio.mupnote + mv2a.muptr) * 0x400) + audio.mupnote + 0x84;
+            if (mv2a.muchip != 0)
+            {
+                noteat += 4;
+            }
+
+            noteat = mv2_chipvoix(noteat, &mv2a.chipch[0]);
+            noteat = mv2_chipvoix(noteat, &mv2a.chipch[1]);
+            noteat = mv2_chipvoix(noteat, &mv2a.chipch[2]);
+            
+            mv2a.mucnt++;
+        }
+        
+        mv2_chipcanal(&mv2a.chipch[0], 0);
+        mv2_chipcanal(&mv2a.chipch[1], 1);
+        mv2_chipcanal(&mv2a.chipch[2], 2);
+        
+        chipdata[0x1e] = mv2a.chipmixer;
+
+//        u16 *cht = (u16 *)chipdata;
+//        for (int i = 0; i < 13; i++)
+//            printf("\n%.4x %.4x", cht[i * 2 + 0], cht[i * 2 + 1]);
+//        printf("\n");
+        
+        for (int i = 0; i < 13; i++)
+        {
+            PSG_writeReg(_mupsg, chipdata[i * 4], chipdata[4 * i + 2]);
+        }
+        
+        memset(audio.muadresse, 0, audio.mutaloop * 2);
+        for (int index = 0; index < audio.mutaloop; index ++)
+        {
+            audio.muadresse[index] = PSG_calc(_mupsg) * 4;
+        }
+    }
+}
+
+s16 mv2_chipinstr(sChipChannel *chanel, s16 idx)
+{
+    if ((s16)(idx + 0x18) < 0)
+        idx = -0x18;
+
+    if (-1 < (s16)(idx - 0xa8))
+        idx = 0xa8;
+    
+    s16 result = trkval[48 + idx / 2];
+    s16 alt = trkval[48 + (s8)chanel->unknown4];
+
+    s16 newuA = chanel->unknownA;
+    if (chanel->notedata != 0)
+    {
+        if (chanel->notedata < 0)
+        {
+            newuA += chanel->notedata;
+            result += newuA;
+            if ((s16)(result - alt) < 0)
+            {
+                chanel->notedata = 0;
+                chanel->tvalue = chanel->unknown4;
+                chanel->unknown4 = 0;
+                newuA = 0;
+                result = alt;
+            }
+            
+            chanel->unknownA = newuA;
+        }
+        else
+        {
+            newuA += chanel->notedata;
+            result += newuA;
+            if (-1 < (s16)(result - alt))
+            {
+                chanel->notedata = 0;
+                chanel->tvalue = chanel->unknown4;
+                chanel->unknown4 = 0;
+                newuA = 0;
+                result = alt;
+            }
+            
+            chanel->unknownA = newuA;
+        }
+    }
+    
+    return result;
+}
+
+u32 rotl(u8 rotate, u32 value)
+{
+    if ((rotate &= sizeof(value) * 8 - 1) == 0)
+        return value;
+    
+    return (value << rotate) | (value >> (sizeof(value) * 8 - rotate));
+}
+
+void mv2_chipcanal(sChipChannel *chanel, s32 idx)
+{
+    s32 idx1 = idx * 8;
+    s32 idx2 = 0x22 + idx * 4;
+    
+    s16 tval = chanel->tvalue;
+    s32 address = chanel->address1;
+    if (address != 0)
+    {
+        while (xread8(address) != 0xff)
+        {
+            u8 type = xread8(address); address ++;
+            if (type == 0xf5)
+            {
+                mv2a.chipmixer |= 1 << idx;
+                mv2a.chipmixer |= 1 << (idx + 3);
+
+                type = xread8(address); address ++;
+            }
+            else {
+                if (type == 0xfd)
+                {
+                    mv2a.chipmixer |= 1 << idx;
+                    mv2a.chipmixer &= ~(1 << (idx + 3));
+
+                    type = xread8(address); address ++;
+                }
+                if (type == 0xfe)
+                {
+                    mv2a.chipmixer &= ~(1 << idx);
+                    mv2a.chipmixer |= 1 << (idx + 3);
+
+                    type = xread8(address); address ++;
+                }
+                if (type == 0xfc)
+                {
+                    mv2a.chipmixer &= ~(1 << idx);
+                    mv2a.chipmixer &= ~(1 << (idx + 3));
+
+                    type = xread8(address); address ++;
+                }
+            }
+            
+            if (type == 0xfb)
+            {
+                chipdata[0x1a] = xread8(address); address ++;
+                type = xread8(address); address ++;
+            }
+            
+            if (type != 0xfa)
+            {
+                if (type == 0xf9)
+                {
+                    chipdata[idx2]     = 0x10;
+                    chipdata[0x32]     = 0;
+                    chipdata[0x2e]     = xread8(address); address ++;
+                    chipdata[idx1 + 6] = xread8(address); address ++;
+                    chipdata[idx1 + 2] = xread8(address); address ++;
+                }
+                else if (type == 0xf8)
+                {
+                    chipdata[idx2]     = 0x10;
+                    chipdata[idx1 + 6] = xread8(address); address ++;
+                    chipdata[idx1 + 2] = xread8(address); address ++;
+                    s16 result = mv2_chipinstr(chanel, (s8)(xread8(address) + (s8)tval) * 2); address ++;
+                    chipdata[0x2e]     = (s8)(result);
+                    chipdata[0x32]     = (s8)(result >> 8);
+                }
+                else if (type == 0xf7)
+                {
+                    chipdata[idx2]     = 0x10;
+                    chipdata[0x32]     = xread8(address); address ++;
+                    chipdata[0x2e]     = xread8(address); address ++;
+                    s16 result = mv2_chipinstr(chanel, (s8)(xread8(address) + (s8)tval) * 2); address ++;
+                    chipdata[idx1 + 2] = (s8)(result);
+                    chipdata[idx1 + 6] = (s8)(result >> 8);
+                }
+                else if (type == 0xf6)
+                {
+                    chipdata[idx2]     = 0x10;
+                    s16 result = mv2_chipinstr(chanel, (s8)(xread8(address) + (s8)tval) * 2); address ++;
+                    chipdata[idx1 + 2] = (s8)(result);
+                    chipdata[idx1 + 6] = (s8)(result >> 8);
+                    u16 rot = xread8(address); address ++;
+                    u16 uVar4 = rotl(rot, result);
+                    chipdata[0x2e]     = (s8)uVar4;
+                    chipdata[0x32]     = (s8)(uVar4 >> 8);
+                }
+                else
+                {
+                    u8 add = xread8(address); address ++;
+                    chipdata[idx2]     = (s8)(((u32)type * ((u16)(mv2a.muvolgen * 10) >> 6)) / 0xf);
+                    s16 result = mv2_chipinstr(chanel, (s8)(xread8(address) + (s8)tval) * 2); address ++;
+                    result += add;
+                    chipdata[idx1 + 2] = (s8)(result);
+                    chipdata[idx1 + 6] = (s8)(result >> 8);
+                }
+                
+                chanel->address1 = address;
+                break;
+            }
+            
+            address = chanel->address2 + xread8(address);
+        }
+    }
+}
+
+u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel)
+{
+    u32 address = 0;
+    
+    do
+    {
+        u32 test = xpcread16(noteat); noteat += 2;
+        if (test == 0)
+        {
+            goto chipvoixend;
+        }
+        
+        int i = 0;
+        for (; i < 36; i++)
+        {
+            u16 b = trkval[i];
+            if (test == b)
+                break;
+        }
+        
+        s16 instidx = (((xread8(noteat) & 0xf0) >> 1) - 8) >> 3;
+        address = audio.tabinst[instidx].address;
+        
+        s16 tval = audio.tabinst[instidx].unknown + i;
+
+        if ((xread8(noteat) & 0xf) == 3)
+        {
+            chanel->unknown4 = tval;
+            u16 notedata = (u16)xread8(noteat + 1);
+            if ((s16)(chanel->tvalue - chanel->unknown4) < 0)
+            {
+                notedata = -notedata;
+            }
+            
+            chanel->notedata = notedata;
+            chanel->tvalue = chanel->tvalue;
+            goto chipvoixend;
+        }
+        
+        chanel->unknown4 = 0;
+        chanel->notedata = 0;
+        chanel->unknownA = 0;
+        chanel->tvalue = tval;
+    }
+    while (address == 0);
+    
+    if (xread8(address - 0x10) == 5)
+    {
+        chanel->address1 = address;
+        chanel->address2 = address;
+
+    chipvoixend:
+        
+        mv2_checkcom(noteat, &chanel->volume);
+    }
+    
+    return noteat + 2;
+}
