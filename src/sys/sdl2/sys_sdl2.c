@@ -160,6 +160,14 @@ u8 sys_poll_event(void) {
             running = 0;
             break;
         }
+        case SDL_KEYUP:
+        {
+            if (_event.key.keysym.sym == SDLK_LALT)
+            {
+                debug(EDebugInfo, "\nINTERRUPT: User debug label.\n");
+                break;
+            }
+        }
         case SDL_KEYDOWN:
         {
             if (_event.key.keysym.mod == KMOD_RSHIFT || _event.key.keysym.mod == KMOD_LSHIFT)
@@ -169,6 +177,7 @@ u8 sys_poll_event(void) {
 
             if (_event.key.keysym.sym == SDLK_PAUSE)
             {
+                debug(EDebugInfo, "\nINTERRUPT: The ALIS VM has been stopped by user.\n");
                 running = 0;
                 break;
             }
@@ -982,7 +991,7 @@ u8 io_inkey(void)
         button.scancode = 0;
         button.sym = 0;
     }
-    
+    debug(EDebugInfo, " [\"%s\"]", SDL_GetKeyName(button.sym));
     switch (button.sym) {
         case SDLK_ESCAPE:       return 0x1b;
             
