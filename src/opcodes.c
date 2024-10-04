@@ -1129,20 +1129,21 @@ static void cdelforme(void) {
 u8 multifirm(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 a4)
 {
     u16 length = xread8(ent_formedata - 1);
-    u8 result = length ? 1 : 0;
-    
     for (int i = 0; i < length; i++, ent_formedata += 2)
     {
         s32 forme = xread16(ent_formedata);
         if (-1 < forme)
         {
-            result = traitfirm(ent_vram, formedata, a4, forme + forme);
-            if (!result)
-                return result;
+            if (!traitfirm(ent_vram, formedata, a4, forme + forme))
+            {
+                debug(EDebugInfo, "\n    Hit!");
+                return 0;
+            }
         }
     }
     
-    return result;
+    debug(EDebugInfo, "\n    No hits!");
+    return 1;
 }
 
 s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 forme)
@@ -1163,7 +1164,10 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
     
     u16 result = xread16(ent_formedata) & alis.matmask;
     if (result == 0)
+    {
+        debug(EDebugInfo, "\n    Masked");
         return 1;
+    }
     
     u8 bits = xread8(ent_formedata - 2);
     if (bits == 0)
@@ -1188,6 +1192,7 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
     }
     else
     {
+        debug(EDebugWarning, "Unexpected form data!");
         return 1;
     }
 
@@ -1233,7 +1238,13 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
             }
             
             if ((px1 <= tmpx2) && (tmp <= px2))
+            {
+                debug(EDebugInfo, "\n    tx: %.3d, %.3d", tmpx1, tmpx2);
+                debug(EDebugInfo, "    ty: %.3d, %.3d", tmpy1, tmpy2);
+                debug(EDebugInfo, "    tz: %.3d, %.3d", tmpz1, tmpz2);
+
                 return 0;
+            }
         }
     }
     
@@ -1243,45 +1254,38 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
 s32 traitform(s32 ent_vram, s32 ent_formedata, s32 ent_baseform, s32 ent_wforme2x)
 {
     s32 formedata = xread16(alis.baseform + ent_wforme2x) + alis.baseform;
-    if (xread16(formedata) < 0)
+    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread16(formedata) : xread16(formedata);
+    if (test < 0)
     {
-        return multiform(ent_vram, ent_formedata + 2, formedata, ent_baseform);
+        return multiform(ent_vram, ent_formedata, formedata + 2, ent_baseform);
     }
     
-    return monoform(ent_vram, ent_formedata + 2, formedata, ent_baseform, ent_wforme2x);
+    return monoform(ent_vram, ent_formedata, formedata + 2, ent_baseform, ent_wforme2x);
 }
 
 s32 multiform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform)
 {
-    s8 test = xread8(formedata - 1);
-    u8 result = test == 0;
-    if (!result)
+    s8 length = xread8(formedata - 1);
+    for (int i = 0; i < length; i++, formedata+=2)
     {
-        s16 length = xread8(formedata - 1);
-        for (int i = 0; i < length; i++, formedata+=2)
+        s32 wforme = xread16(formedata);
+        if (-1 < wforme)
         {
-            s32 wforme = xread16(formedata);
-            if (-1 < wforme)
+            if (!traitform(ent_vram, ent_formedata, ent_baseform, wforme + wforme))
             {
-                result = traitform(ent_vram, ent_formedata, ent_baseform, wforme + wforme);
-                if (result)
-                {
-                    return result;
-                }
+                debug(EDebugInfo, "\n    Hit!");
+                return 0;
             }
         }
-        
-        result = 1;
     }
     
-    return result;
+    debug(EDebugInfo, "\n    No hits!");
+    return 1;
 }
 
 s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s32 ent_wforme2x)
 {
     s16 frmx, frmy, frmz;
-    
-    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(ent_formedata) : xread16(ent_formedata);
     
     u8 bits = xread8(formedata - 2);
     if (bits == 0)
@@ -1308,6 +1312,7 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
     }
     else
     {
+        debug(EDebugWarning, "Unexpected form data!");
         return 1;
     }
 
@@ -1346,7 +1351,11 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
         px2 = frmx;
     }
     
-    ent_formedata += 2;
+    debug(EDebugInfo, "\n    px: %.3d, %.3d", px1, px2);
+    debug(EDebugInfo, "    py: %.3d, %.3d", py1, py2);
+    debug(EDebugInfo, "    pz: %.3d, %.3d", pz1, pz2);
+    
+    s16 test = alis.platform.kind == EPlatformPC ? (s8)xread16(ent_formedata) : xread16(ent_formedata);     ent_formedata += 2;
     if (test < 0)
     {
         return multifirm(ent_vram, ent_formedata, formedata, ent_baseform);
@@ -1365,9 +1374,11 @@ void clipform(void) {
         s32 val = get_0x14_script_org_offset(alis.script->vram_org);
         s32 addr = xread32(val + 0xe) + val;
         alis.baseform = xread32(addr + 6) + addr;
-        s32 formedata = xread16(alis.baseform + alis.wforme * 2) + alis.baseform;
+        s32 formedata = (u16)xread16(alis.baseform + (u32)alis.wforme * 2) + alis.baseform;
         s16 entidx = 0;
 
+        debug(EDebugInfo, "\nChecking: %s (%.2x)", alis.script->name, alis.wforme);
+        
         do
         {
             s32 ent_vram = xread32(alis.atent + entidx);
@@ -1379,9 +1390,13 @@ void clipform(void) {
                 s32 ent_wforme2x = get_0x1a_cforme(ent_vram) * 2;
                 s32 ent_formedata = xread16(ent_baseform + ent_wforme2x) + ent_baseform;
                 
+                sAlisScriptLive *sc = ENTSCR(entidx);
+                debug(EDebugInfo, "\n  to: %s", sc->name);
+                
                 s32 result = 0;
 
-                if (xread8(formedata) < 0)
+                s16 test = alis.platform.kind == EPlatformPC ? (s8)xread16(formedata) : xread16(formedata);
+                if (test < 0)
                 {
                     result = multiform(ent_vram, ent_formedata, formedata + 2, ent_baseform);
                 }
@@ -1390,6 +1405,7 @@ void clipform(void) {
                     result = monoform(ent_vram, ent_formedata, formedata + 2, ent_baseform, ent_wforme2x);
                 }
                 
+                debug(EDebugInfo, "    = %d", result);
                 if (!result)
                 {
                     if (alis.witmov != 0)
@@ -2228,10 +2244,8 @@ static void cfreadv(void) {
 // Codopname no. 118 opcode 0x75 cfwritev
 static void cfwritev(void) {
     readexec_opername();
-    *(s16 *)alis.buffer = xswap16(alis.varD7);
-    s16 val = *(s16 *)alis.buffer;
-    if (alis.platform.kind == EPlatformPC)
-        val = (val <<  8) | (val >>  8);
+    s16 val = xpcswap16(alis.varD7);
+    debug(EDebugInfo, " 0x%04x", alis.varD7);
     fwrite(&val, 2, 1, alis.fp);
 }
 
@@ -3028,9 +3042,8 @@ static void sound(void) {
             speedsam = xread8(alis.script->data->data_org + addr + 1);
 
         u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
-        if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly || alis.platform.uid == EGameMadShow)) {
-            longsam = ((u16)xpcread16(alis.script->data->data_org + addr + 4)) - 0x10;
-        }
+        if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly || alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya))
+            longsam = xpcread32(alis.script->data->data_org + addr + 2) - 0x10;
 
         u32 startsam = alis.script->data->data_org + addr + 0x10;
         playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam);
@@ -3727,6 +3740,7 @@ static void cinstru(void) {
     s16 instidx = alis.varD7;
 
     s32 addr;
+    u8 type = 0;
 
     if (scridx < 0)
     {
@@ -3736,7 +3750,7 @@ static void cinstru(void) {
     else
     {
         addr = adresmus(scridx);
-        u8 type = xread8(alis.script->data->data_org + addr);
+        type = xread8(alis.script->data->data_org + addr);
         if (type != 1 && type != 2 && type != 5 && type != 6)
             return;
         
@@ -5261,12 +5275,19 @@ void polarang(s16 *cx, s16 *cy, s16 *cz, s16 *oldcx, s16 *oldcy, s16 *oldcz)
 static void caim(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
+    // TODO: on Atari ST values for the first call should be: 0x19e0, 0x560, 0x5 but aren't
+    // INVESTIGATE!!!
+
     readexec_opername();
     s16 cx = alis.varD7;
     readexec_opername();
     s16 cy = alis.varD7;
     readexec_opername();
     s16 cz = alis.varD7;
+
+//    s16 cx = 0x19e0;
+//    s16 cy = 0x560;
+//    s16 cz = 0x5;
     
     s16 oldcx = xread16(alis.script->vram_org + ALIS_SCR_WCX);
     s16 oldcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
