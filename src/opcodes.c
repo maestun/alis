@@ -303,7 +303,7 @@ s32 io_malloc(s32 rawsize);
 void io_mfree(s32 addr);
 
 // ============================================================================
-#pragma mark - Opcodes / Codops (Code-ops) routines
+#pragma mark - Opcode / Codop (Code-op) routines
 // ============================================================================
 
 // Codopname no. 031 opcode 0x1e cstore
@@ -6457,7 +6457,7 @@ void io_mfree(s32 addr)
 }
 
 // ============================================================================
-#pragma mark - Opcodes / Codop (Code-op) pointer table (256 values)
+#pragma mark - Opcode / Codop (Code-op) routines pointer table (256 values)
 // ============================================================================
 sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x00, cnul,         "null"),
