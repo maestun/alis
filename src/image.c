@@ -1044,6 +1044,10 @@ void put_char(s8 character)
 
 void put_string(void)
 {
+    if(DEBUG_SCRIPT) {
+       debug(EDebugInfo, " [\"%s\"]", alis.sd7);
+    }
+
     for (char *strptr = alis.sd7; *strptr; strptr++)
     {
         put_char(*strptr);
