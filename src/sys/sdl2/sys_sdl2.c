@@ -63,6 +63,7 @@ float           _scaleY;
 u32             _width = 320;
 u32             _height = 200;
 
+int             _audio_id;
 SDL_AudioSpec   *_audio_spec;
 PSG             *_psg;
 
@@ -87,7 +88,7 @@ void sys_init(sPlatform *pl, int fullscreen) {
     _scaleX = _scale;
     _scaleY = _scale * _aspect_ratio;
     
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
     _timerID = SDL_AddTimer(20, itroutine, NULL);
     _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE | fullscreen * SDL_WINDOW_FULLSCREEN_DESKTOP);
     _renderer = SDL_CreateRenderer(_window, -1, 0);
@@ -104,23 +105,25 @@ void sys_init(sPlatform *pl, int fullscreen) {
     _cursor = NULL;
     _update_cursor = 0;
     
+    _audio_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
+
     SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
 
     SDL_zero(*desired_spec);
     desired_spec->freq = 44100;
-    desired_spec->format = AUDIO_U16;
+    desired_spec->format = AUDIO_S16;
     desired_spec->channels = 1;
     desired_spec->samples = desired_spec->freq / 50; // 20 ms
     desired_spec->callback = sys_audio_callback;
     desired_spec->userdata = NULL;
+    desired_spec->size = desired_spec->samples * 2;
     
-    _audio_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
-    if (SDL_OpenAudio(desired_spec, _audio_spec) < 0 )
+    if ((_audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, _audio_spec, 0)) <= 0 )
     {
-        printf("Couldn't open audio: %s ", SDL_GetError());
-        exit(-1);
+      fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError());
+      exit(-1);
     }
-
+    
     free(desired_spec);
     
     _psg = PSG_new(3579545, _audio_spec->freq);
@@ -132,7 +135,7 @@ void sys_init(sPlatform *pl, int fullscreen) {
     isr_step = (double)50.0 / (double)(_audio_spec->freq);
     isr_counter = 1;
 
-    SDL_PauseAudio(0);
+    SDL_PauseAudioDevice(_audio_id, 0);
 }
 
 
@@ -423,9 +426,12 @@ void sys_render(pixelbuf_t buffer) {
 
 void sys_deinit(void) {
     
-    SDL_PauseAudio(1);
+    SDL_PauseAudioDevice(_audio_id, 1);
+    SDL_CloseAudioDevice(_audio_id);
 
     free(_audio_spec);
+    
+    PSG_delete(_psg);
 
     SDL_RemoveTimer(_timerID);
 //   SDL_DestroyTexture(texture);
