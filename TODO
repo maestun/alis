@@ -114,6 +114,7 @@ Ishar I
 + 2024-02-19: 2024-06-19: BG music plays after every second map segment load
 - 2024-06-26: DOS: screen corrupted after hitting 'cscmov()'
     (setting xyz 0, ot not setting it at all seams to solve the issue)
+- 2024-10-05: AMIGA/AGA: wrong palette in language selection menu. Github Issue #23.
 x 2024-02-14: Game bug: when entering load name, previous name is not cleared. So if we load 12345.sav and than try to load abc.sav it fail, because game attempt to load abc45.sav.
 
 #############################################
