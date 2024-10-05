@@ -123,6 +123,16 @@ void sys_init(sPlatform *pl, int fullscreen) {
       fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError());
       exit(-1);
     }
+
+    // Extended information on obtained audio for tests and reports
+    printf("Opened audio device id %d successfully:\n", _audio_id);
+    printf("    Frequency:  %d\n", _audio_spec->freq);
+    printf("    Format:     0x%04x => %d bits per sample\n", _audio_spec->format, (int) SDL_AUDIO_BITSIZE(_audio_spec->format));
+    printf("    Channels:   %d\n", _audio_spec->channels);
+    printf("    Samples:    %d\n", _audio_spec->samples);
+    printf("    Silence:    %d\n", _audio_spec->silence);
+    printf("    Padding:    %d\n", _audio_spec->padding);
+    printf("    Size:       %d\n", _audio_spec->size);
     
     free(desired_spec);
     
