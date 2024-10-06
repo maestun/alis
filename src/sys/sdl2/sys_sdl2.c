@@ -31,7 +31,7 @@
 #include "utils.h"
 
 #include "emu2149.h"
-
+#include "math.h"
 
 // 0 No interpolation
 // 1 cubic
