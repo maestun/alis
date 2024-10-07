@@ -159,7 +159,7 @@ void topalette(u8 *paldata, s32 duration)
         u8 *palptr = &paldata[2];
 
         s16 to = 0;
-        if (alis.platform.kind == EPlatformAmiga)
+        if (alis.platform.kind == EPlatformAmiga || alis.platform.kind == EPlatformAmigaAGA)
         {
             for (s32 i = 0; i < 16; i++)
             {

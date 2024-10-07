@@ -2067,7 +2067,7 @@ static void cdefcolor(void) {
     u8 *rawcolor = (u8 *)&(alis.varD6);
     
     u8 r, g, b;
-    if (alis.platform.kind == EPlatformAmiga)
+    if (alis.platform.kind == EPlatformAmiga || alis.platform.kind == EPlatformAmigaAGA)
     {
         r = (rawcolor[1] & 0b00001111) << 4;
         g = (rawcolor[0] >> 4) << 4;
