@@ -5978,8 +5978,6 @@ static void cret(void) {
         {
             set_0x0c_vacc_offset(alis.script->vram_org, 0);
         }
-        
-        printf("\nNEW A3: %.6x\n", alis.script->pc_org + xpeek32());
 
         if (alis.script->vacc_off >= -0x34)
         {
@@ -5998,7 +5996,6 @@ static void cjsr(s32 offset) {
     // TODO: peut-on stocker une adresse de retour *virtuelle* ?
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
-    printf("\nOLD A3: %.6x\n", alis.script->pc);
     xpush32((u32)(alis.script->pc - alis.script->pc_org));
     script_jump(offset);
 }
@@ -6410,7 +6407,6 @@ static void cstart(s32 offset) {
     {
         if (get_0x0c_vacc_offset(alis.script->vram_org) == 0)
         {
-            printf("\nOLD A3: %.6x\n", alis.script->pc);
             xpush32((u32)(alis.script->pc - alis.script->pc_org));
             set_0x0c_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
         }
@@ -6419,7 +6415,7 @@ static void cstart(s32 offset) {
             alis.script->vacc_off = get_0x0c_vacc_offset(alis.script->vram_org);
         }
 
-        alis.script->pc_org += offset;
+        alis.script->pc += offset;
     }
 }
 
