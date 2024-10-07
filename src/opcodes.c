@@ -279,7 +279,9 @@ s16 px2;
 s16 py2;
 s16 pz2;
 
-#pragma mark - additions
+// ============================================================================
+#pragma mark - Additions
+// ============================================================================
 
 void clivin(void);
 void shrinkprog(s32 start, s32 length, u16 script_id);
@@ -301,7 +303,7 @@ s32 io_malloc(s32 rawsize);
 void io_mfree(s32 addr);
 
 // ============================================================================
-#pragma mark - Opcodes
+#pragma mark - Opcode / Codop (Code-op) routines
 // ============================================================================
 
 // Codopname no. 031 opcode 0x1e cstore
@@ -441,6 +443,16 @@ static void cloop(s32 offset) {
     if(!alis.sr.zero)
     {
         alis.script->pc = save_loop_pc;
+        
+        if(DEBUG_SCRIPT) {
+             if (offset<0) {
+                 debug(EDebugInfo, " [loop jmp up -0x%06x]", abs(offset));
+             }
+             else {
+                 debug(EDebugInfo, " [loop jmp dn +0x%06x]", offset);
+             }
+           }
+
         script_jump(offset);
     }
 }
@@ -3364,6 +3376,10 @@ void printd0(s16 d0w)
     char *ptr = alis.sd7;
     valtostr(alis.sd7, d0w);
     
+    if(DEBUG_SCRIPT) {
+       debug(EDebugInfo, " [\"%s\"]", alis.sd7);
+    }
+    
     while (*ptr != 0)
     {
         put_char(*ptr++);
@@ -5722,18 +5738,48 @@ static void cjsr(s32 offset) {
 static void cjsr8(void) {
     // read byte, extend sign
     s16 offset = (s8)script_read8();
+    
+    if(DEBUG_SCRIPT) {
+         if (offset<0) {
+             debug(EDebugInfo, " [jmpr up -0x%02x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [jmpr dn +0x%02x]", offset);
+         }
+       }
+
     cjsr(offset);
 }
 
 // Codopname no. 007 opcode 0x06 cjsr16
 static void cjsr16(void) {
     s16 offset = script_read16();
+    
+    if(DEBUG_SCRIPT) {
+         if (offset<0) {
+             debug(EDebugInfo, " [jmpr up -0x%04x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [jmpr dn +0x%04x]", offset);
+         }
+       }
+
     cjsr(offset);
 }
 
 // Codopname no. 008 opcode 0x07 cjsr24
 static void cjsr24(void) {
     s32 offset = script_read24();
+
+    if(DEBUG_SCRIPT) {
+         if (offset<0) {
+             debug(EDebugInfo, " [jmpr up -0x%06x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [jmpr dn +0x%06x]", offset);
+         }
+       }
+
     cjsr(offset);
 }
 
@@ -5745,18 +5791,48 @@ static void cjsr24(void) {
 // Codopname no. 009 opcode 0x08 cjmp8
 static void cjmp8(void) {
     s16 offset = (s8)script_read8();
+
+    if(DEBUG_SCRIPT) {
+         if (offset<0) {
+             debug(EDebugInfo, " [jmp up -0x%02x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [jmp dn +0x%02x]", offset);
+         }
+       }
+
     script_jump(offset);
 }
 
 // Codopname no. 010 opcode 0x09 cjmp16
 static void cjmp16(void) {
     s16 offset = script_read16();
+
+    if(DEBUG_SCRIPT) {
+         if (offset<0) {
+             debug(EDebugInfo, " [jmp up -0x%04x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [jmp dn +0x%04x]", offset);
+         }
+       }
+
     script_jump(offset);
 }
 
 // Codopname no. 011 opcode 0x0a cjmp24
 static void cjmp24(void) {
     s32 offset = script_read24();
+
+    if(DEBUG_SCRIPT) {
+         if (offset<0) {
+             debug(EDebugInfo, " [jmp up -0x%06x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [jmp dn +0x%06x]", offset);
+         }
+       }
+
     script_jump(offset);
 }
 
@@ -5768,18 +5844,63 @@ static void cjmp24(void) {
 // Codopname no. 019 opcode 0x12 cbz8
 static void cbz8(void) {
     s16 offset = alis.varD7 ? 1 : (s8)script_read8();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 != 0) {
+           debug(EDebugInfo, " [d7<>0 => no jmp +1]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7==0 => jmp up -0x%02x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7==0 => jmp dn +0x%02x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 020 opcode 0x13 cbz16
 static void cbz16(void) {
     s16 offset = alis.varD7 ? 2 : script_read16();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 != 0) {
+           debug(EDebugInfo, " [d7<>0 => no jmp +2]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7==0 => jmp up -0x%04x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7==0 => jmp dn +0x%04x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 021 opcode 0x14 cbz24
 static void cbz24(void) {
     s32 offset = alis.varD7 ? 3 : script_read24();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 != 0) {
+           debug(EDebugInfo, " [d7<>0 => no jmp +3]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7==0 => jmp up -0x%06x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7==0 => jmp dn +0x%06x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
@@ -5791,18 +5912,63 @@ static void cbz24(void) {
 // Codopname no. 022 opcode 0x15 cbnz8
 static void cbnz8(void) {
     s16 offset = alis.varD7 == 0 ? 1 : (s8)script_read8();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 == 0) {
+           debug(EDebugInfo, " [d7==0 => no jmp +1]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7<>0 => jmp up -0x%02x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7<>0 => jmp dn +0x%02x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 023 opcode 0x16 cbnz16
 static void cbnz16(void) {
     s16 offset = alis.varD7 == 0 ? 2 : script_read16();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 == 0) {
+           debug(EDebugInfo, " [d7==0 => no jmp +2]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7<>0 => jmp up -0x%04x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7<>0 => jmp dn +0x%04x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 024 opcode 0x17 cbnz24
 static void cbnz24(void) {
     s32 offset = alis.varD7 == 0 ? 3 : script_read24();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 == 0) {
+           debug(EDebugInfo, " [d7==0 => no jmp +3]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7<>0 => jmp up -0x%06x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7<>0 => jmp dn +0x%06x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
@@ -5814,18 +5980,63 @@ static void cbnz24(void) {
 // Codopname no. 025 opcode 0x18 cbeq8
 static void cbeq8(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 1 : (s8)script_read8();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 == alis.varD6) {
+           debug(EDebugInfo, " [d7==d6 => no jmp +1]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7<>d6 => jmp up -0x%02x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7<>d6 => jmp dn +0x%02x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 026 opcode 0x19 cbeq16
 static void cbeq16(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 2 : script_read16();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 == alis.varD6) {
+           debug(EDebugInfo, " [d7==d6 => no jmp +2]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7<>d6 => jmp up -0x%04x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7<>d6 => jmp dn +0x%04x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 027 opcode 0x1a cbeq24
 static void cbeq24(void) {
     s32 offset = alis.varD7 == alis.varD6 ? 3 : script_read24();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 == alis.varD6) {
+           debug(EDebugInfo, " [d7==d6 => no jmp +3]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7<>d6 => jmp up -0x%06x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7<>d6 => jmp dn +0x%06x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
@@ -5837,18 +6048,63 @@ static void cbeq24(void) {
 // Codopname no. 028 opcode 0x1b cbne8
 static void cbne8(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 1 : (s8)script_read8();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 != alis.varD6) {
+           debug(EDebugInfo, " [d7<>d6 => no jmp +1]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7==d6 => jmp up -0x%02x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7==d6 => jmp dn +0x%02x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 029 opcode 0x1c cbne16
 static void cbne16(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 2 : script_read16();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 != alis.varD6) {
+           debug(EDebugInfo, " [d7<>d6 => no jmp +2]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7==d6 => jmp up -0x%04x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7==d6 => jmp dn +0x%04x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
 // Codopname no. 030 opcode 0x1d cbne24
 static void cbne24(void) {
     s32 offset = alis.varD7 != alis.varD6 ? 3 : script_read24();
+
+    if(DEBUG_SCRIPT) {
+       if (alis.varD7 != alis.varD6) {
+           debug(EDebugInfo, " [d7<>d6 => no jmp +3]");
+       }
+       else {
+         if (offset<0) {
+             debug(EDebugInfo, " [d7==d6 => jmp up -0x%06x]", abs(offset));
+         }
+         else {
+             debug(EDebugInfo, " [d7==d6 => jmp dn +0x%06x]", offset);
+         }
+       }
+    }
+
     script_jump(offset);
 }
 
@@ -5913,268 +6169,9 @@ static void cstart24(void) {
     cstart(script_read24());
 }
 
-
 // ============================================================================
-#pragma mark - Opcode pointer table (256 values)
+#pragma mark - Additions
 // ============================================================================
-sAlisOpcode opcodes[] = {
-    DECL_OPCODE(0x00, cnul,         "TODO: add desc"),
-    DECL_OPCODE(0x01, cesc1,        "TODO: add desc"),
-    DECL_OPCODE(0x02, cesc2,        "TODO: add desc"),
-    DECL_OPCODE(0x03, cesc3,        "TODO: add desc"),
-    DECL_OPCODE(0x04, cbreakpt,     "TODO: add desc"),
-    DECL_OPCODE(0x05, cjsr8,        "jump to sub-routine with 8-bit offset"),
-    DECL_OPCODE(0x06, cjsr16,       "jump to sub-routine with 16-bit offset"),
-    DECL_OPCODE(0x07, cjsr24,       "jump to sub-routine with 24-bit offset"),
-    DECL_OPCODE(0x08, cjmp8,        "jump (8-bit offset)"),
-    DECL_OPCODE(0x09, cjmp16,       "jump (16-bit offset)"),
-    DECL_OPCODE(0x0a, cjmp24,       "jump (24-bit offset)"),
-    DECL_OPCODE(0x0b, cjsrabs,      "[N/I] jump to sub-routine w/ absolute addr"),
-    DECL_OPCODE(0x0c, cjmpabs,      "[N/I] jump to absolute addr"),
-    DECL_OPCODE(0x0d, cjsrind16,    "[N/I] jump to sub-routine w/ indirect (16-bit offset)"),
-    DECL_OPCODE(0x0e, cjsrind24,    "[N/I] jump to sub-routine w/ indirect (24-bit offset)"),
-    DECL_OPCODE(0x0f, cjmpind16,    "[N/I] jump w/ indirect (16-bit offset)"),
-    DECL_OPCODE(0x10, cjmpind24,    "[N/I] jump w/ indirect (24-bit offset)"),
-    DECL_OPCODE(0x11, cret,         "return from sub-routine"),
-    DECL_OPCODE(0x12, cbz8,         "branch if zero with 8-bit offset"),
-    DECL_OPCODE(0x13, cbz16,        "branch if zero with 16-bit offset"),
-    DECL_OPCODE(0x14, cbz24,        "branch if zero with 24-bit offset"),
-    DECL_OPCODE(0x15, cbnz8,        "branch if non-zero with 8-bit offset"),
-    DECL_OPCODE(0x16, cbnz16,       "branch if non-zero with 16-bit offset"),
-    DECL_OPCODE(0x17, cbnz24,       "branch if non-zero with 24-bit offset"),
-    DECL_OPCODE(0x18, cbeq8,        "branch if equal with 8-bit offset"),
-    DECL_OPCODE(0x19, cbeq16,       "branch if equal with 16-bit offset"),
-    DECL_OPCODE(0x1a, cbeq24,       "branch if equal with 24-bit offset"),
-    DECL_OPCODE(0x1b, cbne8,        "branch if non-equal with 8-bit offset"),
-    DECL_OPCODE(0x1c, cbne16,       "branch if non-equal with 16-bit offset"),
-    DECL_OPCODE(0x1d, cbne24,       "branch if non-equal with 24-bit offset"),
-    DECL_OPCODE(0x1e, cstore,       "store expression"),
-    DECL_OPCODE(0x1f, ceval,        "start expression evaluation"),
-    DECL_OPCODE(0x20, cadd, "TODO: add desc"),
-    DECL_OPCODE(0x21, csub, "TODO: add desc"),
-    DECL_OPCODE(0x22, cmul,         "[N/I]"),
-    DECL_OPCODE(0x23, cdiv,         "[N/I]"),
-    DECL_OPCODE(0x24, cvprint, "TODO: add desc"),
-    DECL_OPCODE(0x25, csprinti, "TODO: add desc"),
-    DECL_OPCODE(0x26, csprinta, "TODO: add desc"),
-    DECL_OPCODE(0x27, clocate, "TODO: add desc"),
-    DECL_OPCODE(0x28, ctab, "TODO: add desc"),
-    DECL_OPCODE(0x29, cdim,         "TODO: add desc"),
-    DECL_OPCODE(0x2a, crandom,      "generate a random number"),
-    DECL_OPCODE(0x2b, cloop8, "TODO: add desc"),
-    DECL_OPCODE(0x2c, cloop16, "TODO: add desc"),
-    DECL_OPCODE(0x2d, cloop24, "TODO: add desc"),
-    DECL_OPCODE(0x2e, cswitch1, "TODO: add desc"),
-    DECL_OPCODE(0x2f, cswitch2, "TODO: add desc"),
-    DECL_OPCODE(0x30, cstart8, "TODO: add desc"),
-    DECL_OPCODE(0x31, cstart16, "TODO: add desc"),
-    DECL_OPCODE(0x32, cstart24, "TODO: add desc"),
-    DECL_OPCODE(0x33, cleave, "TODO: add desc"),
-    DECL_OPCODE(0x34, cprotect, "TODO: add desc"),
-    DECL_OPCODE(0x35, casleep, "TODO: add desc"),
-    DECL_OPCODE(0x36, cclock, "TODO: add desc"),
-    DECL_OPCODE(0x37, cnul, "TODO: add desc"),
-    DECL_OPCODE(0x38, cscmov, "TODO: add desc"),
-    DECL_OPCODE(0x39, cscset, "TODO: add desc"),
-    DECL_OPCODE(0x3a, cclipping, "TODO: add desc"),
-    DECL_OPCODE(0x3b, cswitching, "TODO: add desc"),
-    DECL_OPCODE(0x3c, cwlive, "TODO: add desc"),
-    DECL_OPCODE(0x3d, cunload, "TODO: add desc"),
-    DECL_OPCODE(0x3e, cwakeup, "TODO: add desc"),
-    DECL_OPCODE(0x3f, csleep, "TODO: add desc"),
-    DECL_OPCODE(0x40, clive, "TODO: add desc"),
-    DECL_OPCODE(0x41, ckill, "TODO: add desc"),
-    DECL_OPCODE(0x42, cstop, "TODO: add desc"),
-    DECL_OPCODE(0x43, cstopret, "TODO: add desc"),
-    DECL_OPCODE(0x44, cexit, "TODO: add desc"),
-    DECL_OPCODE(0x45, cload,        "Load and depack a script, set into vm"),
-    DECL_OPCODE(0x46, cdefsc,       "Define Scene ??"),
-    DECL_OPCODE(0x47, cscreen, "TODO: add desc"),
-    DECL_OPCODE(0x48, cput, "TODO: add desc"),
-    DECL_OPCODE(0x49, cputnat, "TODO: add desc"),
-    DECL_OPCODE(0x4a, cerase, "TODO: add desc"),
-    DECL_OPCODE(0x4b, cerasen, "TODO: add desc"),
-    DECL_OPCODE(0x4c, cset,         "TODO: add desc"),
-    DECL_OPCODE(0x4d, cmov, "TODO: add desc"),
-    DECL_OPCODE(0x4e, copensc, "TODO: add desc"),
-    DECL_OPCODE(0x4f, cclosesc, "TODO: add desc"),
-    DECL_OPCODE(0x50, cerasall, "TODO: add desc"),
-    DECL_OPCODE(0x51, cforme, "TODO: add desc"),
-    DECL_OPCODE(0x52, cdelforme, "TODO: add desc"),
-    DECL_OPCODE(0x53, ctstmov, "TODO: add desc"),
-    DECL_OPCODE(0x54, ctstset, "TODO: add desc"),
-    DECL_OPCODE(0x55, cftstmov, "TODO: add desc"),
-    DECL_OPCODE(0x56, cftstset, "TODO: add desc"),
-    DECL_OPCODE(0x57, csuccent, "TODO: add desc"),
-    DECL_OPCODE(0x58, cpredent, "TODO: add desc"),
-    DECL_OPCODE(0x59, cnearent, "TODO: add desc"),
-    DECL_OPCODE(0x5a, cneartyp, "TODO: add desc"),
-    DECL_OPCODE(0x5b, cnearmat, "TODO: add desc"),
-    DECL_OPCODE(0x5c, cviewent, "TODO: add desc"),
-    DECL_OPCODE(0x5d, cviewtyp, "TODO: add desc"),
-    DECL_OPCODE(0x5e, cviewmat, "TODO: add desc"),
-    DECL_OPCODE(0x5f, corient, "TODO: add desc"),
-    DECL_OPCODE(0x60, crstent, "TODO: add desc"),
-    DECL_OPCODE(0x61, csend, "TODO: add desc"),
-    DECL_OPCODE(0x62, cscanon, "TODO: add desc"),
-    DECL_OPCODE(0x63, cscanoff, "TODO: add desc"),
-    DECL_OPCODE(0x64, cinteron, "TODO: add desc"),
-    DECL_OPCODE(0x65, cinteroff, "TODO: add desc"),
-    DECL_OPCODE(0x66, cscanclr, "TODO: add desc"),
-    DECL_OPCODE(0x67, callentity, "TODO: add desc"),
-    DECL_OPCODE(0x68, cpalette, "TODO: add desc"),
-    DECL_OPCODE(0x69, cdefcolor, "TODO: add desc"),
-    DECL_OPCODE(0x6a, ctiming, "TODO: add desc"),
-    DECL_OPCODE(0x6b, czap, "TODO: add desc"),
-    DECL_OPCODE(0x6c, cexplode, "TODO: add desc"),
-    DECL_OPCODE(0x6d, cding, "TODO: add desc"),
-    DECL_OPCODE(0x6e, cnoise, "TODO: add desc"),
-    DECL_OPCODE(0x6f, cinitab, "TODO: add desc"),
-    DECL_OPCODE(0x70, cfopen, "TODO: add desc"),
-    DECL_OPCODE(0x71, cfclose, "TODO: add desc"),
-    DECL_OPCODE(0x72, cfcreat, "TODO: add desc"),
-    DECL_OPCODE(0x73, cfdel, "TODO: add desc"),
-    DECL_OPCODE(0x74, cfreadv, "TODO: add desc"),
-    DECL_OPCODE(0x75, cfwritev, "TODO: add desc"),
-    DECL_OPCODE(0x76, cfwritei, "TODO: add desc"),
-    DECL_OPCODE(0x77, cfreadb, "TODO: add desc"),
-    DECL_OPCODE(0x78, cfwriteb, "TODO: add desc"),
-    DECL_OPCODE(0x79, cplot, "TODO: add desc"),
-    DECL_OPCODE(0x7a, cdraw, "TODO: add desc"),
-    DECL_OPCODE(0x7b, cbox, "TODO: add desc"),
-    DECL_OPCODE(0x7c, cboxf, "TODO: add desc"),
-    DECL_OPCODE(0x7d, cink, "TODO: add desc"),
-    DECL_OPCODE(0x7e, cpset, "TODO: add desc"),
-    DECL_OPCODE(0x7f, cpmove, "TODO: add desc"),
-    DECL_OPCODE(0x80, cpmode, "TODO: add desc"),
-    DECL_OPCODE(0x81, cpicture, "TODO: add desc"),
-    DECL_OPCODE(0x82, cxyscroll, "TODO: add desc"),
-    DECL_OPCODE(0x83, clinking, "TODO: add desc"),
-    DECL_OPCODE(0x84, cmouson,      "display mouse cursor"),
-    DECL_OPCODE(0x85, cmousoff,     "hide mouse cursor"),
-    DECL_OPCODE(0x86, cmouse,       "get mouse status (x, y, buttons) and store"),
-    DECL_OPCODE(0x87, cdefmouse,    "TODO: define mouse sprite ???"),
-    DECL_OPCODE(0x88, csetmouse,    "set mouse position"),
-    DECL_OPCODE(0x89, cdefvect, "TODO: add desc"),
-    DECL_OPCODE(0x8a, csetvect, "TODO: add desc"),
-    DECL_OPCODE(0x8b, cnul,         "[N/I]"),
-    DECL_OPCODE(0x8c, capproach, "TODO: add desc"),
-    DECL_OPCODE(0x8d, cescape, "TODO: add desc"),
-    DECL_OPCODE(0x8e, cvtstmov, "TODO: add desc"),
-    DECL_OPCODE(0x8f, cvftstmov, "TODO: add desc"),
-    DECL_OPCODE(0x90, cvmov, "TODO: add desc"),
-    DECL_OPCODE(0x91, cdefworld, "TODO: add desc"),
-    DECL_OPCODE(0x92, cworld, "TODO: add desc"),
-    DECL_OPCODE(0x93, cfindmat, "TODO: add desc"),
-    DECL_OPCODE(0x94, cfindtyp, "TODO: add desc"),
-    DECL_OPCODE(0x95, cmusic, "TODO: add desc"),
-    DECL_OPCODE(0x96, cdelmusic, "TODO: add desc"),
-    DECL_OPCODE(0x97, ccadence, "TODO: add desc"),
-    DECL_OPCODE(0x98, csetvolum, "TODO: add desc"),
-    DECL_OPCODE(0x99, cxinv, "TODO: add desc"),
-    DECL_OPCODE(0x9a, cxinvon, "TODO: add desc"),
-    DECL_OPCODE(0x9b, cxinvoff, "TODO: add desc"),
-    DECL_OPCODE(0x9c, clistent, "TODO: add desc"),
-    DECL_OPCODE(0x9d, csound, "TODO: add desc"),
-    DECL_OPCODE(0x9e, cmsound, "TODO: add desc"),
-    DECL_OPCODE(0x9f, credon, "TODO: add desc"),
-    DECL_OPCODE(0xa0, credoff, "TODO: add desc"),
-    DECL_OPCODE(0xa1, cdelsound, "TODO: add desc"),
-    DECL_OPCODE(0xa2, cwmov, "TODO: add desc"),
-    DECL_OPCODE(0xa3, cwtstmov, "TODO: add desc"),
-    DECL_OPCODE(0xa4, cwftstmov, "TODO: add desc"),
-    DECL_OPCODE(0xa5, ctstform, "TODO: add desc"),
-    DECL_OPCODE(0xa6, cxput, "TODO: add desc"),
-    DECL_OPCODE(0xa7, cxputat, "TODO: add desc"),
-    DECL_OPCODE(0xa8, cmput, "TODO: add desc"),
-    DECL_OPCODE(0xa9, cmputat, "TODO: add desc"),
-    DECL_OPCODE(0xaa, cmxput, "TODO: add desc"),
-    DECL_OPCODE(0xab, cmxputat, "TODO: add desc"),
-    DECL_OPCODE(0xac, cmmusic, "TODO: add desc"),
-    DECL_OPCODE(0xad, cmforme, "TODO: add desc"),
-    DECL_OPCODE(0xae, csettime,     "set current time"),
-    DECL_OPCODE(0xaf, cgettime,     "get current time"),
-    DECL_OPCODE(0xb0, cvinput, "TODO: add desc"),
-    DECL_OPCODE(0xb1, csinput, "TODO: add desc"),
-    DECL_OPCODE(0xb2, casleepfar, "TODO: add desc"),
-    DECL_OPCODE(0xb3, casleepon, "TODO: add desc"),
-    DECL_OPCODE(0xb4, casleepoff, "TODO: add desc"),
-    DECL_OPCODE(0xb5, crunfilm, "TODO: add desc"),
-    DECL_OPCODE(0xb6, cvpicprint, "TODO: add desc"),
-    DECL_OPCODE(0xb7, cspicprint, "TODO: add desc"),
-    DECL_OPCODE(0xb8, cvputprint, "TODO: add desc"),
-    DECL_OPCODE(0xb9, csputprint, "TODO: add desc"),
-    DECL_OPCODE(0xba, cfont, "TODO: add desc"),
-    DECL_OPCODE(0xbb, cpaper, "TODO: add desc"),
-    DECL_OPCODE(0xbc, ctoblack,     "fade-out screen to black"),
-    DECL_OPCODE(0xbd, cmovcolor, "TODO: add desc"),
-    DECL_OPCODE(0xbe, ctopalet,     "fade-in screen to palette"),
-    DECL_OPCODE(0xbf, cnumput, "TODO: add desc"),
-    DECL_OPCODE(0xc0, cscheart, "TODO: add desc"),
-    DECL_OPCODE(0xc1, cscpos, "TODO: add desc"),
-    DECL_OPCODE(0xc2, cscsize, "TODO: add desc"),
-    DECL_OPCODE(0xc3, cschoriz, "TODO: add desc"),
-    DECL_OPCODE(0xc4, cscvertic, "TODO: add desc"),
-    DECL_OPCODE(0xc5, cscreduce, "TODO: add desc"),
-    DECL_OPCODE(0xc6, cscscale, "TODO: add desc"),
-    DECL_OPCODE(0xc7, creducing, "TODO: add desc"),
-    DECL_OPCODE(0xc8, cscmap, "TODO: add desc"),
-    DECL_OPCODE(0xc9, cscdump, "TODO: add desc"),
-    DECL_OPCODE(0xca, cfindcla, "TODO: add desc"),
-    DECL_OPCODE(0xcb, cnearcla, "TODO: add desc"),
-    DECL_OPCODE(0xcc, cviewcla, "TODO: add desc"),
-    DECL_OPCODE(0xcd, cinstru, "TODO: add desc"),
-    DECL_OPCODE(0xce, cminstru, "TODO: add desc"),
-    DECL_OPCODE(0xcf, cordspr, "TODO: add desc"),
-    DECL_OPCODE(0xd0, calign, "TODO: add desc"),
-    DECL_OPCODE(0xd1, cbackstar, "TODO: add desc"),
-    DECL_OPCODE(0xd2, cstarring, "TODO: add desc"),
-    DECL_OPCODE(0xd3, cengine, "TODO: add desc"),
-    DECL_OPCODE(0xd4, cautobase, "TODO: add desc"),
-    DECL_OPCODE(0xd5, cquality, "TODO: add desc"),
-    DECL_OPCODE(0xd6, chsprite, "TODO: add desc"),
-    DECL_OPCODE(0xd7, cselpalet, "TODO: add desc"),
-    DECL_OPCODE(0xd8, clinepalet, "TODO: add desc"),
-    DECL_OPCODE(0xd9, cautomode, "TODO: add desc"),
-    DECL_OPCODE(0xda, cautofile, "TODO: add desc"),
-    DECL_OPCODE(0xdb, ccancel, "TODO: add desc"),
-    DECL_OPCODE(0xdc, ccancall, "TODO: add desc"),
-    DECL_OPCODE(0xdd, ccancen, "TODO: add desc"),
-    DECL_OPCODE(0xde, cblast, "TODO: add desc"),
-    DECL_OPCODE(0xdf, cscback, "TODO: add desc"),
-    DECL_OPCODE(0xe0, cscrolpage, "TODO: add desc"),
-    DECL_OPCODE(0xe1, cmatent, "TODO: add desc"),
-    DECL_OPCODE(0xe2, cshrink, "Delete bitmap and shift following data"),
-    DECL_OPCODE(0xe3, cdefmap, "TODO: add desc"),
-    DECL_OPCODE(0xe4, csetmap, "TODO: add desc"),
-    DECL_OPCODE(0xe5, cputmap, "TODO: add desc"),
-    DECL_OPCODE(0xe6, csavepal, "TODO: add desc"),
-    DECL_OPCODE(0xe7, csczoom, "TODO: add desc"),
-    DECL_OPCODE(0xe8, ctexmap, "TODO: add desc"),
-    DECL_OPCODE(0xe9, calloctab, "TODO: add desc"),
-    DECL_OPCODE(0xea, cfreetab, "TODO: add desc"),
-    DECL_OPCODE(0xeb, cscantab, "TODO: add desc"),
-    DECL_OPCODE(0xec, cneartab, "TODO: add desc"),
-    DECL_OPCODE(0xed, cscsun, "TODO: add desc"),
-    DECL_OPCODE(0xee, cdarkpal, "TODO: add desc"),
-    DECL_OPCODE(0xef, cscdark, "TODO: add desc"),
-    DECL_OPCODE(0xf0, caset, "TODO: add desc"),
-    DECL_OPCODE(0xf1, camov, "TODO: add desc"),
-    DECL_OPCODE(0xf2, cscaset, "TODO: add desc"),
-    DECL_OPCODE(0xf3, cscamov, "TODO: add desc"),
-    DECL_OPCODE(0xf4, cscfollow, "TODO: add desc"),
-    DECL_OPCODE(0xf5, cscview, "TODO: add desc"),
-    DECL_OPCODE(0xf6, cfilm, "TODO: add desc"),
-    DECL_OPCODE(0xf7, cwalkmap, "TODO: add desc"),
-    DECL_OPCODE(0xf8, catstmap, "TODO: add desc"),
-    DECL_OPCODE(0xf9, cavtstmov, "TODO: add desc"),
-    DECL_OPCODE(0xfa, cavmov, "TODO: add desc"),
-    DECL_OPCODE(0xfb, caim, "TODO: add desc"),
-    DECL_OPCODE(0xfc, cpointpix, "TODO: add desc"),
-    DECL_OPCODE(0xfd, cchartmap, "TODO: add desc"),
-    DECL_OPCODE(0xfe, cscsky, "TODO: add desc"),
-    DECL_OPCODE(0xff, czoom, "TODO: add desc")
-};
 
 void killent(u16 killent)
 {
@@ -6458,3 +6455,265 @@ void io_mfree(s32 addr)
         alis.finmem += xread32(alis.finmem);
     }
 }
+
+// ============================================================================
+#pragma mark - Opcode / Codop (Code-op) routines pointer table (256 values)
+// ============================================================================
+sAlisOpcode opcodes[] = {
+    DECL_OPCODE(0x00, cnul,         "null"),
+    DECL_OPCODE(0x01, cesc1,        "TODO: add desc"),
+    DECL_OPCODE(0x02, cesc2,        "TODO: add desc"),
+    DECL_OPCODE(0x03, cesc3,        "TODO: add desc"),
+    DECL_OPCODE(0x04, cbreakpt,     "TODO: add desc"),
+    DECL_OPCODE(0x05, cjsr8,        "jump to sub-routine with 8-bit offset"),
+    DECL_OPCODE(0x06, cjsr16,       "jump to sub-routine with 16-bit offset"),
+    DECL_OPCODE(0x07, cjsr24,       "jump to sub-routine with 24-bit offset"),
+    DECL_OPCODE(0x08, cjmp8,        "jump (8-bit offset)"),
+    DECL_OPCODE(0x09, cjmp16,       "jump (16-bit offset)"),
+    DECL_OPCODE(0x0a, cjmp24,       "jump (24-bit offset)"),
+    DECL_OPCODE(0x0b, cjsrabs,      "[N/I] jump to sub-routine w/ absolute addr"),
+    DECL_OPCODE(0x0c, cjmpabs,      "[N/I] jump to absolute addr"),
+    DECL_OPCODE(0x0d, cjsrind16,    "[N/I] jump to sub-routine w/ indirect (16-bit offset)"),
+    DECL_OPCODE(0x0e, cjsrind24,    "[N/I] jump to sub-routine w/ indirect (24-bit offset)"),
+    DECL_OPCODE(0x0f, cjmpind16,    "[N/I] jump w/ indirect (16-bit offset)"),
+    DECL_OPCODE(0x10, cjmpind24,    "[N/I] jump w/ indirect (24-bit offset)"),
+    DECL_OPCODE(0x11, cret,         "return from sub-routine"),
+    DECL_OPCODE(0x12, cbz8,         "branch if zero with 8-bit offset"),
+    DECL_OPCODE(0x13, cbz16,        "branch if zero with 16-bit offset"),
+    DECL_OPCODE(0x14, cbz24,        "branch if zero with 24-bit offset"),
+    DECL_OPCODE(0x15, cbnz8,        "branch if non-zero with 8-bit offset"),
+    DECL_OPCODE(0x16, cbnz16,       "branch if non-zero with 16-bit offset"),
+    DECL_OPCODE(0x17, cbnz24,       "branch if non-zero with 24-bit offset"),
+    DECL_OPCODE(0x18, cbeq8,        "branch if equal with 8-bit offset"),
+    DECL_OPCODE(0x19, cbeq16,       "branch if equal with 16-bit offset"),
+    DECL_OPCODE(0x1a, cbeq24,       "branch if equal with 24-bit offset"),
+    DECL_OPCODE(0x1b, cbne8,        "branch if non-equal with 8-bit offset"),
+    DECL_OPCODE(0x1c, cbne16,       "branch if non-equal with 16-bit offset"),
+    DECL_OPCODE(0x1d, cbne24,       "branch if non-equal with 24-bit offset"),
+    DECL_OPCODE(0x1e, cstore,       "store expression"),
+    DECL_OPCODE(0x1f, ceval,        "start expression evaluation"),
+    DECL_OPCODE(0x20, cadd,         "TODO: add desc"),
+    DECL_OPCODE(0x21, csub,         "TODO: add desc"),
+    DECL_OPCODE(0x22, cmul,         "[N/I]"),
+    DECL_OPCODE(0x23, cdiv,         "[N/I]"),
+    DECL_OPCODE(0x24, cvprint,      "TODO: add desc"),
+    DECL_OPCODE(0x25, csprinti,     "TODO: add desc"),
+    DECL_OPCODE(0x26, csprinta,     "TODO: add desc"),
+    DECL_OPCODE(0x27, clocate,      "TODO: add desc"),
+    DECL_OPCODE(0x28, ctab,         "TODO: add desc"),
+    DECL_OPCODE(0x29, cdim,         "TODO: add desc"),
+    DECL_OPCODE(0x2a, crandom,      "generate a random number"),
+    DECL_OPCODE(0x2b, cloop8,       "TODO: add desc"),
+    DECL_OPCODE(0x2c, cloop16,      "TODO: add desc"),
+    DECL_OPCODE(0x2d, cloop24,      "TODO: add desc"),
+    DECL_OPCODE(0x2e, cswitch1,     "TODO: add desc"),
+    DECL_OPCODE(0x2f, cswitch2,     "TODO: add desc"),
+    DECL_OPCODE(0x30, cstart8,      "TODO: add desc"),
+    DECL_OPCODE(0x31, cstart16,     "TODO: add desc"),
+    DECL_OPCODE(0x32, cstart24,     "TODO: add desc"),
+    DECL_OPCODE(0x33, cleave,       "TODO: add desc"),
+    DECL_OPCODE(0x34, cprotect,     "TODO: add desc"),
+    DECL_OPCODE(0x35, casleep,      "TODO: add desc"),
+    DECL_OPCODE(0x36, cclock,       "TODO: add desc"),
+    DECL_OPCODE(0x37, cnul,         "null"),
+    DECL_OPCODE(0x38, cscmov,       "TODO: add desc"),
+    DECL_OPCODE(0x39, cscset,       "TODO: add desc"),
+    DECL_OPCODE(0x3a, cclipping,    "TODO: add desc"),
+    DECL_OPCODE(0x3b, cswitching,   "TODO: add desc"),
+    DECL_OPCODE(0x3c, cwlive,       "TODO: add desc"),
+    DECL_OPCODE(0x3d, cunload,      "TODO: add desc"),
+    DECL_OPCODE(0x3e, cwakeup,      "TODO: add desc"),
+    DECL_OPCODE(0x3f, csleep,       "TODO: add desc"),
+    DECL_OPCODE(0x40, clive,        "TODO: add desc"),
+    DECL_OPCODE(0x41, ckill,        "TODO: add desc"),
+    DECL_OPCODE(0x42, cstop,        "TODO: add desc"),
+    DECL_OPCODE(0x43, cstopret,     "TODO: add desc"),
+    DECL_OPCODE(0x44, cexit,        "TODO: add desc"),
+    DECL_OPCODE(0x45, cload,        "Load and depack a script, set into vm"),
+    DECL_OPCODE(0x46, cdefsc,       "Define Scene ??"),
+    DECL_OPCODE(0x47, cscreen,      "TODO: add desc"),
+    DECL_OPCODE(0x48, cput,         "TODO: add desc"),
+    DECL_OPCODE(0x49, cputnat,      "TODO: add desc"),
+    DECL_OPCODE(0x4a, cerase,       "TODO: add desc"),
+    DECL_OPCODE(0x4b, cerasen,      "TODO: add desc"),
+    DECL_OPCODE(0x4c, cset,         "TODO: add desc"),
+    DECL_OPCODE(0x4d, cmov,         "TODO: add desc"),
+    DECL_OPCODE(0x4e, copensc,      "TODO: add desc"),
+    DECL_OPCODE(0x4f, cclosesc,     "TODO: add desc"),
+    DECL_OPCODE(0x50, cerasall,     "TODO: add desc"),
+    DECL_OPCODE(0x51, cforme,       "TODO: add desc"),
+    DECL_OPCODE(0x52, cdelforme,    "TODO: add desc"),
+    DECL_OPCODE(0x53, ctstmov,      "TODO: add desc"),
+    DECL_OPCODE(0x54, ctstset,      "TODO: add desc"),
+    DECL_OPCODE(0x55, cftstmov,     "TODO: add desc"),
+    DECL_OPCODE(0x56, cftstset,     "TODO: add desc"),
+    DECL_OPCODE(0x57, csuccent,     "TODO: add desc"),
+    DECL_OPCODE(0x58, cpredent,     "TODO: add desc"),
+    DECL_OPCODE(0x59, cnearent,     "TODO: add desc"),
+    DECL_OPCODE(0x5a, cneartyp,     "TODO: add desc"),
+    DECL_OPCODE(0x5b, cnearmat,     "TODO: add desc"),
+    DECL_OPCODE(0x5c, cviewent,     "TODO: add desc"),
+    DECL_OPCODE(0x5d, cviewtyp,     "TODO: add desc"),
+    DECL_OPCODE(0x5e, cviewmat,     "TODO: add desc"),
+    DECL_OPCODE(0x5f, corient,      "TODO: add desc"),
+    DECL_OPCODE(0x60, crstent,      "TODO: add desc"),
+    DECL_OPCODE(0x61, csend,        "TODO: add desc"),
+    DECL_OPCODE(0x62, cscanon,      "TODO: add desc"),
+    DECL_OPCODE(0x63, cscanoff,     "TODO: add desc"),
+    DECL_OPCODE(0x64, cinteron,     "TODO: add desc"),
+    DECL_OPCODE(0x65, cinteroff,    "TODO: add desc"),
+    DECL_OPCODE(0x66, cscanclr,     "TODO: add desc"),
+    DECL_OPCODE(0x67, callentity,   "TODO: add desc"),
+    DECL_OPCODE(0x68, cpalette,     "TODO: add desc"),
+    DECL_OPCODE(0x69, cdefcolor,    "TODO: add desc"),
+    DECL_OPCODE(0x6a, ctiming,      "TODO: add desc"),
+    DECL_OPCODE(0x6b, czap,         "TODO: add desc"),
+    DECL_OPCODE(0x6c, cexplode,     "TODO: add desc"),
+    DECL_OPCODE(0x6d, cding,        "TODO: add desc"),
+    DECL_OPCODE(0x6e, cnoise,       "TODO: add desc"),
+    DECL_OPCODE(0x6f, cinitab,      "TODO: add desc"),
+    DECL_OPCODE(0x70, cfopen,       "TODO: add desc"),
+    DECL_OPCODE(0x71, cfclose,      "TODO: add desc"),
+    DECL_OPCODE(0x72, cfcreat,      "TODO: add desc"),
+    DECL_OPCODE(0x73, cfdel,        "TODO: add desc"),
+    DECL_OPCODE(0x74, cfreadv,      "TODO: add desc"),
+    DECL_OPCODE(0x75, cfwritev,     "TODO: add desc"),
+    DECL_OPCODE(0x76, cfwritei,     "TODO: add desc"),
+    DECL_OPCODE(0x77, cfreadb,      "TODO: add desc"),
+    DECL_OPCODE(0x78, cfwriteb,     "TODO: add desc"),
+    DECL_OPCODE(0x79, cplot,        "TODO: add desc"),
+    DECL_OPCODE(0x7a, cdraw,        "TODO: add desc"),
+    DECL_OPCODE(0x7b, cbox,         "TODO: add desc"),
+    DECL_OPCODE(0x7c, cboxf,        "TODO: add desc"),
+    DECL_OPCODE(0x7d, cink,         "TODO: add desc"),
+    DECL_OPCODE(0x7e, cpset,        "TODO: add desc"),
+    DECL_OPCODE(0x7f, cpmove,       "TODO: add desc"),
+    DECL_OPCODE(0x80, cpmode,       "TODO: add desc"),
+    DECL_OPCODE(0x81, cpicture,     "TODO: add desc"),
+    DECL_OPCODE(0x82, cxyscroll,    "TODO: add desc"),
+    DECL_OPCODE(0x83, clinking,     "TODO: add desc"),
+    DECL_OPCODE(0x84, cmouson,      "display mouse cursor"),
+    DECL_OPCODE(0x85, cmousoff,     "hide mouse cursor"),
+    DECL_OPCODE(0x86, cmouse,       "get mouse status (x, y, buttons) and store"),
+    DECL_OPCODE(0x87, cdefmouse,    "TODO: define mouse sprite ???"),
+    DECL_OPCODE(0x88, csetmouse,    "set mouse position"),
+    DECL_OPCODE(0x89, cdefvect,     "TODO: add desc"),
+    DECL_OPCODE(0x8a, csetvect,     "TODO: add desc"),
+    DECL_OPCODE(0x8b, cnul,         "null"),
+    DECL_OPCODE(0x8c, capproach,    "TODO: add desc"),
+    DECL_OPCODE(0x8d, cescape,      "TODO: add desc"),
+    DECL_OPCODE(0x8e, cvtstmov,     "TODO: add desc"),
+    DECL_OPCODE(0x8f, cvftstmov,    "TODO: add desc"),
+    DECL_OPCODE(0x90, cvmov,        "TODO: add desc"),
+    DECL_OPCODE(0x91, cdefworld,    "TODO: add desc"),
+    DECL_OPCODE(0x92, cworld,       "TODO: add desc"),
+    DECL_OPCODE(0x93, cfindmat,     "TODO: add desc"),
+    DECL_OPCODE(0x94, cfindtyp,     "TODO: add desc"),
+    DECL_OPCODE(0x95, cmusic,       "TODO: add desc"),
+    DECL_OPCODE(0x96, cdelmusic,    "TODO: add desc"),
+    DECL_OPCODE(0x97, ccadence,     "TODO: add desc"),
+    DECL_OPCODE(0x98, csetvolum,    "TODO: add desc"),
+    DECL_OPCODE(0x99, cxinv,        "TODO: add desc"),
+    DECL_OPCODE(0x9a, cxinvon,      "TODO: add desc"),
+    DECL_OPCODE(0x9b, cxinvoff,     "TODO: add desc"),
+    DECL_OPCODE(0x9c, clistent,     "TODO: add desc"),
+    DECL_OPCODE(0x9d, csound,       "TODO: add desc"),
+    DECL_OPCODE(0x9e, cmsound,      "TODO: add desc"),
+    DECL_OPCODE(0x9f, credon,       "TODO: add desc"),
+    DECL_OPCODE(0xa0, credoff,      "TODO: add desc"),
+    DECL_OPCODE(0xa1, cdelsound,    "TODO: add desc"),
+    DECL_OPCODE(0xa2, cwmov,        "TODO: add desc"),
+    DECL_OPCODE(0xa3, cwtstmov,     "TODO: add desc"),
+    DECL_OPCODE(0xa4, cwftstmov,    "TODO: add desc"),
+    DECL_OPCODE(0xa5, ctstform,     "TODO: add desc"),
+    DECL_OPCODE(0xa6, cxput,        "TODO: add desc"),
+    DECL_OPCODE(0xa7, cxputat,      "TODO: add desc"),
+    DECL_OPCODE(0xa8, cmput,        "TODO: add desc"),
+    DECL_OPCODE(0xa9, cmputat,      "TODO: add desc"),
+    DECL_OPCODE(0xaa, cmxput,       "TODO: add desc"),
+    DECL_OPCODE(0xab, cmxputat,     "TODO: add desc"),
+    DECL_OPCODE(0xac, cmmusic,      "TODO: add desc"),
+    DECL_OPCODE(0xad, cmforme,      "TODO: add desc"),
+    DECL_OPCODE(0xae, csettime,     "set current time"),
+    DECL_OPCODE(0xaf, cgettime,     "get current time"),
+    DECL_OPCODE(0xb0, cvinput,      "TODO: add desc"),
+    DECL_OPCODE(0xb1, csinput,      "TODO: add desc"),
+    DECL_OPCODE(0xb2, casleepfar,   "TODO: add desc"),
+    DECL_OPCODE(0xb3, casleepon,    "TODO: add desc"),
+    DECL_OPCODE(0xb4, casleepoff,   "TODO: add desc"),
+    DECL_OPCODE(0xb5, crunfilm,     "TODO: add desc"),
+    DECL_OPCODE(0xb6, cvpicprint,   "TODO: add desc"),
+    DECL_OPCODE(0xb7, cspicprint,   "TODO: add desc"),
+    DECL_OPCODE(0xb8, cvputprint,   "TODO: add desc"),
+    DECL_OPCODE(0xb9, csputprint,   "TODO: add desc"),
+    DECL_OPCODE(0xba, cfont,        "TODO: add desc"),
+    DECL_OPCODE(0xbb, cpaper,       "TODO: add desc"),
+    DECL_OPCODE(0xbc, ctoblack,     "fade-out screen to black"),
+    DECL_OPCODE(0xbd, cmovcolor,    "TODO: add desc"),
+    DECL_OPCODE(0xbe, ctopalet,     "fade-in screen to palette"),
+    DECL_OPCODE(0xbf, cnumput,      "TODO: add desc"),
+    DECL_OPCODE(0xc0, cscheart,     "TODO: add desc"),
+    DECL_OPCODE(0xc1, cscpos,       "TODO: add desc"),
+    DECL_OPCODE(0xc2, cscsize,      "TODO: add desc"),
+    DECL_OPCODE(0xc3, cschoriz,     "TODO: add desc"),
+    DECL_OPCODE(0xc4, cscvertic,    "TODO: add desc"),
+    DECL_OPCODE(0xc5, cscreduce,    "TODO: add desc"),
+    DECL_OPCODE(0xc6, cscscale,     "TODO: add desc"),
+    DECL_OPCODE(0xc7, creducing,    "TODO: add desc"),
+    DECL_OPCODE(0xc8, cscmap,       "TODO: add desc"),
+    DECL_OPCODE(0xc9, cscdump,      "TODO: add desc"),
+    DECL_OPCODE(0xca, cfindcla,     "TODO: add desc"),
+    DECL_OPCODE(0xcb, cnearcla,     "TODO: add desc"),
+    DECL_OPCODE(0xcc, cviewcla,     "TODO: add desc"),
+    DECL_OPCODE(0xcd, cinstru,      "TODO: add desc"),
+    DECL_OPCODE(0xce, cminstru,     "TODO: add desc"),
+    DECL_OPCODE(0xcf, cordspr,      "TODO: add desc"),
+    DECL_OPCODE(0xd0, calign,       "TODO: add desc"),
+    DECL_OPCODE(0xd1, cbackstar,    "TODO: add desc"),
+    DECL_OPCODE(0xd2, cstarring,    "TODO: add desc"),
+    DECL_OPCODE(0xd3, cengine,      "TODO: add desc"),
+    DECL_OPCODE(0xd4, cautobase,    "TODO: add desc"),
+    DECL_OPCODE(0xd5, cquality,     "TODO: add desc"),
+    DECL_OPCODE(0xd6, chsprite,     "TODO: add desc"),
+    DECL_OPCODE(0xd7, cselpalet,    "TODO: add desc"),
+    DECL_OPCODE(0xd8, clinepalet,   "TODO: add desc"),
+    DECL_OPCODE(0xd9, cautomode,    "TODO: add desc"),
+    DECL_OPCODE(0xda, cautofile,    "TODO: add desc"),
+    DECL_OPCODE(0xdb, ccancel,      "TODO: add desc"),
+    DECL_OPCODE(0xdc, ccancall,     "TODO: add desc"),
+    DECL_OPCODE(0xdd, ccancen,      "TODO: add desc"),
+    DECL_OPCODE(0xde, cblast,       "TODO: add desc"),
+    DECL_OPCODE(0xdf, cscback,      "TODO: add desc"),
+    DECL_OPCODE(0xe0, cscrolpage,   "TODO: add desc"),
+    DECL_OPCODE(0xe1, cmatent,      "TODO: add desc"),
+    DECL_OPCODE(0xe2, cshrink,      "Delete bitmap and shift following data"),
+    DECL_OPCODE(0xe3, cdefmap,      "TODO: add desc"),
+    DECL_OPCODE(0xe4, csetmap,      "TODO: add desc"),
+    DECL_OPCODE(0xe5, cputmap,      "TODO: add desc"),
+    DECL_OPCODE(0xe6, csavepal,     "TODO: add desc"),
+    DECL_OPCODE(0xe7, csczoom,      "TODO: add desc"),
+    DECL_OPCODE(0xe8, ctexmap,      "TODO: add desc"),
+    DECL_OPCODE(0xe9, calloctab,    "TODO: add desc"),
+    DECL_OPCODE(0xea, cfreetab,     "TODO: add desc"),
+    DECL_OPCODE(0xeb, cscantab,     "TODO: add desc"),
+    DECL_OPCODE(0xec, cneartab,     "TODO: add desc"),
+    DECL_OPCODE(0xed, cscsun,       "TODO: add desc"),
+    DECL_OPCODE(0xee, cdarkpal,     "TODO: add desc"),
+    DECL_OPCODE(0xef, cscdark,      "TODO: add desc"),
+    DECL_OPCODE(0xf0, caset,        "TODO: add desc"),
+    DECL_OPCODE(0xf1, camov,        "TODO: add desc"),
+    DECL_OPCODE(0xf2, cscaset,      "TODO: add desc"),
+    DECL_OPCODE(0xf3, cscamov,      "TODO: add desc"),
+    DECL_OPCODE(0xf4, cscfollow,    "TODO: add desc"),
+    DECL_OPCODE(0xf5, cscview,      "TODO: add desc"),
+    DECL_OPCODE(0xf6, cfilm,        "TODO: add desc"),
+    DECL_OPCODE(0xf7, cwalkmap,     "TODO: add desc"),
+    DECL_OPCODE(0xf8, catstmap,     "TODO: add desc"),
+    DECL_OPCODE(0xf9, cavtstmov,    "TODO: add desc"),
+    DECL_OPCODE(0xfa, cavmov,       "TODO: add desc"),
+    DECL_OPCODE(0xfb, caim,         "TODO: add desc"),
+    DECL_OPCODE(0xfc, cpointpix,    "TODO: add desc"),
+    DECL_OPCODE(0xfd, cchartmap,    "TODO: add desc"),
+    DECL_OPCODE(0xfe, cscsky,       "TODO: add desc"),
+    DECL_OPCODE(0xff, czoom,        "TODO: add desc")
+};
