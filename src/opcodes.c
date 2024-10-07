@@ -883,13 +883,13 @@ static void ckill(void) {
 
 // Codopname no. 068 opcode 0x43 cstopret
 static void cstopret(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     if (alis.fseq == 0)
     {
         cstop();
     }
     
     cret();
+    alis.script->running = 0;
 }
 
 // Codopname no. 069 opcode 0x44 cexit
@@ -3662,8 +3662,6 @@ static void creducing(void) {
 
 // Codopname no. 201 opcode 0xc8 cscmap
 static void cscmap(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     readexec_opername();
     u16 ent = get_0x0e_script_ent(alis.script->vram_org);
     s16 val = script_read16();
@@ -4462,22 +4460,44 @@ static void csetmap(void) {
     
     mapram += offset;
     
-    readexec_opername();
-    xwrite16(mapram - 0x3e, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x3c, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x3a, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x38, alis.varD7);
-    xwrite16(mapram - 0x26, (u16)alis.varD7 - 1U);
-    xwrite16(mapram - 0x3e, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3e));
-    readexec_opername();
-    xwrite16(mapram - 0x36, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x34, alis.varD7);
-    xwrite16(mapram - 0x24, (u16)alis.varD7 - 1U);
-    xwrite16(mapram - 0x3a, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3a));
+    if (alis.platform.uid == EGameTransartica)
+    {
+        readexec_opername();
+        xwrite16(mapram - 0x3e, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3c, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3a, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x38, alis.varD7);
+        xwrite16(mapram - 0x26, (u16)alis.varD7 - 1U);
+        xwrite16(mapram - 0x3e, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3e));
+        readexec_opername();
+        xwrite16(mapram - 0x36, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x34, alis.varD7);
+        xwrite16(mapram - 0x24, (u16)alis.varD7 - 1U);
+        xwrite16(mapram - 0x3a, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3a));
+    }
+    else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
+    {
+        readexec_opername();
+        xwrite16(mapram - 0x3ee, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3ec, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3ea, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3e8, alis.varD7);
+        xwrite16(mapram - 0x3d6, (u16)alis.varD7 - 1U);
+        xwrite16(mapram - 0x3ee, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3ee));
+        readexec_opername();
+        xwrite16(mapram - 0x3e6, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3e4, alis.varD7);
+        xwrite16(mapram - 0x3d4, (u16)alis.varD7 - 1U);
+        xwrite16(mapram - 0x3ea, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3ea));
+    }
 }
 
 void putmap(s16 spridx, s32 bitmap)
@@ -4541,6 +4561,69 @@ void putmap(s16 spridx, s32 bitmap)
     alis.fadddes = 0;
 }
 
+void putmap2(s16 spridx, s32 bitmap)
+{
+    sSprite *sprite = SPRITE_VAR(spridx);
+    sprite->data = bitmap;
+    sprite->flaginvx = image.invert_x;
+    sprite->sprite_0x28 = get_0x28_unknown(alis.script->vram_org);
+    sprite->script_ent = get_0x0e_script_ent(alis.script->vram_org);
+    sprite->clinking = get_0x2a_clinking(alis.script->vram_org);
+    sprite->cordspr = get_0x2b_cordspr(alis.script->vram_org);
+    sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
+    sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+    sprite->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
+    if ((s8)sprite->credon_off == - 0x80)
+    {
+        sprite->newzoomx = get_0x38_unknown(alis.script->vram_org);
+        sprite->newzoomy = get_0x36_unknown(alis.script->vram_org);
+        sprite->creducing = 0;
+    }
+    else
+    {
+        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
+    }
+    
+    sprite->depx = image.oldcx + image.depx;
+    sprite->depy = image.oldcy + image.depy;
+    sprite->depz = image.oldcz + image.depz;
+    
+    if (alis.fmuldes == 0)
+    {
+        u16 newidx;
+        u16 oldidx;
+
+        if (!searchelem(&newidx, &oldidx))
+        {
+            return;
+        }
+        
+        do
+        {
+            sSprite *cursprite = SPRITE_VAR(newidx);
+            while (cursprite->state == 0)
+            {
+                killelem(&newidx, &oldidx);
+                if (newidx == 0)
+                {
+                    alis.fadddes = 0;
+                    return;
+                }
+                
+                if (!testnum(&newidx))
+                {
+                    alis.fadddes = 0;
+                    return;
+                }
+            }
+        }
+        while (nextnum(&newidx, &oldidx));
+    }
+    
+    alis.fadddes = 0;
+}
+
 // Codopname no. 230 opcode 0xe5 cputmap
 static void cputmap(void) {
     u32 mapram = alis.script->vram_org;
@@ -4554,44 +4637,89 @@ static void cputmap(void) {
     
     mapram += offset;
     
-    readexec_opername();
-    xwrite16(mapram - 0x32, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x30, alis.varD7);
-    readexec_opername();
-    xwrite16(mapram - 0x2e, alis.varD7);
-    readexec_opername();
-    image.numelem = (u8)alis.varD7;
-    u32 uVar3 = xread16(mapram - 0x2e);
-    u16 uVar1 = xread16(mapram - 0x40);
-    u16 uVar2 = uVar3 % uVar1;
-    xwrite16(mapram - 0x22, (s16)uVar2);
-    alis.fmuldes = 0;
-    
-    u16 newidx = 0;
-    u16 oldidx = 0;
-    if (!searchelem(&newidx, &oldidx))
+    if (alis.platform.uid == EGameTransartica)
     {
-        createlem(&newidx, &oldidx);
-    }
-    
-    sSprite *sprite = SPRITE_VAR(newidx);
-    if (-1 < sprite->state)
-    {
-        sprite->state = 2;
-    }
-    
-    putmap(newidx, mapram - 0x2c);
-    
-    if (searchelem(&newidx, &oldidx))
-    {
+        readexec_opername();
+        xwrite16(mapram - 0x32, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x30, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x2e, alis.varD7);
+        readexec_opername();
+        image.numelem = (u8)alis.varD7;
+        u32 uVar3 = xread16(mapram - 0x2e);
+        u16 uVar1 = xread16(mapram - 0x40);
+        u16 uVar2 = uVar3 % uVar1;
+        xwrite16(mapram - 0x22, (s16)uVar2);
+        alis.fmuldes = 0;
+        
+        u16 newidx = 0;
+        u16 oldidx = 0;
+        if (!searchelem(&newidx, &oldidx))
+        {
+            createlem(&newidx, &oldidx);
+        }
+        
         sSprite *sprite = SPRITE_VAR(newidx);
-        sprite->credon_off = 0xff;
-        sprite->flaginvx = 0;
-        sprite->chsprite = 0;
-        sprite->depx = xread16(mapram - 0x3e);
-        sprite->depy = xread16(mapram - 0x3c);
-        sprite->depz = xread16(mapram - 0x3a);
+        if (-1 < sprite->state)
+        {
+            sprite->state = 2;
+        }
+        
+        putmap(newidx, mapram - 0x2c);
+        
+        if (searchelem(&newidx, &oldidx))
+        {
+            sSprite *sprite = SPRITE_VAR(newidx);
+            sprite->credon_off = 0xff;
+            sprite->flaginvx = 0;
+            sprite->chsprite = 0;
+            sprite->depx = xread16(mapram - 0x3e);
+            sprite->depy = xread16(mapram - 0x3c);
+            sprite->depz = xread16(mapram - 0x3a);
+        }
+    }
+    else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
+    {
+        readexec_opername();
+        xwrite16(mapram - 0x3e2, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3e0, alis.varD7);
+        readexec_opername();
+        xwrite16(mapram - 0x3de, alis.varD7);
+        readexec_opername();
+        image.numelem = (u8)alis.varD7;
+        u32 uVar3 = xread16(mapram - 0x3de);
+        u16 uVar1 = xread16(mapram - 0x3f0);
+        u16 uVar2 = uVar3 % uVar1;
+        xwrite16(mapram - 0x3d2, (s16)uVar2);
+        alis.fmuldes = 0;
+        
+        u16 newidx = 0;
+        u16 oldidx = 0;
+        if (!searchelem(&newidx, &oldidx))
+        {
+            createlem(&newidx, &oldidx);
+        }
+        
+        sSprite *sprite = SPRITE_VAR(newidx);
+        if (-1 < sprite->state)
+        {
+            sprite->state = 2;
+        }
+        
+        putmap2(newidx, mapram - 0x3dc);
+        
+        if (searchelem(&newidx, &oldidx))
+        {
+            sSprite *sprite = SPRITE_VAR(newidx);
+            sprite->credon_off = 0xff;
+            sprite->flaginvx = 0;
+            sprite->chsprite = 0;
+            sprite->depx = xread16(mapram - 0x3ee);
+            sprite->depy = xread16(mapram - 0x3ec);
+            sprite->depz = xread16(mapram - 0x3ea);
+        }
     }
 }
 
@@ -4606,9 +4734,103 @@ static void csczoom(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+s32 texmap(u32 a0, s16 d0w, s16 d1w)
+{
+    s32 DAT_0001cd3c = ((s32)d1w + (s32)d0w * xread16(a0 - 0x3ca)) * 2;
+    return DAT_0001cd3c;
+}
+
 // Codopname no. 233 opcode 0xe8 ctexmap
 static void ctexmap(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    
+    alis.flagmain = 0;
+    
+    u32 addr = alis.script->vram_org;
+
+    s16 offset = script_read16();
+    if (offset == 0)
+    {
+        offset = script_read16();
+        addr = alis.basemain;
+    }
+    
+    addr += offset;
+
+    readexec_opername_saveD7();
+    alis.varD6 = alis.varD7;
+    alis.varD7 = offset;
+    
+    u32 a0 = addr;
+    
+    addr += (alis.varD6 * 0x20) - 0xc00;
+    
+    readexec_opername();
+    xwrite8(addr + 1, (char)alis.varD7);
+    readexec_opername();
+    if (0 < xread8(addr + 1))
+    {
+        xwrite32(addr + 4, adresdes(alis.varD7));
+    }
+    
+    readexec_opername();
+    xwrite16(addr + 10, alis.varD7);
+    readexec_opername();
+    xwrite8(addr + 8, (char)alis.varD7);
+    xwrite8(addr + 9, (char)alis.varD7 + 1);
+    readexec_opername();
+    xwrite16(addr + 0xe, alis.varD7);
+    readexec_opername();
+    s16 uVar2 = alis.varD7;
+    char cVar4 = (char)uVar2;
+    xwrite8(addr + 0x14, cVar4);
+    if (cVar4 == 0)
+    {
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+    }
+    else if (cVar4 < 0)
+    {
+        readexec_opername();
+        xwrite16(addr + 0x10, alis.varD7);
+        readexec_opername();
+        xwrite16(addr + 0x12, alis.varD7);
+        readexec_opername();
+        xwrite16(addr + 0x16, alis.varD7);
+        readexec_opername();
+        xwrite16(addr + 0x1a, alis.varD7);
+        s32 iVar1 = texmap(a0, xread16(addr + 0x10), xread16(addr + 0x12));
+        xwrite32(addr + 0x10, iVar1);
+        if (iVar1 < 0)
+        {
+            xwrite8(addr + 0x14, 0);
+        }
+    }
+    else if (cVar4 == 2)
+    {
+        readexec_opername();
+        xwrite16(addr + 0x16, alis.varD7);
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        xwrite16(addr + 0x1a, alis.varD7);
+    }
+    else
+    {
+        readexec_opername();
+        xwrite32(addr + 0x10, adresdes(alis.varD7));
+        xwrite16(addr + 0x1c, xread16(alis.script->vram_org - 0xe));
+        readexec_opername();
+        xwrite16(addr + 0x16, alis.varD7);
+        readexec_opername();
+        xwrite8(addr + 0x15, (char)alis.varD7);
+        readexec_opername();
+        xwrite16(addr + 0x1a, alis.varD7);
+    }
+    
+    // TODO: more code here in Falcon CD version
 }
 
 // Codopname no. 234 opcode 0xe9 calloctab
@@ -4707,7 +4929,31 @@ static void cdarkpal(void) {
 
 // Codopname no. 240 opcode 0xef cscdark
 static void cscdark(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    alis.flagmain = 0;
+    
+    u32 mem = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
+    
+    readexec_opername();
+    xwrite16(mem + 0x98, alis.varD7);
+    
+    readexec_opername();
+    u32 sprite = adresdes(alis.varD7);
+    xwrite32(mem + 0x9a, xread32(sprite) + sprite);
+
+    readexec_opername();
+    xwrite16(mem + 0x9e, alis.varD7);
+
+    xwrite8(mem, xread8(mem) | 0x80);
+
+    s16 uVar1 = xread16(xread32(mem + 0x9a) + 4) + 1;
+    xwrite16(mem + 0xa0, uVar1);
+    if (xread16(mem + 0x9e) < 0)
+    {
+        xwrite16(mem + 0x9e, uVar1 >> 1);
+    }
+    
+    alis.basedark = xread16(mem + 0x9e);
+    alis.ptrdark = xread32(mem + 0x9a) + 6;
 }
 
 // Codopname no. 241 opcode 0xf0 caset
@@ -4732,7 +4978,6 @@ static void cscamov(void) {
 
 // Codopname no. 245 opcode 0xf4 cscfollow
 static void cscfollow(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     u32 screen = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
     readexec_opername();
     xwrite16(screen + 0x60, alis.varD7);
@@ -4754,7 +4999,6 @@ static void cscfollow(void) {
 
 // Codopname no. 246 opcode 0xf5 cscview
 static void cscview(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     u32 screen = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
     readexec_opername();
     xwrite16(screen + 0x64, alis.varD7);
@@ -5276,6 +5520,7 @@ static void caim(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     // TODO: on Atari ST values for the first call should be: 0x19e0, 0x560, 0x5 but aren't
+    // we should call it at afe12 NOT on aff24
     // INVESTIGATE!!!
 
     readexec_opername();
@@ -5578,7 +5823,29 @@ static void cchartmap(void) {
 
 // Codopname no. 255 opcode 0xfe cscsky
 static void cscsky(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    alis.flagmain = 0;
+    
+    u32 mem = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
+    
+    readexec_opername();
+    xwrite16(mem + 0xa2, alis.varD7);
+
+    readexec_opername();
+    xwrite32(mem + 0xa4, adresdes(alis.varD7));
+
+    readexec_opername();
+    xwrite16(mem + 0xa8, alis.varD7);
+    
+    u32 sprite = xread32(mem + 0xa4);
+    u32 spdata = xread32(sprite) + sprite;
+    if (xread8(spdata) == 3)
+    {
+        sprite = sprite + xread16(spdata + 2) * 4;
+        spdata = xread32(sprite) + sprite;
+    }
+
+    xwrite16(mem + 0xa8, (((((((xread16(mem + 0x6c) * 4) >> 3) * 0x168) / (xread16(spdata + 2) + 1)) + 0x80U & 0xff00) * (xread16(spdata + 2) + 1)) / 0x168));
+    xwrite8(mem, xread8(mem) | 0x80);
 }
 
 // Codopname no. 256 opcode 0xff czoom
@@ -5690,19 +5957,20 @@ static void cret(void) {
     }
     else
     {
-        s32 offset = xpeek32();
+        alis.script->pc = alis.script->pc_org + xpeek32();
         if (alis.script->vacc_off == get_0x0c_vacc_offset(alis.script->vram_org))
         {
             set_0x0c_vacc_offset(alis.script->vram_org, 0);
         }
         
+        printf("\nNEW A3: %.6x\n", alis.script->pc_org + xpeek32());
+
         if (alis.script->vacc_off >= -0x34)
         {
             debug(EDebugError, " VACC out of bounds!!! ");
         }
         
         alis.script->vacc_off += sizeof(s32);
-        alis.script->pc = alis.script->pc_org + offset;
     }
 }
 
@@ -5714,6 +5982,7 @@ static void cjsr(s32 offset) {
     // TODO: peut-on stocker une adresse de retour *virtuelle* ?
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
+    printf("\nOLD A3: %.6x\n", alis.script->pc);
     xpush32((u32)(alis.script->pc - alis.script->pc_org));
     script_jump(offset);
 }
@@ -5885,6 +6154,7 @@ static void cstart(s32 offset) {
     {
         if (get_0x0c_vacc_offset(alis.script->vram_org) == 0)
         {
+            printf("\nOLD A3: %.6x\n", alis.script->pc);
             xpush32((u32)(alis.script->pc - alis.script->pc_org));
             set_0x0c_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
         }
@@ -5893,7 +6163,7 @@ static void cstart(s32 offset) {
             alis.script->vacc_off = get_0x0c_vacc_offset(alis.script->vram_org);
         }
 
-        alis.script->pc += offset;
+        alis.script->pc_org += offset;
     }
 }
 

@@ -332,7 +332,10 @@ typedef struct {
     s8              vprotect;
     
     u32             timeclock;
-
+    
+    u16             basedark;
+    u32             ptrdark;
+    
     struct timeval  frametime;
     struct timeval  looptime;
 
