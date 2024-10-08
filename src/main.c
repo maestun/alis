@@ -56,16 +56,32 @@ int main(int argc, char *argv[]) {
         sPlatform *pl = pl_guess(path);
         if(pl_supported(pl)) {
         if(pl_supported(pl)) {
-            printf("System initialization...\n");
+            printf("#############################\n");
+            printf("# System initialization...\n");
+            printf("#############################\n");
             sys_init(pl, fullscreen);
-            printf("ALIS VM initialization...\n");
+
+            printf("#############################\n");
+            printf("# ALIS VM initialization...\n");
+            printf("#############################\n");
             alis_init(*pl);
-            printf("Starting ALIS VM...\n");
+
+            printf("#############################\n");
+            printf("# Starting ALIS VM...\n");
+            printf("#############################\n");
             alis_start();
+
             // Quit
-            printf("Releasing ALIS VM memory...\n");
+            printf("\n");
+            printf("#############################\n");
+            printf("# Releasing ALIS VM memory...\n");
+            printf("#############################\n");
             alis_deinit();
-            printf("System deinitialization...\n");
+
+            printf("\n");
+            printf("#############################\n");
+            printf("# System deinitialization...\n");
+            printf("#############################\n");
             sys_deinit();
         }
         else {
