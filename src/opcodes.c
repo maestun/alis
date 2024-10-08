@@ -3348,6 +3348,8 @@ static void csinput(void) {
 // Codopname no. 179 opcode 0xb2 casleepfar
 static void casleepfar(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    readexec_opername();
+// ...
 }
 
 // Codopname no. 180 opcode 0xb3 casleepon
