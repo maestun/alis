@@ -55,7 +55,6 @@ int main(int argc, char *argv[]) {
         
         sPlatform *pl = pl_guess(path);
         if(pl_supported(pl)) {
-        if(pl_supported(pl)) {
             printf("#############################\n");
             printf("# System initialization...\n");
             printf("#############################\n");
