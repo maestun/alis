@@ -26,14 +26,13 @@
 #include "utils.h"
 
 // ============================================================================
-#pragma mark - Store Routines
+#pragma mark - Store routines
 // ============================================================================
 
-// Storename no. 01 opcode 0x00 cnul
-// Storename no. 02 opcode 0x02 cnul
-// Storename no. 03 opcode 0x04 cnul
-static void cnul(void) {
-}
+// Storename no. 01 opcode 0x00 pnul
+// Storename no. 02 opcode 0x02 pnul
+// Storename no. 03 opcode 0x04 pnul
+// Calls stub pnul
 
 // Storename no. 04 opcode 0x06 slocb
 /**
@@ -229,7 +228,7 @@ static void shimti(void) {
 }
 
 // Storename no. 28 opcode 0x36 spile
-static void spile(void) {
+void spile(void) {
     *(--alis.acc) = alis.varD7;
 }
 
@@ -241,9 +240,8 @@ static void seval(void) {
 }
 
 // Storename no. 30 opcode 0x3a ofin
-// (Addname no. 30 opcode 0x3a ofin)
-// Both calls are equal to the call of
-// Opername no. 30 opcode 0x3a ofin
+// Addname no. 30 opcode 0x3a ofin
+// Calls oper->ofin
 
 void cstore_continue(void) {
     char *tmp = alis.sd7;
@@ -254,7 +252,7 @@ void cstore_continue(void) {
 }
 
 // ============================================================================
-#pragma mark - Store pointer table
+#pragma mark - Store routines pointer table
 // In the disasm, the table JTAB_STOREADD_NAMES is at address $10f92 -> $10fce.
 // So it contains 0x3c / 60 bytes, or 30 words, it matches the storeadd count.
 // So the routine FUN_READEXEC_OPERNAME() gets a BYTE code from script pc,
@@ -262,63 +260,64 @@ void cstore_continue(void) {
 //  jumps at the address (JTAB_OPERAMES + offset).
 // ============================================================================
 sAlisOpcode storenames[] = {
-    DECL_OPCODE(0x00, cnul, "-"),
+    DECL_OPCODE(0x00, pnul,         "null pointer"),
     {},
-    DECL_OPCODE(0x02, cnul, "-"),
+    DECL_OPCODE(0x02, pnul,         "null pointer"),
     {},
-    DECL_OPCODE(0x04, cnul, "-"),
+    DECL_OPCODE(0x04, pnul,         "null pointer"),
     {},
-    DECL_OPCODE(0x06, slocb, "store byte from r7 at virtual ram location"),
+    DECL_OPCODE(0x06, slocb,        "store byte from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x08, slocw, "store word from r7 at virtual ram location"),
+    DECL_OPCODE(0x08, slocw,        "store word from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x0a, slocp, "store null-terminated string from r7 at virtual ram location"),
+    DECL_OPCODE(0x0a, slocp,        "store null-terminated string from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x0c, sloctp, "copy bss3 at virtual ram location with offset"),
+    DECL_OPCODE(0x0c, sloctp,       "copy bss3 at virtual ram location with offset"),
     {},
-    DECL_OPCODE(0x0e, sloctc, "pop byte from accumulator, store at virtual ram location with offset"),
+    DECL_OPCODE(0x0e, sloctc,       "pop byte from accumulator, store at virtual ram location with offset"),
     {},
-    DECL_OPCODE(0x10, slocti, "pop word from accumulator, store at virtual ram location with offset"),
+    DECL_OPCODE(0x10, slocti,       "pop word from accumulator, store at virtual ram location with offset"),
     {},
-    DECL_OPCODE(0x12, sdirb, "store byte from r7 at virtual ram location"),
+    DECL_OPCODE(0x12, sdirb,        "store byte from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x14, sdirw, "store word from r7 at virtual ram location"),
+    DECL_OPCODE(0x14, sdirw,        "store word from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x16, sdirp, "store null-terminated string from r7 at virtual ram location"),
+    DECL_OPCODE(0x16, sdirp,        "store null-terminated string from r7 at virtual ram location"),
     {},
-    DECL_OPCODE(0x18, sdirtp, "TODO add desc"),
+    DECL_OPCODE(0x18, sdirtp,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x1a, sdirtc, "TODO add desc"),
+    DECL_OPCODE(0x1a, sdirtc,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x1c, sdirti, "TODO add desc"),
+    DECL_OPCODE(0x1c, sdirti,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x1e, smainb, "TODO add desc"),
+    DECL_OPCODE(0x1e, smainb,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x20, smainw, "TODO add desc"),
+    DECL_OPCODE(0x20, smainw,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x22, smainp, "TODO add desc"),
+    DECL_OPCODE(0x22, smainp,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x24, smaintp, "TODO add desc"),
+    DECL_OPCODE(0x24, smaintp,      "TODO add desc"),
     {},
-    DECL_OPCODE(0x26, smaintc, "TODO add desc"),
+    DECL_OPCODE(0x26, smaintc,      "TODO add desc"),
     {},
-    DECL_OPCODE(0x28, smainti, "TODO add desc"),
+    DECL_OPCODE(0x28, smainti,      "TODO add desc"),
     {},
-    DECL_OPCODE(0x2a, shimb, "TODO add desc"),
+    DECL_OPCODE(0x2a, shimb,        "TODO add desc"),
     {},
-    DECL_OPCODE(0x2c, shimw, "TODO add desc"),
+    DECL_OPCODE(0x2c, shimw,        "TODO add desc"),
     {},
-    DECL_OPCODE(0x2e, shimp, "TODO add desc"),
+    DECL_OPCODE(0x2e, shimp,        "TODO add desc"),
     {},
-    DECL_OPCODE(0x30, shimtp, "TODO add desc"),
+    DECL_OPCODE(0x30, shimtp,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x32, shimtc, "TODO add desc"),
+    DECL_OPCODE(0x32, shimtc,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x34, shimti, "TODO add desc"),
+    DECL_OPCODE(0x34, shimti,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x36, spile, "pops word from virtual accumulator into r7"),
+    DECL_OPCODE(0x36, spile,        "pops word from virtual accumulator into r7"),
     {},
-    DECL_OPCODE(0x38, seval, "starts eval loop"),
+    DECL_OPCODE(0x38, seval,        "starts seval loop"),
     {},
-    DECL_OPCODE(0x3a, ofin, "ends eval loop (calls opername/ofin)"),
+    DECL_OPCODE(0x3a, ofin,         "ends seval loop (calls oper->ofin)"),
+    {}
 };
