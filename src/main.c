@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
         usage();
     }
     else {
+        printf("%s v%s\n", kProgName, kProgVersion);
         
         int fullscreen = 0;
         const char *path = NULL;
@@ -54,10 +55,17 @@ int main(int argc, char *argv[]) {
         
         sPlatform *pl = pl_guess(path);
         if(pl_supported(pl)) {
+        if(pl_supported(pl)) {
+            printf("System initialization...\n");
             sys_init(pl, fullscreen);
+            printf("ALIS VM initialization...\n");
             alis_init(*pl);
+            printf("Starting ALIS VM...\n");
             alis_start();
+            // Quit
+            printf("Releasing ALIS VM memory...\n");
             alis_deinit();
+            printf("System deinitialization...\n");
             sys_deinit();
         }
         else {
