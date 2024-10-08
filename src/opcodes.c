@@ -443,7 +443,7 @@ static void cloop(s32 offset) {
     if(!alis.sr.zero)
     {
         alis.script->pc = save_loop_pc;
-        
+
         if(DEBUG_SCRIPT) {
              if (offset<0) {
                  debug(EDebugInfo, " [loop jmp up -0x%06x]", abs(offset));
@@ -3375,7 +3375,7 @@ void printd0(s16 d0w)
 {
     char *ptr = alis.sd7;
     valtostr(alis.sd7, d0w);
-    
+
     if(DEBUG_SCRIPT) {
        debug(EDebugInfo, " [\"%s\"]", alis.sd7);
     }
@@ -5890,29 +5890,67 @@ static void cesc1(void)     {
 //    sAlisOpcode opcode = opcodes[code];
 //    debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
 //    return opcode.fptr();
-    readexec_escname();
-}
-
-// ============================================================================
-#pragma mark - Unimplemented opcodes
-// ============================================================================
-
-// Codopname no. 001 opcode 0x00 cnul
-// Codopname no. 056 opcode 0x37 cnul
-// Codopname no. 140 opcode 0x8b cnul
-static void cnul(void)      {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    readexec_codesc1name();
 }
 
 // Codopname no. 003 opcode 0x02 cesc2
+// The function is not yet found in ALIS interpreters (no confirmation that the codesc1 table
+// has been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc2(void)     {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: ", __FUNCTION__);
+    readexec_codesc2name();
 }
 
 // Codopname no. 004 opcode 0x03 cesc3
+// The function is not yet found in ALIS interpreters (no confirmation that tables codesc1 and codesc2
+// have been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc3(void)     {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: ", __FUNCTION__);
+    readexec_codesc3name();
 }
+
+// ============================================================================
+#pragma mark - Stub routines
+// ============================================================================
+
+// ALIS uses two types of stubs.
+// The first, called cnul, is put in place of missing functions (opcodes)
+// in tables tcodop and tcodesc1. It does nothing.
+//
+// The second, unnamed one (we called it pnul), has address 0x0000 and
+// is put in place of missing functions (opcodes) in tables toper, tstore and tadd.
+// It outputs a message that a null pointer has been called and then exits the program.
+//
+// As the engine evolved, opcodes that were sent to these stubs in earlier versions
+// could get their own implementation and a new name in later ones.
+
+// Codopname no. 001 opcode 0x00 -> cnul
+// Codopname no. 056 opcode 0x37 -> cnul
+// Codopname no. 140 opcode 0x8b -> cnul
+// Codesc1name no. 01 opcode 0x00 -> cnul
+void cnul(void)      {
+    debug(EDebugWarning, "WARNING: NULL opcode called");
+}
+
+// Opername no. 31 opcode 0x3c -> pnul
+// Opername no. 32 opcode 0x3e -> pnul
+// Storename no. 01 opcode 0x00 -> pnul
+// Storename no. 02 opcode 0x02 -> pnul
+// Storename no. 03 opcode 0x04 -> pnul
+// Addname no. 01 opcode 0x00 -> pnul
+// Addname no. 02 opcode 0x02 -> pnul
+// Addname no. 03 opcode 0x04 -> pnul
+void pnul(void)      {
+    debug(EDebugFatal, "\nERROR: NULL code pointer called\n");
+    if (!VM_IGNORE_ERRORS) {
+        debug(EDebugFatal, " The ALIS VM has been stopped.");
+        alis.running = 0;
+    }
+}
+
+// ============================================================================
+#pragma mark - Unimplemented codops
+// ============================================================================
 
 // Codopname no. 005 opcode 0x04 cbreakpt
 static void cbreakpt(void)  {
@@ -6004,7 +6042,7 @@ static void cjsr(s32 offset) {
 static void cjsr8(void) {
     // read byte, extend sign
     s16 offset = (s8)script_read8();
-    
+
     if(DEBUG_SCRIPT) {
          if (offset<0) {
              debug(EDebugInfo, " [call up -0x%02x]", abs(offset));
@@ -6020,7 +6058,7 @@ static void cjsr8(void) {
 // Codopname no. 007 opcode 0x06 cjsr16
 static void cjsr16(void) {
     s16 offset = script_read16();
-    
+
     if(DEBUG_SCRIPT) {
          if (offset<0) {
              debug(EDebugInfo, " [call up -0x%04x]", abs(offset));
