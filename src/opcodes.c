@@ -6007,10 +6007,10 @@ static void cjsr8(void) {
     
     if(DEBUG_SCRIPT) {
          if (offset<0) {
-             debug(EDebugInfo, " [jmpr up -0x%02x]", abs(offset));
+             debug(EDebugInfo, " [call up -0x%02x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [jmpr dn +0x%02x]", offset);
+             debug(EDebugInfo, " [call dn +0x%02x]", offset);
          }
        }
 
@@ -6023,10 +6023,10 @@ static void cjsr16(void) {
     
     if(DEBUG_SCRIPT) {
          if (offset<0) {
-             debug(EDebugInfo, " [jmpr up -0x%04x]", abs(offset));
+             debug(EDebugInfo, " [call up -0x%04x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [jmpr dn +0x%04x]", offset);
+             debug(EDebugInfo, " [call dn +0x%04x]", offset);
          }
        }
 
@@ -6039,10 +6039,10 @@ static void cjsr24(void) {
 
     if(DEBUG_SCRIPT) {
          if (offset<0) {
-             debug(EDebugInfo, " [jmpr up -0x%06x]", abs(offset));
+             debug(EDebugInfo, " [call up -0x%06x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [jmpr dn +0x%06x]", offset);
+             debug(EDebugInfo, " [call dn +0x%06x]", offset);
          }
        }
 
