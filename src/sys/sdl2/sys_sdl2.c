@@ -87,11 +87,33 @@ void sys_init(sPlatform *pl, int fullscreen) {
 
     _scaleX = _scale;
     _scaleY = _scale * _aspect_ratio;
-    
-    SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
+
+    printf("  SDL initialization...\n");
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)<0) {
+      fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
+      exit(-1);
+    }
+
     _timerID = SDL_AddTimer(20, itroutine, NULL);
+    if (!_timerID) {
+      fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
+      exit(-1);
+    }
+
+    printf("  Video initialization...\n");
     _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE | fullscreen * SDL_WINDOW_FULLSCREEN_DESKTOP);
+    if (_window == NULL) {
+      fprintf(stderr, "   Could not create %.0fx%.0f window: %s\n", (_width * _scaleX), (_height * _scaleY), SDL_GetError());
+      exit(-1);
+    }
+
     _renderer = SDL_CreateRenderer(_window, -1, 0);
+    if (_renderer == NULL) {
+      fprintf(stderr, "   Could not create renderer: %s\n", SDL_GetError());
+      SDL_DestroyWindow(_window);
+      exit(-1);
+    }
+
     SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
     SDL_RenderSetLogicalSize(_renderer, _width, _height * _aspect_ratio);
@@ -100,11 +122,19 @@ void sys_init(sPlatform *pl, int fullscreen) {
     memset(_pixels, 0, _width * _height * sizeof(*_pixels));
     
     _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, _width, _height);
+    if (_texture == NULL) {
+      fprintf(stderr, "   Could not create texture: %s\n", SDL_GetError());
+      SDL_DestroyRenderer(_renderer);
+      SDL_DestroyWindow(_window);
+      exit(-1);
+    }
+
     SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
     
     _cursor = NULL;
     _update_cursor = 0;
-    
+
+    printf("  Audio initialization...\n");    
     _audio_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
 
     SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
@@ -120,12 +150,12 @@ void sys_init(sPlatform *pl, int fullscreen) {
     
     if ((_audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, _audio_spec, 0)) <= 0 )
     {
-      fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError());
+      fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
       exit(-1);
     }
 
     // Extended information on obtained audio for tests and reports
-    printf("Opened audio device id %d successfully:\n", _audio_id);
+    printf("  Opened audio device id %d successfully:\n", _audio_id);
     printf("    Frequency:  %d\n", _audio_spec->freq);
     printf("    Format:     0x%04x => %d bits per sample\n", _audio_spec->format, (int) SDL_AUDIO_BITSIZE(_audio_spec->format));
     printf("    Channels:   %d\n", _audio_spec->channels);
@@ -147,7 +177,6 @@ void sys_init(sPlatform *pl, int fullscreen) {
 
     SDL_PauseAudioDevice(_audio_id, 0);
 }
-
 
 u8 sys_poll_event(void) {
     u8 running = 1;

@@ -26,7 +26,9 @@
 #include "sys/sys.h"
 
 void readexec_opcode(void);
-void readexec_escname(void);
+void readexec_codesc1name(void);
+void readexec_codesc2name(void);
+void readexec_codesc3name(void);
 void readexec_opername(void);
 void readexec_storename(void);
 void readexec_addname(void);
@@ -38,16 +40,29 @@ void readexec_opername_swap(void);
 void cstore_continue(void);
 
 extern sAlisOpcode  opcodes[];
-extern sAlisOpcode  escnames[];
+extern sAlisOpcode  codesc1names[];
+extern sAlisOpcode  codesc2names[];
+extern sAlisOpcode  codesc3names[];
 extern sAlisOpcode  opernames[];
 extern sAlisOpcode  storenames[];
 extern sAlisOpcode  addnames[];
 extern sAlisError   errors[];
 
+// newer versions of ALIS
+extern sAlisOpcode  opcodes_v40[];
+extern sAlisOpcode  codesc1names_v40[];
+extern sAlisOpcode  opernames_v40[];
+extern sAlisOpcode  storenames_v40[];
+extern sAlisOpcode  addnames_v40[];
+
 // common opcode helpers
 extern u16  loctc_common(u16 offset);
 extern u16  locti_common(u16 offset);
 extern u16  loctp_common(u16 offset);
-extern void oeval(void);  // Opername opcode 0x38 oeval (no. 29)
-extern void ofin(void);   // Opername opcode 0x3a ofin (no. 30)
-                          // Used as Addname & Storename opcode 0x3a ofin as well
+
+extern void cnul(void);   // Stub for codop, codesc1, codesc2, codesc3
+extern void pnul(void);   // Stub for oper, add, store
+
+extern void oeval(void);  // Opername opcode 0x38 oeval
+extern void ofin(void);   // Opername opcode 0x3a ofin. Used in Add and Store tables as well
+extern void spile(void);  // Storename opcode 0x36 spile. Used in Add table as well

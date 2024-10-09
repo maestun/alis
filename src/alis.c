@@ -99,8 +99,16 @@ void readexec_opcode(void) {
     readexec(opcodes, "opcode", 0);
 }
 
-void readexec_escname(void) {
-    readexec(escnames, "escname", 1);
+void readexec_codesc1name(void) {
+    readexec(codesc1names, "codesc1name", 1);
+}
+
+void readexec_codesc2name(void) {
+    readexec(codesc2names, "codesc2name", 1);
+}
+
+void readexec_codesc3name(void) {
+    readexec(codesc3names, "codesc3name", 1);
 }
 
 void readexec_opername(void) {

@@ -25,34 +25,37 @@
 #include "video.h"
 
 // ============================================================================
-#pragma mark - Escnames routines
+#pragma mark - Codesc1 routines
 // ============================================================================
 
-// Escname no. 01 opcode 0x00 cnul
-static void cnul(void) {
-}
+// Codesc1name no. 01 opcode 0x00 cnul
+// Calls stub cnul
 
-// Escname no. 02 opcode 0x01 consound
-void consound(void) {
+// Codesc1name no. 02 opcode 0x01 csoundon
+// Known as consound in c-file
+void csoundon(void) {
     audio.fsound = 1;
 }
 
-// Escname no. 03 opcode 0x02 coffsound
-void coffsound(void) {
+// Codesc1name no. 03 opcode 0x02 csoundoff
+// Known as coffsound in c-file
+void csoundoff(void) {
     audio.fsound = 0;
 }
 
-// Escname no. 04 opcode 0x03 conmusic
-void conmusic(void) {
+// Codesc1name no. 04 opcode 0x03 cmusicon
+// Known as conmusic in c-file
+void cmusicon(void) {
     audio.fmusic = 1;
 }
 
-// Escname no. 05 opcode 0x04 coffmusic
-void coffmusic(void) {
+// Codesc1name no. 05 opcode 0x04 cmusicoff
+// Known as coffmusic in c-file
+void cmusicoff(void) {
     audio.fmusic = 0;
 }
 
-// Escname no. 06 opcode 0x05 cdelfilm
+// Codesc1name no. 06 opcode 0x05 cdelfilm
 void cdelfilm(void) {
     endfilm();
     
@@ -62,7 +65,7 @@ void cdelfilm(void) {
     memset(&bfilm, 0, sizeof(bfilm));
 }
 
-// Escname no. 07 opcode 0x06 copenfilm
+// Codesc1name no. 07 opcode 0x06 copenfilm
 void copenfilm(void) {
     memset(&bfilm, 0, sizeof(bfilm));
 
@@ -115,16 +118,29 @@ void copenfilm(void) {
     cstore_continue();
 }
 
-
 // ============================================================================
-#pragma mark - Escnames pointer table
+#pragma mark - Codesc1 routines pointer table
 // ============================================================================
-sAlisOpcode escnames[] = {
+sAlisOpcode codesc1names[] = {
     DECL_OPCODE(0x00, cnul,         "null"),
-    DECL_OPCODE(0x01, consound,     "TODO: add desc"),
-    DECL_OPCODE(0x02, coffsound,    "TODO: add desc"),
-    DECL_OPCODE(0x03, conmusic,     "TODO: add desc"),
-    DECL_OPCODE(0x04, coffmusic,    "TODO: add desc"),
+    DECL_OPCODE(0x01, csoundon,     "TODO: add desc"),
+    DECL_OPCODE(0x02, csoundoff,    "TODO: add desc"),
+    DECL_OPCODE(0x03, cmusicon,     "TODO: add desc"),
+    DECL_OPCODE(0x04, cmusicoff,    "TODO: add desc"),
     DECL_OPCODE(0x05, cdelfilm,     "TODO: add desc"),
     DECL_OPCODE(0x06, copenfilm,    "TODO: add desc")
+};
+
+// ============================================================================
+#pragma mark - Codesc2 routines pointer table
+// ============================================================================
+
+sAlisOpcode codesc2names[] = {
+};
+
+// ============================================================================
+#pragma mark - Codesc3 routines pointer table
+// ============================================================================
+
+sAlisOpcode codesc3names[] = {
 };
