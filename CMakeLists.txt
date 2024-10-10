@@ -25,7 +25,7 @@ add_executable(alis
                src/main.c
                src/addnames.c src/alis.c src/channel.c src/debug.c src/escnames.c src/image.c 
                src/opcodes.c src/opernames.c src/platform.c src/screen.c src/video.c
-               src/script.c src/storenames.c src/unpack.c src/utils.c)
+               src/script.c src/storenames.c src/unpack.c src/utils.c src/newalis.c)
 
 target_link_libraries(alis m)
 target_link_libraries(alis ${SDL2_LIBRARIES})
