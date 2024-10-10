@@ -73,15 +73,15 @@ int main(int argc, char *argv[]) {
             // Quit
             printf("\n");
             printf("#############################\n");
-            printf("# Releasing ALIS VM memory...\n");
-            printf("#############################\n");
-            alis_deinit();
-
-            printf("\n");
-            printf("#############################\n");
             printf("# System deinitialization...\n");
             printf("#############################\n");
             sys_deinit();
+
+            printf("\n");
+            printf("#############################\n");
+            printf("# Releasing ALIS VM memory...\n");
+            printf("#############################\n");
+            alis_deinit();
         }
         else {
             debug(EDebugFatal,
