@@ -3,7 +3,7 @@ Todo list
 
 #############################################
  Started 2024-01-25
- Updated 2024-10-08
+ Updated 2024-10-11
 
  - not solved/not implemented
  + solved/implemented
@@ -78,6 +78,7 @@ Colorado
 
 Starblade
 - 2024-10-04: DOS: The game title screen is not showing.
+- 2024-10-11: DOS: Enemy bullets fly in the opposite direction from the player (the shooter shoots forward, but bullets fly out from behind and fly backwards).
 
 #############################################
 
