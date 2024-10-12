@@ -80,7 +80,8 @@ static sPlatform* pl_get(const char * main_script) {
  return pl;
 }
 
-sPlatform* pl_guess(const char * path) {
+// mode = 0 path can only be a folder, mode = 1 path can also be a file
+sPlatform* pl_guess(const char * path, int mode) {
     sPlatform* platform = &platforms[EPlatformUnknown];
     FILE * file = NULL;
     if (path == NULL)
@@ -99,27 +100,62 @@ sPlatform* pl_guess(const char * path) {
     char data_path[kPathMaxLen];
     strcpy(data_path, path);
 
-    if (path[pathlen - 1] != kPathSeparator)
+    if (path[pathlen - 1] == '/' || path[pathlen - 1] == '\\')
     {
-        data_path[pathlen] = kPathSeparator;
-        data_path[pathlen + 1] = 0;
+        data_path[pathlen - 1] = 0;
+        pathlen -= 1;
     }
-    
+
     struct dirent * ent;
     DIR * dir = opendir(data_path);
     if (dir == NULL)
     {
-        debug(EDebugError,"%s is not a valid data path.\n", data_path);
-        return platform;
+       if ((file = fopen(data_path, "r")) != NULL) // Maybe it is a file?
+       {
+           fclose(file);
+           if (!mode) {
+              debug(EDebugInfo, "It seems you are trying to run alis with a file: %s\n", data_path);
+              debug(EDebugError,"Working with individual files is not supported in a game mode.\n");
+              debug(EDebugError,"Enter valid data path (game folder) located inside the alis folder.\n");
+           } else
+           {
+              platform = pl_get(data_path);
+              if(platform->kind == EPlatformUnknown)
+                {
+                  debug(EDebugInfo, "It seems you are trying to unpack a file %s\n", data_path);
+                  debug(EDebugError,"Unable to identify the plaftorm by file name.\n");
+                  debug(EDebugError,"Platform is unknown or unsupported.\n");
+                } else
+                {
+                  strcpy(platform->path, data_path);
+                }
+           }
+       }
+       else
+       {
+           debug(EDebugError,"%s is not a valid data path.\n", data_path);
+       } 
+       return platform;
     }
+
+     data_path[pathlen] = kPathSeparator;
+     data_path[pathlen + 1] = 0;
 
     // open path ok, loop thru files until we find the main script
     // that matches one of the declared platforms
     char main_path[kPathMaxLen];
     while ((ent = readdir(dir)) != NULL)
     {
-        if(ent->d_type == DT_REG)
-        {
+#if defined (_DIRENT_HAVE_D_TYPE)
+        if(ent->d_type == DT_REG) {
+#else
+        if((strcmp(ent->d_name,".")==0 || strcmp(ent->d_name,"..")==0)) continue;
+        struct stat sb;
+        strcpy(main_path, data_path);
+        strcat(main_path, ent->d_name);
+        if(stat(main_path, &sb) == -1) continue; // an error
+        if(S_ISREG(sb.st_mode) != 0) {
+#endif
             // look for main script
             if(!strncasecmp(ent->d_name, kMainScriptName, strlen(kMainScriptName)) ||
                !strncasecmp(ent->d_name, kManAtariScriptName, strlen(kManAtariScriptName)) ||
@@ -148,8 +184,10 @@ sPlatform* pl_guess(const char * path) {
             }
         }
     }
-    
     closedir(dir);
-    
+    if(platform->kind == EPlatformUnknown)
+    {
+       debug(EDebugFatal, "Platform is unknown, unsupported or main file is not found.\n");
+    }
     return platform;
 }
