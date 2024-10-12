@@ -24,9 +24,6 @@
 #include "config.h"
 
 #define kMainScriptID           (0)
-#define kDepackFolder           "depack"
-#define kDepackExtension        "bin"
-
 
 // CONTEXT: each script has some context data, stored before vram origin
 typedef struct {
