@@ -925,7 +925,7 @@ static void cload(void) {
     // get script ID
     u16 id = script_read16();
     if(id != 0) {
-        // not main script, depack and load into vm
+        // not main script, unpack and load into vm
         char path[kPathMaxLen] = {0};
         strcpy(path, alis.platform.path);
         char name[16] = {0};
@@ -6835,7 +6835,7 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x42, cstop,        "TODO: add desc"),
     DECL_OPCODE(0x43, cstopret,     "TODO: add desc"),
     DECL_OPCODE(0x44, cexit,        "TODO: add desc"),
-    DECL_OPCODE(0x45, cload,        "Load and depack a script, set into vm"),
+    DECL_OPCODE(0x45, cload,        "Load and unpack a script, set into vm"),
     DECL_OPCODE(0x46, cdefsc,       "Define Scene ??"),
     DECL_OPCODE(0x47, cscreen,      "TODO: add desc"),
     DECL_OPCODE(0x48, cput,         "TODO: add desc"),
