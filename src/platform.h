@@ -135,5 +135,5 @@ typedef struct {
     char        main[kPathMaxLen];  // path to main script
 } sPlatform;
 
-sPlatform*  pl_guess(const char* folder_path);
+sPlatform*  pl_guess(const char* folder_path, int mode);
 int         pl_supported(sPlatform* platform);
