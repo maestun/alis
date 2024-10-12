@@ -39,7 +39,7 @@ static char* debug_colors[] = {
 
 static char* debug_prefix[] = {
     "\x1b[1m[FATAL]",
-    "[ERROR]",
+    "\x1b[1m[ERROR]",
     "[WARNING]",
     "[INFO]",
     "[VERBOSE]"
