@@ -21,12 +21,24 @@
 
 #include "alis.h"
 #include "config.h"
+#include "unpack.h"
 #include "sys/sys.h"
 #include "SDL2/SDL.h"
 
 void usage(void) {
-    printf("%s v%s\nUsage:\n\t%s [-f] <data_path>\n\n\t%s <data_path>\n",
-           kProgName, kProgVersion, kProgName, kProgName);
+
+    printf("%s ver. %s\n\n"\
+            "Usage:\n"\
+            "\tGame mode (Windowed):     %s <data_path>\n"\
+            "\tGame mode (Fullscreen):   %s -f <data_path>\n"\
+            "\tUnpack mode:              %s -u <data_path>\n",
+            kProgName, kProgVersion, kProgName, kProgName, kProgName);
+    printf( "\nHotkeys:\n"\
+            "\tPause                     Quit\n"\
+            "\tPrScr                     Capture screenshot (not implemented yet)\n"\
+            "\tF11                       Save state (experimental)\n"\
+            "\tF12                       Load state (experimental)\n");
+    fflush(stdout);
 }
 
 int main(int argc, char *argv[]) {
@@ -35,9 +47,11 @@ int main(int argc, char *argv[]) {
         usage();
     }
     else {
-        printf("%s v%s\n", kProgName, kProgVersion);
+        printf("%s ver. %s\n", kProgName, kProgVersion);
         
         int fullscreen = 0;
+        int unpackmode = 0;
+
         const char *path = NULL;
         
         for (int c = 1; c < argc; c++)
@@ -48,12 +62,27 @@ int main(int argc, char *argv[]) {
                 fullscreen = 1;
             }
             else
+            if (strcmp(cmd, "-u") == 0)
+            {
+                unpackmode = 1;
+            }
+            else
             {
                 path = argv[c];
             }
         }
-        
-        sPlatform *pl = pl_guess(path);
+
+        sPlatform *pl = pl_guess(path, unpackmode);
+
+        // Unpack mode
+        if(pl_supported(pl) && unpackmode) {
+            alis.platform = *pl;
+            vram_init();
+//          unpack_mode(alis.platform.path);
+            return 0;
+        }
+
+        // Game mode
         if(pl_supported(pl)) {
             printf("#############################\n");
             printf("# System initialization...\n");
@@ -84,9 +113,7 @@ int main(int argc, char *argv[]) {
             alis_deinit();
         }
         else {
-            debug(EDebugFatal,
-                  "Platform '%s' is not supported.\n",
-                  pl->desc);
+//          debug(EDebugFatal, "Platform '%s' is not supported.\n", pl->desc);
         }
     }
     return 0;
