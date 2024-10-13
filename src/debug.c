@@ -47,35 +47,39 @@ static char* debug_prefix[] = {
 
 #ifndef DISABLE_DEBUG
 void debug(EDebugLevel level, char * format, ...) {
-    if(level <= DEBUG_LEVEL) {
-        va_list arg;
-        va_start(arg, format);
-        vdebug(level, format, arg);
-        va_end(arg);
+    if((disalis) && (level < EDebugVerbose)) {
+       va_list arg;
+       va_start(arg, format);
+       fflush(stdout);
+       vprintf(format, arg);
+       fflush(stdout);
     }
+    else {
+    if(level <= DEBUG_LEVEL) {
+       va_list arg;
+       va_start(arg, format);
+       vdebug(level, format, arg);
+       va_end(arg);
+    }
+  }
 }
 
 void vdebug(EDebugLevel level, char * format, va_list args) {
-      if((disalis) && (level < EDebugVerbose)) {
-          fflush(stdout);
-          vprintf(format, args);
-          fflush(stdout);
-      }
-      else {
-      if(level <= DEBUG_LEVEL) {
-          printf("%s%s ", debug_colors[level], debug_prefix[level]);
-          vprintf(format, args);
-          printf("%s", ANSI_COLOR_RESET);
-          fflush(stdout);
-      }
+  if(level <= DEBUG_LEVEL) {
+     printf("%s%s ", debug_colors[level], debug_prefix[level]);
+     vprintf(format, args);
+     printf("%s", ANSI_COLOR_RESET);
+     fflush(stdout);
   }
 }
 #else
 void debug(EDebugLevel level, char * format, ...) {
-      if((disalis) && (level < EDebugVerbose)) {
-          fflush(stdout);
-          vprintf(format, args);
-          fflush(stdout);
-      }
+  if((disalis) && (level < EDebugVerbose)) {
+     va_list arg;
+     va_start(arg, format);
+     fflush(stdout);
+     vprintf(format, arg);
+     fflush(stdout);
+  }
 }
 #endif
