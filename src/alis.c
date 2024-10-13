@@ -59,7 +59,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
 
-        if (!DEBUG_SCRIPT) {
+        if (!disalis) {
             debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         }
         else {
@@ -93,7 +93,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
 }
 
 void readexec_opcode(void) {
-    if (!DEBUG_SCRIPT) {
+    if (!disalis) {
        debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
     }
     readexec(opcodes, "opcode", 0);
