@@ -5945,7 +5945,7 @@ void cnul(void)      {
 void pnul(void)      {
     debug(EDebugFatal, "\nERROR: NULL code pointer called\n");
     if (!VM_IGNORE_ERRORS) {
-        debug(EDebugFatal, "The ALIS VM has been stopped.");
+        debug(EDebugFatal, "The ALIS VM has been stopped.\n");
         alis.running = 0;
     }
 }
