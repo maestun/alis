@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
         if(pl_supported(pl) && unpackmode) {
             alis.platform = *pl;
             vram_init();
-            unpack_mode(alis.platform.path);
+            // unpack_mode(alis.platform.path);
             return 0;
         }
 
