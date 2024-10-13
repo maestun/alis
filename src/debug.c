@@ -56,7 +56,7 @@ void debug(EDebugLevel level, char * format, ...) {
 }
 
 void vdebug(EDebugLevel level, char * format, va_list args) {
-      if((DEBUG_SCRIPT) && (level <= DEBUG_LEVEL)) {
+      if((disalis) && (level < EDebugVerbose)) {
           fflush(stdout);
           vprintf(format, args);
           fflush(stdout);
@@ -71,5 +71,11 @@ void vdebug(EDebugLevel level, char * format, va_list args) {
   }
 }
 #else
-void debug(EDebugLevel level, char * format, ...) {}
+void debug(EDebugLevel level, char * format, ...) {
+      if((disalis) && (level < EDebugVerbose)) {
+          fflush(stdout);
+          vprintf(format, args);
+          fflush(stdout);
+      }
+}
 #endif
