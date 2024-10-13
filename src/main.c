@@ -25,19 +25,23 @@
 #include "sys/sys.h"
 #include "SDL2/SDL.h"
 
+int disalis = DEBUG_SCRIPT;
+
 void usage(void) {
 
     printf("%s ver. %s\n\n"\
             "Usage:\n"\
             "\tGame mode (Windowed):     %s <data_path>\n"\
             "\tGame mode (Fullscreen):   %s -f <data_path>\n"\
+            "\tEnable runtime disalis:   %s -d <data_path>\n"\
             "\tUnpack mode:              %s -u <data_path>\n",
-            kProgName, kProgVersion, kProgName, kProgName, kProgName);
+            kProgName, kProgVersion, kProgName, kProgName, kProgName, kProgName);
     printf( "\nHotkeys:\n"\
             "\tPause                     Quit\n"\
             "\tPrScr                     Capture screenshot (not implemented yet)\n"\
             "\tF11                       Save state (experimental)\n"\
-            "\tF12                       Load state (experimental)\n");
+            "\tF12                       Load state (experimental)\n"\
+            "\tLeft Alt                  Set user debug label (in disalis listing)\n");
     fflush(stdout);
 }
 
@@ -67,6 +71,11 @@ int main(int argc, char *argv[]) {
                 unpackmode = 1;
             }
             else
+            if (strcmp(cmd, "-d") == 0)
+            {
+                disalis ^= 1;
+            }
+            else
             {
                 path = argv[c];
             }
@@ -78,7 +87,7 @@ int main(int argc, char *argv[]) {
         if(pl_supported(pl) && unpackmode) {
             alis.platform = *pl;
             vram_init();
-//          unpack_mode(alis.platform.path);
+            unpack_mode(alis.platform.path);
             return 0;
         }
 
