@@ -444,7 +444,7 @@ static void cloop(s32 offset) {
     {
         alis.script->pc = save_loop_pc;
 
-        if(DEBUG_SCRIPT) {
+        if(disalis) {
              if (offset<0) {
                  debug(EDebugInfo, " [loop jmp up -0x%06x]", abs(offset));
              }
@@ -3378,7 +3378,7 @@ void printd0(s16 d0w)
     char *ptr = alis.sd7;
     valtostr(alis.sd7, d0w);
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        debug(EDebugInfo, " [\"%s\"]", alis.sd7);
     }
     
@@ -5945,7 +5945,7 @@ void cnul(void)      {
 void pnul(void)      {
     debug(EDebugFatal, "\nERROR: NULL code pointer called\n");
     if (!VM_IGNORE_ERRORS) {
-        debug(EDebugFatal, " The ALIS VM has been stopped.");
+        debug(EDebugFatal, "The ALIS VM has been stopped.");
         alis.running = 0;
     }
 }
@@ -6045,7 +6045,7 @@ static void cjsr8(void) {
     // read byte, extend sign
     s16 offset = (s8)script_read8();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
          if (offset<0) {
              debug(EDebugInfo, " [call up -0x%02x]", abs(offset));
          }
@@ -6061,7 +6061,7 @@ static void cjsr8(void) {
 static void cjsr16(void) {
     s16 offset = script_read16();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
          if (offset<0) {
              debug(EDebugInfo, " [call up -0x%04x]", abs(offset));
          }
@@ -6077,7 +6077,7 @@ static void cjsr16(void) {
 static void cjsr24(void) {
     s32 offset = script_read24();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
          if (offset<0) {
              debug(EDebugInfo, " [call up -0x%06x]", abs(offset));
          }
@@ -6098,7 +6098,7 @@ static void cjsr24(void) {
 static void cjmp8(void) {
     s16 offset = (s8)script_read8();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
          if (offset<0) {
              debug(EDebugInfo, " [jmp up -0x%02x]", abs(offset));
          }
@@ -6114,7 +6114,7 @@ static void cjmp8(void) {
 static void cjmp16(void) {
     s16 offset = script_read16();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
          if (offset<0) {
              debug(EDebugInfo, " [jmp up -0x%04x]", abs(offset));
          }
@@ -6130,7 +6130,7 @@ static void cjmp16(void) {
 static void cjmp24(void) {
     s32 offset = script_read24();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
          if (offset<0) {
              debug(EDebugInfo, " [jmp up -0x%06x]", abs(offset));
          }
@@ -6151,7 +6151,7 @@ static void cjmp24(void) {
 static void cbz8(void) {
     s16 offset = alis.varD7 ? 1 : (s8)script_read8();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 != 0) {
            debug(EDebugInfo, " [d7<>0 => no jmp +1]");
        }
@@ -6172,7 +6172,7 @@ static void cbz8(void) {
 static void cbz16(void) {
     s16 offset = alis.varD7 ? 2 : script_read16();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 != 0) {
            debug(EDebugInfo, " [d7<>0 => no jmp +2]");
        }
@@ -6193,7 +6193,7 @@ static void cbz16(void) {
 static void cbz24(void) {
     s32 offset = alis.varD7 ? 3 : script_read24();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 != 0) {
            debug(EDebugInfo, " [d7<>0 => no jmp +3]");
        }
@@ -6219,7 +6219,7 @@ static void cbz24(void) {
 static void cbnz8(void) {
     s16 offset = alis.varD7 == 0 ? 1 : (s8)script_read8();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 == 0) {
            debug(EDebugInfo, " [d7==0 => no jmp +1]");
        }
@@ -6240,7 +6240,7 @@ static void cbnz8(void) {
 static void cbnz16(void) {
     s16 offset = alis.varD7 == 0 ? 2 : script_read16();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 == 0) {
            debug(EDebugInfo, " [d7==0 => no jmp +2]");
        }
@@ -6261,7 +6261,7 @@ static void cbnz16(void) {
 static void cbnz24(void) {
     s32 offset = alis.varD7 == 0 ? 3 : script_read24();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 == 0) {
            debug(EDebugInfo, " [d7==0 => no jmp +3]");
        }
@@ -6287,7 +6287,7 @@ static void cbnz24(void) {
 static void cbeq8(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 1 : (s8)script_read8();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 == alis.varD6) {
            debug(EDebugInfo, " [d7==d6 => no jmp +1]");
        }
@@ -6308,7 +6308,7 @@ static void cbeq8(void) {
 static void cbeq16(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 2 : script_read16();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 == alis.varD6) {
            debug(EDebugInfo, " [d7==d6 => no jmp +2]");
        }
@@ -6329,7 +6329,7 @@ static void cbeq16(void) {
 static void cbeq24(void) {
     s32 offset = alis.varD7 == alis.varD6 ? 3 : script_read24();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 == alis.varD6) {
            debug(EDebugInfo, " [d7==d6 => no jmp +3]");
        }
@@ -6355,7 +6355,7 @@ static void cbeq24(void) {
 static void cbne8(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 1 : (s8)script_read8();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 != alis.varD6) {
            debug(EDebugInfo, " [d7<>d6 => no jmp +1]");
        }
@@ -6376,7 +6376,7 @@ static void cbne8(void) {
 static void cbne16(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 2 : script_read16();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 != alis.varD6) {
            debug(EDebugInfo, " [d7<>d6 => no jmp +2]");
        }
@@ -6397,7 +6397,7 @@ static void cbne16(void) {
 static void cbne24(void) {
     s32 offset = alis.varD7 != alis.varD6 ? 3 : script_read24();
 
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        if (alis.varD7 != alis.varD6) {
            debug(EDebugInfo, " [d7<>d6 => no jmp +3]");
        }
