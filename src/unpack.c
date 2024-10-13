@@ -29,11 +29,17 @@ const u8 kPackedDictionarySize = 8;
 const u8 kVMSpecsSize = 16;
 const u8 kPackedDatHeaderSize = 12;
 
+#define kUnpackFolder           "unpacked"
+#define kUnpackExtension        "alis"
+
 #define BIT_CLR(v, b)       (v &= ~(1UL << b))
 #define BIT_SET(v, b)       (v |= (1UL << b))
 #define BIT_CHG(v, b)       (v ^= (1UL << b))
 #define BIT_CHK(v, b)       ((v >> b) & 1U)
 
+#if (defined(_WIN32) || defined(__WIN32__))  // mkdir command on Win32 (MinGW) takes one argument
+#define mkdir(a, b) mkdir(a)                 // Cygwin (_WIN32 is not set) should work well with two arguments
+#endif
 
 // ============================================================================
 #pragma mark - Old Silmarils unpacker
@@ -253,9 +259,8 @@ u32 unpack_new(u8* ptr_packed,
     return __unpack_counter;
 }
 
-
 // ============================================================================
-#pragma mark - Depacker
+#pragma mark - Unpacker
 // ============================================================================
 
 u8 is_packed(u8 packer_kind) {

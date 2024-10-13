@@ -1044,7 +1044,7 @@ void put_char(s8 character)
 
 void put_string(void)
 {
-    if(DEBUG_SCRIPT) {
+    if(disalis) {
        debug(EDebugInfo, " [\"%s\"]", alis.sd7);
     }
 

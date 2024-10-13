@@ -37,16 +37,14 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/termios.h>
-#include <sys/mman.h>
 
 #define kProgName           "alis"
-#define kProgVersion        "0.1.0"
+#define kProgVersion        "0.1.029" // temporal version numbering scheme: x.y.zzz; zzz - pull request number
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)
 
-#ifdef _WIN32
+#if defined (_WIN32) || defined (__CYGWIN__)
 #  define kPathSeparator    '\\'
 #else
 #  define kPathSeparator    '/'
@@ -76,3 +74,5 @@ typedef enum {
 #define DEBUG_LEVEL         EDebugWarning
 #define DEBUG_SCRIPT        0
 #define VM_IGNORE_ERRORS    0
+
+extern int disalis;

@@ -59,7 +59,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
 
-        if (!DEBUG_SCRIPT) {
+        if (!disalis) {
             debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         }
         else {
@@ -80,9 +80,9 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
                                    // It is necessary to add it to the appropriate name table
                                    // (codop, codesc1, codesc2, codesc3, oper, store, or add)
            {
-              debug(EDebugFatal, "\nERROR: Opcode 0x%.2x is missing in %ss table.", code, name);
+              debug(EDebugFatal, "\nERROR: Opcode 0x%.2x is missing in %ss table.\n", code, name);
               if (!VM_IGNORE_ERRORS) {
-                  debug(EDebugFatal, " The ALIS VM has been stopped.");
+                  debug(EDebugFatal, "The ALIS VM has been stopped.\n");
                   alis.running = 0;
               }
            }
@@ -93,7 +93,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
 }
 
 void readexec_opcode(void) {
-    if (!DEBUG_SCRIPT) {
+    if (!disalis) {
        debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
     }
     readexec(opcodes, "opcode", 0);

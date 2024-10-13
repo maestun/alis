@@ -2969,7 +2969,7 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0x42, cstop,        "TODO: add desc"),
     DECL_OPCODE(0x43, cvecdistabs,  "TODO: add desc"),   // tcodop_43: cstopret => cvecdistabs
     DECL_OPCODE(0x44, cexit,        "TODO: add desc"),
-    DECL_OPCODE(0x45, cload,        "Load and depack a script, set into vm"),
+    DECL_OPCODE(0x45, cload,        "Load and unpack a script, set into vm"),
     DECL_OPCODE(0x46, csctype,      "TODO: add desc"),   // tcodop_46: cdefsc => csctype
     DECL_OPCODE(0x47, cscreen,      "TODO: add desc"),
     DECL_OPCODE(0x48, cput,         "TODO: add desc"),

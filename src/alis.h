@@ -252,7 +252,7 @@ typedef struct {
     u8              script_index;
     
     // SCRIPTS
-    // global table containing all depacked scripts
+    // global table containing all unpacked scripts
     sAlisScriptLive * live_scripts[kMaxScripts];
     sAlisScriptData * loaded_scripts[kMaxScripts];
 

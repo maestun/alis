@@ -30,11 +30,11 @@
 #include "utils.h"
 
 // =============================================================================
-// MARK: - Depacker
+// MARK: - Unpacker
 // =============================================================================
 
 // byte 0 -> magic
-// byte 1..3 -> depacked size (24 bits)
+// byte 1..3 -> unpacked size (24 bits)
 //#define HEADER_MAGIC_SZ     (sizeof(u32))
 // byte 4..5 -> main script if zero
 //#define HEADER_CHECK_SZ     (sizeof(u16))
@@ -48,7 +48,7 @@ u8 is_packedx(u32 magic) {
     return ((magic >> 24) & 0xf0) == 0xa0;
 }
 
-u32 get_depacked_size(u32 magic) {
+u32 get_unpacked_size(u32 magic) {
     return (magic & 0x00ffffff);
 }
 
@@ -687,16 +687,16 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
  byte(s)    len     role
  -------------------------------------------------------------------------------
  0          1       if high nibble is A, file is packed (b[0] & 0xf0 == 0xa0)
- 1..3       3       depacked size
+ 1..3       3       unpacked size
  4...5      2       if zero, this is the main script
  
  (main only)
  6...21     16      main header bytes
- 22...29    8       depack dictionary
+ 22...29    8       unpack dictionary
  30...xx    ?       packed data
  
  (other)
- 6...13     8       depack dictionary
+ 6...13     8       unpack dictionary
  14...xx    ?       packed data
 
  
@@ -710,7 +710,7 @@ sAlisScriptData * script_load(const char * script_path) {
     
     sAlisScriptData * script = NULL;
     
-    s32 depak_sz = -1;
+    s32 unpack_sz = -1;
     
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
@@ -726,10 +726,10 @@ sAlisScriptData * script_load(const char * script_path) {
         u32 magic = fread32(fp);
         u16 check = fread16(fp);
         
-        // alloc and depack
-        depak_sz = get_depacked_size(magic);
-        u8 * depak_buf = (u8 *)malloc(depak_sz * sizeof(u8));
-        memset(depak_buf, 0, depak_sz);
+        // alloc and unpack
+        unpack_sz = get_unpacked_size(magic);
+        u8 * unpack_buf = (u8 *)malloc(unpack_sz * sizeof(u8));
+        memset(unpack_buf, 0, unpack_sz);
 
         // TODO: check if this was already loaded, if so use cache
         
@@ -737,7 +737,7 @@ sAlisScriptData * script_load(const char * script_path) {
         alis.typepack = magic >> 24;
         if (alis.typepack < 0)
         {
-            debug(EDebugInfo, "Depacking...\n");
+            debug(EDebugInfo, "Unpacking...\n");
 
             u32 pak_sz = input_sz - kPackedHeaderSize - kPackedDictionarySize;
             if(is_main(check)) {
@@ -758,9 +758,9 @@ sAlisScriptData * script_load(const char * script_path) {
             memset(pak_buf, 0, pak_sz + 16);
             fread(pak_buf, sizeof(u8), pak_sz, fp);
 
-            depak_sz = unpack_script(script_path, &depak_buf);
-            if (depak_sz > 0) {
-                script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+            unpack_sz = unpack_script(script_path, &unpack_buf);
+            if (unpack_sz > 0) {
+                script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
             }
 
             // cleanup
@@ -776,19 +776,19 @@ sAlisScriptData * script_load(const char * script_path) {
             if(is_main(check))
                 seekto += kVMSpecsSize;
             
-            depak_sz -= seekto;
+            unpack_sz -= seekto;
 
             fseek(fp, seekto, SEEK_SET);
-            fread(depak_buf, sizeof(u8), depak_sz, fp);
+            fread(unpack_buf, sizeof(u8), unpack_sz, fp);
 
-            script = script_init(strrchr(script_path, kPathSeparator) + 1, depak_buf, depak_sz);
+            script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
         }
 
         // cleanup
-        free(depak_buf);
+        free(unpack_buf);
         fclose(fp);
         
-        if (depak_sz < 0) {
+        if (unpack_sz < 0) {
             debug(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
             exit(-1);
         }
@@ -805,9 +805,9 @@ sAlisScriptData * script_load(const char * script_path) {
             // NOTE: game was distributed on two single-sided 3.5" disks and check disk by loading disk.fic containig number of diskette
 
             char *locations[2] = { NULL, NULL };
-            if ((locations[0] = strarr((char *)alis.mem + script->data_org, "disk.fic", depak_sz)))
+            if ((locations[0] = strarr((char *)alis.mem + script->data_org, "disk.fic", unpack_sz)))
             {
-                if ((locations[1] = strarr(locations[0] + 8, "disk.fic", depak_sz)))
+                if ((locations[1] = strarr(locations[0] + 8, "disk.fic", unpack_sz)))
                 {
                     for (u8 i = 1; i < 3; i++)
                     {

@@ -24,9 +24,6 @@
 #include "config.h"
 
 #define kMainScriptID           (0)
-#define kDepackFolder           "depack"
-#define kDepackExtension        "bin"
-
 
 // CONTEXT: each script has some context data, stored before vram origin
 typedef struct {
@@ -145,7 +142,7 @@ typedef struct {
     u8 _0x01_cstart;
 } sScriptContext;
 
-// HEADER: read from depacked script 24 BYTES
+// HEADER: read from unpacked script 24 BYTES
 typedef struct {
     u16     id;
     u8      unknown01;       // seems to be always 0x1700 on atari, copied at (vram - $2e)
@@ -167,7 +164,7 @@ typedef struct {
     char            name[kNameMaxLen];
     u32             sz;
 
-    // read from depacked file
+    // read from unpacked file
     sScriptHeader    header;
     
     u8              type;
