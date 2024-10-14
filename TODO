@@ -31,6 +31,8 @@ Todo list
 - 2024-10-12: Debug/Reports: Built-in util to unpack Alis script files (unpack mode). Based on and is an updated and reworked version of silm-depack util by Maestun (https://github.com/maestun/silm-depack). Pull requests #29.
 - 2024-10-13: Debug/Reports: Built-in util to extract resources (text, audio, sample, music, image and video resources) from Alis script files (extract/resource mode). Based on and is an updated and reworked version of silm-extract by Skruug (https://github.com/skruug/silm-extract). Two extraction options: in the original internal Silmarils audio, image and video formats (raw data) and in converted form (bmp, wav, etc.).
 - 2024-10-14: Debug/Reports: Built-in util to extract doc-check words.
+- 2024-10-14: Debug/Reports: Built-in util to convert Alis script files between BE and LE platforms.
+- 2024-10-14: Debug/Reports: Built-in util to pack non-packed or unpacked Alis script files. Supported both RLE and LZ like compression methods: old (A0, 80 & 81, C0 & C1), new BYTE60 (PB60, A1), and new WORD60 (PW60, A1) methods. BE and LE platforms.
 
 #############################################
   2. Games list:
