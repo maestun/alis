@@ -835,11 +835,13 @@ static void cclipping(void) {
 
 // Codopname no. 060 opcode 0x3b cswitching
 // [N/I]: Robinson's Requiem, Storm Master (IBM PC)
+// TODO: fswitch is not set to 1 on the PC, but in the current alis implementation
+// it must be set, otherwise the game won't show anything
 static void cswitching(void) {
-    if (alis.platform.kind == EPlatformPC) {
-        debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
-        return;
-    }
+//    if (alis.platform.kind == EPlatformPC) {
+//        debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
+//        return;
+//    }
     alis.fswitch = 1;
 }
 
