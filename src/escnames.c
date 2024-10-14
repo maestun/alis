@@ -122,13 +122,13 @@ void copenfilm(void) {
 #pragma mark - Codesc1 routines pointer table
 // ============================================================================
 sAlisOpcode codesc1names[] = {
-    DECL_OPCODE(0x00, cnul,         "null"),
-    DECL_OPCODE(0x01, csoundon,     "TODO: add desc"),
-    DECL_OPCODE(0x02, csoundoff,    "TODO: add desc"),
-    DECL_OPCODE(0x03, cmusicon,     "TODO: add desc"),
-    DECL_OPCODE(0x04, cmusicoff,    "TODO: add desc"),
-    DECL_OPCODE(0x05, cdelfilm,     "TODO: add desc"),
-    DECL_OPCODE(0x06, copenfilm,    "TODO: add desc")
+    DECL_OPCODE(0x00, cnul,         "[N/I] null"),
+    DECL_OPCODE(0x01, csoundon,     "sound on"),
+    DECL_OPCODE(0x02, csoundoff,    "sound off"),
+    DECL_OPCODE(0x03, cmusicon,     "music on"),
+    DECL_OPCODE(0x04, cmusicoff,    "music off"),
+    DECL_OPCODE(0x05, cdelfilm,     "close and delete video from memory"),
+    DECL_OPCODE(0x06, copenfilm,    "open video")
 };
 
 // ============================================================================

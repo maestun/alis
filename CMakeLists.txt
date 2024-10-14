@@ -10,6 +10,11 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 
 # SDL2
+# If SDL2 package is not found and cannot be installed for any reason, a quick fix can be made:
+#    place the devel-version of SDL2 (https://github.com/libsdl-org/SDL/releases) in the src/SDL2 folder
+#    (make sure the cmake folder is available in the package extracted to the src/SDL2 folder)
+#    and enable the following command:
+# set(SDL2_DIR "src/SDL2/cmake")
 find_package(SDL2 REQUIRED)
 
 include_directories(src/emu2149)
@@ -25,7 +30,7 @@ add_executable(alis
                src/main.c
                src/addnames.c src/alis.c src/channel.c src/debug.c src/escnames.c src/image.c 
                src/opcodes.c src/opernames.c src/platform.c src/screen.c src/video.c
-               src/script.c src/storenames.c src/unpack.c src/utils.c src/newalis.c)
+               src/script.c src/storenames.c src/unpack.c src/utils.c src/newalis.c src/export.c)
 
 target_link_libraries(alis m)
 target_link_libraries(alis ${SDL2_LIBRARIES})

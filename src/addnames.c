@@ -222,11 +222,11 @@ static void aeval(void) {
 #pragma mark - Add routines pointer table
 // ============================================================================
 sAlisOpcode addnames[] = {
-    DECL_OPCODE(0x00, pnul,         "null pointer"),
+    DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x02, pnul,         "null pointer"),
+    DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x04, pnul,         "null pointer"),
+    DECL_OPCODE(0x04, pnul,         "[N/I] null pointer"),
     {},
     DECL_OPCODE(0x06, alocb,        "reads word (offset) from script, adds byte from d7 to byte at (vram+offset)"),
     {},

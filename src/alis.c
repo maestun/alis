@@ -129,11 +129,13 @@ void readexec_addname_swap(void) {
     readexec_addname();
 }
 
+// gparam
 void readexec_opername_saveD7(void) {
     alis.varD6 = alis.varD7;
     readexec_opername();
 }
 
+// gparam1
 void readexec_opername_saveD6(void) {
     
     s16 tmp = alis.varD7;
@@ -345,7 +347,14 @@ void alis_init(sPlatform platform) {
     image.logy2 = alis.platform.height - 1;
 
     // NOTE: cswitching is never called for older games
-    alis.fswitch = 1;
+    // TODO: check other PC games. Robinson's Requiem, Storm Master (IBM PC): fswitch = 0
+    if (alis.platform.kind == EPlatformPC)
+    {
+      alis.fswitch = 0;
+    } else
+    {
+      alis.fswitch = 1;
+    }
     alis.flagmain = 0;
     
     alis.fallent = 0;

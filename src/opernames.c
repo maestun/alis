@@ -867,6 +867,8 @@ void ojoykey(void) {
 // Opername no. 85 opcode 0xa8 oconfig
 void oconfig(void) {
     alis.varD7 = 0;
+//
+//    alis.varD7 = alis.theconfig;
 }
 
 // Opername no. 31 opcode 0x3c pnul
@@ -942,9 +944,9 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x3a, ofin,         "ends an expression evaluation loop"),
     {},
-    DECL_OPCODE(0x3c, pnul,         "null pointer"),
+    DECL_OPCODE(0x3c, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x3e, pnul,         "null pointer"),
+    DECL_OPCODE(0x3e, pnul,         "[N/I] null pointer"),
     {},
     DECL_OPCODE(0x40, opushacc,     "push word from r7 into virtual accumulator"),
     {},

@@ -1,10 +1,10 @@
 # ALIS
 
-An attempt to reimplement the virtual machine made by the [Silmarils](https://en.wikipedia.org/wiki/Silmarils_(company)) videogame company. The name of this repo comes from [this interview](https://www.atarilegend.com/interviews/26).
+An attempt to reimplement the virtual machine (VM) known as ALIS (Actor Language Integrated System), created by the [Silmarils](https://en.wikipedia.org/wiki/Silmarils_(company)) videogame company. The name of the machine is revealed in [this interview](https://www.atarilegend.com/interviews/26), and gave its name to this repo.
 
 ## Build and run
 
-Tested on macOS, Ubuntu and Windows.
+Tested on macOS, Ubuntu and Windows (Cygwin and MinGW).
 
 Install the following packages on your system:
 
@@ -32,6 +32,8 @@ Run the executable by passing the data path:
 ```bash
 ./alis data_path
 ```
+
+Run the executable without arguments for full usage options.
 
 ## More info...
 
@@ -67,8 +69,9 @@ Run the executable by passing the data path:
 | Arabian Nights          | ${\textsf{\small\color{gray}Not \ Working}}$ | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   |
 | Les Visiteurs           | ${\textsf{\small\color{gray}Not \ Working}}$ | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\small\color{gray}Not \ Working}}$ | ${\textsf{\color{gray}-}}$                   |
 | Inspector Gadget        | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\color{gray}-}}$                   | ${\textsf{\small\color{gray}Not \ Working}}$ |
-* Manhattan Dealers released as Operation: Cleanstreets by Brøderbund Software, Inc. in North America (PC, Amiga and Atari ST); Transarctica released as Arctic Baron in North America (PC only).
+* Note: Manhattan Dealers released as Operation: Cleanstreets by Brøderbund Software, Inc. in North America (PC, Amiga and Atari ST); Transarctica released as Arctic Baron in North America (PC only).
 
+Interpretation:
 - Not Working, main script is not executed at all.               
 - Broken, game is executed but crashes or freezes shortly after execution.               
 - Bugged, partially playable, game breaking bugs are to be expected.
@@ -86,7 +89,7 @@ Run the executable by passing the data path:
 
 ### Virtual Machine
 
-On a Silmarils game disk, you'll find the main executable (the VM), and several compressed game files. These games files contain almost all of the game mechanics, the assets (sounds, graphics, messages, etc...), as well as the VM's code in a proprietary pseudo-assembly format.
+On a Silmarils game disk, you'll find the main executable (the VM or the interpreter), and several compressed game files. These games files contain almost all of the game mechanics, the assets (sounds, graphics, messages, etc...), as well as the VM's code in a proprietary pseudo-assembly format.
 
 The main executable contains:
 - all the system calls, that depend on the target's architecture
