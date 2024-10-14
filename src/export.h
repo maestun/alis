@@ -23,6 +23,8 @@
 
 #include "image.h"
 
+void export_script(sAlisScriptData * script);
+
 void save_grayscale_bmp(const u8 *buffer, s32 width, s32 height, const char *filepath);
 void save_palette(u8 *resourcedata, const char *filepath);
 

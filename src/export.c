@@ -27,6 +27,47 @@
 #include "screen.h"
 #include "utils.h"
 
+
+void export_script(sAlisScriptData *script)
+{
+   u32 addr = script->data_org;
+   addr += xread32(addr + 0xe);
+   
+   // graphic resources
+   s32 glen = xread16(addr + 4);
+   for (int i = 0; i < glen; i++)
+   {
+       char name[32] = {0};
+       strcpy(name, script->name);
+       snprintf(strrchr(name, '.'), 16, "_%.3d", i);
+       
+       s32 rsrc = addr + xread32(addr) + i * 4;
+       export_graphics(rsrc, name);
+   }
+
+   // audio resources
+   s32 off = xread32(script->data_org + 0xe);
+   s32 mlen = xread16(addr + 0x10);
+   for (int i = 0; i < mlen; i++)
+   {
+       char name[32] = {0};
+       strcpy(name, script->name);
+       snprintf(strrchr(name, '.'), 16, "_%.3d", i);
+       
+       s32 at = xread32(addr + 0xc) + off + i * 4;
+       s32 rsrc = xread32(script->data_org + at) + at;
+       export_audio(script->data_org + rsrc, name);
+   }
+
+   // form resources
+   addr += xread32(addr + 0x6);
+   
+   for (int i = 0; i < 16; i++)
+   {
+       u32 rsrc = addr + xread16(addr + (i * 2));
+   }
+}
+
 #pragma mark graphics
 
 #pragma pack(push, 1)
