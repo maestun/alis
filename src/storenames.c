@@ -260,11 +260,11 @@ void cstore_continue(void) {
 //  jumps at the address (JTAB_OPERAMES + offset).
 // ============================================================================
 sAlisOpcode storenames[] = {
-    DECL_OPCODE(0x00, pnul,         "null pointer"),
+    DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x02, pnul,         "null pointer"),
+    DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x04, pnul,         "null pointer"),
+    DECL_OPCODE(0x04, pnul,         "[N/I] null pointer"),
     {},
     DECL_OPCODE(0x06, slocb,        "store byte from r7 at virtual ram location"),
     {},
