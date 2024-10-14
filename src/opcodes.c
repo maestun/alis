@@ -302,6 +302,174 @@ static void cret(void);
 s32 io_malloc(s32 rawsize);
 void io_mfree(s32 addr);
 
+
+// ============================================================================
+#pragma mark - Stub routines
+// ============================================================================
+// Originally ALIS uses two types of stubs, and also has individual empty functions
+// (see the N/I section below on the latter).
+//
+// The address of the first stub, called cnul, is put in place of the missing (N/I)
+// functions (opcodes) in the pointer tables tcodop and tcodesc1.
+// It does nothing (the function cnul contain only retn).
+//
+// The address 0x0000 of the second stub, unnamed one (we called it pnul), is put in
+// place of the missing (N/I) functions (opcodes) in the pointer tables toper, tstore and tadd. 
+// It outputs a message that a null pointer has been called and then exits the program.
+//
+// As the engine evolved, opcodes that were sent to these stubs in earlier versions
+// could get their own implementation and even a new name in later ones and vice versa
+// (implemented functions could be removed from the engine, and pointers to cnul/pnul
+// were placed in their place in the corresponding tables).
+
+// Codopname no. 001 opcode 0x00 -> cnul
+// Codopname no. 056 opcode 0x37 -> cnul
+// Codopname no. 140 opcode 0x8b -> cnul
+// Codesc1name no. 01 opcode 0x00 -> cnul
+void cnul(void)      {
+    debug(EDebugWarning, "[N/I] cnul: NULL opcode called");
+}
+
+// Opername no. 31 opcode 0x3c -> pnul
+// Opername no. 32 opcode 0x3e -> pnul
+// Storename no. 01 opcode 0x00 -> pnul
+// Storename no. 02 opcode 0x02 -> pnul
+// Storename no. 03 opcode 0x04 -> pnul
+// Addname no. 01 opcode 0x00 -> pnul
+// Addname no. 02 opcode 0x02 -> pnul
+// Addname no. 03 opcode 0x04 -> pnul
+void pnul(void)      {
+    debug(EDebugFatal, "\n[N/I] pnul: NULL code pointer called\n");
+    if (!VM_IGNORE_ERRORS) {
+        debug(EDebugFatal, "The ALIS VM has been stopped.\n");
+        alis.running = 0;
+    }
+}
+
+// ============================================================================
+#pragma mark - Codesc1, Codesc2, Codesc3 routines
+// ============================================================================
+
+// Codopname no. 002 opcode 0x01 cesc1
+static void cesc1(void)     {
+    readexec_codesc1name();
+}
+
+// ============================================================================
+#pragma mark - Restored non-implemented [N/I] codops (opcodes)
+// ============================================================================
+// See next section for details on non-implemented opcodes
+// ============================================================================
+
+// Codopname no. 003 opcode 0x02 cesc2
+// The function is not yet found in ALIS interpreters (no confirmation that the codesc1 table
+// has been completed), restored for a reason. This does not affect the code if it does not exist.
+static void cesc2(void)     {
+    debug(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
+    readexec_codesc2name();
+}
+
+// Codopname no. 004 opcode 0x03 cesc3
+// The function is not yet found in ALIS interpreters (no confirmation that tables codesc1 and codesc2
+// have been completed), restored for a reason. This does not affect the code if it does not exist.
+static void cesc3(void)     {
+    debug(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
+    readexec_codesc3name();
+}
+
+// ============================================================================
+#pragma mark - Non-implemented [N/I] codops (opcodes)
+// ============================================================================
+// In the original interpreters, these opcodes are empty (their functions contain
+// only retn). If found, it should be documented in which game and on which platform
+// the implemented function is detected!
+//
+// As the engine evolved, opcodes that were empty in early versions could get
+// their implementation later and vice versa (become empty). This is observed even
+// in different versions of the same games, for example, on different platforms.
+//
+// Note: [N/I] functions are not to be confused with MISSING functions, whose
+// code is implemented in the original engine, but not yet implemented by us here.
+// ============================================================================
+
+// Codopname no. 005 opcode 0x04 cbreakpt
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cbreakpt(void)  {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 012 opcode 0x0b cjsrabs
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cjsrabs(void)   {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 013 opcode 0x0c cjmpabs
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cjmpabs(void)   {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 014 opcode 0x0d cjsrind16
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cjsrind16(void) {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 015 opcode 0x0e cjsrind24
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cjsrind24(void) {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 016 opcode 0x0f cjmpind16
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cjmpind16(void) {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 017 opcode 0x10 cjmpind24
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cjmpind24(void) {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 035 opcode 0x22 cmul
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cmul(void)      {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 036 opcode 0x23 cdiv
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cdiv(void)      {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 202 opcode 0xc9 cscdump
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cscdump(void) {
+    debug(EDebugWarning, "[N/I] (NOP?): %s", __FUNCTION__);
+}
+
+// Codopname no. 213 opcode 0xd4 cautobase
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cautobase(void) {
+    debug(EDebugWarning, "[N/I] (NOP?): %s", __FUNCTION__);
+}
+
+// Codopname no. 236 opcode 0xeb cscantab
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cscantab(void) {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
+// Codopname no. 237 opcode 0xec cneartab
+// [N/I]: Robinson's Requiem (IBM PC)
+static void cneartab(void) {
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+}
+
 // ============================================================================
 #pragma mark - Opcode / Codop (Code-op) routines
 // ============================================================================
@@ -356,17 +524,23 @@ static void csprinta(void) {
 // Codopname no. 040 opcode 0x27 clocate
 static void clocate(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    
+    alis.charmode = 0;    
     readexec_opername_saveD7();
     readexec_opername_saveD6();
-    s16 xlocate = alis.varD7;
-    s16 ylocate = alis.varD6;
-//    io_locate();
+    alis.xlocate = (u8)(alis.varD7 & 0xff);
+    alis.ylocate = (u8)(alis.varD6 & 0xff);
+//  set cursor position in text mode: xlocate (new), ylocate (new), page = 0
+//  io_locate();
 }
 
 // Codopname no. 041 opcode 0x28 ctab
 static void ctab(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    alis.charmode = 0;
+    readexec_opername_saveD7();
+    alis.xlocate = (u8)(alis.varD7 & 0xff);
+//  set tabulated cursor position in text mode: xlocate (new), ylocate (not changed), page = 0
+//  io_locate();
 }
 
 // Codopname no. 042 opcode 0x29 cdim
@@ -660,7 +834,12 @@ static void cclipping(void) {
 }
 
 // Codopname no. 060 opcode 0x3b cswitching
+// [N/I]: Robinson's Requiem (IBM PC)
 static void cswitching(void) {
+    if (alis.platform.kind == EPlatformPC && ((alis.platform.uid == EGameRobinsonsRequiem0) || (alis.platform.uid == EGameRobinsonsRequiem1))) {
+        debug(EDebugWarning, "[N/I] IBM PC: %s", __FUNCTION__);
+        return;
+    }
     alis.fswitch = 1;
 }
 
@@ -3697,11 +3876,6 @@ static void cscmap(void) {
     }
 }
 
-// Codopname no. 202 opcode 0xc9 cscdump
-static void cscdump(void) {
-    debug(EDebugInfo, "MISSING (NOP?): %s", __FUNCTION__);
-}
-
 // Codopname no. 203 opcode 0xca cfindcla
 static void cfindcla(void) {
     readexec_opername();
@@ -4002,16 +4176,16 @@ static void cstarring(void) {
 }
 
 // Codopname no. 212 opcode 0xd3 cengine
+// [N/I]: Robinson's Requiem (IBM PC)
 static void cengine(void) {
+    if (alis.platform.kind == EPlatformPC && ((alis.platform.uid == EGameRobinsonsRequiem0) || (alis.platform.uid == EGameRobinsonsRequiem1))) {
+        debug(EDebugWarning, "[N/I] IBM PC: %s", __FUNCTION__);
+        return;
+    }
     readexec_opername();
     readexec_opername();
     readexec_opername();
     readexec_opername();
-}
-
-// Codopname no. 213 opcode 0xd4 cautobase
-static void cautobase(void) {
-    debug(EDebugInfo, "MISSING (NOP?): %s", __FUNCTION__);
 }
 
 // Codopname no. 214 opcode 0xd5 cquality
@@ -4870,16 +5044,6 @@ static void calloctab(void) {
 
 // Codopname no. 235 opcode 0xea cfreetab
 static void cfreetab(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 236 opcode 0xeb cscantab
-static void cscantab(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 237 opcode 0xec cneartab
-static void cneartab(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -5886,120 +6050,6 @@ static void cclock(void)    {
     set_0x3e_wait_time(alis.script->vram_org, alis.varD7 + alis.timeclock);
 }
 
-// Codopname no. 002 opcode 0x01 cesc1
-static void cesc1(void)     {
-//    u16 code = script_read8() | 0x100;
-//    sAlisOpcode opcode = opcodes[code];
-//    debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
-//    return opcode.fptr();
-    readexec_codesc1name();
-}
-
-// Codopname no. 003 opcode 0x02 cesc2
-// The function is not yet found in ALIS interpreters (no confirmation that the codesc1 table
-// has been completed), restored for a reason. This does not affect the code if it does not exist.
-static void cesc2(void)     {
-    debug(EDebugWarning, "CHECK: ", __FUNCTION__);
-    readexec_codesc2name();
-}
-
-// Codopname no. 004 opcode 0x03 cesc3
-// The function is not yet found in ALIS interpreters (no confirmation that tables codesc1 and codesc2
-// have been completed), restored for a reason. This does not affect the code if it does not exist.
-static void cesc3(void)     {
-    debug(EDebugWarning, "CHECK: ", __FUNCTION__);
-    readexec_codesc3name();
-}
-
-// ============================================================================
-#pragma mark - Stub routines
-// ============================================================================
-
-// ALIS uses two types of stubs.
-// The first, called cnul, is put in place of missing functions (opcodes)
-// in tables tcodop and tcodesc1. It does nothing.
-//
-// The second, unnamed one (we called it pnul), has address 0x0000 and
-// is put in place of missing functions (opcodes) in tables toper, tstore and tadd.
-// It outputs a message that a null pointer has been called and then exits the program.
-//
-// As the engine evolved, opcodes that were sent to these stubs in earlier versions
-// could get their own implementation and a new name in later ones.
-
-// Codopname no. 001 opcode 0x00 -> cnul
-// Codopname no. 056 opcode 0x37 -> cnul
-// Codopname no. 140 opcode 0x8b -> cnul
-// Codesc1name no. 01 opcode 0x00 -> cnul
-void cnul(void)      {
-    debug(EDebugWarning, "WARNING: NULL opcode called");
-}
-
-// Opername no. 31 opcode 0x3c -> pnul
-// Opername no. 32 opcode 0x3e -> pnul
-// Storename no. 01 opcode 0x00 -> pnul
-// Storename no. 02 opcode 0x02 -> pnul
-// Storename no. 03 opcode 0x04 -> pnul
-// Addname no. 01 opcode 0x00 -> pnul
-// Addname no. 02 opcode 0x02 -> pnul
-// Addname no. 03 opcode 0x04 -> pnul
-void pnul(void)      {
-    debug(EDebugFatal, "\nERROR: NULL code pointer called\n");
-    if (!VM_IGNORE_ERRORS) {
-        debug(EDebugFatal, "The ALIS VM has been stopped.\n");
-        alis.running = 0;
-    }
-}
-
-// ============================================================================
-#pragma mark - Unimplemented codops
-// ============================================================================
-
-// Codopname no. 005 opcode 0x04 cbreakpt
-static void cbreakpt(void)  {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 035 opcode 0x22 cmul
-static void cmul(void)      {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 036 opcode 0x23 cdiv
-static void cdiv(void)      {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 012 opcode 0x0b cjsrabs
-static void cjsrabs(void)   {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 013 opcode 0x0c cjmpabs
-static void cjmpabs(void)   {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 014 opcode 0x0d cjsrind16
-static void cjsrind16(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 015 opcode 0x0e cjsrind24
-static void cjsrind24(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 016 opcode 0x0f cjmpind16
-static void cjmpind16(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-// Codopname no. 017 opcode 0x10 cjmpind24
-static void cjmpind24(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
-}
-
-
 // ============================================================================
 #pragma mark - Flow control - Subroutines
 // ============================================================================
@@ -6766,11 +6816,11 @@ void io_mfree(s32 addr)
 #pragma mark - Opcode / Codop (Code-op) routines pointer table (256 values)
 // ============================================================================
 sAlisOpcode opcodes[] = {
-    DECL_OPCODE(0x00, cnul,         "null"),
+    DECL_OPCODE(0x00, cnul,         "[N/I] null"),
     DECL_OPCODE(0x01, cesc1,        "TODO: add desc"),
-    DECL_OPCODE(0x02, cesc2,        "TODO: add desc"),
-    DECL_OPCODE(0x03, cesc3,        "TODO: add desc"),
-    DECL_OPCODE(0x04, cbreakpt,     "TODO: add desc"),
+    DECL_OPCODE(0x02, cesc2,        "[N/I]"),
+    DECL_OPCODE(0x03, cesc3,        "[N/I]"),
+    DECL_OPCODE(0x04, cbreakpt,     "[N/I]"),
     DECL_OPCODE(0x05, cjsr8,        "jump to sub-routine with 8-bit offset"),
     DECL_OPCODE(0x06, cjsr16,       "jump to sub-routine with 16-bit offset"),
     DECL_OPCODE(0x07, cjsr24,       "jump to sub-routine with 24-bit offset"),
@@ -6805,8 +6855,8 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x24, cvprint,      "TODO: add desc"),
     DECL_OPCODE(0x25, csprinti,     "TODO: add desc"),
     DECL_OPCODE(0x26, csprinta,     "TODO: add desc"),
-    DECL_OPCODE(0x27, clocate,      "TODO: add desc"),
-    DECL_OPCODE(0x28, ctab,         "TODO: add desc"),
+    DECL_OPCODE(0x27, clocate,      "set cursor position x, y"),
+    DECL_OPCODE(0x28, ctab,         "tabulation, set cursor position x"),
     DECL_OPCODE(0x29, cdim,         "TODO: add desc"),
     DECL_OPCODE(0x2a, crandom,      "generate a random number"),
     DECL_OPCODE(0x2b, cloop8,       "TODO: add desc"),
@@ -6821,7 +6871,7 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x34, cprotect,     "TODO: add desc"),
     DECL_OPCODE(0x35, casleep,      "TODO: add desc"),
     DECL_OPCODE(0x36, cclock,       "TODO: add desc"),
-    DECL_OPCODE(0x37, cnul,         "null"),
+    DECL_OPCODE(0x37, cnul,         "[N/I] null"),
     DECL_OPCODE(0x38, cscmov,       "TODO: add desc"),
     DECL_OPCODE(0x39, cscset,       "TODO: add desc"),
     DECL_OPCODE(0x3a, cclipping,    "TODO: add desc"),
@@ -6835,8 +6885,8 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x42, cstop,        "TODO: add desc"),
     DECL_OPCODE(0x43, cstopret,     "TODO: add desc"),
     DECL_OPCODE(0x44, cexit,        "TODO: add desc"),
-    DECL_OPCODE(0x45, cload,        "Load and unpack a script, set into vm"),
-    DECL_OPCODE(0x46, cdefsc,       "Define Scene ??"),
+    DECL_OPCODE(0x45, cload,        "load and unpack a script, set into vm"),
+    DECL_OPCODE(0x46, cdefsc,       "define scene ??"),
     DECL_OPCODE(0x47, cscreen,      "TODO: add desc"),
     DECL_OPCODE(0x48, cput,         "TODO: add desc"),
     DECL_OPCODE(0x49, cputnat,      "TODO: add desc"),
@@ -6905,7 +6955,7 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x88, csetmouse,    "set mouse position"),
     DECL_OPCODE(0x89, cdefvect,     "TODO: add desc"),
     DECL_OPCODE(0x8a, csetvect,     "TODO: add desc"),
-    DECL_OPCODE(0x8b, cnul,         "null"),
+    DECL_OPCODE(0x8b, cnul,         "[N/I] null"),
     DECL_OPCODE(0x8c, capproach,    "TODO: add desc"),
     DECL_OPCODE(0x8d, cescape,      "TODO: add desc"),
     DECL_OPCODE(0x8e, cvtstmov,     "TODO: add desc"),
@@ -6967,7 +7017,7 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0xc6, cscscale,     "TODO: add desc"),
     DECL_OPCODE(0xc7, creducing,    "TODO: add desc"),
     DECL_OPCODE(0xc8, cscmap,       "TODO: add desc"),
-    DECL_OPCODE(0xc9, cscdump,      "TODO: add desc"),
+    DECL_OPCODE(0xc9, cscdump,      "[N/I]"),
     DECL_OPCODE(0xca, cfindcla,     "TODO: add desc"),
     DECL_OPCODE(0xcb, cnearcla,     "TODO: add desc"),
     DECL_OPCODE(0xcc, cviewcla,     "TODO: add desc"),
@@ -6978,7 +7028,7 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0xd1, cbackstar,    "TODO: add desc"),
     DECL_OPCODE(0xd2, cstarring,    "TODO: add desc"),
     DECL_OPCODE(0xd3, cengine,      "TODO: add desc"),
-    DECL_OPCODE(0xd4, cautobase,    "TODO: add desc"),
+    DECL_OPCODE(0xd4, cautobase,    "[N/I]"),
     DECL_OPCODE(0xd5, cquality,     "TODO: add desc"),
     DECL_OPCODE(0xd6, chsprite,     "TODO: add desc"),
     DECL_OPCODE(0xd7, cselpalet,    "TODO: add desc"),
@@ -6992,7 +7042,7 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0xdf, cscback,      "TODO: add desc"),
     DECL_OPCODE(0xe0, cscrolpage,   "TODO: add desc"),
     DECL_OPCODE(0xe1, cmatent,      "TODO: add desc"),
-    DECL_OPCODE(0xe2, cshrink,      "Delete bitmap and shift following data"),
+    DECL_OPCODE(0xe2, cshrink,      "delete bitmap and shift following data"),
     DECL_OPCODE(0xe3, cdefmap,      "TODO: add desc"),
     DECL_OPCODE(0xe4, csetmap,      "TODO: add desc"),
     DECL_OPCODE(0xe5, cputmap,      "TODO: add desc"),
@@ -7001,8 +7051,8 @@ sAlisOpcode opcodes[] = {
     DECL_OPCODE(0xe8, ctexmap,      "TODO: add desc"),
     DECL_OPCODE(0xe9, calloctab,    "TODO: add desc"),
     DECL_OPCODE(0xea, cfreetab,     "TODO: add desc"),
-    DECL_OPCODE(0xeb, cscantab,     "TODO: add desc"),
-    DECL_OPCODE(0xec, cneartab,     "TODO: add desc"),
+    DECL_OPCODE(0xeb, cscantab,     "[N/I]"),
+    DECL_OPCODE(0xec, cneartab,     "[N/I]"),
     DECL_OPCODE(0xed, cscsun,       "TODO: add desc"),
     DECL_OPCODE(0xee, cdarkpal,     "TODO: add desc"),
     DECL_OPCODE(0xef, cscdark,      "TODO: add desc"),
