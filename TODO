@@ -3,7 +3,7 @@ Todo list
 
 #############################################
  Started 2024-01-25
- Updated 2024-10-13
+ Updated 2024-10-14
 
  - not solved/not implemented
  + solved/implemented
@@ -23,9 +23,14 @@ Todo list
 + 2024-02-14: 2024-02-18: update mouse cursor whenever palette changes
 + 2024-03-06: 2024-03-09: use platform resolution instead of hardcoded 320 x 200
 + 2024-09-22: 2024-10-04: SDL2: SDL_OpenAudio may return an unsupported configuration. Conversion required. Github Issue #11.
++ 2024-09-28: 2024-10-13: Debug/Reports: A runtime Disalis (analog of disassembler for Alis script) for Alis VM (command line option -d). Pull requests #20, #22, #29.
+- 2024-09-28: Debug/Reports: Built-in Disalis of Alis script files.
 - 2024-10-11: Capturing screenshots. There are several possible implementations here, depending on the task for which the screenshot is taken. Capturing a texture, surface or window. On Mac/Windows with or without window title and border. With or without a cursor. All of these options may be needed for different user tasks.
 - 2024-10-11: Improvement: GET_PTR() preprocessor function or macro to replace 'alis.mem + offset' in code to avoid crashing when executing a broken script if it tries to access unallocated memory.
 - 2024-10-12: Windows issue: Unicode in filenames is not supported when compiling under Windows (MinGW). Running games is not affected by this issue, but a folder with game files must have a supported character set in its name. This problem does not apply when compiling under Cygwin.
+- 2024-10-12: Debug/Reports: Built-in util to unpack Alis script files (unpack mode). Based on and is an updated and reworked version of silm-depack util by Maestun (https://github.com/maestun/silm-depack). Pull requests #29.
+- 2024-10-13: Debug/Reports: Built-in util to extract resources (text, audio, sample, music, image and video resources) from Alis script files (extract/resource mode). Based on and is an updated and reworked version of silm-extract by Skruug (https://github.com/skruug/silm-extract).
+- 2024-10-14: Debug/Reports: Built-in util to extract doc-check words.
 
 #############################################
   2. Games list:
