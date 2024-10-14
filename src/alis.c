@@ -348,13 +348,13 @@ void alis_init(sPlatform platform) {
 
     // NOTE: cswitching is never called for older games
     // TODO: check other PC games. Robinson's Requiem, Storm Master (IBM PC): fswitch = 0
-    if (alis.platform.kind == EPlatformPC)
-    {
-      alis.fswitch = 0;
-    } else
-    {
-      alis.fswitch = 1;
-    }
+    // TODO: fswitch is not set to 1 on the PC, but in the current alis implementation
+    // it must be set, otherwise the game won't show anything
+    // if (alis.platform.kind == EPlatformPC)
+    // {
+    //   alis.fswitch = 0;
+    // } else
+    alis.fswitch = 1;
     alis.flagmain = 0;
     
     alis.fallent = 0;
