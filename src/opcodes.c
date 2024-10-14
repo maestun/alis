@@ -837,7 +837,7 @@ static void cclipping(void) {
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cswitching(void) {
     if (alis.platform.kind == EPlatformPC && ((alis.platform.uid == EGameRobinsonsRequiem0) || (alis.platform.uid == EGameRobinsonsRequiem1))) {
-        debug(EDebugWarning, "[N/I] IBM PC: %s", __FUNCTION__);
+        debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
         return;
     }
     alis.fswitch = 1;
@@ -4179,7 +4179,7 @@ static void cstarring(void) {
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cengine(void) {
     if (alis.platform.kind == EPlatformPC && ((alis.platform.uid == EGameRobinsonsRequiem0) || (alis.platform.uid == EGameRobinsonsRequiem1))) {
-        debug(EDebugWarning, "[N/I] IBM PC: %s", __FUNCTION__);
+        debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
         return;
     }
     readexec_opername();
