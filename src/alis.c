@@ -42,7 +42,6 @@ sAlisError errors[] = {
     { ALIS_ERR_FSEEK,   "fseek", "Failed to seek in file %s\n" }
 };
 
-// void vram_debug(void);
 
 // =============================================================================
 // MARK: - Private
@@ -68,13 +67,12 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
                                                                                                //  6 -> kPackedHeaderSize = 6
             if (alis.script->name == alis.main->name) { file_offset += 16; }                   // 16 -> kVMSpecsSize = 16
 
-            if (name == "opcode")
-               {
-                 debug(EDebugInfo, "\n%s [%.6x]%.6x: %.2x: %s ### ", alis.script->name, file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
-               }
-               else {
-                 debug(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
-               }
+            if (!strcmp(name, "opcode")) {
+                debug(EDebugInfo, "\n%s [%.6x]%.6x: %.2x: %s ### ", alis.script->name, file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+            }
+            else {
+                debug(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+            }
         }
         if (opcode.name[0] == 0)   // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
                                    // It is necessary to add it to the appropriate name table
@@ -985,7 +983,6 @@ void alis_error(int errnum, ...) {
     exit(-1);
 }
 
-
 // =============================================================================
 // MARK: - MEMORY ACCESS
 // =============================================================================
@@ -1080,15 +1077,13 @@ u8 xread8(u32 offset) {
 }
 
 s16 xread16(u32 offset) {
-    u16* ptr = (u16*)(alis.mem + offset);
-    u16 result = _convert16(*ptr);
+    u16 result = _convert16(*(u16*)(alis.mem + offset));
     debug(EDebugVerbose, " [%.4x <= %.6x]", result, offset);
     return (s16)result;
 }
 
 s32 xread32(u32 offset) {
-    u32* ptr = (u32*)(alis.mem + offset);
-    s32 result = _convert32(*ptr);
+    s32 result = _convert32(*(u32*)(alis.mem + offset));
     debug(EDebugVerbose, " [%.4x <= %.6x]", result, offset);
     return (s32)result;
 }
@@ -1226,75 +1221,41 @@ u16 fread16(FILE* fp) {
 #pragma mark - Finding resources in the script
 // =============================================================================
 
-s32 adresdei(s32 idx)
-{
-    u32 addr = get_0x14_script_org_offset(alis.main->vram_org);
-    s32 l = xread32(addr + 0xe);
-    s32 e = xread16(addr + l + 4);
-    if (e > idx)
-    {
-        s32 a = xread32(addr + l) + l + idx * 4;
-        return addr + a;
-    }
-
-    return 0xf;
-}
-
 s32 adresdes(s32 idx)
 {
-    if (alis.flagmain != 0)
-        return adresdei(idx);
+    u32 addr = get_0x14_script_org_offset(alis.flagmain ? alis.main->vram_org : alis.script->vram_org);
+    addr += xread32(addr + 0xe);
     
-    u32 addr = get_0x14_script_org_offset(alis.script->vram_org);
-    s32 l = xread32(addr + 0xe);
-    s32 e = xread16(addr + l + 4);
-    if (e > idx)
-    {
-        s32 a = xread32(addr + l) + l + idx * 4;
-        return addr + a;
-    }
+    s32 len = xread16(addr + 4);
+    if (len > idx)
+        return addr + xread32(addr) + idx * 4;
 
+    debug(EDebugFatal, "ERROR: Failed to read graphic resource at index %d from script %s\n", idx, alis.flagmain ? alis.main->name : alis.script->name);
     return 0xf;
 }
 
 s32 adresform(s16 idx)
 {
-    // TODO: fix this
-    u8 *addr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-    addr += read32(addr + 0xe);
-    addr += read32(addr + 0x6);
-    addr += read16(addr + (idx * 2));
-    return (s32)(addr - alis.mem);
-}
-
-s32 adresmui(s32 idx)
-{
-    u8 *addr = alis.mem + get_0x14_script_org_offset(alis.main->vram_org);
-    s32 l = read32(addr + 0xe);
-    s32 e = read16(addr + 0x10 + l);
-    if (e > idx)
-    {
-        s32 a = read32(addr + 0xc + l) + l + idx * 4;
-        return read32(addr + a) + a;
-    }
-
-    return 0x11;
+    u32 addr = get_0x14_script_org_offset(alis.script->vram_org);
+    addr += xread32(addr + 0xe);
+    addr += xread32(addr + 0x6);
+    return addr + xread16(addr + (idx * 2));
 }
 
 s32 adresmus(s32 idx)
 {
-    if (alis.flagmain != 0)
-        return adresmui(idx);
+    u32 mem = get_0x14_script_org_offset(alis.flagmain ? alis.main->vram_org : alis.script->vram_org);
+    s32 off = xread32(mem + 0xe);
+    u32 addr = mem + off;
 
-    u8 *addr = alis.mem + get_0x14_script_org_offset(alis.script->vram_org);
-    s32 l = read32(addr + 0xe);
-    s32 e = read16(addr + 0x10 + l);
-    if (e > idx)
+    s32 len = xread16(addr + 0x10);
+    if (len > idx)
     {
-        s32 a = read32(addr + 0xc + l) + l + idx * 4;
-        return read32(addr + a) + a;
+        s32 at = xread32(addr + 0xc) + off + idx * 4;
+        return xread32(mem + at) + at;
     }
 
+    debug(EDebugFatal, "ERROR: Failed to read sound resource at index %d from script %s\n", idx, alis.flagmain ? alis.main->name : alis.script->name);
     return 0x11;
 }
 
