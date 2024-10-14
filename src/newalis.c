@@ -257,17 +257,17 @@ static void cesc1(void) {
 
 // Codopname no. 003 opcode 0x02 cesc2
 static void cesc2(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 004 opcode 0x03 cesc3
 static void cesc3(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 005 opcode 0x04 cbreakpt
 static void cbreakpt(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 006 opcode 0x05 cjsr8
@@ -302,12 +302,12 @@ static void cjmp24(void) {
 
 // Codopname no. 012 opcode 0x0b cjsrabs
 static void cjsrabs(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 013 opcode 0x0c cjmpabs
 static void cjmpabs(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 014 opcode 0x0d cjsrproc
@@ -330,7 +330,7 @@ static void cjmpproc(void) {
 
 // Codopname no. 017 opcode 0x10 cjmpind24
 static void cjmpind24(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 018 opcode 0x11 cret
@@ -420,12 +420,12 @@ static void csub(void) {
 
 // Codopname no. 035 opcode 0x22 cmul
 static void cmul(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 036 opcode 0x23 cdiv
 static void cdiv(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 037 opcode 0x24 cvprint
@@ -1354,7 +1354,7 @@ static void cengine(void) {
 
 // Codopname no. 213 opcode 0xd4 cautobase
 static void cautobase(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 214 opcode 0xd5 cwalkanim
@@ -1476,12 +1476,12 @@ static void cfreetab(void) {
 
 // Codopname no. 236 opcode 0xeb cscantab
 static void cscantab(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 237 opcode 0xec cneartab
 static void cneartab(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 238 opcode 0xed cnul
@@ -2900,11 +2900,11 @@ static void aeval(void) {
 #pragma mark - Opcode / Codop (Code-op) routines pointer table
 // ============================================================================
 sAlisOpcode opcodes_v40[] = {
-    DECL_OPCODE(0x00, cnul,         "null"),
+    DECL_OPCODE(0x00, cnul,         "[N/I] null"),
     DECL_OPCODE(0x01, cesc1,        "TODO: add desc"),
-    DECL_OPCODE(0x02, cesc2,        "TODO: add desc"),
-    DECL_OPCODE(0x03, cesc3,        "TODO: add desc"),
-    DECL_OPCODE(0x04, cbreakpt,     "TODO: add desc"),
+    DECL_OPCODE(0x02, cesc2,        "[N/I]"),
+    DECL_OPCODE(0x03, cesc3,        "[N/I]"),
+    DECL_OPCODE(0x04, cbreakpt,     "[N/I]"),
     DECL_OPCODE(0x05, cjsr8,        "jump to sub-routine with 8-bit offset"),
     DECL_OPCODE(0x06, cjsr16,       "jump to sub-routine with 16-bit offset"),
     DECL_OPCODE(0x07, cjsr24,       "jump to sub-routine with 24-bit offset"),
@@ -2939,10 +2939,10 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0x24, cvprint,      "TODO: add desc"),
     DECL_OPCODE(0x25, csprinti,     "TODO: add desc"),
     DECL_OPCODE(0x26, csprinta,     "TODO: add desc"),
-    DECL_OPCODE(0x27, clocate,      "TODO: add desc"),
-    DECL_OPCODE(0x28, ctab,         "TODO: add desc"),
+    DECL_OPCODE(0x27, clocate,      "set cursor position x, y"),
+    DECL_OPCODE(0x28, ctab,         "tabulation, set cursor position x"),
     DECL_OPCODE(0x29, cdim,         "TODO: add desc"),
-    DECL_OPCODE(0x2a, cnul,         "TODO: add desc"),   // tcodop_2A: crandom => cnul
+    DECL_OPCODE(0x2a, cnul,         "[N/I] null"),       // tcodop_2A: crandom => cnul
     DECL_OPCODE(0x2b, cloop8,       "TODO: add desc"),
     DECL_OPCODE(0x2c, cloop16,      "TODO: add desc"),
     DECL_OPCODE(0x2d, cloop24,      "TODO: add desc"),
@@ -2952,7 +2952,7 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0x31, cstart16,     "TODO: add desc"),
     DECL_OPCODE(0x32, cstart24,     "TODO: add desc"),
     DECL_OPCODE(0x33, cstartbase,   "TODO: add desc"),   // tcodop_33: cleave => cstartbase
-    DECL_OPCODE(0x34, cnul,         "TODO: add desc"),   // tcodop_34: cprotect => cnul
+    DECL_OPCODE(0x34, cnul,         "[N/I] null"),       // tcodop_34: cprotect => cnul
     DECL_OPCODE(0x35, casleep,      "TODO: add desc"),
     DECL_OPCODE(0x36, cclock,       "TODO: add desc"),
     DECL_OPCODE(0x37, canim,        "TODO: add desc"),   // tcodop_37: cnul => canim
@@ -2969,7 +2969,7 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0x42, cstop,        "TODO: add desc"),
     DECL_OPCODE(0x43, cvecdistabs,  "TODO: add desc"),   // tcodop_43: cstopret => cvecdistabs
     DECL_OPCODE(0x44, cexit,        "TODO: add desc"),
-    DECL_OPCODE(0x45, cload,        "Load and unpack a script, set into vm"),
+    DECL_OPCODE(0x45, cload,        "load and unpack a script, set into vm"),
     DECL_OPCODE(0x46, csctype,      "TODO: add desc"),   // tcodop_46: cdefsc => csctype
     DECL_OPCODE(0x47, cscreen,      "TODO: add desc"),
     DECL_OPCODE(0x48, cput,         "TODO: add desc"),
@@ -2980,7 +2980,7 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0x4d, cmov,         "TODO: add desc"),
     DECL_OPCODE(0x4e, copensc,      "TODO: add desc"),
     DECL_OPCODE(0x4f, cclosesc,     "TODO: add desc"),
-    DECL_OPCODE(0x50, cnul,         "TODO: add desc"),   // tcodop_50: cerasall => cnul
+    DECL_OPCODE(0x50, cnul,         "[N/I] null"),       // tcodop_50: cerasall => cnul
     DECL_OPCODE(0x51, caddput,      "TODO: add desc"),   // tcodop_51: cforme => caddput
     DECL_OPCODE(0x52, caddputat,    "TODO: add desc"),   // tcodop_52: cdelforme => caddputat
     DECL_OPCODE(0x53, ctstmov,      "TODO: add desc"),
@@ -3039,7 +3039,7 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0x88, csetmouse,    "set mouse position"),
     DECL_OPCODE(0x89, cobjaset,     "TODO: add desc"),   // tcodop_89: cdefvect => cobjaset
     DECL_OPCODE(0x8a, cobjamov,     "TODO: add desc"),   // tcodop_8A: csetvect => cobjamov
-    DECL_OPCODE(0x8b, cnul,         "null"),
+    DECL_OPCODE(0x8b, cnul,         "[N/I] null"),
     DECL_OPCODE(0x8c, ctsthit,      "TODO: add desc"),   // tcodop_8C: capproach => ctsthit
     DECL_OPCODE(0x8d, cftsthit,     "TODO: add desc"),   // tcodop_8D: cescape => cftsthit
     DECL_OPCODE(0x8e, cvtstmov,     "TODO: add desc"),
@@ -3112,7 +3112,7 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0xd1, cbackstar,    "TODO: add desc"),
     DECL_OPCODE(0xd2, cstarring,    "TODO: add desc"),
     DECL_OPCODE(0xd3, cengine,      "TODO: add desc"),
-    DECL_OPCODE(0xd4, cautobase,    "TODO: add desc"),
+    DECL_OPCODE(0xd4, cautobase,    "[N/I]"),
     DECL_OPCODE(0xd5, cwalkanim,    "TODO: add desc"),   // tcodop_D5: cquality => cwalkanim
     DECL_OPCODE(0xd6, cfwalkanim,   "TODO: add desc"),   // tcodop_D6: chsprite => cfwalkanim
     DECL_OPCODE(0xd7, cselpalet,    "TODO: add desc"),
@@ -3126,7 +3126,7 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0xdf, cscback,      "TODO: add desc"),
     DECL_OPCODE(0xe0, cscrolpage,   "TODO: add desc"),
     DECL_OPCODE(0xe1, cmatent,      "TODO: add desc"),
-    DECL_OPCODE(0xe2, cshrink,      "Delete bitmap and shift following data"),
+    DECL_OPCODE(0xe2, cshrink,      "delete bitmap and shift following data"),
     DECL_OPCODE(0xe3, cdefmap,      "TODO: add desc"),
     DECL_OPCODE(0xe4, csetmap,      "TODO: add desc"),
     DECL_OPCODE(0xe5, cputmap,      "TODO: add desc"),
@@ -3135,9 +3135,9 @@ sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0xe8, cfwalk,       "TODO: add desc"),   // tcodop_E8: ctexmap => cfwalk
     DECL_OPCODE(0xe9, calloctab,    "TODO: add desc"),
     DECL_OPCODE(0xea, cfreetab,     "TODO: add desc"),
-    DECL_OPCODE(0xeb, cscantab,     "TODO: add desc"),
-    DECL_OPCODE(0xec, cneartab,     "TODO: add desc"),
-    DECL_OPCODE(0xed, cnul,         "TODO: add desc"),   // tcodop_ED: cscsun => cnul ; cobjcycle
+    DECL_OPCODE(0xeb, cscantab,     "[N/I]"),
+    DECL_OPCODE(0xec, cneartab,     "[N/I]"),
+    DECL_OPCODE(0xed, cnul,         "[N/I] null"),       // tcodop_ED: cscsun => cnul ; cobjcycle
     DECL_OPCODE(0xee, cdarkpal,     "TODO: add desc"),
     DECL_OPCODE(0xef, cscshade,     "TODO: add desc"),   // tcodop_EF: cscdark => cscshade
     DECL_OPCODE(0xf0, caset,        "TODO: add desc"),
@@ -3162,13 +3162,13 @@ sAlisOpcode opcodes_v40[] = {
 #pragma mark - Codesc1 routines pointer table
 // ============================================================================
 sAlisOpcode codesc1names_v40[] = {
-    DECL_OPCODE(0x00, cnul,         "null"),
-    DECL_OPCODE(0x01, csoundon,     "TODO: add desc"),
-    DECL_OPCODE(0x02, csoundoff,    "TODO: add desc"),
-    DECL_OPCODE(0x03, cmusicon,     "TODO: add desc"),
-    DECL_OPCODE(0x04, cmusicoff,    "TODO: add desc"),
-    DECL_OPCODE(0x05, cdelfilm,     "TODO: add desc"),
-    DECL_OPCODE(0x06, copenfilm,    "TODO: add desc"),
+    DECL_OPCODE(0x00, cnul,         "[N/I] null"),
+    DECL_OPCODE(0x01, csoundon,     "sound on"),
+    DECL_OPCODE(0x02, csoundoff,    "sound off"),
+    DECL_OPCODE(0x03, cmusicon,     "music on"),
+    DECL_OPCODE(0x04, cmusicoff,    "music off"),
+    DECL_OPCODE(0x05, cdelfilm,     "close and delete video from memory"),
+    DECL_OPCODE(0x06, copenfilm,    "open video"),
     DECL_OPCODE(0x07, cdeffont,     "TODO: add desc"),   // tcodesc1_07: + cdeffont
     DECL_OPCODE(0x08, cloadtext,    "TODO: add desc"),   // tcodesc1_08: + cloadtext
     DECL_OPCODE(0x09, cafteron,     "TODO: add desc"),   // tcodesc1_09: + cafteron
@@ -3182,7 +3182,7 @@ sAlisOpcode codesc1names_v40[] = {
     DECL_OPCODE(0x11, cvideo,       "TODO: add desc"),   // tcodesc1_11: + cvideo
     DECL_OPCODE(0x12, ctexture,     "TODO: add desc"),   // tcodesc1_12: + ctexture
     DECL_OPCODE(0x13, cplaycd,      "TODO: add desc"),   // tcodesc1_13: + cplaycd
-    DECL_OPCODE(0x14, cnul,         "TODO: add desc"),   // tcodesc1_14: + cnul
+    DECL_OPCODE(0x14, cnul,         "[N/I] null"),       // tcodesc1_14: + cnul
     DECL_OPCODE(0x15, cobjtrans,    "TODO: add desc"),   // tcodesc1_15: + cobjtrans
     DECL_OPCODE(0x16, conscreen,    "TODO: add desc"),   // tcodesc1_16: + conscreen
     DECL_OPCODE(0x17, cgetglobal,   "TODO: add desc"),   // tcodesc1_17: + cgetglobal
@@ -3190,8 +3190,8 @@ sAlisOpcode codesc1names_v40[] = {
     DECL_OPCODE(0x19, cmatitem,     "TODO: add desc"),   // tcodesc1_19: + cmatitem
     DECL_OPCODE(0x1a, cmaskitem,    "TODO: add desc"),   // tcodesc1_1A: + cmaskitem
     DECL_OPCODE(0x1b, cdefitem,     "TODO: add desc"),   // tcodesc1_1B: + cdefitem
-    DECL_OPCODE(0x1c, cnul,         "TODO: add desc"),   // tcodesc1_1C: + cnul
-    DECL_OPCODE(0x1d, cnul,         "TODO: add desc"),   // tcodesc1_1D: + cnul
+    DECL_OPCODE(0x1c, cnul,         "[N/I] null"),       // tcodesc1_1C: + cnul
+    DECL_OPCODE(0x1d, cnul,         "[N/I] null"),       // tcodesc1_1D: + cnul
     DECL_OPCODE(0x1e, cgetmap,      "TODO: add desc"),   // tcodesc1_1E: + cgetmap
     DECL_OPCODE(0x1f, cconvmap,     "TODO: add desc"),   // tcodesc1_1F: + cconvmap
     DECL_OPCODE(0x20, csetfilm,     "TODO: add desc"),   // tcodesc1_20: + csetfilm
@@ -3237,7 +3237,7 @@ sAlisOpcode codesc1names_v40[] = {
     DECL_OPCODE(0x48, cvram,        "TODO: add desc"),   // tcodesc1_48: + cvram
     DECL_OPCODE(0x49, cadresnet,    "TODO: add desc"),   // tcodesc1_49: + cadresnet
     DECL_OPCODE(0x4a, cfdir,        "TODO: add desc"),   // tcodesc1_4A: + cfdir
-    DECL_OPCODE(0x4b, cnul,         "TODO: add desc"),   // tcodesc1_4B: + cnul ; entitem
+    DECL_OPCODE(0x4b, cnul,         "[N/I] null"),       // tcodesc1_4B: + cnul ; entitem
     DECL_OPCODE(0x4c, cloadas,      "TODO: add desc"),   // tcodesc1_4C: + cloadas
     DECL_OPCODE(0x4d, cfindobjitem, "TODO: add desc"),   // tcodesc1_4D: + cfindobjitem
     DECL_OPCODE(0x4e, cobjid,       "TODO: add desc"),   // tcodesc1_4E: + cobjid
@@ -3462,11 +3462,11 @@ sAlisOpcode opernames_v40[] = {
 #pragma mark - Store routines pointer table
 // ============================================================================
 sAlisOpcode storenames_v40[] = {
-    DECL_OPCODE(0x00, pnul,         "null pointer"),
+    DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x02, pnul,         "null pointer"),
+    DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x04, pnul,         "null pointer"),
+    DECL_OPCODE(0x04, pnul,         "[N/I] null pointer"),
     {},
     DECL_OPCODE(0x06, slocb,        "store byte from r7 at virtual ram location"),
     {},
@@ -3528,11 +3528,11 @@ sAlisOpcode storenames_v40[] = {
 #pragma mark - Add routines pointer table
 // ============================================================================
 sAlisOpcode addnames_v40[] = {
-    DECL_OPCODE(0x00, pnul,         "null pointer"),
+    DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x02, pnul,         "null pointer"),
+    DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),
     {},
-    DECL_OPCODE(0x04, pnul,         "null pointer"),
+    DECL_OPCODE(0x04, pnul,         "[N/I] null pointer"),
     {},
     DECL_OPCODE(0x06, alocb,        "reads word (offset) from script, adds byte from d7 to byte at (vram+offset)"),
     {},
