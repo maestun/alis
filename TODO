@@ -29,7 +29,7 @@ Todo list
 - 2024-10-11: Improvement: GET_PTR() preprocessor function or macro to replace 'alis.mem + offset' in code to avoid crashing when executing a broken script if it tries to access unallocated memory.
 - 2024-10-12: Windows issue: Unicode in filenames is not supported when compiling under Windows (MinGW). Running games is not affected by this issue, but a folder with game files must have a supported character set in its name. This problem does not apply when compiling under Cygwin.
 - 2024-10-12: Debug/Reports: Built-in util to unpack Alis script files (unpack mode). Based on and is an updated and reworked version of silm-depack util by Maestun (https://github.com/maestun/silm-depack). Pull requests #29.
-- 2024-10-13: Debug/Reports: Built-in util to extract resources (text, audio, sample, music, image and video resources) from Alis script files (extract/resource mode). Based on and is an updated and reworked version of silm-extract by Skruug (https://github.com/skruug/silm-extract).
+- 2024-10-13: Debug/Reports: Built-in util to extract resources (text, audio, sample, music, image and video resources) from Alis script files (extract/resource mode). Based on and is an updated and reworked version of silm-extract by Skruug (https://github.com/skruug/silm-extract). Two extraction options: in the original internal Silmarils audio, image and video formats (raw data) and in converted form (bmp, wav, etc.).
 - 2024-10-14: Debug/Reports: Built-in util to extract doc-check words.
 
 #############################################
