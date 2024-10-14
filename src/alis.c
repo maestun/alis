@@ -347,8 +347,8 @@ void alis_init(sPlatform platform) {
     image.logy2 = alis.platform.height - 1;
 
     // NOTE: cswitching is never called for older games
-    // TODO: check other PC games like Ishar 3, maybe it is always 0
-    if (alis.platform.kind == EPlatformPC && ((alis.platform.uid == EGameRobinsonsRequiem0) || (alis.platform.uid == EGameRobinsonsRequiem1)))
+    // TODO: check other PC games. Robinson's Requiem, Storm Master (IBM PC): fswitch = 0
+    if (alis.platform.kind == EPlatformPC)
     {
       alis.fswitch = 0;
     } else
