@@ -309,12 +309,12 @@ void io_mfree(s32 addr);
 // Originally ALIS uses two types of stubs, and also has individual empty functions
 // (see the N/I section below on the latter).
 //
-// The address of the first stub, called cnul, is put in place of the missing (N/I)
+// The address of the first stub, called cnul, is put in place of the non-implemented
 // functions (opcodes) in the pointer tables tcodop and tcodesc1.
 // It does nothing (the function cnul contain only retn).
 //
 // The address 0x0000 of the second stub, unnamed one (we called it pnul), is put in
-// place of the missing (N/I) functions (opcodes) in the pointer tables toper, tstore and tadd. 
+// place of the non-implemented functions (opcodes) in the pointer tables toper, tstore and tadd. 
 // It outputs a message that a null pointer has been called and then exits the program.
 //
 // As the engine evolved, opcodes that were sent to these stubs in earlier versions
@@ -388,7 +388,7 @@ static void cesc3(void)     {
 // their implementation later and vice versa (become empty). This is observed even
 // in different versions of the same games, for example, on different platforms.
 //
-// Note: [N/I] functions are not to be confused with MISSING functions, whose
+// Note: [N/I] functions are not to be confused with [MISSING] functions, whose
 // code is implemented in the original engine, but not yet implemented by us here.
 // ============================================================================
 
@@ -834,9 +834,9 @@ static void cclipping(void) {
 }
 
 // Codopname no. 060 opcode 0x3b cswitching
-// [N/I]: Robinson's Requiem (IBM PC)
+// [N/I]: Robinson's Requiem, Storm Master (IBM PC)
 static void cswitching(void) {
-    if (alis.platform.kind == EPlatformPC && ((alis.platform.uid == EGameRobinsonsRequiem0) || (alis.platform.uid == EGameRobinsonsRequiem1))) {
+    if (alis.platform.kind == EPlatformPC) {
         debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
         return;
     }
@@ -4176,9 +4176,9 @@ static void cstarring(void) {
 }
 
 // Codopname no. 212 opcode 0xd3 cengine
-// [N/I]: Robinson's Requiem (IBM PC)
+// [N/I]: Robinson's Requiem, Ishar 3, Storm Master (IBM PC)
 static void cengine(void) {
-    if (alis.platform.kind == EPlatformPC && ((alis.platform.uid == EGameRobinsonsRequiem0) || (alis.platform.uid == EGameRobinsonsRequiem1))) {
+    if (alis.platform.kind == EPlatformPC) {
         debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
         return;
     }
