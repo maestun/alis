@@ -472,15 +472,14 @@ void sys_render(pixelbuf_t buffer) {
 
 void sys_deinit(void) {
     
+    SDL_RemoveTimer(_timerID);
     SDL_PauseAudioDevice(_audio_id, 1);
     SDL_CloseAudioDevice(_audio_id);
-
-    free(_audio_spec);
     SDL_Delay(20);   // 20ms fail-safe delay to make sure that sound buffer is empty
 
     PSG_delete(_psg);
+    free(_audio_spec);
 
-    SDL_RemoveTimer(_timerID);
 //   SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(_renderer);
     SDL_DestroyWindow(_window);
