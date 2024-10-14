@@ -217,6 +217,8 @@ typedef struct {
     u8 *            desmouse;
     
     s16             prevkey;
+
+    s16             theconfig;
     
     s16             wcx;
     s16             wcy;
@@ -287,6 +289,8 @@ typedef struct {
     sRawBlock       blocks[1024];
     
     u8              charmode;
+    u8              xlocate;
+    u8              ylocate;
     
     // font
     u16             foasc;
