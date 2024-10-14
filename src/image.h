@@ -254,3 +254,5 @@ void log_sprites(void);
 void mac_update_pos(short *x,short *y);
 
 extern u8 cga_palette[12];
+extern u8 masks[4];
+extern u8 rots[4];

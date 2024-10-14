@@ -867,7 +867,7 @@ void putin(u16 idx)
             
             s16 curelem = read16(currsrc + 0);
             s16 curdepx = read16(currsrc + 2);
-            if (*((u8 *)(&image.invert_x)) != 0)
+            if (image.invert_x != 0)
                 curdepx = -curdepx;
 
             image.depx += curdepx;
@@ -881,7 +881,7 @@ void putin(u16 idx)
             if (curelem < 0)
             {
                 curelem = curelem & 0x7fff;
-                *((u8 *)(&image.invert_x)) ^= 1;
+                image.invert_x ^= 1;
             }
             
             alis.fmuldes = 1;
@@ -1932,7 +1932,7 @@ void destofen(sSprite *sprite)
             
         case 0x40:
         {
-             draw_fli_video(bitmap);
+            draw_fli_video(bitmap);
             break;
         }
             
@@ -2501,28 +2501,6 @@ u32 itroutine(u32 interval, void *param)
         topalet();
         image.palc --;
     }
-    
-    // TODO: audio
-//    if ((bcanal0 != 0) && (-1 < bcanal0))
-//    {
-//        canal();
-//    }
-//
-//    if ((bcanal1 != 0) && (-1 < bcanal1))
-//    {
-//        canal();
-//    }
-//
-//    if ((bcanal2 != 0) && (-1 < bcanal2))
-//    {
-//        canal();
-//        check3();
-//    }
-//
-//    if ((bcanal3 != 0) && (-1 < bcanal3))
-//    {
-//        canal();
-//    }
     
     image.fitroutine = 0;
     return 20;
