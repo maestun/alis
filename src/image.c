@@ -999,7 +999,7 @@ void put_char(s8 character)
 {
     if (alis.charmode == 0)
     {
-        // io_putchar(d0);
+        printf("%c", character);
         return;
     }
     

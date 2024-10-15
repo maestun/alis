@@ -3448,7 +3448,7 @@ void getval(void)
     char *ptr = alis.sd7;
     while (1)
     {
-        c = getchar();
+        c = io_getkey();
         if (c == 0xd)
         {
             break;
@@ -3460,15 +3460,15 @@ void getval(void)
             {
                 ptr --;
                 *ptr = 0;
-                putchar('\b');
-                putchar(' ');
-                putchar('\b');
+                put_char('\b');
+                put_char(' ');
+                put_char('\b');
             }
         }
         else if ((c == 0x2d) || ((-1 < (char)(c - 0x30) && (c < 0x3a))))
         {
             *ptr++ = c;
-            putchar(c);
+            put_char(c);
         }
     }
     
@@ -3479,7 +3479,6 @@ void getval(void)
 
 // Codopname no. 177 opcode 0xb0 cvinput
 static void cvinput(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.charmode = 0;
     getval();
     cstore_continue();
@@ -3491,7 +3490,7 @@ void getstring(void)
     char *ptr = alis.sd7;
     while (1)
     {
-        c = getchar();
+        c = io_getkey();
         if (c == '\r')
         {
             break;
@@ -3503,15 +3502,15 @@ void getstring(void)
             {
                 ptr --;
                 *ptr = 0;
-                putchar('\b');
-                putchar(' ');
-                putchar('\b');
+                put_char('\b');
+                put_char(' ');
+                put_char('\b');
             }
         }
         else
         {
             *ptr++ = c;
-            putchar(c);
+            put_char(c);
         }
     }
     
@@ -3520,7 +3519,6 @@ void getstring(void)
 
 // Codopname no. 178 opcode 0xb1 csinput
 static void csinput(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.charmode = 0;
     getstring();
     cstore_continue();
