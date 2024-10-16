@@ -3446,15 +3446,9 @@ void getval(void)
 {
     u8 c;
     char *ptr = alis.sd7;
-    while (1)
+    while ((c = io_getkey()) != '\r')
     {
-        c = io_getkey();
-        if (c == 0xd)
-        {
-            break;
-        }
-        
-        if (c == 8)
+        if (c == '\b')
         {
             if (ptr != alis.sd7)
             {
@@ -3488,14 +3482,8 @@ void getstring(void)
 {
     u8 c;
     char *ptr = alis.sd7;
-    while (1)
+    while ((c = io_getkey()) != '\r')
     {
-        c = io_getkey();
-        if (c == '\r')
-        {
-            break;
-        }
-        
         if (c == '\b')
         {
             if (ptr != alis.sd7)
@@ -3524,11 +3512,67 @@ static void csinput(void) {
     cstore_continue();
 }
 
+void sendmess(u32 vram, u16 idx)
+{
+    if ((get_0x24_scan_inter(vram) & 1) == 0)
+    {
+        s16 val = get_0x1c_scan_clr(vram) + 2;
+        if (-0x3f < val)
+        {
+            val -= xread16(get_0x14_script_org_offset(vram) + 0x16);
+        }
+        
+        if (val == get_0x1e_scan_clr(vram))
+        {
+            set_0x1c_scan_clr(vram, val);
+        }
+        else
+        {
+            xwrite16(vram + get_0x1c_scan_clr(vram), idx);
+            set_0x1c_scan_clr(vram, val);
+            set_0x24_scan_inter(vram, get_0x24_scan_inter(vram) | 0x80);
+        }
+    }
+}
+
 // Codopname no. 179 opcode 0xb2 casleepfar
 static void casleepfar(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
-// ...
+    alis.valnorme = (alis.varD7 & 0xffff) * (alis.varD7 & 0xffff);
+    
+    s16 ent = 0;
+    
+    do
+    {
+        u32 vram = xread32(alis.atent + ent);
+        if ((xread8(vram - 0x24) & 4) == 0)
+        {
+            s32 xdif = xread16(vram) - xread16(alis.script->vram_org);
+            s32 ydif = xread16(vram + 0x8) - xread16(alis.script->vram_org + 0x8);
+            s32 zdif = xread16(vram + 0x10) - xread16(alis.script->vram_org + 0x10);
+            
+            if ((u32)(zdif * zdif + ydif * ydif + xdif * xdif) < alis.valnorme)
+            {
+                if (get_0x04_cstart_csleep(vram) == 0)
+                {
+                    set_0x04_cstart_csleep(vram, 1);
+                    sendmess(vram, 0x8001);
+                    sendmess(vram, get_0x0e_script_ent(alis.script->vram_org));
+                }
+            }
+            else
+            {
+                if (get_0x04_cstart_csleep(vram) != 0)
+                {
+                    set_0x04_cstart_csleep(vram, 0);
+                    sendmess(vram, 0x8000);
+                    sendmess(vram, get_0x0e_script_ent(alis.script->vram_org));
+                }
+            }
+        }
+    }
+    while ((ent = xread16(alis.atent + 4 + ent)));
 }
 
 // Codopname no. 180 opcode 0xb3 casleepon
