@@ -23,14 +23,40 @@ include_directories(src)
 include_directories(src/audio)
 # add_library()
 
-add_executable(alis
-               src/emu2149/emu2149.c
-               src/sys/sdl2/sys_sdl2.c
-               src/audio/audio.c src/audio/music_v1.c src/audio/music_v2.c
-               src/main.c
-               src/addnames.c src/alis.c src/channel.c src/debug.c src/escnames.c src/image.c 
-               src/opcodes.c src/opernames.c src/platform.c src/screen.c src/video.c
-               src/script.c src/storenames.c src/unpack.c src/utils.c src/newalis.c src/export.c)
+list(APPEND alis_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/emu2149/emu2149.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/sys/sdl2/sys_sdl2.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/audio/audio.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/audio/music_v1.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/audio/music_v2.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/main.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/addnames.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/alis.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/channel.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/debug.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/escnames.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/image.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/opcodes.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/opernames.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/platform.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/screen.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/video.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/script.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/storenames.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/unpack.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/newalis.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/export.c
+#   ${CMAKE_CURRENT_LIST_DIR}/src/font.c
+)
+
+# Icon for Windows
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+   list(APPEND alis_SOURCES
+       ${CMAKE_CURRENT_LIST_DIR}/src/icons/alis.rc)
+endif()
+
+add_executable(alis ${alis_SOURCES})
 
 target_link_libraries(alis m)
 target_link_libraries(alis ${SDL2_LIBRARIES})
