@@ -210,6 +210,18 @@ u8 sys_poll_event(void) {
                 debug(EDebugSystem, "INTERRUPT: User debug label.\n");
                 break;
             }
+
+            if (_event.key.keysym.sym == SDLK_F11)
+            {
+                alis_save_state();
+                break;
+            }
+
+            if (_event.key.keysym.sym == SDLK_F12)
+            {
+                alis_load_state();
+                break;
+            }
         }
         case SDL_KEYDOWN:
         {
@@ -225,14 +237,6 @@ u8 sys_poll_event(void) {
                 debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                 running = 0;
                 break;
-            }
-            if (_event.key.keysym.sym == SDLK_F11)
-            {
-                alis_save_state();
-            }
-            else if (_event.key.keysym.sym == SDLK_F12)
-            {
-                alis_load_state();
             }
             else
             {
