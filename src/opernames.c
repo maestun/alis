@@ -460,8 +460,9 @@ void oinkey(void) {
 }
 
 // Opername no. 55 opcode 0x6c okeyon
+// [N/I]: Robinson's Requiem (IBM PC)
 void okeyon(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Opername no. 56 opcode 0x6e ojoy
@@ -848,7 +849,11 @@ void ochange(void) {
 
 // Opername no. 82 opcode 0xa2 ocountry
 void ocountry(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    alis.varD7 = alis.pays;
+    if(disalis) {
+       debug(EDebugInfo, " [=> d7 = {0x%02x}]", alis.pays);
+       }
 }
 
 // Opername no. 83 opcode 0xa4 omip
@@ -992,7 +997,7 @@ sAlisOpcode opernames[] = {
     {},
     DECL_OPCODE(0x6a, oinkey,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x6c, okeyon,       "TODO add desc"),
+    DECL_OPCODE(0x6c, okeyon,       "[N/I]"),
     {},
     DECL_OPCODE(0x6e, ojoy,         "TODO add desc"),
     {},
