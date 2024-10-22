@@ -327,7 +327,14 @@ void io_mfree(s32 addr);
 // Codopname no. 140 opcode 0x8b -> cnul
 // Codesc1name no. 01 opcode 0x00 -> cnul
 void cnul(void)      {
-    debug(EDebugWarning, "[N/I] cnul: NULL opcode called");
+    if (!VM_IGNORE_ERRORS) {
+        debug(EDebugFatal, disalis ? "\nERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
+        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+        alis.running = 0;
+    }
+    else {
+       debug(EDebugError, "[N/I] cnul: NULL opcode called");
+    }
 }
 
 // Opername no. 31 opcode 0x3c -> pnul
@@ -339,10 +346,30 @@ void cnul(void)      {
 // Addname no. 02 opcode 0x02 -> pnul
 // Addname no. 03 opcode 0x04 -> pnul
 void pnul(void)      {
-    debug(EDebugFatal, "\n[N/I] pnul: NULL code pointer called\n");
+
+    debug(EDebugFatal, disalis ? "\nERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
     if (!VM_IGNORE_ERRORS) {
-        debug(EDebugFatal, "The ALIS VM has been stopped.\n");
+        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.running = 0;
+    }
+}
+
+// Ishar 3 Korean (IBM PC):
+// tcodop_E3: cdefmap => map_cnul
+// tcodop_E4: csetmap => map_cnul
+// tcodop_E5: cputmap => map_cnul
+// tcodop_E8: ctexmap => map_cnul
+// tcodop_F7: cwalkmap => map_cnul
+// tcodop_F8: catstmap => map_cnul
+// tcodop_FD: cchartmap => map_cnul
+void map_cnul(void)      {
+    if (!VM_IGNORE_ERRORS) {
+        debug(EDebugFatal, disalis ? "\nERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
+        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+        alis.running = 0;
+    }
+    else {
+       debug(EDebugError, "[N/I] cnul for map opcodes: NULL opcode called");
     }
 }
 
@@ -835,6 +862,7 @@ static void cclipping(void) {
 
 // Codopname no. 060 opcode 0x3b cswitching
 // [N/I]: Robinson's Requiem, Storm Master (IBM PC)
+// [N/I]: Ishar 3 Korean (IBM PC)
 // TODO: fswitch is not set to 1 on the PC, but in the current alis implementation
 // it must be set, otherwise the game won't show anything
 static void cswitching(void) {
@@ -4554,6 +4582,7 @@ static void cshrink(void) {
 }
 
 // Codopname no. 228 opcode 0xe3 cdefmap
+// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
 static void cdefmap(void) {
     if (alis.platform.uid == EGameTransarctica)
     {
@@ -4682,6 +4711,7 @@ static void cdefmap(void) {
 }
 
 // Codopname no. 229 opcode 0xe4 csetmap
+// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
 static void csetmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -4861,6 +4891,7 @@ void putmap2(s16 spridx, s32 bitmap)
 }
 
 // Codopname no. 230 opcode 0xe5 cputmap
+// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
 static void cputmap(void) {
     u32 mapram = alis.script->vram_org;
     
@@ -4977,6 +5008,7 @@ s32 texmap(u32 a0, s16 d0w, s16 d1w)
 }
 
 // Codopname no. 233 opcode 0xe8 ctexmap
+// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
 static void ctexmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -5460,6 +5492,7 @@ s16 walkmap(s32 addr)
 }
 
 // Codopname no. 248 opcode 0xf7 cwalkmap
+// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
 static void cwalkmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -5548,6 +5581,7 @@ u16 atstmap(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 wcz2)
 }
 
 // Codopname no. 249 opcode 0xf8 catstmap
+// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
 static void catstmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -5858,6 +5892,7 @@ static void cpointpix(void) {
 }
 
 // Codopname no. 254 opcode 0xfd cchartmap
+// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
 static void cchartmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
