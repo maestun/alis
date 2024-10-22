@@ -50,7 +50,8 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
     
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
-        debug(EDebugFatal, disalis ? "\nERROR: %s" : "%s", "PC OVERFLOW !\n");
+        printf("\n");
+        debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "PC OVERFLOW !\n");
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.running = 0;
     }
@@ -78,7 +79,8 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
         if (opcode.name[0] == 0) {  // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
                                     // It is necessary to add it to the appropriate name table
                                     // (codop, codesc1, codesc2, codesc3, oper, store, or add)
-              debug(EDebugFatal, disalis ? "\nERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
+              printf("\n");
+              debug(EDebugFatal, disalis ? "ERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
               if (!VM_IGNORE_ERRORS) {
                   debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                   alis.running = 0;
