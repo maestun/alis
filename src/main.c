@@ -108,6 +108,9 @@ int main(int argc, char *argv[]) {
             printf("#############################\n");
             alis_start();
 
+            printf("\n");
+            debug(EDebugSystem, "The ALIS VM has been stopped.\n");
+
             // Quit
             printf("\n");
             printf("#############################\n");
