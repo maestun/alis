@@ -69,7 +69,7 @@ typedef enum {
     EDebugError,
     EDebugWarning,
     EDebugInfo,
-    EDebugVerbose,
+    EDebugVerbose
 } EDebugLevel;
 
 #define DEBUG_LEVEL         EDebugWarning
