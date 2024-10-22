@@ -232,7 +232,7 @@ void script_guess_game(const char * script_path) {
                     case EGameCrystalsOfArborea0:
                     case EGameCrystalsOfArborea1:    strcpy(alis.platform.name, "Crystals Of Arborea");     alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1f300;  break;
                     case EGameBostonBombClub:        strcpy(alis.platform.name, "Boston Bomb Club");        alis.platform.version = 21; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x27d00;  break;
-                    case EGameTransarctica:          strcpy(alis.platform.name, "Transarctica");             alis.platform.version = 22; alis.basemem = 0x21d00;  break;
+                    case EGameTransarctica:          strcpy(alis.platform.name, "Transarctica");            alis.platform.version = 22; alis.basemem = 0x21d00;  break;
                     case EGameBunnyBricks:           strcpy(alis.platform.name, "Bunny Bricks");            alis.platform.version = 21; alis.basemem = 0x22200;  break;
                     case EGameIshar_1:               strcpy(alis.platform.name, "Ishar 1");                 alis.platform.version = 20; alis.basemem = 0x20000;  break;
                     case EGameIshar_2:               strcpy(alis.platform.name, "Ishar 2");                 alis.platform.version = 21; alis.basemem = 0x22400;  break;
