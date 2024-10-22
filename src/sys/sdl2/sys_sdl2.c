@@ -196,6 +196,8 @@ u8 sys_poll_event(void) {
     switch (_event.type) {
         case SDL_QUIT:
         {
+            debug(EDebugSystem, disalis ? "\n%s" : "%s", "SDL2: Quit.\n");
+            debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
             running = 0;
             break;
         }
@@ -203,7 +205,7 @@ u8 sys_poll_event(void) {
         {
             if (_event.key.keysym.sym == SDLK_LALT)
             {
-                debug(EDebugInfo, "\nINTERRUPT: User debug label.\n");
+                debug(EDebugSystem, disalis ? "\n%s" : "%s", "INTERRUPT: User debug label.\n");
                 break;
             }
         }
@@ -216,7 +218,8 @@ u8 sys_poll_event(void) {
 
             if (_event.key.keysym.sym == SDLK_PAUSE)
             {
-                debug(EDebugInfo, "\nINTERRUPT: The ALIS VM has been stopped by user.\n");
+                debug(EDebugSystem, disalis ? "\n%s" : "%s", "INTERRUPT: Quit by user request.\n");
+                debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                 running = 0;
                 break;
             }
