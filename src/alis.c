@@ -534,6 +534,9 @@ void alis_save_state(void)
     fwrite(image.physic, alis.platform.width * alis.platform.height, 1, fp);
     fwrite(image.logic, alis.platform.width * alis.platform.height, 1, fp);
     fclose(fp);
+
+    printf("\n");
+    debug(EDebugSystem, "Savestate saved to: %s.\n", path);
 }
 
 void alis_load_state(void)
@@ -547,15 +550,20 @@ void alis_load_state(void)
     
     char buffer[1024];
 
+
     FILE *fp = fopen(path, "rb");
     if (fp == NULL)
     {
+        printf("\n");
+        debug(EDebugError, "Savestate file %s is not found.\n", path);
         return;
     }
     
     fread(buffer, 5, 1, fp);
     if (strcmp("ALIS", buffer))
     {
+        printf("\n");
+        debug(EDebugError, "Unknown savestate format in %s.\n", path);
         return;
     }
 
@@ -563,6 +571,8 @@ void alis_load_state(void)
     int ver = atoi(buffer);
     if (ver != 1)
     {
+        printf("\n");
+        debug(EDebugError, "The savestate version %d in %s is not supported.\n", ver, path);
         return;
     }
 
@@ -685,6 +695,10 @@ void alis_load_state(void)
     fread(image.logic, alis.platform.width * alis.platform.height, 1, fp);
 
     fclose(fp);
+
+    printf("\n");
+    debug(EDebugSystem, "Savestate loaded from: %s.\n", path);
+
 }
 
 void alis_loop(void) {
