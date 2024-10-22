@@ -30,6 +30,7 @@
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
 static char* debug_colors[] = {
+    ANSI_COLOR_YELLOW,
     ANSI_COLOR_RED,
     ANSI_COLOR_RED,
     ANSI_COLOR_YELLOW,
@@ -38,6 +39,7 @@ static char* debug_colors[] = {
 };
 
 static char* debug_prefix[] = {
+    "\x1b[1m[SYSTEM]",
     "\x1b[1m[FATAL]",
     "\x1b[1m[ERROR]",
     "[WARNING]",
