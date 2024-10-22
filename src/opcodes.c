@@ -4711,7 +4711,7 @@ static void cdefmap(void) {
 }
 
 // Codopname no. 229 opcode 0xe4 csetmap
-// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
+// Ishar 3 Korean (IBM PC): csetmap => map_cnul
 static void csetmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -4891,7 +4891,7 @@ void putmap2(s16 spridx, s32 bitmap)
 }
 
 // Codopname no. 230 opcode 0xe5 cputmap
-// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
+// Ishar 3 Korean (IBM PC): cputmap => map_cnul
 static void cputmap(void) {
     u32 mapram = alis.script->vram_org;
     
@@ -5008,7 +5008,7 @@ s32 texmap(u32 a0, s16 d0w, s16 d1w)
 }
 
 // Codopname no. 233 opcode 0xe8 ctexmap
-// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
+// Ishar 3 Korean (IBM PC): ctexmap => map_cnul
 static void ctexmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -5492,7 +5492,7 @@ s16 walkmap(s32 addr)
 }
 
 // Codopname no. 248 opcode 0xf7 cwalkmap
-// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
+// Ishar 3 Korean (IBM PC): cwalkmap => map_cnul
 static void cwalkmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -5581,7 +5581,7 @@ u16 atstmap(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 wcz2)
 }
 
 // Codopname no. 249 opcode 0xf8 catstmap
-// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
+// Ishar 3 Korean (IBM PC): catstmap => map_cnul
 static void catstmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
@@ -5892,7 +5892,7 @@ static void cpointpix(void) {
 }
 
 // Codopname no. 254 opcode 0xfd cchartmap
-// Ishar 3 Korean (IBM PC): cdefmap => map_cnul
+// Ishar 3 Korean (IBM PC): cchartmap => map_cnul
 static void cchartmap(void) {
     debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
