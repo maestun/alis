@@ -2334,7 +2334,7 @@ static void oinkey(void) {
 
 // Opername no. 055 opcode 0x6c okeyon
 static void okeyon(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Opername no. 056 opcode 0x6e ojoy
@@ -3358,7 +3358,7 @@ sAlisOpcode opernames_v40[] = {
     {},
     DECL_OPCODE(0x6a, oinkey,       "TODO add desc"),
     {},
-    DECL_OPCODE(0x6c, okeyon,       "TODO add desc"),
+    DECL_OPCODE(0x6c, okeyon,       "[N/I]"),
     {},
     DECL_OPCODE(0x6e, ojoy,         "TODO add desc"),
     {},

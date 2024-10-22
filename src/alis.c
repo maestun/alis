@@ -50,7 +50,9 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
     
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
-        debug(EDebugFatal, "\nERROR: PC OVERFLOW !");
+        printf("\n");
+        debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "PC OVERFLOW !\n");
+        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.running = 0;
     }
     else {
@@ -74,19 +76,19 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
                 debug(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
             }
         }
-        if (opcode.name[0] == 0)   // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
-                                   // It is necessary to add it to the appropriate name table
-                                   // (codop, codesc1, codesc2, codesc3, oper, store, or add)
-           {
-              debug(EDebugFatal, "\nERROR: Opcode 0x%.2x is missing in %ss table.\n", code, name);
+        if (opcode.name[0] == 0) {  // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
+                                    // It is necessary to add it to the appropriate name table
+                                    // (codop, codesc1, codesc2, codesc3, oper, store, or add)
+              printf("\n");
+              debug(EDebugFatal, disalis ? "ERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
               if (!VM_IGNORE_ERRORS) {
-                  debug(EDebugFatal, "The ALIS VM has been stopped.\n");
+                  debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                   alis.running = 0;
               }
-           }
-           else {
-              opcode.fptr();
-           }
+            }
+            else {
+               opcode.fptr();
+            }
     }
 }
 
@@ -273,10 +275,13 @@ void alis_init(sPlatform platform) {
     debug(EDebugVerbose, "ALIS: Init.\n");
 
     alis.platform = platform;
+
+    alis.cdspeed = 0x493e0;
+    alis.pays = 0;         // pays: keymode=Q=>0; keymode=A=>1 (France); keymode=Z=>2 (Germany)
+                           // cf. Z=QWERTZU=2, Q=QWERTY=1, A=AZERTY=0 -> keyboard_current
     vram_init();
 
     script_guess_game(platform.main);
-    
     alis.timeclock = 0;
     
     audio.fsound = 1;
@@ -529,6 +534,9 @@ void alis_save_state(void)
     fwrite(image.physic, alis.platform.width * alis.platform.height, 1, fp);
     fwrite(image.logic, alis.platform.width * alis.platform.height, 1, fp);
     fclose(fp);
+
+    printf("\n");
+    debug(EDebugSystem, "Savestate saved to: %s.\n", path);
 }
 
 void alis_load_state(void)
@@ -542,15 +550,20 @@ void alis_load_state(void)
     
     char buffer[1024];
 
+
     FILE *fp = fopen(path, "rb");
     if (fp == NULL)
     {
+        printf("\n");
+        debug(EDebugError, "Savestate file %s is not found.\n", path);
         return;
     }
     
     fread(buffer, 5, 1, fp);
     if (strcmp("ALIS", buffer))
     {
+        printf("\n");
+        debug(EDebugError, "Unknown savestate format in %s.\n", path);
         return;
     }
 
@@ -558,6 +571,8 @@ void alis_load_state(void)
     int ver = atoi(buffer);
     if (ver != 1)
     {
+        printf("\n");
+        debug(EDebugError, "The savestate version %d in %s is not supported.\n", ver, path);
         return;
     }
 
@@ -680,6 +695,10 @@ void alis_load_state(void)
     fread(image.logic, alis.platform.width * alis.platform.height, 1, fp);
 
     fclose(fp);
+
+    printf("\n");
+    debug(EDebugSystem, "Savestate loaded from: %s.\n", path);
+
 }
 
 void alis_loop(void) {
@@ -1239,7 +1258,7 @@ s32 adresdes(s32 idx)
     if (len > idx)
         return addr + xread32(addr) + idx * 4;
 
-    debug(EDebugFatal, "ERROR: Failed to read graphic resource at index %d from script %s\n", idx, alis.flagmain ? alis.main->name : alis.script->name);
+    debug(EDebugFatal, "ERROR: Failed to read graphic resource at index %d (0x%06x >= length 0x%06x) from script %s\n", idx, idx, len, alis.flagmain ? alis.main->name : alis.script->name);
     return 0xf;
 }
 

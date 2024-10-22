@@ -39,7 +39,7 @@
 #include <sys/types.h>
 
 #define kProgName           "alis"
-#define kProgVersion        "0.1.031" // temporal version numbering scheme: x.y.zzz; zzz - pull request number
+#define kProgVersion        "0.1.033" // temporal version numbering scheme: x.y.zzz; zzz - pull request number
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)
@@ -64,11 +64,12 @@ typedef int32_t             s32;
 #define BIT_CHK(v, b)       ((v >> b) & 1U)
 
 typedef enum {
-    EDebugFatal = 0,
+    EDebugSystem = 0,
+    EDebugFatal,
     EDebugError,
     EDebugWarning,
     EDebugInfo,
-    EDebugVerbose,
+    EDebugVerbose
 } EDebugLevel;
 
 #define DEBUG_LEVEL         EDebugWarning

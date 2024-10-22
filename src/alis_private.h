@@ -60,9 +60,10 @@ extern u16  loctc_common(u16 offset);
 extern u16  locti_common(u16 offset);
 extern u16  loctp_common(u16 offset);
 
-extern void cnul(void);   // Stub for codop, codesc1, codesc2, codesc3
-extern void pnul(void);   // Stub for oper, add, store
+extern void cnul(void);      // Stub for codop, codesc1, codesc2, codesc3
+extern void pnul(void);      // Stub for oper, add, store
+extern void map_cnul(void);  // Stub for map... opcodes
 
-extern void oeval(void);  // Opername opcode 0x38 oeval
-extern void ofin(void);   // Opername opcode 0x3a ofin. Used in Add and Store tables as well
-extern void spile(void);  // Storename opcode 0x36 spile. Used in Add table as well
+extern void oeval(void);     // Opername opcode 0x38 oeval
+extern void ofin(void);      // Opername opcode 0x3a ofin. Used in Add and Store tables as well
+extern void spile(void);     // Storename opcode 0x36 spile. Used in Add table as well

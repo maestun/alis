@@ -291,14 +291,17 @@ typedef struct {
     u8              charmode;
     u8              xlocate;
     u8              ylocate;
-    
+    u8              pays;
+
     // font
     u16             foasc;
     u16             fonum;
     u8              folarg;
     u8              fohaut;
     u16             fomax;
-    
+
+    u32             cdspeed;
+
     u8              witmov;
     u8              fmitmov;
     u16             goodmat;

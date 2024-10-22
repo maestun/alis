@@ -2478,8 +2478,8 @@ void affiscr(u16 scene, u16 screenidx)
     }
     
     // TODO: fix this hack
-    // following 'if ()' is needed to draw rails under train on minimap in transartica
-    if (alis.platform.uid != EGameTransartica)
+    // following 'if ()' is needed to draw rails under train on minimap in Transarctica
+    if (alis.platform.uid != EGameTransarctica)
     {
         set_scr_state(scene, get_scr_state(scene) & 0x7f);
     }

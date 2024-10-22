@@ -87,7 +87,7 @@ typedef enum {
     EGameMetalMutant             = 0x001b7740,
     EGameCrystalsOfArborea0      = 0x006cb808,
     EGameCrystalsOfArborea1      = 0x006ddd00,
-    EGameTransartica             = 0x01312d00,
+    EGameTransarctica            = 0x01312d00,
     EGameBostonBombClub          = 0x00149970,
     EGameBunnyBricks             = 0x002625a0,
     EGameIshar_1                 = 0x00b71b00,

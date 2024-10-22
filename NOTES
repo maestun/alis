@@ -1,0 +1,30 @@
+# ALIS Development notes
+
+Some development-related notes that are desirable to keep for reference, but do not clutter the source code or TODO with them.
+
+#############################################
+
+# 2024-10-17~22: Transarctica / Arctic Baron. DOS Russian (EU multilanguage) version issues.
+# by Cosmicore
+
+Russian Transarctica (Трансарктика) is a fan translation project of the game, started by a group of enthusiasts in Russia (oldgames.ru) in 2017 and finally released in 2022. We have found that the game does not work with the current version of alis 0.1.031, but runs in the original interpreter without any problems.
+
+1) Crash before start menu.
+
+Investigation showed that the problem is due to an incorrect offset (+1) in cswitch2(). In the Russian version, some script files have an odd size, which causes the error. Script files (packed and unpacked) can only be of even size, which was probably unknown to the project team. The original interpreter runs the game without problems. A correction can be made to add the last byte to odd-sized files after unpacking. Need to check, perhaps the original interpreter always makes the buffer an even size rather than the stated size in the header?
+
+Note: The language selection menu seems to be bypassed, the game loads with the default language, German, where Russian text resources are located. The start address of the script must be restored to enable it again (TRADUC.IO 00000008: A4 -> 16).
+
+2) Russian letters in the embedded font from main.io are not displayed.
+
+Investigation showed that the original font table in main.io was expanded to include Russian alphabet characters. The original table had 71 items (0x00..0x46), including first two special ones, and became 267 (0x00..0x10a), i.e. 196 items were added. All pointers to the original drawings in the table were changed to +784 (0x310) bytes due to the increased table size. New drawings of 196 characters were added after the last original drawing, which depicted the “)” character. Many of them are not used and display stub character “)” or repeat other characters (“Ё”, “0”..“9” etc.).
+
+Note: Expanding the table by 196 characters seems highly redundant. First, the Russian alphabet needs only 33 additional characters (“А”... “Я”, “Ё”) (the game does not use lowercase letters). However, since the code point for “Ё” (“Yo”) in CP866 charset, in which Russian translation texts are encoded, occupies a separate position 0xf0, the table should be extended to 0xff (for aesthetic reasons), i.e. only 155 items could be added instead of 196. Second, anything above code point 255 (0xff) will be unavailable to the interpreter anyway. In any case, expanding the table beyond 255 items does not seem to cause any visible problems.
+
+The display issue in alis is caused by two reasons:
+
+1) Since the new characters were injected into font table at a position higher than fomax variable indicates for Latin range (= 0x3b), the original interpreter was patched to make them display. The condition “if the character is below fomax” in the charpic (not available in later interpreters) and the charput parts of putchar() were fixed for that. The fomax variable is set by the cfont opcode and can be set more than once per game session (found in carte.io, glieu.io, main.io, soleil.io, viking.io, wdecor.io, yoda.io by normal signature for Latin: BA 00 20 00 02 00 XX 00 XX 00 *3B*), so fixing it in files may not be efficient. We can reproduce the solution implemented by the Russian project team, but directly in cfont() at runtime. Need to make sure we treat the 0xff value as u8 and not s8.
+
+2) The table size value (number of items in the font table) was not increased by the Russian project team. This value is located at address (offset+4) from the beginning of the font resource block and before the font pointer table, so it was probably just not detected. The original interpreter does not verify this and allows resources to be read even if they exceed the declared size, but we cannot take that risk by removing the check in adresdes() (the same check appears in the Ishar 3/Robinson’s Requiem interpreter for DOS). Good solution: we can make a runtime patch (corresponds to fix MAIN.IO 0000093E: 47 00 -> 0B 01).
+
+#############################################
