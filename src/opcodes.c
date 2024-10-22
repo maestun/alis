@@ -4131,7 +4131,7 @@ static void cbackstar(void) {
         case EGameCrystalsOfArborea0:
         case EGameCrystalsOfArborea1:
         case EGameMetalMutant:
-        case EGameTransartica:
+        case EGameTransarctica:
         case EGameBostonBombClub:
         case EGameBunnyBricks:
         case EGameIshar_1:
@@ -4555,7 +4555,7 @@ static void cshrink(void) {
 
 // Codopname no. 228 opcode 0xe3 cdefmap
 static void cdefmap(void) {
-    if (alis.platform.uid == EGameTransartica)
+    if (alis.platform.uid == EGameTransarctica)
     {
         u32 mapram = alis.script->vram_org;
         
@@ -4696,7 +4696,7 @@ static void csetmap(void) {
     
     mapram += offset;
     
-    if (alis.platform.uid == EGameTransartica)
+    if (alis.platform.uid == EGameTransarctica)
     {
         readexec_opername();
         xwrite16(mapram - 0x3e, alis.varD7);
@@ -4873,7 +4873,7 @@ static void cputmap(void) {
     
     mapram += offset;
     
-    if (alis.platform.uid == EGameTransartica)
+    if (alis.platform.uid == EGameTransarctica)
     {
         readexec_opername();
         xwrite16(mapram - 0x32, alis.varD7);
