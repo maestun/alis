@@ -64,7 +64,8 @@ typedef int32_t             s32;
 #define BIT_CHK(v, b)       ((v >> b) & 1U)
 
 typedef enum {
-    EDebugFatal = 0,
+    EDebugSystem = 0,
+    EDebugFatal,
     EDebugError,
     EDebugWarning,
     EDebugInfo,
