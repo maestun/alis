@@ -103,6 +103,8 @@ static void adirw(void) {
     alis.sr.zero = (xread16(alis.script->vram_org + offset) == 0);
 }
 
+// adirl was between adirw and adirp. Robinson's Requiem/Ishar 3 have a stub
+
 // Addname no. 12 opcode 0x16 adirp
 static void adirp(void) {
     u8 offset = script_read8();
