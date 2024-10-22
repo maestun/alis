@@ -327,8 +327,10 @@ void io_mfree(s32 addr);
 // Codopname no. 140 opcode 0x8b -> cnul
 // Codesc1name no. 01 opcode 0x00 -> cnul
 void cnul(void)      {
+
     if (!VM_IGNORE_ERRORS) {
-        debug(EDebugFatal, disalis ? "\nERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
+        printf("\n");
+        debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.running = 0;
     }
@@ -347,7 +349,8 @@ void cnul(void)      {
 // Addname no. 03 opcode 0x04 -> pnul
 void pnul(void)      {
 
-    debug(EDebugFatal, disalis ? "\nERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
+    printf("\n");
+    debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
     if (!VM_IGNORE_ERRORS) {
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.running = 0;
@@ -363,8 +366,10 @@ void pnul(void)      {
 // tcodop_F8: catstmap => map_cnul
 // tcodop_FD: cchartmap => map_cnul
 void map_cnul(void)      {
+
     if (!VM_IGNORE_ERRORS) {
-        debug(EDebugFatal, disalis ? "\nERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
+        printf("\n");
+        debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.running = 0;
     }
