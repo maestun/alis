@@ -137,6 +137,14 @@ typedef struct {
     
 } sMainHeader;
 
+typedef enum {
+    
+    eAlisStateStopped       = 0,
+    eAlisStateRunning       = 1,
+    eAlisStateSave          = 2,
+    eAlisStateLoad          = 3,
+} eAlisState;
+
 typedef struct {
     // platform
     sPlatform       platform;
@@ -234,7 +242,7 @@ typedef struct {
     u8              disasm;
     
     // true if vm is running
-    u8              running;
+    eAlisState      state;
     
     // virtual 16-bit accumulator (A4)
     s16 *           acc;

@@ -20,6 +20,7 @@
 //
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_thread.h>
 
 #include "../sys.h"
 #include "alis.h"
@@ -166,7 +167,7 @@ void sys_init(sPlatform *pl, int fullscreen) {
     
     free(desired_spec);
     
-    _psg = PSG_new(3579545, _audio_spec->freq);
+    _psg = PSG_new(2000000, _audio_spec->freq);
     PSG_setClockDivider(_psg, 1);
     PSG_setVolumeMode(_psg, 1); // YM style
     PSG_setQuality(_psg, 1);
@@ -179,7 +180,6 @@ void sys_init(sPlatform *pl, int fullscreen) {
 }
 
 u8 sys_poll_event(void) {
-    u8 running = 1;
     SDL_PollEvent(&_event);
 
     // update mouse
@@ -199,8 +199,7 @@ u8 sys_poll_event(void) {
             printf("\n");
             debug(EDebugSystem, "SDL2: Quit.\n");
             debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-            running = 0;
-            break;
+            return eAlisStateStopped;
         }
         case SDL_KEYUP:
         {
@@ -213,14 +212,12 @@ u8 sys_poll_event(void) {
 
             if (_event.key.keysym.sym == SDLK_F11)
             {
-                alis_save_state();
-                break;
+                return eAlisStateSave;
             }
 
             if (_event.key.keysym.sym == SDLK_F12)
             {
-                alis_load_state();
-                break;
+                return eAlisStateLoad;
             }
         }
         case SDL_KEYDOWN:
@@ -235,8 +232,7 @@ u8 sys_poll_event(void) {
                 printf("\n");
                 debug(EDebugSystem, "INTERRUPT: Quit by user request.\n");
                 debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-                running = 0;
-                break;
+                return eAlisStateStopped;
             }
             else
             {
@@ -256,7 +252,7 @@ u8 sys_poll_event(void) {
 		}
     };
 
-    return running;
+    return alis.state;;
 }
 
 void sys_render(pixelbuf_t buffer) {
@@ -530,14 +526,14 @@ static u8 *samplebuffer[1024 * 1024 * 4];
 bool priorblanc(sChannel *channel)
 {
     u8 result = 1;
-    if (channel->curson < channels[0].curson)
-        result = pblanc10(&(channels[0]), result);
+    if (channel->curson < audio.channels[0].curson)
+        result = pblanc10(&(audio.channels[0]), result);
 
-    if (channel->curson < channels[1].curson)
-        result = pblanc10(&(channels[1]), result);
+    if (channel->curson < audio.channels[1].curson)
+        result = pblanc10(&(audio.channels[1]), result);
 
-    if (channel->curson < channels[2].curson)
-        result = pblanc10(&(channels[2]), result);
+    if (channel->curson < audio.channels[2].curson)
+        result = pblanc10(&(audio.channels[2]), result);
     
     return result == 0;
 }
@@ -677,7 +673,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
             
             for (int i = 0; i < 4; i++)
             {
-                sChannel *ch = &channels[i];
+                sChannel *ch = &audio.channels[i];
                 switch (ch->type)
                 {
                     case eChannelTypeSample:

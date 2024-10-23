@@ -25,6 +25,49 @@
 #include "channel.h"
 #include "config.h"
 
+#define kNumMV1Channels (3)
+
+typedef struct {
+    
+    u32 address;
+    u32 fraction;
+    
+} sMV1MusicPosition;
+
+typedef struct {
+    
+    u16 active;
+    sMV1MusicPosition startsam;
+    u32 speedsam;
+    u32 endsam;
+    u16 clearendsam;
+    u32 instr;
+    u16 data;
+    u16 actflag;
+    u8 unknown;
+
+} sMV1Channel;
+
+typedef struct {
+
+    sMV1Channel channels[kNumMV1Channels];
+
+    u32 tabfrq[128];
+    u8 flag1;
+    u8 flag2;
+    u16 tempo;
+    u16 effect;
+    u16 volume;
+    u16 prevvol;
+    u16 basevol;
+    u32 noteptr;
+    u8 notedata;
+    u16 mumax;
+    u16 mucnt;
+    u16 muspeed;
+
+} sMV1Audio;
+
 typedef struct {
     
     u32 address;
@@ -61,10 +104,53 @@ typedef struct {
 } sAudioVoice;
 
 typedef struct {
+    
+    s16 tvalue;
+    u32 address1;
+    s32 address2;
+    u16 volume;
+    s16 unknown4;
+    u16 notedata;
+    u16 unknownA;
+
+} sChipChannel;
+
+typedef struct {
+
+    sAudioVoice voices[4]; //
+    sChipChannel chipch[3];
+    u32 tabfrq[0x358];
+    u16 defvolins;
+    u8 defvol[32];
+    s16 trkval[36];
+    s8 tabvol[0x4000 * 2];
+    s16 prevmufreq;
+    s16 prevmuvol;
+    u16 mutype;
+    u16 mufreq;
+    u16 muchip;
+    u16 muopl2;
+    u16 muptr;
+    u16 mumax;
+    u16 mucnt;
+    u16 mubufa;
+    u16 mubufc;
+    u16 muspeed;
+    u16 muvolgen;
+    u16 mubreak;
+    u16 mutadata;
+    u32 frqmod;
+    u16 samples;
+    s16 chipmixer;
+
+} sMV2Audio;
+
+typedef struct {
 
     u16 musicId;
     atomic_int working;
 
+    sChannel channels[4];
     sAudioInstrument tabinst[128];
     
     u8 fsound;
@@ -112,3 +198,8 @@ void mv2_offmusic(u32 much);
 
 void io_canal(sChannel *channel, s16 index);
 
+// soundrout
+
+void mv1_soundrout(void);
+void mv2_soundrout(void);
+void mv2_chiprout(void);

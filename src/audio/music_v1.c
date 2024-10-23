@@ -40,8 +40,6 @@ void mv1_stopmusic(void);
 
 extern SDL_AudioSpec *_audio_spec;
 
-#define kNumMV1Channels (3)
-
 u32 mv1_tabfrq_st[] = {
     0x10000, 0x10000, 0x10000, 0x10000,
     0x10000, 0x10000, 0x10000, 0x10000,
@@ -77,46 +75,6 @@ u32 mv1_tabfrq_st[] = {
     0x10000, 0x10000, 0x10000, 0x10000
 };
 
-typedef struct {
-    
-    u32 address;
-    u32 fraction;
-    
-} sMV1MusicPosition;
-
-typedef struct {
-    
-    u16 active;
-    sMV1MusicPosition startsam;
-    u32 speedsam;
-    u32 endsam;
-    u16 clearendsam;
-    u32 instr;
-    u16 data;
-    u16 actflag;
-    u8 unknown;
-
-} sMV1Channel;
-
-typedef struct {
-
-    sMV1Channel channels[kNumMV1Channels];
-
-    u32 tabfrq[128];
-    u8 flag1;
-    u8 flag2;
-    u16 tempo;
-    u16 effect;
-    u16 volume;
-    u16 prevvol;
-    u16 basevol;
-    u32 noteptr;
-    u8 notedata;
-    u16 mumax;
-    u16 mucnt;
-    u16 muspeed;
-
-} sMV1Audio;
 
 sMV1Audio mv1a;
 

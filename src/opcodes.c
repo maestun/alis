@@ -314,7 +314,7 @@ void io_mfree(s32 addr);
 // It does nothing (the function cnul contain only retn).
 //
 // The address 0x0000 of the second stub, unnamed one (we called it pnul), is put in
-// place of the non-implemented functions (opcodes) in the pointer tables toper, tstore and tadd. 
+// place of the non-implemented functions (opcodes) in the pointer tables toper, tstore and tadd.
 // It outputs a message that a null pointer has been called and then exits the program.
 //
 // As the engine evolved, opcodes that were sent to these stubs in earlier versions
@@ -332,7 +332,7 @@ void cnul(void)      {
         printf("\n");
         debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-        alis.running = 0;
+        alis.state = eAlisStateStopped;
     }
     else {
        debug(EDebugError, "[N/I] cnul: NULL opcode called");
@@ -353,7 +353,7 @@ void pnul(void)      {
     debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
     if (!VM_IGNORE_ERRORS) {
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-        alis.running = 0;
+        alis.state = eAlisStateStopped;
     }
 }
 
@@ -371,7 +371,7 @@ void map_cnul(void)      {
         printf("\n");
         debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-        alis.running = 0;
+        alis.state = eAlisStateStopped;
     }
     else {
        debug(EDebugError, "[N/I] cnul for map opcodes: NULL opcode called");
@@ -556,7 +556,7 @@ static void csprinta(void) {
 // Codopname no. 040 opcode 0x27 clocate
 static void clocate(void) {
     debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-    alis.charmode = 0;    
+    alis.charmode = 0;
     readexec_opername_saveD7();
     readexec_opername_saveD6();
     alis.xlocate = (u8)(alis.varD7 & 0xff);
@@ -2520,10 +2520,11 @@ static void cfreadb(void) {
 
 //            u8 *unpacked_buffer = alis.mem + addr;
 //            u32 unpacked_size = unpack_script_fp(alis.fp, &unpacked_buffer);
-//            if (alis.wordpack != 0)
-//            {
-//                 unmixword();
-//            }
+        }
+
+        if (alis.wordpack != 0)
+        {
+//             unmixword(addr, length);
         }
     }
     else
@@ -3304,18 +3305,18 @@ static void cdelsound(void) {
     
     for (int i = 0; i < 4; i++)
     {
-        channels[i].type = eChannelTypeNone;
+        audio.channels[i].type = eChannelTypeNone;
     }
 
     for (int i = 0; i < 3; i++)
     {
-        channels[i].type = eChannelTypeNone;
-        channels[i].volume = 0;
-        channels[i].freq = 0;
-        channels[i].curson = 0x80;
-        channels[i].state = 0;
-        channels[i].played = 0;
-        io_canal(&(channels[i]), i);
+        audio.channels[i].type = eChannelTypeNone;
+        audio.channels[i].volume = 0;
+        audio.channels[i].freq = 0;
+        audio.channels[i].curson = 0x80;
+        audio.channels[i].state = 0;
+        audio.channels[i].played = 0;
+        io_canal(&(audio.channels[i]), i);
     }
 }
 
@@ -4219,7 +4220,7 @@ static void cbackstar(void) {
 //                s16 at = xread16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 2);
 //                rescmode(at, value);
 //            }
-//            
+//
 //            xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1, value);
 //        }
 //    }

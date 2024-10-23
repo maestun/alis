@@ -28,7 +28,6 @@
 
 extern SDL_AudioSpec *_audio_spec;
 
-sChannel channels[4] = {{.type = 0, .length = 0}, {.type = 0, .length = 0}, {.type = 0, .length = 0}, {.type = 0, .length = 0}};
 sAudio audio = {};
 
 
@@ -37,7 +36,7 @@ void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, 
     s32 channelidx = -1;
     for (s32 i = 0; i < 4; i ++)
     {
-        if (channels[i].type == eChannelTypeNone)
+        if (audio.channels[i].type == eChannelTypeNone)
         {
             channelidx = i;
             break;
@@ -49,13 +48,13 @@ void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, 
         if (freq < 0x1 || 0x14 < freq)
             freq = 10;
         
-        channels[channelidx].address = address;
-        channels[channelidx].volume = volume;
-        channels[channelidx].length = length;
-        channels[channelidx].freq = freq * 1000;
-        channels[channelidx].loop = loop;
-        channels[channelidx].played = 0;
-        channels[channelidx].type = type;
+        audio.channels[channelidx].address = address;
+        audio.channels[channelidx].volume = volume;
+        audio.channels[channelidx].length = length;
+        audio.channels[channelidx].freq = freq * 1000;
+        audio.channels[channelidx].loop = loop;
+        audio.channels[channelidx].played = 0;
+        audio.channels[channelidx].type = type;
     }
 }
 
@@ -109,51 +108,51 @@ void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson,
     {
         for (int i = 0; i < 2; i++)
         {
-            canal = &channels[i];
+            canal = &audio.channels[i];
             if (priorson == canal->curson)
                 goto runson10;
         }
         
-        canal = &channels[2];
-        if (priorson == channels[2].curson)
+        canal = &audio.channels[2];
+        if (priorson == audio.channels[2].curson)
             goto runson10;
     }
     else
     {
         for (int i = 0; i < 2; i++)
         {
-            canal = &channels[i];
+            canal = &audio.channels[i];
             if (pereson == canal->pere && priorson == canal->curson)
                 goto runson10;
         }
         
-        if (pereson == channels[2].pere)
+        if (pereson == audio.channels[2].pere)
         {
-            canal = &channels[2];
-            if (priorson == channels[2].curson)
+            canal = &audio.channels[2];
+            if (priorson == audio.channels[2].curson)
                 goto runson10;
 
         }
     }
     
-    canal = &channels[0];
-    char cson = channels[0].curson;
-    if (channels[1].curson < channels[0].curson)
+    canal = &audio.channels[0];
+    char cson = audio.channels[0].curson;
+    if (audio.channels[1].curson < audio.channels[0].curson)
     {
-        canal = &channels[1];
-        cson = channels[1].curson;
+        canal = &audio.channels[1];
+        cson = audio.channels[1].curson;
     }
     
-    if (channels[2].curson < cson)
+    if (audio.channels[2].curson < cson)
     {
-        canal = &channels[2];
-        cson = channels[2].curson;
+        canal = &audio.channels[2];
+        cson = audio.channels[2].curson;
     }
     
-//    if (channels[3].curson < cson)
+//    if (audio.channels[3].curson < cson)
 //    {
-//        canal = &channels[3];
-//        cson = channels[3].curson;
+//        canal = &audio.channels[3];
+//        cson = audio.channels[3].curson;
 //    }
     
     if (((-1 < priorson) && (cson < 0)) && (cson != -0x80))

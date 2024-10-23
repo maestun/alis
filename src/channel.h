@@ -50,5 +50,3 @@ typedef struct {
     s16 delta_freq;
 
 } sChannel;
-
-extern sChannel channels[4];

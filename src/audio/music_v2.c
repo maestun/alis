@@ -26,22 +26,7 @@
 
 #include <SDL2/SDL.h>
 
-
 #include "emu2149.h"
-
-typedef struct {
-    
-    s16 tvalue;
-    u32 address1;
-    s32 address2;
-    u16 volume;
-    s16 unknown4;
-    u16 notedata;
-    u16 unknownA;
-
-} sChipChannel;
-
-PSG *_mupsg;
 
 void mv2_soundrout(void);
 void mv2_calculfrq(void);
@@ -61,6 +46,7 @@ void mv2_chipcanal(sChipChannel *chanel, s32 idx);
 u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel);
 
 extern SDL_AudioSpec *_audio_spec;
+extern PSG *_psg;
 
 sAudioTrkfrq mv2_trkfrq[7] = {
     { 0xB, 0xA3, 0x1B989B4 },
@@ -83,37 +69,6 @@ sAudioTrkfrq mv2_trkfrq_ste[5] = {
     { 0x2, 0x1F3,  0x91A6F1 },   // 25 khz
     { 0x2, 0x1F3,  0x91A6F1 },   // 25 khz
     { 0x4, 0x3E7,  0x48D378 } }; // 50 khz
-
-typedef struct {
-
-    sAudioInstrument *tinstrum;
-    sAudioVoice voices[4]; //
-    sChipChannel chipch[3];
-    u32 tabfrq[0x358];
-    u16 defvolins;
-    u8 defvol[32];
-    s16 trkval[36];
-    s8 tabvol[0x4000 * 2];
-    s16 prevmufreq;
-    s16 prevmuvol;
-    u16 mutype;
-    u16 mufreq;
-    u16 muchip;
-    u16 muopl2;
-    u16 muptr;
-    u16 mumax;
-    u16 mucnt;
-    u16 mubufa;
-    u16 mubufc;
-    u16 muspeed;
-    u16 muvolgen;
-    u16 mubreak;
-    u16 mutadata;
-    u32 frqmod;
-    u16 samples;
-    s16 chipmixer;
-
-} sMV2Audio;
 
 sMV2Audio mv2a;
 
@@ -145,8 +100,6 @@ void mv2_gomusic(void)
 {
     audio.muflag = 0;
 
-    mv2a.tinstrum = audio.tabinst;
-    
     u8 chipinst = 0;
     u8 opl2inst = 0;
 
@@ -199,12 +152,6 @@ void mv2_gomusic(void)
     }
     else
     {
-        _mupsg = PSG_new(2000000, _audio_spec->freq);
-        PSG_setClockDivider(_mupsg, 1);
-        PSG_setVolumeMode(_mupsg, 1); // YM style
-        PSG_setQuality(_mupsg, 1);
-        PSG_reset(_mupsg);
-        
         for (int i = 0; i < 0xc; i++)
         {
             chipdata[i * 4 + 2] = 0;
@@ -843,13 +790,13 @@ f_chiprouttc:
         
         for (int i = 0; i < 13; i++)
         {
-            PSG_writeReg(_mupsg, chipdata[i * 4], chipdata[4 * i + 2]);
+            PSG_writeReg(_psg, chipdata[i * 4], chipdata[4 * i + 2]);
         }
         
         memset(audio.muadresse, 0, audio.mutaloop * 2);
         for (int index = 0; index < audio.mutaloop; index ++)
         {
-            audio.muadresse[index] = PSG_calc(_mupsg) * 4;
+            audio.muadresse[index] = PSG_calc(_psg) * 4;
         }
     }
 }

@@ -26,6 +26,7 @@
 #include "mem.h"
 #include "sys/sys.h"
 #include "utils.h"
+#include "video.h"
 
 
 sAlisVM alis;
@@ -53,7 +54,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
         printf("\n");
         debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "PC OVERFLOW !\n");
         debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-        alis.running = 0;
+        alis.state = eAlisStateStopped;
     }
     else {
         // fetch code
@@ -83,7 +84,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
               debug(EDebugFatal, disalis ? "ERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
               if (!VM_IGNORE_ERRORS) {
                   debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-                  alis.running = 0;
+                  alis.state = eAlisStateStopped;
               }
             }
             else {
@@ -456,6 +457,19 @@ void alis_deinit(void) {
     free(alis.mem);
 }
 
+extern sMV1Audio mv1a;
+extern sMV2Audio mv2a;
+
+extern u16 fls_drawing;
+extern u16 fls_pallines;
+extern s8  fls_state;
+extern u8 fls_ham6;
+extern u8 fls_s512;
+extern u8 pvgalogic[1024 * 1024];
+extern u8 *vgalogic;
+extern u8 *vgalogic_df;
+extern u8 *endframe;
+
 void alis_save_state(void)
 {
     char path[kPathMaxLen] = {0};
@@ -463,22 +477,32 @@ void alis_save_state(void)
     strcat(path, "alis.state");
 
     FILE *fp = fopen(path, "wb");
+    if (fp == NULL)
+    {
+        debug(EDebugError, "Failed to save state to: %s.\n", path);
+        return;
+    }
+    
+    u32 value;
+    
     fwrite("ALIS", 5, 1, fp);
-    fwrite("0001", 5, 1, fp);
+    fwrite("0002", 5, 1, fp);
     fwrite(&(alis), sizeof(alis), 1, fp);
-    fwrite(alis.mem, sizeof(u8) * kHostRAMSize, 1, fp);
-
-    u32 scriptdooff = (u32)((int64_t)alis.script_data_orgs - (int64_t)alis.mem);
-    fwrite(&scriptdooff, 4, 1, fp);
+    size_t vram_size = sizeof(u8) * kHostRAMSize;
+    fwrite(&vram_size, sizeof(size_t), 1, fp);
+    fwrite(alis.mem, vram_size, 1, fp);
     
-    u32 tabentoff = (u32)((int64_t)alis.ptrent - (int64_t)alis.tablent);
-    fwrite(&tabentoff, 4, 1, fp);
+    value = (u32)((int64_t)alis.script_data_orgs - (int64_t)alis.mem);
+    fwrite(&value, 4, 1, fp);
     
-    u32 accoff = (u32)((int64_t)alis.acc - (int64_t)alis.mem);
-    fwrite(&accoff, 4, 1, fp);
+    value = (u32)((int64_t)alis.ptrent - (int64_t)alis.tablent);
+    fwrite(&value, 4, 1, fp);
+    
+    value = (u32)((int64_t)alis.acc - (int64_t)alis.mem);
+    fwrite(&value, 4, 1, fp);
 
-    u32 accorgoff = (u32)((int64_t)alis.acc_org - (int64_t)alis.mem);
-    fwrite(&accorgoff, 4, 1, fp);
+    value = (u32)((int64_t)alis.acc_org - (int64_t)alis.mem);
+    fwrite(&value, 4, 1, fp);
     
     u32 loadedScrippts = 0;
     for (int i = 0; i < kMaxScripts; i++)
@@ -527,12 +551,70 @@ void alis_save_state(void)
     
     fwrite(&mainIdx, 4, 1, fp);
     fwrite(&scriptIdx, 4, 1, fp);
+    
+    value = alis.desmouse ? (u32)((int64_t)alis.desmouse - (int64_t)alis.mem) : 0;
+    fwrite(&value, 4, 1, fp);
 
+    // image
 
     fwrite(&(image), sizeof(image), 1, fp);
     fwrite(image.spritemem, 1024 * 1024, 1, fp);
     fwrite(image.physic, alis.platform.width * alis.platform.height, 1, fp);
     fwrite(image.logic, alis.platform.width * alis.platform.height, 1, fp);
+    
+    // audio
+    
+    u8 audio_type = 0;
+    if (audio.soundrout == mv1_soundrout) {
+        audio_type = 1;
+    }
+    else if (audio.soundrout == mv2_soundrout) {
+        audio_type = 2;
+    }
+    else if (audio.soundrout == mv2_chiprout) {
+        audio_type = 3;
+    }
+
+    fwrite(&(audio), sizeof(audio), 1, fp);
+    for (int i = 0; i < 4; i++)
+    {
+        value = (u32)((int64_t)audio.channels[i].address - (int64_t)alis.mem);
+        fwrite(&value, 4, 1, fp);
+    }
+    
+    fwrite(&audio_type, sizeof(audio_type), 1, fp);
+    
+    fwrite(&(mv1a), sizeof(mv1a), 1, fp);
+    fwrite(&(mv2a), sizeof(mv2a), 1, fp);
+    
+    // FLI/FLC video
+    
+    fwrite(&bfilm, sizeof(bfilm), 1, fp);
+    value = (u32)((int64_t)bfilm.addr1 - (int64_t)alis.mem);
+    fwrite(&value, 4, 1, fp);
+    value = (u32)((int64_t)bfilm.addr2 - (int64_t)alis.mem);
+    fwrite(&value, 4, 1, fp);
+    value = (u32)((int64_t)bfilm.endptr - (int64_t)alis.mem);
+    fwrite(&value, 4, 1, fp);
+    value = bfilm.delptr ? (u32)((int64_t)bfilm.delptr - (int64_t)alis.mem) : 0;
+    fwrite(&value, 4, 1, fp);
+    
+    fwrite(&fls_drawing, sizeof(fls_drawing), 1, fp);
+    fwrite(&fls_pallines, sizeof(fls_pallines), 1, fp);
+    fwrite(&fls_state, sizeof(fls_state), 1, fp);
+    fwrite(&fls_ham6, sizeof(fls_ham6), 1, fp);
+    fwrite(&fls_s512, sizeof(fls_s512), 1, fp);
+    fwrite(&pvgalogic, sizeof(pvgalogic), 1, fp);
+    
+    value = (u32)((int64_t)vgalogic - (int64_t)pvgalogic);
+    fwrite(&value, 4, 1, fp);
+
+    value = (u32)((int64_t)vgalogic_df - (int64_t)pvgalogic);
+    fwrite(&value, 4, 1, fp);
+
+    value = endframe ? (u32)((int64_t)endframe - (int64_t)alis.mem) : 0;
+    fwrite(&value, 4, 1, fp);
+
     fclose(fp);
 
     printf("\n");
@@ -544,12 +626,6 @@ void alis_load_state(void)
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
     strcat(path, "alis.state");
-    
-//    sAlisVM alis;
-    memset(&alis, 0, sizeof(alis));
-    
-    char buffer[1024];
-
 
     FILE *fp = fopen(path, "rb");
     if (fp == NULL)
@@ -559,26 +635,33 @@ void alis_load_state(void)
         return;
     }
     
+    char buffer[1024];
     fread(buffer, 5, 1, fp);
     if (strcmp("ALIS", buffer))
     {
         printf("\n");
         debug(EDebugError, "Unknown savestate format in %s.\n", path);
+        fclose(fp);
         return;
     }
 
     fread(buffer, 5, 1, fp);
     int ver = atoi(buffer);
-    if (ver != 1)
+    if (ver != 2)
     {
         printf("\n");
         debug(EDebugError, "The savestate version %d in %s is not supported.\n", ver, path);
+        fclose(fp);
         return;
     }
 
+    memset(&alis, 0, sizeof(alis));
     fread(&(alis), sizeof(alis), 1, fp);
-    //newAlis.mem = malloc(sizeof(u8) * kHostRAMSize);
-    fread(alis.mem, sizeof(u8) * kHostRAMSize, 1, fp);
+    
+    size_t vram_size = sizeof(u8) * kHostRAMSize;
+    fread(&vram_size, sizeof(size_t), 1, fp);
+    alis.mem = malloc(vram_size);
+    fread(alis.mem, vram_size, 1, fp);
     
     alis.vram_org = alis.mem + alis.basemem;
     
@@ -636,7 +719,7 @@ void alis_load_state(void)
     alis.script_data_orgs = (u32 *)(alis.mem + value);
 
     fread(&value, 4, 1, fp);
-    alis.ptrent = (s16 *)(alis.tablent + value);
+    alis.ptrent = (s16 *)((int64_t)alis.tablent + value);
 
     fread(&value, 4, 1, fp);
     alis.acc = (s16 *)(alis.mem + value);
@@ -684,30 +767,104 @@ void alis_load_state(void)
     fread(&value, 4, 1, fp);
     alis.script = alis.live_scripts[value];
     
+    fread(&value, 4, 1, fp);
+    alis.desmouse = value ? alis.mem + value : NULL;
+
     // image
     
-    //sImage image;
+    u8 *spritemem   = image.spritemem;
+    u8 *physic      = image.physic;
+    u8 *logic       = image.logic;
+    u8 *backmap     = image.backmap;
+    u8 *atpalet     = image.atpalet;
+    u8 *ampalet     = image.ampalet;
+    s16 *ptabfen    = image.ptabfen;
+    u8 *bufpack     = image.bufpack;
+    u8 *wlogic      = image.wlogic;
+    
     memset(&image, 0, sizeof(image));
     fread(&(image), sizeof(image), 1, fp);
-    // image.spritemem = (u8 *)malloc(1024 * 1024);
+    
+    image.spritemem = spritemem;
+    image.physic    = physic;
+    image.logic     = logic;
+    image.backmap   = backmap;
+    image.atpalet   = atpalet;
+    image.ampalet   = ampalet;
+    image.ptabfen   = ptabfen;
+    image.bufpack   = bufpack;
+    image.wlogic    = wlogic;
+    
     fread(image.spritemem, 1024 * 1024, 1, fp);
     fread(image.physic, alis.platform.width * alis.platform.height, 1, fp);
     fread(image.logic, alis.platform.width * alis.platform.height, 1, fp);
 
+    // audio
+    
+    u8 audio_type = 0;
+    fread(&(audio), sizeof(audio), 1, fp);
+    for (int i = 0; i < 4; i++)
+    {
+        fread(&value, 4, 1, fp);
+        audio.channels[i].address = alis.mem + value;
+    }
+    
+    fread(&audio_type, sizeof(audio_type), 1, fp);
+    switch (audio_type)
+    {
+        case 1: audio.soundrout = mv1_soundrout; break;
+        case 2: audio.soundrout = mv2_soundrout; break;
+        case 3: audio.soundrout = mv2_chiprout; break;
+    }
+    
+    fread(&(mv1a), sizeof(mv1a), 1, fp);
+    fread(&(mv2a), sizeof(mv2a), 1, fp);
+    
+    // FLI/FLC video
+    
+    fread(&bfilm, sizeof(bfilm), 1, fp);
+    fread(&value, 4, 1, fp);
+    bfilm.addr1 = alis.mem + value;
+    fread(&value, 4, 1, fp);
+    bfilm.addr2 = alis.mem + value;
+    fread(&value, 4, 1, fp);
+    bfilm.endptr = alis.mem + value;
+    fread(&value, 4, 1, fp);
+    bfilm.delptr = value ? alis.mem + value : 0;
+
+    fread(&fls_drawing, sizeof(fls_drawing), 1, fp);
+    fread(&fls_pallines, sizeof(fls_pallines), 1, fp);
+    fread(&fls_state, sizeof(fls_state), 1, fp);
+    fread(&fls_ham6, sizeof(fls_ham6), 1, fp);
+    fread(&fls_s512, sizeof(fls_s512), 1, fp);
+    fread(&pvgalogic, sizeof(pvgalogic), 1, fp);
+    fread(&value, 4, 1, fp);
+    vgalogic = pvgalogic + value;
+    fread(&value, 4, 1, fp);
+    vgalogic_df = pvgalogic + value;
+    fread(&value, 4, 1, fp);
+    endframe = value ? alis.mem + value : NULL;
+    
     fclose(fp);
+
+    host.pixelbuf.palette = image.ampalet;
+
+    gettimeofday(&alis.frametime, NULL);
+    gettimeofday(&alis.looptime, NULL);
+    
+    sys_update_cursor();
 
     printf("\n");
     debug(EDebugSystem, "Savestate loaded from: %s.\n", path);
-
 }
 
 void alis_loop(void) {
     alis.script->running = 1;
-    while (alis.running && alis.script->running) {
+    while (alis.state && alis.script->running) {
         
         readexec_opcode();
         // TODO: Temporary solution. Exiting an idle, broken or slow script by user event
-        alis.running &= sys_poll_event();
+        alis.state = sys_poll_event();
     }
     
     // alis loop was stopped by 'cexit', 'cstop', or user event
@@ -809,9 +966,19 @@ void updtcoord(u32 addr)
 }
 
 void alis_main_V2(void) {
-    do {
+    while ((alis.state = sys_poll_event())) {
         
-        alis.running = sys_poll_event();
+        if (alis.state == eAlisStateSave)
+        {
+            alis_save_state();
+            alis.state = eAlisStateRunning;
+        }
+        else if (alis.state == eAlisStateLoad)
+        {
+            alis_load_state();
+            alis.state = eAlisStateRunning;
+        }
+        
         alis.restart_loop = 0;
         
         alis.script = ENTSCR(alis.varD5);
@@ -889,12 +1056,22 @@ void alis_main_V2(void) {
             draw();
         }
     }
-    while (alis.running);
 }
 
 void alis_main_V3(void) {
-    do {
-        alis.running = sys_poll_event();
+    while ((alis.state = sys_poll_event())) {
+
+        if (alis.state == eAlisStateSave)
+        {
+            alis_save_state();
+            alis.state = eAlisStateRunning;
+        }
+        else if (alis.state == eAlisStateLoad)
+        {
+            alis_load_state();
+            alis.state = eAlisStateRunning;
+        }
+        
         alis.restart_loop = 0;
         
         alis.script = ENTSCR(alis.varD5);
@@ -966,14 +1143,13 @@ void alis_main_V3(void) {
             draw();
         }
     }
-    while (alis.running);
 }
 
 u8 alis_start(void) {
     u8 ret = 0;
     
     // run !
-    alis.running = 1;
+    alis.state = eAlisStateRunning;
     alis.cstopret = 0;
     alis.varD5 = 0;
     
@@ -1417,17 +1593,19 @@ FILE *afopen(char *path, u16 openmode)
                 if ((openmode & 0x800) != 0)
                 {
                     fread(alis.buffer, 0xc, 1, alis.fp);
-                    if (((u32 *)(alis.buffer))[0] == 0x50423630)
+
+                    u32 type = read32(alis.buffer);
+                    if (type == 0x50423630)
                     {
                         alis.typepack = 0xa0;
                         alis.wordpack = 0;
-                        alis.longpack = ((u32 *)(alis.buffer))[1];
+                        alis.longpack = read32(alis.buffer + 4);
                     }
-                    else if (((u32 *)(alis.buffer))[0] == 0x50573630)
+                    else if (type == 0x50573630)
                     {
                         alis.typepack = 0xa0;
                         alis.wordpack = 1;
-                        alis.longpack = ((u32 *)(alis.buffer))[1];
+                        alis.longpack = read32(alis.buffer + 4);
                     }
                 }
             }
