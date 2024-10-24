@@ -32,7 +32,7 @@
 typedef void (*vmStep)(void);
 void    sys_main(vmStep fStep);
 void    sys_init(sPlatform *pl, int fullscreen);
-u8      sys_poll_event(void);
+u8      sys_start(void);
 void    sys_deinit(void);
 
 
@@ -85,3 +85,9 @@ void    sys_set_time(u16 h, u16 m, u16 s);
 time_t  sys_get_time(void);
 u16     sys_get_model(void);
 u16     sys_random(void);
+
+// =============================================================================
+#pragma mark - SYNC
+// =============================================================================
+void    sys_lock_renderer(void);
+void    sys_unlock_renderer(void);

@@ -23,7 +23,6 @@
 #include "config.h"
 #include "unpack.h"
 #include "sys/sys.h"
-#include "SDL2/SDL.h"
 
 int disalis = DEBUG_SCRIPT;
 
@@ -106,7 +105,7 @@ int main(int argc, char *argv[]) {
             printf("#############################\n");
             printf("# Starting ALIS VM...\n");
             printf("#############################\n");
-            alis_start();
+            sys_start();
 
             printf("\n");
             debug(EDebugSystem, "The ALIS VM has been stopped.\n");

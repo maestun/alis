@@ -109,7 +109,7 @@ void invdigit(u8 *sample)
             {
                 u8 *dst = sample + 0x10 + read32(sample + 0xc);
                 u8 *src = dst + 8;
-                memcpy(dst, src, length);
+                memmove(dst, src, length);
             }
             
             write32(sample + 0xc, read32(sample + 0xc) - 0x10);
@@ -255,9 +255,8 @@ void script_guess_game(const char * script_path) {
     }
 }
 
-sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
+sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     
-//    debprot();
     s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
     if (insert > 0 && insert < alis.nbprog)
@@ -479,15 +478,35 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
 
         // convert samples
     
+        u32 maxlen = 0;
+
         s32 samples = read16(data + l + 0x10);
-        
-        s8 temp[1024 * 1024];
-        
         for (s32 s = 0; s < samples; s++)
         {
             s32 a = read32(data + 0xc + l) + l + s * 4;
             s32 at = read32(data + a) + a;
+            
+            u8 *sample = data + at;
+            if (sample[0] == 1 || sample[0] == 2)
+            {
+                if (sample[6] == 1 && script->type & 1)
+                {
+                    u32 fulllen = read32(sample + 2);
+                    s32 length = ((fulllen - 0x10) >> 1);
 
+                    if (maxlen < length)
+                        maxlen = length;
+                }
+            }
+        }
+        
+        s8 *temp = maxlen ? malloc(maxlen + 1) : NULL;
+            
+        for (s32 s = 0; s < samples; s++)
+        {
+            s32 a = read32(data + 0xc + l) + l + s * 4;
+            s32 at = read32(data + a) + a;
+            
             u8 *sample = data + at;
             if (sample[0] == 1 || sample[0] == 2)
             {
@@ -546,6 +565,9 @@ sAlisScriptData * script_init(char * name, u8 * data, u32 data_sz) {
                 invdigit(sample);
             }
         }
+            
+        if (temp)
+            free(temp);
     }
 
     return script;
@@ -728,7 +750,7 @@ sAlisScriptData * script_load(const char * script_path) {
         
         // alloc and unpack
         unpack_sz = get_unpacked_size(magic);
-        u8 * unpack_buf = (u8 *)malloc(unpack_sz * sizeof(u8));
+        u8 * unpack_buf = (u8 *)malloc(1024 + unpack_sz * sizeof(u8));
         memset(unpack_buf, 0, unpack_sz);
 
         // TODO: check if this was already loaded, if so use cache
@@ -758,7 +780,7 @@ sAlisScriptData * script_load(const char * script_path) {
             memset(pak_buf, 0, pak_sz + 16);
             fread(pak_buf, sizeof(u8), pak_sz, fp);
 
-            unpack_sz = unpack_script(script_path, &unpack_buf);
+            unpack_sz = unpack_script(script_path, unpack_buf);
             if (unpack_sz > 0) {
                 script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
             }

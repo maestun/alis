@@ -28,7 +28,6 @@
 #include "utils.h"
 #include "video.h"
 
-
 sAlisVM alis;
 sHost host;
 
@@ -852,7 +851,7 @@ void alis_load_state(void)
     gettimeofday(&alis.frametime, NULL);
     gettimeofday(&alis.looptime, NULL);
     
-    sys_update_cursor();
+    set_update_cursor();
 
     printf("\n");
     debug(EDebugSystem, "Savestate loaded from: %s.\n", path);
@@ -863,8 +862,6 @@ void alis_loop(void) {
     while (alis.state && alis.script->running) {
         
         readexec_opcode();
-        // TODO: Temporary solution. Exiting an idle, broken or slow script by user event
-        alis.state = sys_poll_event();
     }
     
     // alis loop was stopped by 'cexit', 'cstop', or user event
@@ -966,7 +963,7 @@ void updtcoord(u32 addr)
 }
 
 void alis_main_V2(void) {
-    while ((alis.state = sys_poll_event())) {
+    while (alis.state) {
         
         if (alis.state == eAlisStateSave)
         {
@@ -1059,7 +1056,7 @@ void alis_main_V2(void) {
 }
 
 void alis_main_V3(void) {
-    while ((alis.state = sys_poll_event())) {
+    while (alis.state) {
 
         if (alis.state == eAlisStateSave)
         {
@@ -1145,11 +1142,7 @@ void alis_main_V3(void) {
     }
 }
 
-u8 alis_start(void) {
-    u8 ret = 0;
-    
-    // run !
-    alis.state = eAlisStateRunning;
+int alis_thread(void *data) {
     alis.cstopret = 0;
     alis.varD5 = 0;
     
@@ -1162,8 +1155,7 @@ u8 alis_start(void) {
         alis_main_V3();
     }
 
-    // alis was stopped by 'cexit' opcode
-    return ret;
+    return 0;
 }
 
 void alis_error(int errnum, ...) {
@@ -1618,10 +1610,13 @@ FILE *afopen(char *path, u16 openmode)
 void sleep_until(struct timeval *start, s32 len)
 {
     struct timeval now;
-    while ((void)(gettimeofday(&now, NULL)), ((int64_t)(now.tv_sec * 1000000LL + now.tv_usec) - (int64_t)(start->tv_sec * 1000000LL + start->tv_usec)) < len) {
-        usleep(500);
-    }
-
+    gettimeofday(&now, NULL);
+    
+    int64_t wait = len - ((int64_t)(now.tv_sec * 1000000LL + now.tv_usec) - (int64_t)(start->tv_sec * 1000000LL + start->tv_usec));
+    if (wait > 0)
+        usleep((useconds_t)wait);
+    
+    gettimeofday(&now, NULL);
     *start = now;
 }
 
@@ -1630,10 +1625,13 @@ void sleep_interactive(s32 *loop, s32 intr)
     struct timeval now, prev;
     gettimeofday(&prev, NULL);
 
+    u32 waitticks = (1000000 / 120);
+
     while (*loop > intr || (*loop > 0 && io_inkey() == 0))
     {
+        usleep(waitticks);
+        
         gettimeofday(&now, NULL);
-        sys_render(host.pixelbuf);
         *loop -= ((now.tv_sec * 1000000LL) + now.tv_usec) - ((prev.tv_sec * 1000000LL) + prev.tv_usec);
         prev = now;
     }

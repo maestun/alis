@@ -2514,9 +2514,11 @@ void waitframe(void) {
 void draw(void)
 {
     VERIFYINTEGRITY;
-    
+
     waitframe();
     
+    sys_lock_renderer();
+
 //    waitphysic();
     if ((alis.fswitch != 0) && (image.fphytolog != 0))
     {
@@ -2575,10 +2577,10 @@ void draw(void)
         
         setphysic();
     }
-    
-    sys_render(host.pixelbuf);
 
     VERIFYINTEGRITY;
+
+    sys_unlock_renderer();
 }
 
 // TODO: move to script.c

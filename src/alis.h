@@ -377,7 +377,7 @@ extern sHost host;
 // =============================================================================
 
 void            alis_init(sPlatform platform);
-u8              alis_start(void);
+int             alis_thread(void *data);
 void            alis_deinit(void);
 
 void            alis_save_state(void);

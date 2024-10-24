@@ -63,6 +63,7 @@ float           _scaleX;
 float           _scaleY;
 u32             _width = 320;
 u32             _height = 200;
+SDL_sem *       _render_sem = NULL;
 
 int             _audio_id;
 SDL_AudioSpec   *_audio_spec;
@@ -177,85 +178,117 @@ void sys_init(sPlatform *pl, int fullscreen) {
     isr_counter = 1;
 
     SDL_PauseAudioDevice(_audio_id, 0);
+    
+    _render_sem = SDL_CreateSemaphore(1);
 }
 
-u8 sys_poll_event(void) {
-    SDL_PollEvent(&_event);
+u8 sys_start(void) {
+    u8 ret = 0;
+    
+    SDL_Thread *thread = SDL_CreateThread(alis_thread, "ALIS", (void *)NULL);
+    if (thread == NULL) {
+        printf("Could not create thread! %s\n", SDL_GetError());
+        return 1;
+    }
+    
+    u32 waitticks = (1000000 / 120);
 
-    // update mouse
-    u32 bt = SDL_GetMouseState(&_mouse.x, &_mouse.y);
-    
-    float newx, newy;
-    SDL_RenderWindowToLogical(_renderer, _mouse.x, _mouse.y, &newx, &newy);
-    
-    _mouse.x = newx;
-    _mouse.y = newy / _aspect_ratio;
-    _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
-    _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
-    
-    switch (_event.type) {
-        case SDL_QUIT:
-        {
-            printf("\n");
-            debug(EDebugSystem, "SDL2: Quit.\n");
-            debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-            return eAlisStateStopped;
-        }
-        case SDL_KEYUP:
-        {
-            if (_event.key.keysym.sym == SDLK_LALT)
+    alis.state = eAlisStateRunning;
+    while (alis.state) {
+        
+        // wait so image is drawn at 120 fps
+        usleep(waitticks);
+        
+        sys_render(host.pixelbuf);
+        
+        SDL_PollEvent(&_event);
+
+        // update mouse
+        u32 bt = SDL_GetMouseState(&_mouse.x, &_mouse.y);
+        
+        float newx, newy;
+        SDL_RenderWindowToLogical(_renderer, _mouse.x, _mouse.y, &newx, &newy);
+        
+        _mouse.x = newx;
+        _mouse.y = newy / _aspect_ratio;
+        _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
+        _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
+        
+        switch (_event.type) {
+                
+            case SDL_QUIT:
             {
                 printf("\n");
-                debug(EDebugSystem, "INTERRUPT: User debug label.\n");
+                debug(EDebugSystem, "SDL2: Quit.\n");
+                debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+                alis.state = eAlisStateStopped;
                 break;
             }
+            case SDL_KEYUP:
+            {
+                switch (_event.key.keysym.sym)
+                {
+                    case SDLK_LALT:
+                        printf("\n");
+                        debug(EDebugSystem, "INTERRUPT: User debug label.\n");
+                        break;
 
-            if (_event.key.keysym.sym == SDLK_F11)
-            {
-                return eAlisStateSave;
-            }
+                    case SDLK_F11:
+                        alis.state = eAlisStateSave;
+                        break;
 
-            if (_event.key.keysym.sym == SDLK_F12)
-            {
-                return eAlisStateLoad;
-            }
-        }
-        case SDL_KEYDOWN:
-        {
-            if (_event.key.keysym.mod == KMOD_RSHIFT || _event.key.keysym.mod == KMOD_LSHIFT)
-            {
-                shift = 1;
-            }
+                    case SDLK_F12:
+                        alis.state = eAlisStateLoad;
+                        break;
+                        
+                    default:
+                        break;
+                }
 
-            if (_event.key.keysym.sym == SDLK_PAUSE)
-            {
-                printf("\n");
-                debug(EDebugSystem, "INTERRUPT: Quit by user request.\n");
-                debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-                return eAlisStateStopped;
+                break;
             }
-            else
+            case SDL_KEYDOWN:
             {
-                button = _event.key.keysym;
-            }
-            break;
-        }
-		case SDL_WINDOWEVENT:
-		{
-			if (_event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-			{
-                SDL_RenderGetScale(_renderer, &_scaleX, &_scaleY);
-                _scaleY *= _aspect_ratio;
+                if (_event.key.keysym.mod == KMOD_RSHIFT || _event.key.keysym.mod == KMOD_LSHIFT)
+                {
+                    shift = 1;
+                }
+
+                if (_event.key.keysym.sym == SDLK_PAUSE)
+                {
+                    printf("\n");
+                    debug(EDebugSystem, "INTERRUPT: Quit by user request.\n");
+                    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+                    alis.state = eAlisStateStopped;
+                }
+                else
+                {
+                    button = _event.key.keysym;
+                }
                 
-                _update_cursor = true;
-			}
-		}
-    };
+                break;
+            }
+            case SDL_WINDOWEVENT:
+            {
+                if (_event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+                {
+                    SDL_RenderGetScale(_renderer, &_scaleX, &_scaleY);
+                    _scaleY *= _aspect_ratio;
+                    
+                    _update_cursor = true;
+                }
+                
+                break;
+            }
+        };
+    }
 
-    return alis.state;;
+    return ret;
 }
 
 void sys_render(pixelbuf_t buffer) {
+    
+    SDL_SemWait(_render_sem);
     
     if (_update_cursor)
     {
@@ -299,7 +332,7 @@ void sys_render(pixelbuf_t buffer) {
                         r = buffer.palette[index * 3 + 0];
                         g = buffer.palette[index * 3 + 1];
                         b = buffer.palette[index * 3 + 2];
-                      break;
+                        break;
                     case 1:
                         b = index << 4;
                         break;
@@ -322,10 +355,8 @@ void sys_render(pixelbuf_t buffer) {
         SDL_RenderClear(_renderer);
         SDL_RenderCopy(_renderer, _texture, NULL, NULL);
         SDL_RenderPresent(_renderer);
-        return;
     }
-
-    if (fls_s512)
+    else if (fls_s512)
     {
         u8 *bitmap = vgalogic_df + 0xa0;
 
@@ -425,55 +456,56 @@ void sys_render(pixelbuf_t buffer) {
         SDL_RenderClear(_renderer);
         SDL_RenderCopy(_renderer, _texture, NULL, NULL);
         SDL_RenderPresent(_renderer);
-        return;
-    }
-
-    if (image.flinepal == 0)
-    {
-        int index;
-        for (int px = 0; px < buffer.w * buffer.h; px++)
-        {
-            index = buffer.data[px];
-            _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
-        }
     }
     else
     {
-        s16 *palentry = image.firstpal;
-
-        for (int i = 0; i < 3; i++)
+        if (image.flinepal == 0)
         {
-            s16 unk1 = palentry[0];
-            if (unk1 == 0xff)
-                break;
-
-            s16 y1 = palentry[1];
-            u8 *palette = *(u8 **)&(palentry[2]);
-            
-            palentry += 2 + (sizeof(u8 *) >> 1);
-            s16 y2 = palentry[0] == 0xff ? _height : min(palentry[1], _height);
-
             int index;
-            for (int y = y1; y < y2; y++)
+            for (int px = 0; px < buffer.w * buffer.h; px++)
             {
-                s32 px = y * buffer.w;
-                for (int x = 0; x < buffer.w; x++, px++)
+                index = buffer.data[px];
+                _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
+            }
+        }
+        else
+        {
+            s16 *palentry = image.firstpal;
+            
+            for (int i = 0; i < 3; i++)
+            {
+                s16 unk1 = palentry[0];
+                if (unk1 == 0xff)
+                    break;
+                
+                s16 y1 = palentry[1];
+                u8 *palette = *(u8 **)&(palentry[2]);
+                
+                palentry += 2 + (sizeof(u8 *) >> 1);
+                s16 y2 = palentry[0] == 0xff ? _height : min(palentry[1], _height);
+                
+                int index;
+                for (int y = y1; y < y2; y++)
                 {
-                    index = buffer.data[px];
-                    _pixels[px] = (u32)(0xff000000 + (palette[index * 3 + 0] << 16) + (palette[index * 3 + 1] << 8) + (palette[index * 3 + 2] << 0));
+                    s32 px = y * buffer.w;
+                    for (int x = 0; x < buffer.w; x++, px++)
+                    {
+                        index = buffer.data[px];
+                        _pixels[px] = (u32)(0xff000000 + (palette[index * 3 + 0] << 16) + (palette[index * 3 + 1] << 8) + (palette[index * 3 + 2] << 0));
+                    }
                 }
             }
         }
+        
+        SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
+        
+        // render
+        SDL_RenderClear(_renderer);
+        SDL_RenderCopy(_renderer, _texture, NULL, NULL);
+        SDL_RenderPresent(_renderer);
     }
-
-    SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
-
-    // render
-    SDL_RenderClear(_renderer);
-    SDL_RenderCopy(_renderer, _texture, NULL, NULL);
-    SDL_RenderPresent(_renderer);
     
-    // TODO: yield for 60 fps ?
+    SDL_SemPost(_render_sem);
 }
 
 void sys_deinit(void) {
@@ -865,13 +897,11 @@ void sys_set_mouse(u16 x, u16 y) {
 
 void sys_enable_mouse(u8 enable) {
     _mouse.enabled = enable;
-    
-    if (_mouse.enabled)
-        _update_cursor = true;
-    else
+
+    if (!_mouse.enabled)
         alis.desmouse = NULL;
     
-    SDL_ShowCursor(_mouse.enabled);
+    _update_cursor = true;
 }
 
 void set_update_cursor(void) {
@@ -882,7 +912,10 @@ void set_update_cursor(void) {
 void sys_update_cursor(void) {
     
     if (alis.desmouse == NULL)
+    {
+        SDL_ShowCursor(_mouse.enabled);
         return;
+    }
     
     u8 type = alis.desmouse[0];
     u16 width = read16(alis.desmouse + 2) + 1;
@@ -1022,12 +1055,11 @@ void sys_update_cursor(void) {
     SDL_FreeSurface(surface);
     
     SDL_SetCursor(_cursor);
+    SDL_ShowCursor(_mouse.enabled);
 }
 
 u8 io_inkey(void)
 {
-    sys_poll_event();
-    
     const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
     if (!currentKeyStates[button.scancode])
     {
@@ -1126,8 +1158,6 @@ u8 io_joykey(u8 test) {
 
 char sys_get_key(void) {
 
-    sys_render(host.pixelbuf);
-
     char result = 0;
     while ((result = io_inkey()) == 0) {}
     while (io_inkey() != 0) {}
@@ -1223,4 +1253,16 @@ u16 sys_random(void) {
     return rand() & 0xffff;
 }
 
+// =============================================================================
+#pragma mark - SYNC
+// =============================================================================
 
+void sys_lock_renderer(void) {
+    
+    SDL_SemWait(_render_sem);
+}
+
+void sys_unlock_renderer(void) {
+    
+    SDL_SemPost(_render_sem);
+}

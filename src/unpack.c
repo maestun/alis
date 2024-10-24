@@ -272,8 +272,7 @@ u8 is_packed(u8 packer_kind) {
 /// @param unpacked_buffer output buffer
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed
-int unpack_script(const char* packed_file_path,
-                  u8** unpacked_buffer) {
+int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
     int ret = 0;
     FILE* pfp = fopen(packed_file_path, "rb");
 
@@ -307,18 +306,19 @@ int unpack_script(const char* packed_file_path,
         }
 
         // read packed bytes in alloc'd buffer
-        u8* packed_buffer = (u8*)malloc(packed_size * sizeof(u8));
+        u8* packed_buffer = (u8*)malloc(0xff + packed_size * sizeof(u8));
+        memset(packed_buffer, 0, 0xff + packed_size * sizeof(u8));
         fread(packed_buffer, sizeof(u8), packed_size, pfp);
         fclose(pfp);
 
         // alloc unpack buffer
-        *unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
+        //*unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
         
         if ((alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
         // TODO: a quick fix to make the MadShow re-release work
          || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1))
         {
-            unpack_new(packed_buffer, *unpacked_buffer, unpacked_size, dict);
+            unpack_new(packed_buffer, unpacked_buffer, unpacked_size, dict);
         }
         else 
         {
@@ -327,12 +327,12 @@ int unpack_script(const char* packed_file_path,
                 alis.typepack &= 0xfe;
                 
                 s8 modpack = ((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8;
-                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, modpack);
+                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
             }
             else
             {
                 s8 modpack = (((u8)alis.typepack & 0x40) == 0) ? 1 : 8;
-                unpack_old(packed_buffer, packed_size, *unpacked_buffer, unpacked_size, modpack);
+                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
             }
         }
         

@@ -39,4 +39,4 @@ extern const u8 kPackedDatHeaderSize;
 /// @param unpacked_buffer output buffer
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed
-int unpack_script(const char* packed_file_path, u8** unpacked_buffer);
+int unpack_script(const char *packed_file_path, u8 *unpacked_buffer);
