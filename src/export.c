@@ -30,42 +30,77 @@
 
 void export_script(sAlisScriptData *script)
 {
-   u32 addr = script->data_org;
-   addr += xread32(addr + 0xe);
+    s32 addr = script->data_org;
+    s32 off = xread32(addr + 0xe);
+    addr += off;
    
-   // graphic resources
-   s32 glen = xread16(addr + 4);
-   for (int i = 0; i < glen; i++)
-   {
-       char name[32] = {0};
-       strcpy(name, script->name);
-       snprintf(strrchr(name, '.'), 16, "_%.3d", i);
+    // graphic resources
+    s32 glen = xread16(addr + 0x4);
+    for (int i = 0; i < glen; i++)
+    {
+        char name[32] = {0};
+        strcpy(name, script->name);
+        snprintf(strrchr(name, '.'), 16, "_%.3d", i);
        
-       s32 rsrc = addr + xread32(addr) + i * 4;
-       export_graphics(rsrc, name);
-   }
+        s32 rsrc = addr + xread32(addr) + i * 4;
+        export_graphics(rsrc, name);
+    }
 
-   // audio resources
-   s32 off = xread32(script->data_org + 0xe);
-   s32 mlen = xread16(addr + 0x10);
-   for (int i = 0; i < mlen; i++)
-   {
-       char name[32] = {0};
-       strcpy(name, script->name);
-       snprintf(strrchr(name, '.'), 16, "_%.3d", i);
+    // audio resources
+    s32 mlen = xread16(addr + 0x10);
+    for (int i = 0; i < mlen; i++)
+    {
+        char name[32] = {0};
+        strcpy(name, script->name);
+        snprintf(strrchr(name, '.'), 16, "_%.3d", i);
        
-       s32 at = xread32(addr + 0xc) + off + i * 4;
-       s32 rsrc = xread32(script->data_org + at) + at;
-       export_audio(script->data_org + rsrc, name);
-   }
+        s32 at = xread32(addr + 0xc) + off + i * 4;
+        s32 rsrc = xread32(script->data_org + at) + at;
+        export_audio(script->data_org + rsrc, name);
+    }
 
-   // form resources
-   addr += xread32(addr + 0x6);
+    // form resources
+    addr += xread32(addr + 0x6);
    
-   for (int i = 0; i < 16; i++)
-   {
-       u32 rsrc = addr + xread16(addr + (i * 2));
-   }
+    for (int i = 0; i < 16; i++)
+    {
+        u32 rsrc = addr + xread16(addr + (i * 2));
+
+//        s16 x = 0;
+//        s16 y = 0;
+//        s16 z = 0;
+//
+//        u8 test = xread8(rsrc);
+//        if (test == 0)
+//        {
+//            x = (s16)xread8(rsrc + 4) + ((s16)xread8(rsrc + 7) >> 1);
+//            z = (s16)xread8(rsrc + 5) + ((s16)xread8(rsrc + 8) >> 1);
+//            y = (s16)xread8(rsrc + 6) + ((s16)xread8(rsrc + 9) >> 1);
+//        }
+//        else if ((char)test < 0)
+//        {
+//            x = 0;
+//            y = 0;
+//            z = 0;
+//        }
+//        else
+//        {
+//            if (test == 1)
+//            {
+//                x = xread16(rsrc + 4) + (xread16(rsrc + 0xa) >> 1);
+//                z = xread16(rsrc + 6) + (xread16(rsrc + 0xc) >> 1);
+//                y = xread16(rsrc + 8) + (xread16(rsrc + 0xe) >> 1);
+//            }
+//            else
+//            {
+//                x = xread16(rsrc + 2);
+//                z = xread16(rsrc + 4);
+//                y = xread16(rsrc + 6);
+//            }
+//        }
+//        
+//        printf("\n%.6x: %.3d, %.3d, %.3d", rsrc, x, y, z);
+    }
 }
 
 #pragma mark graphics
