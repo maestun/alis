@@ -23,6 +23,12 @@
 #include "config.h"
 #include "unpack.h"
 #include "sys/sys.h"
+#include "SDL2/SDL.h"
+
+// To avoid the issue of undefined reference to 'SDL_main' in some compilers,
+// we need two lines in main.c:
+// #include "SDL2/SDL.h"
+// int main(int argc, char *argv[]) (exactly like this)
 
 int disalis = DEBUG_SCRIPT;
 

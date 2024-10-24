@@ -39,7 +39,7 @@
 #include <sys/types.h>
 
 #define kProgName           "alis"
-#define kProgVersion        "0.1.033" // temporal version numbering scheme: x.y.zzz; zzz - pull request number
+#define kProgVersion        "0.1.034" // temporal version numbering scheme: x.y.zzz; zzz - pull request number
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)
