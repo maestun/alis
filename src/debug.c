@@ -21,13 +21,43 @@
 
 #include "debug.h"
 
+// Before Windows 10, there was no native support for ANSI colors in Windows.
+// But in Windows 10, it requires a special enablement with SetConsoleMode().
+// We did not implement it yet. ANSI colors work well with CYGWIN.
+#if defined (_WIN32) || defined (__MINGW32__) && !defined(__CYGWIN__)
+#define DISABLE_ANSI_COLORS
+// Enable color support even if not supported by the system natively
+#define FORCE_ENABLE_ANSI_COLORS 0
+#endif
+
+// Disabling ANSI colors support by user
+#define USER_DISABLE_ANSI_COLORS   0
+
+#if (defined (DISABLE_ANSI_COLORS) && FORCE_ENABLE_ANSI_COLORS == 0) || USER_DISABLE_ANSI_COLORS == 1
+
+#define ANSI_COLOR_RED     ""
+#define ANSI_COLOR_GREEN   ""
+#define ANSI_COLOR_YELLOW  ""
+#define ANSI_COLOR_BLUE    ""
+#define ANSI_COLOR_MAGENTA ""
+#define ANSI_COLOR_CYAN    ""
+#define ANSI_COLOR_BRIGHT  ""
+#define ANSI_COLOR_RESET   ""
+#define NO_ANSI_COLOR      ""
+
+#else
+
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
 #define ANSI_COLOR_YELLOW  "\x1b[33m"
 #define ANSI_COLOR_BLUE    "\x1b[34m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_BRIGHT  "\x1b[1m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
+#define NO_ANSI_COLOR      ""
+
+#endif
 
 static char* debug_colors[] = {
     ANSI_COLOR_YELLOW,
@@ -39,9 +69,9 @@ static char* debug_colors[] = {
 };
 
 static char* debug_prefix[] = {
-    "\x1b[1m[SYSTEM]",
-    "\x1b[1m[FATAL]",
-    "\x1b[1m[ERROR]",
+    ANSI_COLOR_BRIGHT "[SYSTEM]",
+    ANSI_COLOR_BRIGHT "[FATAL]",
+    ANSI_COLOR_BRIGHT "[ERROR]",
     "[WARNING]",
     "[INFO]",
     "[VERBOSE]"
