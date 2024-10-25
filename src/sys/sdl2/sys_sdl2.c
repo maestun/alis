@@ -513,6 +513,8 @@ void sys_deinit(void) {
     SDL_RemoveTimer(_timerID);
     SDL_PauseAudioDevice(_audio_id, 1);
     SDL_CloseAudioDevice(_audio_id);
+    SDL_DestroySemaphore(_render_sem);
+    
     SDL_Delay(20);   // 20ms fail-safe delay to make sure that sound buffer is empty
 
     PSG_delete(_psg);
