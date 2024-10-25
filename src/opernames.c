@@ -635,7 +635,7 @@ void omodel(void) {
 
 // Opername no. 62 opcode 0x7a ogetkey
 void ogetkey(void) {
-    alis.varD7 = sys_get_key();
+    alis.varD7 = io_getkey();
     debug(EDebugInfo, " [%d] ", alis.varD7);
 }
 

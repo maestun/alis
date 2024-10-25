@@ -191,13 +191,11 @@ u8 sys_start(void) {
         return 1;
     }
     
-    u32 waitticks = (1000000 / 120);
-
     alis.state = eAlisStateRunning;
     while (alis.state) {
         
-        // wait so image is drawn at 120 fps
-        usleep(waitticks);
+        // wait so image is drawn and keyboard is polled at 120 fps
+        usleep(kControlsTicks);
         
         sys_render(host.pixelbuf);
         
@@ -1119,24 +1117,10 @@ u8 io_shiftkey(void) {
 }
 
 u8 io_getkey(void) {
-    // wait for input
     
-    u8 result = io_inkey();
-    while (result == 0)
-    {
-        result = io_inkey();
-    }
-    
-    // wait for user to release key
-    
-    u8 dummy;
-
-    do
-    {
-        dummy = io_inkey();
-    }
-    while (dummy != 0);
-    
+    u8 result = 0;
+    while (alis.state && (result = io_inkey()) == 0) { usleep(kControlsTicks); }
+    while (alis.state && io_inkey() != 0) { usleep(kControlsTicks); }
     return result;
 }
 
@@ -1162,15 +1146,6 @@ u8 io_joykey(u8 test) {
     
     return result;
 }
-
-char sys_get_key(void) {
-
-    char result = 0;
-    while ((result = io_inkey()) == 0) {}
-    while (io_inkey() != 0) {}
-    return result;
-}
-
 
 // =============================================================================
 #pragma mark - FILE SYSTEM

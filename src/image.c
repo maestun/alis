@@ -31,8 +31,6 @@
 #include "utils.h"
 
 
-#define FRAME_TICKS (1000000 / 50) // 25 fps looks about right in logo animation
-
 #define DEBUG_CHECK 0
 
 #if DEBUG_CHECK > 0
@@ -2508,7 +2506,7 @@ u32 itroutine(u32 interval, void *param)
 
 void waitframe(void) {
     
-    sleep_until(&alis.frametime, FRAME_TICKS * alis.ctiming);
+    sleep_until(&alis.frametime, kFrameTicks * alis.ctiming);
 }
 
 void draw(void)

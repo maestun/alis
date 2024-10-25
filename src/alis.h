@@ -35,11 +35,13 @@
 # define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
 
-#define kHostRAMSize            (1024 * 1024 * 8)
-#define kVirtualRAMSize         (0xffff * sizeof(u8))
+extern const u32 kControlsTicks;
+extern const u32 kFrameTicks;
 
-#define kMaxScripts             (256)
-#define kBSSChunkLen            (256)
+extern const u32 kHostRAMSize;
+extern const u32 kVirtualRAMSize;
+
+#define MAX_SCRIPTS     256
 
 #define SPRITEMEM_PTR image.spritemem + image.basesprite
 
@@ -256,15 +258,15 @@ typedef struct {
     // in atari, located at $22400
     // contains the addresses of the loaded scripts' data
     // 60 dwords max (from $22400 -> $224f0)
-    // u32             script_data_offsets[kMaxScripts];
-    // u8              script_id_stack[kMaxScripts]; // TODO: use a real stack ?
+    // u32             script_data_offsets[MAX_SCRIPTS];
+    // u8              script_id_stack[MAX_SCRIPTS]; // TODO: use a real stack ?
     // u8              script_count;
     u8              script_index;
     
     // SCRIPTS
     // global table containing all unpacked scripts
-    sAlisScriptLive * live_scripts[kMaxScripts];
-    sAlisScriptData * loaded_scripts[kMaxScripts];
+    sAlisScriptLive * live_scripts[MAX_SCRIPTS];
+    sAlisScriptData * loaded_scripts[MAX_SCRIPTS];
 
     // pointer to current script
     sAlisScriptLive * script;

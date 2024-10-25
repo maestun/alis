@@ -43,6 +43,13 @@ sAlisError errors[] = {
 };
 
 
+const u32 kControlsTicks        = (1000000 / 120);  // poll keyboard 120 times per second
+const u32 kFrameTicks           = (1000000 / 50);   // 50 fps screen update
+
+const u32 kHostRAMSize          = 1024 * 1024 * 8;
+const u32 kVirtualRAMSize       = 0xffff * sizeof(u8);
+
+
 // =============================================================================
 // MARK: - Private
 // =============================================================================
@@ -447,7 +454,7 @@ void alis_init(sPlatform platform) {
 void alis_deinit(void) {
     // free scripts
     // TODO: use real script table / cunload
-    // for(int i = 0; i < kMaxScripts; i++) {
+    // for(int i = 0; i < MAX_SCRIPTS; i++) {
     //     script_unload(alis.script);
     // }
     
@@ -504,7 +511,7 @@ void alis_save_state(void)
     fwrite(&value, 4, 1, fp);
     
     u32 loadedScrippts = 0;
-    for (int i = 0; i < kMaxScripts; i++)
+    for (int i = 0; i < MAX_SCRIPTS; i++)
     {
         if (alis.loaded_scripts[i])
             loadedScrippts++;
@@ -512,7 +519,7 @@ void alis_save_state(void)
 
     fwrite(&loadedScrippts, 4, 1, fp);
     
-    for (int i = 0; i < kMaxScripts; i++)
+    for (int i = 0; i < MAX_SCRIPTS; i++)
     {
         if (alis.loaded_scripts[i])
         {
@@ -524,7 +531,7 @@ void alis_save_state(void)
     u32 mainIdx = 0;
     u32 scriptIdx = 0;
     u32 liveScrippts = 0;
-    for (int i = 0; i < kMaxScripts; i++)
+    for (int i = 0; i < MAX_SCRIPTS; i++)
     {
         if (alis.live_scripts[i])
             liveScrippts++;
@@ -538,7 +545,7 @@ void alis_save_state(void)
 
     fwrite(&liveScrippts, 4, 1, fp);
     
-    for (int i = 0; i < kMaxScripts; i++)
+    for (int i = 0; i < MAX_SCRIPTS; i++)
     {
         if (alis.live_scripts[i])
         {
@@ -749,7 +756,7 @@ void alis_load_state(void)
         alis.live_scripts[idx] = malloc(sizeof(sAlisScriptLive));
         fread(alis.live_scripts[idx], sizeof(sAlisScriptLive), 1, fp);
         
-        for (int d = 0; d < kMaxScripts; d++)
+        for (int d = 0; d < MAX_SCRIPTS; d++)
         {
             if (alis.loaded_scripts[d] && alis.loaded_scripts[d]->header.id == id)
             {
@@ -1625,11 +1632,9 @@ void sleep_interactive(s32 *loop, s32 intr)
     struct timeval now, prev;
     gettimeofday(&prev, NULL);
 
-    u32 waitticks = (1000000 / 120);
-
     while (*loop > intr || (*loop > 0 && io_inkey() == 0))
     {
-        usleep(waitticks);
+        usleep(kControlsTicks);
         
         gettimeofday(&now, NULL);
         *loop -= ((now.tv_sec * 1000000LL) + now.tv_usec) - ((prev.tv_sec * 1000000LL) + prev.tv_usec);

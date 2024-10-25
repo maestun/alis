@@ -56,7 +56,6 @@ u8      io_inkey(void);
 u8      io_shiftkey(void);
 u8      io_joy(u8 port);
 u8      io_joykey(u8 test);
-char    sys_get_key(void);
 
 // =============================================================================
 #pragma mark - GFX
