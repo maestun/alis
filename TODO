@@ -3,13 +3,20 @@ Todo list
 
 #############################################
  Started 2024-01-25
- Updated 2024-10-22
+ Updated 2024-10-25
 
  - not solved/not implemented
  + solved/implemented
  x original game bug
  addition date: deletion date
 #############################################
+
+#############################################
+   0. Known system issues:
+#############################################
+
+2024-10-12: Windows: Unicode in filenames is not supported when compiling under Windows (MinGW). Running games is not affected by this issue, but a folder with game files must have a supported character set in its name. This problem does not apply when compiling under Cygwin.
+2024-10-24: Windows/MinGW: There is no support for ANSI colors (ANSI escape codes) in the console. Windows before version 10 has no native support (ANSICON and similar utilities can solve this problem). Windows 10 has native support, but it must be specifically enabled with ENABLE_VIRTUAL_TERMINAL_PROCESSING in SetConsoleMode(handle, mode).
 
 #############################################
    1. General list:
@@ -39,8 +46,6 @@ Todo list
 
 - 2024-10-11: Improvement: GET_PTR() preprocessor function or macro to replace 'alis.mem + offset' in code to avoid crashing when executing a broken script if it tries to access unallocated memory.
 
-- 2024-10-12: Windows issue: Unicode in filenames is not supported when compiling under Windows (MinGW). Running games is not affected by this issue, but a folder with game files must have a supported character set in its name. This problem does not apply when compiling under Cygwin.
-
 - 2024-10-12: Debug/Reports: Built-in util to unpack Alis script files (unpack mode). Based on and is an updated and reworked version of silm-depack util by Maestun (https://github.com/maestun/silm-depack). Pull requests #29. [In work by Cosmicore].
 
 - 2024-10-13: Debug/Reports: Built-in util to extract resources (text, audio, sample, music, image and video resources) from Alis script files (extract/resource mode). Based on and is an updated and reworked version of silm-extract by Skruug (https://github.com/skruug/silm-extract). Two extraction options: in the original internal Silmarils audio, image and video formats (raw data) and in converted form (bmp, wav, etc.).
@@ -50,13 +55,17 @@ Todo list
 - 2024-10-14: Debug/Reports: Built-in util to convert Alis script files between BE and LE platforms.
 
 - 2024-10-14: Debug/Reports: Built-in util to pack non-packed or unpacked Alis script files. Supported both RLE and LZ like compression methods: old (A0, 80 & 81, C0 & C1), new BYTE60 (PB60, A1), and new WORD60 (PW60, A1) methods. BE and LE platforms.
-- 2024-10-23: Use LE when storing savestate and convert it if loading on BE machines.
 
 - 2024-10-15: Improvement: In the course of the project work and analyzing bytecode of scripts of various games it was possible to discover that games on the Alis engine have a built-in developer (or author) mode for debugging during development, sometimes with its own user interface (the most interesting example is Robinson's Requiem menu). The execution of the main script practically starts by detecting whether the system is in developer mode. Although this mode is not cut out of the scripts, it is impossible to enable it on the usual interpreters distributed with the games, because they do not contain the necessary code for activation. It is planned to enable it via the command line (option -a). To access the non-graphical interface of the mode it is necessary to implement the text mode. [In work by Cosmicore].
 
 - 2024-10-15: Debug/Reports: Built-in util to analyze files and output a report (at least about compression type for searching neccessary examples; the algorithm for detecting the files responsible for doc-check is also good for this option) (option -i).
 
 - 2024-10-17: Bug: cbeq8, cbeq16, cbeq24 and cbne8, cbne16, cbne24 perform the jump when opposite from the claimed condition. [In work by Cosmicore].
+
+# Savestates
+- 2024-10-23: Use LE when storing savestate and convert it if loading on BE machines.
+- 2024-10-25: Incompatible savestates made on alis compiled on different compilers (CYGWIN and MinGW etc.) due different sizes of some structures.
+- 2024-10-25: Turn off the music and sound when the save state is going to load, otherwise the old sound that was playing before loading continues to play after loading.
 
 #############################################
   2. Games list:

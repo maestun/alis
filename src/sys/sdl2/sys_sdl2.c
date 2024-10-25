@@ -254,6 +254,11 @@ u8 sys_start(void) {
                     shift = 1;
                 }
 
+                if (_event.key.keysym.sym == SDLK_F11 || _event.key.keysym.sym == SDLK_F12)
+                {
+                    break;
+                }
+
                 if (_event.key.keysym.sym == SDLK_PAUSE)
                 {
                     printf("\n");
