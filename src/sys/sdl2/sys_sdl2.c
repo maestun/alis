@@ -86,61 +86,61 @@ void sys_init(sPlatform *pl, int fullscreen) {
     
     _width = pl->width;
     _height = pl->height;
-
+    
     _scaleX = _scale;
     _scaleY = _scale * _aspect_ratio;
-
+    
     printf("  SDL initialization...\n");
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)<0) {
-      fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
-      exit(-1);
+        fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
+        exit(-1);
     }
-
+    
     _timerID = SDL_AddTimer(20, itroutine, NULL);
     if (!_timerID) {
-      fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
-      exit(-1);
+        fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
+        exit(-1);
     }
-
+    
     printf("  Video initialization...\n");
     _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE | fullscreen * SDL_WINDOW_FULLSCREEN_DESKTOP);
     if (_window == NULL) {
-      fprintf(stderr, "   Could not create %.0fx%.0f window: %s\n", (_width * _scaleX), (_height * _scaleY), SDL_GetError());
-      exit(-1);
+        fprintf(stderr, "   Could not create %.0fx%.0f window: %s\n", (_width * _scaleX), (_height * _scaleY), SDL_GetError());
+        exit(-1);
     }
-
+    
     _renderer = SDL_CreateRenderer(_window, -1, 0);
     if (_renderer == NULL) {
-      fprintf(stderr, "   Could not create renderer: %s\n", SDL_GetError());
-      SDL_DestroyWindow(_window);
-      exit(-1);
+        fprintf(stderr, "   Could not create renderer: %s\n", SDL_GetError());
+        SDL_DestroyWindow(_window);
+        exit(-1);
     }
-
+    
     SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
     SDL_RenderSetScale(_renderer, _scale, _scale);
     SDL_RenderSetLogicalSize(_renderer, _width, _height * _aspect_ratio);
-
+    
     _pixels = malloc(_width * _height * sizeof(*_pixels));
     memset(_pixels, 0, _width * _height * sizeof(*_pixels));
     
     _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, _width, _height);
     if (_texture == NULL) {
-      fprintf(stderr, "   Could not create texture: %s\n", SDL_GetError());
-      SDL_DestroyRenderer(_renderer);
-      SDL_DestroyWindow(_window);
-      exit(-1);
+        fprintf(stderr, "   Could not create texture: %s\n", SDL_GetError());
+        SDL_DestroyRenderer(_renderer);
+        SDL_DestroyWindow(_window);
+        exit(-1);
     }
-
+    
     SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
     
     _cursor = NULL;
     _update_cursor = 0;
-
-    printf("  Audio initialization...\n");    
+    
+    printf("  Audio initialization...\n");
     _audio_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
-
+    
     SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
-
+    
     SDL_zero(*desired_spec);
     desired_spec->freq = 44100;
     desired_spec->format = AUDIO_S16;
@@ -150,12 +150,11 @@ void sys_init(sPlatform *pl, int fullscreen) {
     desired_spec->userdata = NULL;
     desired_spec->size = desired_spec->samples * 2;
     
-    if ((_audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, _audio_spec, 0)) <= 0 )
-    {
-      fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
-      exit(-1);
+    if ((_audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, _audio_spec, 0)) <= 0 ) {
+        fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
+        exit(-1);
     }
-
+    
     // Extended information on obtained audio for tests and reports
     printf("  Opened audio device id %d successfully:\n", _audio_id);
     printf("    Frequency:  %d\n", _audio_spec->freq);
@@ -173,25 +172,29 @@ void sys_init(sPlatform *pl, int fullscreen) {
     PSG_setVolumeMode(_psg, 1); // YM style
     PSG_setQuality(_psg, 1);
     PSG_reset(_psg);
-
+    
     isr_step = (double)50.0 / (double)(_audio_spec->freq);
     isr_counter = 1;
-
+    
     SDL_PauseAudioDevice(_audio_id, 0);
     
     _render_sem = SDL_CreateSemaphore(1);
+    if (_render_sem == NULL) {
+        fprintf(stderr, "   Could not create semaphore: %s\n", SDL_GetError());
+        exit(-1);
+    };
 }
 
 u8 sys_start(void) {
-    u8 ret = 0;
     
+    alis.state = eAlisStateRunning;
+
     SDL_Thread *thread = SDL_CreateThread(alis_thread, "ALIS", (void *)NULL);
     if (thread == NULL) {
         printf("Could not create thread! %s\n", SDL_GetError());
         return 1;
     }
     
-    alis.state = eAlisStateRunning;
     while (alis.state) {
         
         // wait so image is drawn and keyboard is polled at 120 fps
@@ -285,8 +288,9 @@ u8 sys_start(void) {
             }
         };
     }
-
-    return ret;
+    
+    SDL_WaitThread(thread, NULL);
+    return 0;
 }
 
 void sys_render(pixelbuf_t buffer) {

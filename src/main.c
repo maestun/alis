@@ -51,6 +51,8 @@ void usage(void) {
 }
 
 int main(int argc, char *argv[]) {
+    
+    u8 result = 0;
 
     if (argc < 2) {
         usage();
@@ -111,7 +113,7 @@ int main(int argc, char *argv[]) {
             printf("#############################\n");
             printf("# Starting ALIS VM...\n");
             printf("#############################\n");
-            sys_start();
+            result = sys_start();
 
             printf("\n");
             debug(EDebugSystem, "The ALIS VM has been stopped.\n");
@@ -133,5 +135,5 @@ int main(int argc, char *argv[]) {
 //          debug(EDebugFatal, "Platform '%s' is not supported.\n", pl->desc);
         }
     }
-    return 0;
+    return result;
 }

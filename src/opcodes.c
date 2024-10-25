@@ -3480,7 +3480,7 @@ void getval(void)
 {
     u8 c;
     char *ptr = alis.sd7;
-    while ((c = io_getkey()) != '\r')
+    while (alis.state && (c = io_getkey()) != '\r')
     {
         if (c == '\b')
         {
@@ -3516,7 +3516,7 @@ void getstring(void)
 {
     u8 c;
     char *ptr = alis.sd7;
-    while ((c = io_getkey()) != '\r')
+    while (alis.state && (c = io_getkey()) != '\r')
     {
         if (c == '\b')
         {
