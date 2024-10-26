@@ -1621,7 +1621,7 @@ void sleep_until(struct timeval *start, s32 len)
     
     int64_t wait = len - ((int64_t)(now.tv_sec * 1000000LL + now.tv_usec) - (int64_t)(start->tv_sec * 1000000LL + start->tv_usec));
     if (wait > 0)
-        usleep((useconds_t)wait);
+        usleep((u32)wait);
     
     gettimeofday(&now, NULL);
     *start = now;

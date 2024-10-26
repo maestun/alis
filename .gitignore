@@ -4,3 +4,6 @@ build
 **/xcuserdata
 .vscode/settings.json
 data/
+/windows/alis
+/windows/.vs
+/windows/x64

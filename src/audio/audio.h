@@ -21,7 +21,13 @@
 
 #pragma once
 
-#include <stdatomic.h>
+#ifdef _MSC_VER
+# define a32 u32
+#else
+# include <stdatomic.h>
+# define a32 atomic_int
+#endif
+
 #include "channel.h"
 #include "config.h"
 
@@ -148,7 +154,7 @@ typedef struct {
 typedef struct {
 
     u16 musicId;
-    atomic_int working;
+    a32 working;
 
     sChannel channels[4];
     sAudioInstrument tabinst[128];
@@ -169,7 +175,7 @@ typedef struct {
     u16 dattac;
     u16 dchute;
 
-    atomic_int muflag;
+    a32 muflag;
     u16 mutaloop;
     s16 muadresse[0xffff];
     u32 smpidx;

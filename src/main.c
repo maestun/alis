@@ -23,7 +23,12 @@
 #include "config.h"
 #include "unpack.h"
 #include "sys/sys.h"
-#include "SDL2/SDL.h"
+
+#ifdef _MSC_VER
+# include "SDL.h"
+#else
+# include <SDL2/SDL.h>
+#endif
 
 // To avoid the issue of undefined reference to 'SDL_main' in some compilers,
 // we need two lines in main.c:

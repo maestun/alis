@@ -744,7 +744,7 @@ void save_audio_wav(const u8 *buffer, u32 length, u32 sampleRate, const char *fi
         length
     };
     
-    u8 swapped[length];
+    u8 *swapped = malloc(length);
     for (int i = 0; i < length; i++)
     {
         swapped[i] = buffer[i] + 0x80;
@@ -755,6 +755,8 @@ void save_audio_wav(const u8 *buffer, u32 length, u32 sampleRate, const char *fi
     fwrite(&dataHeader, sizeof(WAVDataHeader), 1, file);
     fwrite(swapped, sizeof(u8), length, file);
     fclose(file);
+
+    free(swapped);
 }
 
 void export_audio(u32 addr, const char *name)

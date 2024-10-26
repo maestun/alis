@@ -274,7 +274,7 @@ u8 is_packed(u8 packer_kind) {
 /// zero if the input file is not packed
 int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
     int ret = 0;
-    FILE* pfp = fopen(packed_file_path, "rb");
+    FILE *pfp = fopen(packed_file_path, "rb");
 
     if(pfp) {
         // get packed sz
@@ -286,7 +286,7 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         
         u16 is_main = fread16(pfp) == 0;
         u32 unpacked_size = (magic & 0x00ffffff);
-        u8 dict[kPackedDictionarySize];
+        u8 *dict = malloc(kPackedDictionarySize);
 
         packed_size -= kPackedHeaderSize; // size of magic + is_main
         unpacked_size -= kPackedHeaderSize; // TODO: not sure about that
@@ -306,7 +306,7 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         }
 
         // read packed bytes in alloc'd buffer
-        u8* packed_buffer = (u8*)malloc(0xff + packed_size * sizeof(u8));
+        u8 *packed_buffer = (u8*)malloc(0xff + packed_size * sizeof(u8));
         memset(packed_buffer, 0, 0xff + packed_size * sizeof(u8));
         fread(packed_buffer, sizeof(u8), packed_size, pfp);
         fclose(pfp);
@@ -337,6 +337,7 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         }
         
         debug(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_file_path, packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
+        free(dict);
         free(packed_buffer);
         packed_buffer = NULL;
         ret = unpacked_size;

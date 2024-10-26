@@ -21,45 +21,40 @@
 
 #pragma once
 
+#include "alis.h"
 #include "config.h"
 
 // to be consistent with old code
 
-typedef union {
-    
-    struct __attribute__((packed)) {
-        
-        s8 state;               // 0x00
-        s8 numelem;             // 0x01
-        s16 screen_id;          // 0x02
-        u16 to_next;            // 0x04
-        u16 link;               // 0x06
-        u32 newad:24;           // 0x08
-        s8 newf:8;              // 0x08 + 3
-        s16 newx;               // 0x0c
-        s16 newy;               // 0x0e
-        s16 newd;               // 0x10
-        u32 data:24;            // 0x12
-        u8 flaginvx:8;          // 0x12 + 3 // +0 on big endian machines
-        s16 depx;               // 0x16
-        s16 depy;               // 0x18
-        s16 depz;               // 0x1a
-        u8 credon_off;          // 0x1c
-        u8 creducing;           // 0x1d
-        s16 clinking;           // 0x1e
-        u8 cordspr;             // 0x20
-        u8 chsprite;            // 0x21
-        u16 script_ent;         // 0x22
-        u32 sprite_0x28;        // 0x24
-        s16 width;              // 0x28
-        s16 height;             // 0x2a
-        u16 newzoomx;           // 0x2c
-        u16 newzoomy;           // 0x2e
-    };
-    
-    u8 variables[0x30];
-    
-} sSprite;
+PACK_PUSH typedef PACK_ATTR struct {
+
+    s8 state;               // 0x00
+    s8 numelem;             // 0x01
+    s16 screen_id;          // 0x02
+    u16 to_next;            // 0x04
+    u16 link;               // 0x06
+    u32 newad : 24;         // 0x08
+    s8 newf : 8;            // 0x08 + 3
+    s16 newx;               // 0x0c
+    s16 newy;               // 0x0e
+    s16 newd;               // 0x10
+    u32 data : 24;          // 0x12
+    u8 flaginvx : 8;        // 0x12 + 3 // +0 on big endian machines
+    s16 depx;               // 0x16
+    s16 depy;               // 0x18
+    s16 depz;               // 0x1a
+    u8 credon_off;          // 0x1c
+    u8 creducing;           // 0x1d
+    s16 clinking;           // 0x1e
+    u8 cordspr;             // 0x20
+    u8 chsprite;            // 0x21
+    u16 script_ent;         // 0x22
+    u32 sprite_0x28;        // 0x24
+    s16 width;              // 0x28
+    s16 height;             // 0x2a
+    u16 newzoomx;           // 0x2c
+    u16 newzoomy;           // 0x2e
+} sSprite; PACK_POP
 
 typedef struct {
     s16 x1;

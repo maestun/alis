@@ -19,8 +19,13 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_thread.h>
+#ifdef _MSC_VER
+# include "SDL.h"
+# include "SDL_thread.h"
+#else
+# include <SDL2/SDL.h>
+# include <SDL2/SDL_thread.h>
+#endif
 
 #include "../sys.h"
 #include "alis.h"
@@ -930,7 +935,7 @@ void sys_update_cursor(void) {
     u16 width = read16(alis.desmouse + 2) + 1;
     u16 height = read16(alis.desmouse + 4) + 1;
     
-    u32 pixels[width * height];
+    u32 *pixels = malloc(width * height * sizeof(u32));
 
     switch (type)
     {
@@ -1030,7 +1035,6 @@ void sys_update_cursor(void) {
             
         default:
         {
-            sleep(0);
             break;
         }
     };
@@ -1065,6 +1069,8 @@ void sys_update_cursor(void) {
     
     SDL_SetCursor(_cursor);
     SDL_ShowCursor(_mouse.enabled);
+
+    free(pixels);
 }
 
 u8 io_inkey(void)

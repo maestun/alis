@@ -439,7 +439,7 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                     u16 width = read16(bitmap + 2) + 1;
                     u16 height = read16(bitmap + 4) + 1;
                     
-                    u8 temp[width * height];
+                    u8 *temp = malloc(width * height);
                     
                     at = 6;
                     
@@ -467,6 +467,8 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                     {
                         bitmap[at++] = (temp[b * 2 + 0] << 4) | (temp[b * 2 + 1]);
                     }
+
+                    free(temp);
                 }
             }
         }
@@ -771,7 +773,7 @@ sAlisScriptData * script_load(const char * script_path) {
             }
 
             // read dictionary
-            u8 dic[kPackedDictionarySize];
+            u8 *dic = malloc(kPackedDictionarySize);
             fread(dic, sizeof(u8), kPackedDictionarySize, fp);
             
             // read file into buffer
@@ -786,6 +788,7 @@ sAlisScriptData * script_load(const char * script_path) {
             }
 
             // cleanup
+            free(dic);
             free(pak_buf);
         }
         else {

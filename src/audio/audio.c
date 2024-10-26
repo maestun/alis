@@ -24,7 +24,11 @@
 #include "channel.h"
 #include "mem.h"
 
-#include <SDL2/SDL.h>
+#ifdef _MSC_VER
+# include "SDL.h"
+#else
+# include <SDL2/SDL.h>
+#endif
 
 extern SDL_AudioSpec *_audio_spec;
 

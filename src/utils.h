@@ -27,3 +27,18 @@ char *      strlower(char * str);
 char *      strupper(char * str);
 char *      strarr(char *haystack, const char *needle, int length);
 int         is_host_le(void);
+
+#ifdef _MSC_VER
+#define fileno _fileno
+# define strncasecmp _strnicmp
+# define strcasecmp _stricmp
+
+typedef struct timeval {
+    int64_t tv_sec;
+    int64_t tv_usec;
+} timeval;
+
+int gettimeofday(struct timeval* tp, struct timezone* tzp);
+void usleep(__int64 usec);
+
+#endif

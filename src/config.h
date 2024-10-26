@@ -21,21 +21,25 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+# include "dirent.h"
+#elif __GNUC__
+# include <dirent.h>
+# include <unistd.h>
+# include <sys/time.h>
+#endif
+
 #include <stdio.h>
-#include <dirent.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <libgen.h>
 #include <ctype.h>
 #include <signal.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/types.h>
 
 #define kProgName           "alis"

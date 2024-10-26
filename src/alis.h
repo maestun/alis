@@ -26,6 +26,7 @@
 #include "platform.h"
 #include "script.h"
 #include "sys/sys.h"
+#include "utils.h"
 
 #ifndef max
 # define max(a,b)            (((a) > (b)) ? (a) : (b))
@@ -34,6 +35,17 @@
 #ifndef min
 # define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
+
+#ifdef _MSC_VER
+# define PACK_ATTR
+# define PACK_PUSH __pragma(pack(push, 1))
+# define PACK_POP  __pragma(pack(pop))
+#elif __GNUC__
+# define PACK_ATTR __attribute__((__packed__))
+# define PACK_PUSH
+# define PACK_POP
+#endif
+
 
 extern const u32 kControlsTicks;
 extern const u32 kFrameTicks;
@@ -100,11 +112,10 @@ typedef struct {
     char        desc[kDescMaxLen];
 } sAlisOpcode;
 
-
-typedef struct __attribute__((packed)) {
+PACK_PUSH typedef PACK_ATTR struct {
     u32         vram_offset;
     u16         offset;
-} sScriptLoc;
+} sScriptLoc; PACK_POP
 
 // =============================================================================
 // MARK: - VM

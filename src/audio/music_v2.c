@@ -24,7 +24,11 @@
 #include "config.h"
 #include "mem.h"
 
-#include <SDL2/SDL.h>
+#ifdef _MSC_VER
+# include "SDL.h"
+#else
+# include <SDL2/SDL.h>
+#endif
 
 #include "emu2149.h"
 
