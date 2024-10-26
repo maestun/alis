@@ -34,8 +34,8 @@ int         is_host_le(void);
 # define strcasecmp _stricmp
 
 typedef struct timeval {
-    int64_t tv_sec;
-    int64_t tv_usec;
+    s64 tv_sec;
+    s64 tv_usec;
 } timeval;
 
 int gettimeofday(struct timeval* tp, struct timezone* tzp);

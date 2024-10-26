@@ -241,7 +241,7 @@ u32 flstofen(s16 clean)
                 }
             }
             
-            bfilm.addr1 = ((uint64_t)addr & 1) + addr;
+            bfilm.addr1 = ((u64)addr & 1) + addr;
             if (bfilm.addr1 < bfilm.endptr)
             {
                 return 1;

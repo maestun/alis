@@ -372,10 +372,10 @@ void mv1_checkcom(void)
 
 void mv1_advance(u32 *address, u32 *fraction, u32 *addvance)
 {
-    uint64_t adv = *addvance;
+    u64 adv = *addvance;
     adv <<= 16;
 
-    uint64_t addr = *address;
+    u64 addr = *address;
     addr <<= 32;
     addr |= *fraction;
     addr += adv;

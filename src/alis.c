@@ -498,16 +498,16 @@ void alis_save_state(void)
     fwrite(&vram_size, sizeof(size_t), 1, fp);
     fwrite(alis.mem, vram_size, 1, fp);
     
-    value = (u32)((int64_t)alis.script_data_orgs - (int64_t)alis.mem);
+    value = (u32)((s64)alis.script_data_orgs - (s64)alis.mem);
     fwrite(&value, 4, 1, fp);
     
-    value = (u32)((int64_t)alis.ptrent - (int64_t)alis.tablent);
+    value = (u32)((s64)alis.ptrent - (s64)alis.tablent);
     fwrite(&value, 4, 1, fp);
     
-    value = (u32)((int64_t)alis.acc - (int64_t)alis.mem);
+    value = (u32)((s64)alis.acc - (s64)alis.mem);
     fwrite(&value, 4, 1, fp);
 
-    value = (u32)((int64_t)alis.acc_org - (int64_t)alis.mem);
+    value = (u32)((s64)alis.acc_org - (s64)alis.mem);
     fwrite(&value, 4, 1, fp);
     
     u32 loadedScrippts = 0;
@@ -558,7 +558,7 @@ void alis_save_state(void)
     fwrite(&mainIdx, 4, 1, fp);
     fwrite(&scriptIdx, 4, 1, fp);
     
-    value = alis.desmouse ? (u32)((int64_t)alis.desmouse - (int64_t)alis.mem) : 0;
+    value = alis.desmouse ? (u32)((s64)alis.desmouse - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
 
     // image
@@ -584,7 +584,7 @@ void alis_save_state(void)
     fwrite(&(audio), sizeof(audio), 1, fp);
     for (int i = 0; i < 4; i++)
     {
-        value = (u32)((int64_t)audio.channels[i].address - (int64_t)alis.mem);
+        value = (u32)((s64)audio.channels[i].address - (s64)alis.mem);
         fwrite(&value, 4, 1, fp);
     }
     
@@ -596,13 +596,13 @@ void alis_save_state(void)
     // FLI/FLC video
     
     fwrite(&bfilm, sizeof(bfilm), 1, fp);
-    value = (u32)((int64_t)bfilm.addr1 - (int64_t)alis.mem);
+    value = (u32)((s64)bfilm.addr1 - (s64)alis.mem);
     fwrite(&value, 4, 1, fp);
-    value = (u32)((int64_t)bfilm.addr2 - (int64_t)alis.mem);
+    value = (u32)((s64)bfilm.addr2 - (s64)alis.mem);
     fwrite(&value, 4, 1, fp);
-    value = (u32)((int64_t)bfilm.endptr - (int64_t)alis.mem);
+    value = (u32)((s64)bfilm.endptr - (s64)alis.mem);
     fwrite(&value, 4, 1, fp);
-    value = bfilm.delptr ? (u32)((int64_t)bfilm.delptr - (int64_t)alis.mem) : 0;
+    value = bfilm.delptr ? (u32)((s64)bfilm.delptr - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
     
     fwrite(&fls_drawing, sizeof(fls_drawing), 1, fp);
@@ -612,13 +612,13 @@ void alis_save_state(void)
     fwrite(&fls_s512, sizeof(fls_s512), 1, fp);
     fwrite(&pvgalogic, sizeof(pvgalogic), 1, fp);
     
-    value = (u32)((int64_t)vgalogic - (int64_t)pvgalogic);
+    value = (u32)((s64)vgalogic - (s64)pvgalogic);
     fwrite(&value, 4, 1, fp);
 
-    value = (u32)((int64_t)vgalogic_df - (int64_t)pvgalogic);
+    value = (u32)((s64)vgalogic_df - (s64)pvgalogic);
     fwrite(&value, 4, 1, fp);
 
-    value = endframe ? (u32)((int64_t)endframe - (int64_t)alis.mem) : 0;
+    value = endframe ? (u32)((s64)endframe - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
 
     fclose(fp);
@@ -725,7 +725,7 @@ void alis_load_state(void)
     alis.script_data_orgs = (u32 *)(alis.mem + value);
 
     fread(&value, 4, 1, fp);
-    alis.ptrent = (s16 *)((int64_t)alis.tablent + value);
+    alis.ptrent = (s16 *)((s64)alis.tablent + value);
 
     fread(&value, 4, 1, fp);
     alis.acc = (s16 *)(alis.mem + value);
@@ -1619,7 +1619,7 @@ void sleep_until(struct timeval *start, s32 len)
     struct timeval now;
     gettimeofday(&now, NULL);
     
-    int64_t wait = len - ((int64_t)(now.tv_sec * 1000000LL + now.tv_usec) - (int64_t)(start->tv_sec * 1000000LL + start->tv_usec));
+    s64 wait = len - ((s64)(now.tv_sec * 1000000LL + now.tv_usec) - (s64)(start->tv_sec * 1000000LL + start->tv_usec));
     if (wait > 0)
         usleep((u32)wait);
     
