@@ -27,7 +27,7 @@
 # include <SDL2/SDL_thread.h>
 #endif
 
-#include "../sys.h"
+#include "sys.h"
 #include "alis.h"
 #include "audio.h"
 #include "channel.h"
