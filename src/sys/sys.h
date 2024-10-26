@@ -21,9 +21,9 @@
 
 #pragma once
 
-#include "../config.h"
-#include "../debug.h"
-#include "../platform.h"
+#include "config.h"
+#include "debug.h"
+#include "platform.h"
 
 
 // =============================================================================
