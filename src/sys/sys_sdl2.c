@@ -94,12 +94,11 @@ void sys_audio_callback(void *userdata, Uint8 *stream, int len);
 // ============================================================================
 
 void signals_info(int signo) {
+
+    if (signo == 0) return;
+
+    printf("\n");
     switch (signo) {
-        case 0:
-        {
-            break;
-        }
-        printf("\n");
         case SIGSEGV:
         {
             debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGSEGV: Invalid memory access (segmentation fault).\n");
@@ -152,7 +151,7 @@ void signals_handler(int signo) {
     alis.state = eAlisStateStopped;
 
     signal(signo, SIG_DFL);
-    raise(signo);
+//  raise(signo);
 }
 
 void sys_errors_init(void) {
