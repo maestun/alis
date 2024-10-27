@@ -21,15 +21,17 @@
 
 #pragma once
 
-#include "../config.h"
-#include "../debug.h"
-#include "../platform.h"
+#include "config.h"
+#include "debug.h"
+#include "platform.h"
 
 
 // =============================================================================
 #pragma mark - LIFECYCLE
 // =============================================================================
 typedef void (*vmStep)(void);
+void    sys_errors_init(void);
+void    sys_errors_deinit(void);
 void    sys_main(vmStep fStep);
 void    sys_init(sPlatform *pl, int fullscreen);
 u8      sys_start(void);

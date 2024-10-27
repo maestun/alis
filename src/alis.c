@@ -492,7 +492,16 @@ void alis_save_state(void)
     u32 value;
     
     fwrite("ALIS", 5, 1, fp);
-    fwrite("0002", 5, 1, fp);
+    fwrite(kSaveStateVersion, 5, 1, fp);
+
+    // The size of alis differs on different versions of alis:
+    // 1) if a new variable is added inside the structure
+    // 2) if compiled with a different compiler (and the size of some variables is different)
+    u32 alis_size = sizeof(alis);
+    char alis_size_s[8] = {0};
+    sprintf(alis_size_s, "%08x", alis_size);
+    fwrite(alis_size_s, 9, 1, fp);
+
     fwrite(&(alis), sizeof(alis), 1, fp);
     size_t vram_size = sizeof(u8) * kHostRAMSize;
     fwrite(&vram_size, sizeof(size_t), 1, fp);
@@ -653,7 +662,8 @@ void alis_load_state(void)
 
     fread(buffer, 5, 1, fp);
     int ver = atoi(buffer);
-    if (ver != 2)
+    int ver_current = atoi(kSaveStateVersion);
+    if (ver != ver_current)
     {
         printf("\n");
         debug(EDebugError, "The savestate version %d in %s is not supported.\n", ver, path);
@@ -661,8 +671,27 @@ void alis_load_state(void)
         return;
     }
 
-    memset(&alis, 0, sizeof(alis));
-    fread(&(alis), sizeof(alis), 1, fp);
+    fread(buffer, 9, 1, fp);
+    u32 alis_size = strtol(buffer, NULL, 16);
+    u32 current_alis_size = sizeof(alis);
+
+    if (current_alis_size != alis_size) {
+        printf("\n");
+        debug(EDebugError, "The savestate is made by a different version of alis (platform, version or compiler).\n");
+        fclose(fp);
+        return;
+       }
+
+    char savepath[kPathMaxLen] = {0};
+    strcpy(savepath, alis.platform.path);
+    char savemain[kPathMaxLen] = {0};
+    strcpy(savemain, alis.platform.main);
+
+    memset(&alis, 0, alis_size);
+    fread(&(alis), alis_size, 1, fp);
+
+    strcpy(alis.platform.path, savepath);
+    strcpy(alis.platform.main, savemain);
     
     size_t vram_size = sizeof(u8) * kHostRAMSize;
     fread(&vram_size, sizeof(size_t), 1, fp);

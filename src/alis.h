@@ -112,7 +112,7 @@ typedef struct {
     char        desc[kDescMaxLen];
 } sAlisOpcode;
 
-PACK_PUSH typedef PACK_ATTR struct {
+PACK_PUSH typedef struct PACK_ATTR {
     u32         vram_offset;
     u16         offset;
 } sScriptLoc; PACK_POP

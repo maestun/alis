@@ -27,7 +27,7 @@
 # include <SDL2/SDL_thread.h>
 #endif
 
-#include "../sys.h"
+#include "sys.h"
 #include "alis.h"
 #include "audio.h"
 #include "channel.h"
@@ -78,6 +78,8 @@ extern u8       fls_ham6;
 extern u8       fls_s512;
 extern u8       *vgalogic_df;
 
+u8              global_failure;
+
 double isr_step;
 double isr_counter;
 
@@ -87,8 +89,102 @@ u8 pblanc10(sChannel *a0, u8 d1b);
 
 void sys_audio_callback(void *userdata, Uint8 *stream, int len);
 
+// ============================================================================
+#pragma mark - Signals
+// ============================================================================
+
+void signals_info(int signo) {
+
+    if (signo == 0) return;
+
+    printf("\n");
+    switch (signo) {
+        case SIGSEGV:
+        {
+            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGSEGV: Invalid memory access (segmentation fault).\n");
+            break;
+        }
+        case SIGABRT:
+        {
+            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGABRT: Abnormal termination.\n");
+            break;
+        }
+        case SIGFPE:
+        {
+            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGFPE: Erroneous arithmetic operation.\n");
+            break;
+        }
+        case SIGINT:
+        {
+            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGINT: External interrupt.\n");
+            break;
+        }
+        case SIGTERM:
+        {
+            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGTERM: Termination request.\n");
+            break;
+        }
+        case SIGILL:
+        {
+            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGILL: Invalid program image.\n");
+            break;
+        }
+        default:
+            if (disalis) {
+                debug(EDebugFatal, "FATAL ERROR: An unidentified error %d occurred.\n", signo);
+            }
+            else {
+                debug(EDebugFatal, "An unidentified error %d occurred.\n", signo);
+            } 
+        }
+    debug(EDebugSystem, "A STOP signal has been sent to the host system queue...\n");
+}
+
+void signals_handler(int signo) {
+
+    if (signo>0) { 
+        global_failure = signo;
+    }
+    else {
+        global_failure = 1;
+    }
+    alis.state = eAlisStateStopped;
+
+    signal(signo, SIG_DFL);
+//  raise(signo);
+}
+
+void sys_errors_init(void) {
+
+    global_failure = 0;
+    signal(SIGSEGV, signals_handler);
+    signal(SIGABRT, signals_handler);
+    signal(SIGFPE,  signals_handler);
+    signal(SIGINT,  signals_handler);
+    signal(SIGTERM, signals_handler);
+    signal(SIGILL,  signals_handler);
+
+#if defined (_WIN32) || defined (__MINGW32__)
+//   _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+#endif
+}
+
+void sys_errors_deinit(void) {
+
+    signal(SIGSEGV, SIG_DFL);
+    signal(SIGABRT, SIG_DFL);
+    signal(SIGFPE,  SIG_DFL);
+    signal(SIGINT,  SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGILL,  SIG_DFL);
+}
+
+// ============================================================================
+#pragma mark - System init
+// ============================================================================
+
 void sys_init(sPlatform *pl, int fullscreen) {
-    
+
     _width = pl->width;
     _height = pl->height;
     
@@ -190,8 +286,14 @@ void sys_init(sPlatform *pl, int fullscreen) {
     };
 }
 
+// ============================================================================
+#pragma mark - Main system loop
+// ============================================================================
+
 u8 sys_start(void) {
-    
+
+    if (global_failure) return -1;
+
     alis.state = eAlisStateRunning;
 
     SDL_Thread *thread = SDL_CreateThread(alis_thread, "ALIS", (void *)NULL);
@@ -200,8 +302,8 @@ u8 sys_start(void) {
         return 1;
     }
     
-    while (alis.state) {
-        
+    while (alis.state && !global_failure) {
+
         // wait so image is drawn and keyboard is polled at 120 fps
         usleep(kControlsTicks);
         
@@ -293,10 +395,22 @@ u8 sys_start(void) {
             }
         };
     }
-    
-    SDL_WaitThread(thread, NULL);
+
+    signals_info(global_failure);
+    if (!global_failure) {
+         debug(EDebugInfo, "Waiting for the VM kernel thread to finish...\n");
+         SDL_WaitThread(thread, NULL);
+         } 
+         else {
+                debug(EDebugSystem, "Ignoring the crashed VM kernel thread...\n");
+              }
+
     return 0;
 }
+
+// ============================================================================
+#pragma mark - Video
+// ============================================================================
 
 void sys_render(pixelbuf_t buffer) {
     
@@ -520,6 +634,10 @@ void sys_render(pixelbuf_t buffer) {
     SDL_SemPost(_render_sem);
 }
 
+// ============================================================================
+#pragma mark - System deinit
+// ============================================================================
+
 void sys_deinit(void) {
     
     SDL_RemoveTimer(_timerID);
@@ -537,6 +655,10 @@ void sys_deinit(void) {
     SDL_DestroyWindow(_window);
     SDL_Quit();
 }
+
+// ============================================================================
+#pragma mark - Audio
+// ============================================================================
 
 float interpolate_cubic(float x0, float x1, float x2, float x3, float t)
 {
@@ -900,6 +1022,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
 // =============================================================================
 #pragma mark - I/O
 // =============================================================================
+
 mouse_t sys_get_mouse(void) {
     return _mouse;
 }
@@ -1160,6 +1283,7 @@ u8 io_joykey(u8 test) {
 // =============================================================================
 #pragma mark - FILE SYSTEM
 // =============================================================================
+
 FILE * sys_fopen(char * path, u16 mode) {
 
     char flag[8] = "rb";
@@ -1200,10 +1324,10 @@ u8 sys_fexists(char * path) {
     return ret;
 }
 
-
 // =============================================================================
 #pragma mark - MISC
 // =============================================================================
+
 void sys_set_time(u16 h, u16 m, u16 s) {
     
 }
