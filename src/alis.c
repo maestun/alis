@@ -492,7 +492,7 @@ void alis_save_state(void)
     u32 value;
     
     fwrite("ALIS", 5, 1, fp);
-    fwrite("0002", 5, 1, fp);
+    fwrite(kSaveStateVersion, 5, 1, fp);
 
     // The size of alis differs on different versions of alis:
     // 1) if a new variable is added inside the structure
@@ -662,7 +662,8 @@ void alis_load_state(void)
 
     fread(buffer, 5, 1, fp);
     int ver = atoi(buffer);
-    if (ver != 2)
+    int ver_current = atoi(kSaveStateVersion);
+    if (ver != ver_current)
     {
         printf("\n");
         debug(EDebugError, "The savestate version %d in %s is not supported.\n", ver, path);
