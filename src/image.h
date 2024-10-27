@@ -26,7 +26,7 @@
 
 // to be consistent with old code
 
-PACK_PUSH typedef PACK_ATTR struct {
+PACK_PUSH typedef struct PACK_ATTR {
 
     s8 state;               // 0x00
     s8 numelem;             // 0x01
