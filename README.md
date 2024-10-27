@@ -4,7 +4,7 @@ An attempt to reimplement the virtual machine (VM) known as ALIS (Actor Language
 
 ## Build and run
 
-Tested on macOS, Ubuntu and Windows (Cygwin and MinGW).
+Tested on macOS, Ubuntu and Windows (MSC, Cygwin, MinGW-w64/MSYS2).
 
 Install the following packages on your system:
 
@@ -82,19 +82,20 @@ Interpretation:
 
 - Ubuntu Linux
 - Steem SSE Debugger
+- DOSBox Debugger
 - Pasti DLL
 - Ghidra
-- Ida
+- IDA
 - Some custom python scripts
 
 ### Virtual Machine
 
-On a Silmarils game disk, you'll find the main executable (the VM or the interpreter), and several compressed game files. These games files contain almost all of the game mechanics, the assets (sounds, graphics, messages, etc...), as well as the VM's code in a proprietary pseudo-assembly format.
+On a Silmarils game disk, you will find the main executable (the VM or the interpreter), and game files, usually compressed. These games files contain almost all of the game mechanics, the assets (sounds, graphics, messages, etc.), as well as the VM's code in a proprietary pseudo-assembly format.
 
 The main executable contains:
-- all the system calls, that depend on the target's architecture
-- all the VM's opcodes. 
-- some jump (or lookup) tables, that are used to jump directly to an opcode implementation without the need for switch/case statements (optimization !)
+- all the system calls, that depend on the target's architecture.
+- all the VM's opcodes.
+- some jump (or lookup) tables, that are used to jump directly to an opcode implementation without the need for switch/case statements (optimization !).
 
 When loaded, the main executable initializes the target, loads and decompresses the main script file ("main.XX"), then start the VM's main loop which fetches the opcodes read from the decompressed script.
 
