@@ -93,6 +93,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        sys_errors_init();
+
         sPlatform *pl = pl_guess(path, unpackmode);
 
         // Unpack mode
@@ -135,6 +137,7 @@ int main(int argc, char *argv[]) {
             printf("# Releasing ALIS VM memory...\n");
             printf("#############################\n");
             alis_deinit();
+            sys_errors_deinit();
         }
         else {
 //          debug(EDebugFatal, "Platform '%s' is not supported.\n", pl->desc);
