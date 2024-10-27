@@ -47,6 +47,7 @@
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)
+#define kSaveStateVersion   "0002"
 
 #if defined (_WIN32) || defined (__CYGWIN__)
 #  define kPathSeparator    '\\'
