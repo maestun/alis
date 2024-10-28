@@ -677,6 +677,7 @@ void alis_load_state(void)
     }
 
     fread(buffer, 8, 1, fp);
+    buffer[8] = 0;
     u32 alis_size = (u32)strtol(buffer, NULL, 16);
     u32 current_alis_size = sizeof(alis);
 

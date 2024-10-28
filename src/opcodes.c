@@ -2577,6 +2577,7 @@ static void cfreadb(void) {
     
     u32 length = 0;
 
+    u8 bytes = *(alis.mem + addr - 2);
     if (alis.platform.version >= 30)
     {
         if ((s8)xread8(addr - 1) < 0)
@@ -2617,7 +2618,6 @@ static void cfreadb(void) {
     
     if (alis.platform.kind == EPlatformPC)
     {
-        u8 bytes = *(alis.mem + addr - 2);
         if (bytes == 2)
         {
             for (int i = 0; i < length; i += 2)
