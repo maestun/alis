@@ -498,9 +498,9 @@ void alis_save_state(void)
     // 1) if a new variable is added inside the structure
     // 2) if compiled with a different compiler (and the size of some variables is different)
     u32 alis_size = sizeof(alis);
-    char alis_size_s[8] = {0};
+    char alis_size_s[9] = {0};
     sprintf(alis_size_s, "%08x", alis_size);
-    fwrite(alis_size_s, 9, 1, fp);
+    fwrite(alis_size_s, 8, 1, fp);
 
     fwrite(&(alis), sizeof(alis), 1, fp);
     size_t vram_size = sizeof(u8) * kHostRAMSize;
@@ -567,8 +567,13 @@ void alis_save_state(void)
     fwrite(&mainIdx, 4, 1, fp);
     fwrite(&scriptIdx, 4, 1, fp);
     
+    // mouse
+    
     value = alis.desmouse ? (u32)((s64)alis.desmouse - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
+    
+    mouse_t mouse = sys_get_mouse();
+    fwrite(&mouse.enabled, 1, 1, fp);
 
     // image
 
@@ -671,8 +676,8 @@ void alis_load_state(void)
         return;
     }
 
-    fread(buffer, 9, 1, fp);
-    u32 alis_size = strtol(buffer, NULL, 16);
+    fread(buffer, 8, 1, fp);
+    u32 alis_size = (u32)strtol(buffer, NULL, 16);
     u32 current_alis_size = sizeof(alis);
 
     if (current_alis_size != alis_size) {
@@ -802,8 +807,13 @@ void alis_load_state(void)
     fread(&value, 4, 1, fp);
     alis.script = alis.live_scripts[value];
     
+    // mouse
+    
     fread(&value, 4, 1, fp);
     alis.desmouse = value ? alis.mem + value : NULL;
+    
+    u8 enable_mouse = 0;
+    fread(&enable_mouse, 1, 1, fp);
 
     // image
     
@@ -887,6 +897,7 @@ void alis_load_state(void)
     gettimeofday(&alis.frametime, NULL);
     gettimeofday(&alis.looptime, NULL);
     
+    sys_enable_mouse(enable_mouse);
     set_update_cursor();
 
     printf("\n");
