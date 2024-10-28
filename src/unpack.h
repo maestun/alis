@@ -40,3 +40,4 @@ extern const u8 kPackedDatHeaderSize;
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed
 int unpack_script(const char *packed_file_path, u8 *unpacked_buffer);
+int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_length);

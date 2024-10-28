@@ -2480,6 +2480,87 @@ static void cfwritei(void) {
     debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+void unmixword(s32 tgt_addr, u32 tgt_len)
+{
+    u8 tgt_byte;
+    u8 tmp_byte;
+    u8 tmp_xchg;
+    s32 tmp_offset_lsr4 = 0;
+    s32 tmp_offset_tune;
+    s32 tmp_offset;
+    u8 bitcheck;
+    
+    u32 bufpackend = (tgt_len >> 5);
+    
+    u16 len = (tgt_len >> 5) + 4;
+    u8 *tmp_buffer = malloc(len);
+    memset(tmp_buffer, 0, len);
+    
+    s32 half_longpack = tgt_len >> 1;
+    s32 tmp_offset2 = 1;
+
+    tmp_buffer[0] = 1;
+
+    do
+    {
+        tmp_byte = xread8(tgt_addr + tmp_offset2);
+        tmp_offset = tmp_offset2;
+        
+        while (true)
+        {
+            tmp_xchg = tmp_byte;
+            if (half_longpack <= tmp_offset)
+            {
+                do
+                {
+                    tmp_offset = (tmp_offset - half_longpack) * 2 + 1;
+                    tmp_xchg = xread8(tgt_addr + tmp_offset);
+                    xwrite8(tgt_addr + tmp_offset, tmp_byte);
+                    tmp_byte = tmp_xchg;
+                }
+                while (half_longpack <= tmp_offset);
+                
+                tmp_offset_lsr4 = tmp_offset >> 4;
+                tmp_buffer[tmp_offset_lsr4] |= 1 << ((u16)(tmp_offset >> 1) & 7);
+                if (tmp_offset == tmp_offset2)
+                {
+                    break;
+                }
+            }
+            
+            tmp_offset *= 2;
+            tmp_byte = xread8(tgt_addr + tmp_offset);
+            xwrite8(tgt_addr + tmp_offset, tmp_xchg);
+        }
+        
+        while (tmp_buffer[tmp_offset_lsr4] == 0xff)
+        {
+            tmp_offset_lsr4++;
+            if (bufpackend <= tmp_offset_lsr4)
+            {
+                free(tmp_buffer);
+                return;
+            }
+        }
+        
+        tgt_byte = tmp_buffer[tmp_offset_lsr4];
+        tmp_offset_tune = -1;
+        
+        do
+        {
+            tmp_offset_tune++;
+            bitcheck = tgt_byte & 1;
+            tgt_byte >>= 1;
+        }
+        while (bitcheck != 0);
+        
+        tmp_offset2 = (tmp_offset_tune + tmp_offset_lsr4 * 8) * 2 + 1;
+    }
+    while (tmp_offset2 < half_longpack);
+    
+    free(tmp_buffer);
+}
+
 // Codopname no. 120 opcode 0x77 cfreadb
 static void cfreadb(void) {
     
@@ -2516,15 +2597,13 @@ static void cfreadb(void) {
         }
         else
         {
-            debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+            u8 *unpacked_buffer = alis.mem + addr;
+            unpack_script_fp(alis.fp, unpacked_buffer, length);
 
-//            u8 *unpacked_buffer = alis.mem + addr;
-//            u32 unpacked_size = unpack_script_fp(alis.fp, &unpacked_buffer);
-        }
-
-        if (alis.wordpack != 0)
-        {
-//             unmixword(addr, length);
+            if (alis.wordpack != 0)
+            {
+                unmixword(addr, length);
+            }
         }
     }
     else

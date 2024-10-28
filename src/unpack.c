@@ -311,9 +311,6 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         fread(packed_buffer, sizeof(u8), packed_size, pfp);
         fclose(pfp);
 
-        // alloc unpack buffer
-        //*unpacked_buffer = (u8*)malloc(1024 + unpacked_size * sizeof(u8));
-        
         if ((alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
         // TODO: a quick fix to make the MadShow re-release work
          || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1))
@@ -345,6 +342,59 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
     else {
         // error
         debug(EDebugFatal, "Cannot open input file (%s)\n", packed_file_path);
+        ret = EUnpackErrorInput;
+    }
+    return ret;
+}
+
+int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_size) {
+    int ret = 0;
+
+    if(fp) {
+
+        u32 packed_size = unpacked_size;
+        
+        // read packed bytes in alloc'd buffer
+        u8 *packed_buffer = (u8 *)malloc(0xff + packed_size * sizeof(u8));
+        memset(packed_buffer, 0, 0xff + packed_size * sizeof(u8));
+        
+        if ((alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
+        // TODO: a quick fix to make the MadShow re-release work
+         || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1))
+        {
+            u8 *dict = malloc(kPackedDictionarySize);
+            fread(dict, sizeof(u8), kPackedDictionarySize, fp);
+            fread(packed_buffer, sizeof(u8), packed_size, fp);
+
+            unpack_new(packed_buffer, unpacked_buffer, unpacked_size, dict);
+
+            free(dict);
+        }
+        else
+        {
+            fread(packed_buffer, sizeof(u8), packed_size, fp);
+
+            if (alis.platform.kind == EPlatformPC)
+            {
+                alis.typepack &= 0xfe;
+                
+                s8 modpack = ((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8;
+                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
+            }
+            else
+            {
+                s8 modpack = (((u8)alis.typepack & 0x40) == 0) ? 1 : 8;
+                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
+            }
+        }
+        
+        debug(EDebugInfo, "Unpacked FP: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
+        free(packed_buffer);
+        ret = unpacked_size;
+    }
+    else {
+        // error
+        debug(EDebugFatal, "FP is NULL\n");
         ret = EUnpackErrorInput;
     }
     return ret;

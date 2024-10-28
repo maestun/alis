@@ -1622,7 +1622,7 @@ FILE *afopen(char *path, u16 openmode)
                 {
                     fread(alis.buffer, 0xc, 1, alis.fp);
 
-                    u32 type = read32(alis.buffer);
+                    u32 type = xpcswap32(*(u32 *)alis.buffer);
                     if (type == 0x50423630)
                     {
                         alis.typepack = 0xa0;
