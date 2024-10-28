@@ -1639,13 +1639,13 @@ FILE *afopen(char *path, u16 openmode)
                     {
                         alis.typepack = 0xa0;
                         alis.wordpack = 0;
-                        alis.longpack = read32(alis.buffer + 4);
+                        alis.longpack = xpcswap32(*(u32 *)(alis.buffer + 4));
                     }
                     else if (type == 0x50573630)
                     {
                         alis.typepack = 0xa0;
                         alis.wordpack = 1;
-                        alis.longpack = read32(alis.buffer + 4);
+                        alis.longpack = xpcswap32(*(u32 *)(alis.buffer + 4));
                     }
                 }
             }
