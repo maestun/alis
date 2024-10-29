@@ -180,6 +180,7 @@ s8 tfibo[16] = {
 
 void script_guess_game(const char * script_path) {
     
+    alis.platform.uid = 0;
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
         debug(EDebugInfo,
@@ -217,41 +218,201 @@ void script_guess_game(const char * script_path) {
 
                 switch (alis.platform.uid)
                 {
-                    case EGameXyphoesFantasy:        strcpy(alis.platform.name, "Xyphoes Fantasy");         alis.platform.version = 0;  alis.platform.bpp = 4; alis.platform.dbl_buf = 0; alis.basemem = 0x22400; break;
+                    //#######################################################################################
+                    //   In order of release
+                    //#######################################################################################
                     case EGameManhattanDealers0:
-                    case EGameManhattanDealers1:     strcpy(alis.platform.name, "Manhattan Dealers");       alis.platform.version = 10; alis.platform.bpp = 4; alis.platform.dbl_buf = 0; alis.basemem = 0x22400; break;
-                    case EGameMadShow:               strcpy(alis.platform.name, "Mad Show");                alis.platform.version = 11; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x23e00; break;
+                    case EGameManhattanDealers1:     strcpy(alis.platform.name, "Manhattan Dealers");
+                                                     alis.platform.version = 10;  // 0 [0x00]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.dbl_buf = 0;
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameMadShow:               strcpy(alis.platform.name, "Mad Show");
+                                                     alis.platform.version = 11;  // 2.1 [0x15], 2.3 [0x17], 0 [0x00]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.px_format = px_format;
+                                                     alis.basemem = 0x23e00;
+                                                     break;
+                    //#######################################################################################
                     case EGameTarghan0:
-                    case EGameTarghan1:              strcpy(alis.platform.name, "Targhan");                 alis.platform.version = 12; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x26000; break;
-                    case EGameWindsurfWilly:         strcpy(alis.platform.name, "Windsurf Willy");          alis.platform.version = 12; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x25400; break;
-                    case EGameLeFeticheMaya:         strcpy(alis.platform.name, "Le Fetiche Maya");         alis.platform.version = 13; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x25e00; break;
-                    case EGameColorado:              strcpy(alis.platform.name, "Colorado");                alis.platform.version = 13; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x26000; break;
-                    case EGameStarblade:             strcpy(alis.platform.name, "Starblade");               alis.platform.version = 20; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.platform.dbl_buf = 0; alis.basemem = 0x21400; break;
-                    case EGameStormMaster:           strcpy(alis.platform.name, "Storm Master");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1ff00; break;
-                    case EGameMetalMutant:           strcpy(alis.platform.name, "Metal Mutant");            alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x20800; alis.platform.dbl_buf = 0; break;
+                    case EGameTarghan1:              strcpy(alis.platform.name, "Targhan");
+                                                     alis.platform.version = 12;  // 2.1 [0x15], 2.2 [0x16], 0 [0x00]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.px_format = px_format;
+                                                     alis.platform.dbl_buf = 0;
+                                                     alis.basemem = 0x26000;
+                                                     break;
+                    //#######################################################################################
+                    case EGameWindsurfWilly:         strcpy(alis.platform.name, "Windsurf Willy");
+                                                     alis.platform.version = 12;  // 2.1 [0x15], 0 [0x00]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.px_format = px_format;
+                                                     alis.basemem = 0x25400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameLeFeticheMaya:         strcpy(alis.platform.name, "Le Fetiche Maya");
+                                                     alis.platform.version = 13;  // 2.1 [0x15], 0 [0x00]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.px_format = px_format;
+                                                     alis.platform.dbl_buf = 0;
+                                                     alis.basemem = 0x25e00;
+                                                     break;
+                    //#######################################################################################
+                    case EGameColorado:              strcpy(alis.platform.name, "Colorado");
+                                                     alis.platform.version = 13;  // 2.1 [0x15]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.px_format = px_format;
+                                                     alis.basemem = 0x26000;
+                                                     break;
+                    //#######################################################################################
+                    case EGameStarblade:             strcpy(alis.platform.name, "Starblade");
+                                                     alis.platform.version = 20;  // 2.1 [0x15]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.px_format = px_format;
+                                                     alis.platform.dbl_buf = 0;
+                                                     alis.basemem = 0x21400;
+                                                     break;
+                    //#######################################################################################
                     case EGameCrystalsOfArborea0:
-                    case EGameCrystalsOfArborea1:    strcpy(alis.platform.name, "Crystals Of Arborea");     alis.platform.version = 20; alis.platform.bpp = 4; alis.basemem = 0x1f300;  break;
-                    case EGameBostonBombClub:        strcpy(alis.platform.name, "Boston Bomb Club");        alis.platform.version = 21; alis.platform.bpp = 4; alis.platform.px_format = px_format; alis.basemem = 0x27d00;  break;
-                    case EGameTransarctica:          strcpy(alis.platform.name, "Transarctica");            alis.platform.version = 22; alis.basemem = 0x21d00;  break;
-                    case EGameBunnyBricks:           strcpy(alis.platform.name, "Bunny Bricks");            alis.platform.version = 21; alis.basemem = 0x22200;  break;
-                    case EGameIshar_1:               strcpy(alis.platform.name, "Ishar 1");                 alis.platform.version = 20; alis.basemem = 0x20000;  break;
-                    case EGameIshar_2:               strcpy(alis.platform.name, "Ishar 2");                 alis.platform.version = 21; alis.basemem = 0x22400;  break;
-                    case EGameIshar_3:               strcpy(alis.platform.name, "Ishar 3");                 alis.platform.version = 30; alis.basemem = 0x25a00;  break;
+                    case EGameCrystalsOfArborea1:
+                    case EGameCrystalsOfArborea2:    strcpy(alis.platform.name, "Crystals Of Arborea");
+                                                     alis.platform.version = 20;  // 2.2 [0x16]
+                                                     alis.platform.bpp = 4;
+                                                     alis.basemem = 0x1f300;
+                                                     break;
+                    //#######################################################################################
+                    case EGameMetalMutant:           strcpy(alis.platform.name, "Metal Mutant");
+                                                     alis.platform.version = 20;  // 2.2 [0x16]
+                                                     alis.platform.bpp = 4;
+                                                     alis.basemem = 0x20800;
+                                                     alis.platform.dbl_buf = 0;
+                                                     break;
+                    //#######################################################################################
+                    case EGameBostonBombClub:        strcpy(alis.platform.name, "Boston Bomb Club");
+                                                     alis.platform.version = 21;  // 2.2 [0x16]
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.px_format = px_format;
+                                                     alis.basemem = 0x27d00;
+                                                     break;
+                    //#######################################################################################
+                    case EGameXyphoesFantasy:        strcpy(alis.platform.name, "Xyphoes Fantasy");
+                                                     alis.platform.version = 0;
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.dbl_buf = 0;
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameKillingFist:           strcpy(alis.platform.name, "Killing Fist");
+                                                     alis.platform.version = 0;
+                                                     alis.platform.bpp = 4;
+                                                     alis.platform.dbl_buf = 0;
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameStormMaster:           strcpy(alis.platform.name, "Storm Master");
+                                                     alis.platform.version = 20;  // 2.3 [0x17]
+                                                     alis.platform.bpp = 4;
+                                                     alis.basemem = 0x1ff00;
+                                                     break;
+                    //#######################################################################################
+                    case EGameIshar_1:               strcpy(alis.platform.name, "Ishar 1");
+                                                     alis.platform.version = 20;  // 2.3 [0x17]
+                                                     alis.basemem = 0x20000;
+                                                     break;
+                    //#######################################################################################
+                    case EGameBunnyBricks:           strcpy(alis.platform.name, "Bunny Bricks");
+                                                     alis.platform.version = 21;  // 2.3 [0x17]
+                                                     alis.basemem = 0x22200;
+                                                     break;
+                    //#######################################################################################
+                    case EGameTransarctica:          strcpy(alis.platform.name, "Transarctica");
+                                                     alis.platform.version = 22;  // 2.3 [0x17], 2.8 [0x1c]
+                                                     alis.basemem = 0x21d00;
+                                                     break;
+                    //#######################################################################################
+                    case EGameIshar_2:               strcpy(alis.platform.name, "Ishar 2");
+                                                     alis.platform.version = 21;  // 2.8 [0x1c]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
                     case EGameRobinsonsRequiem0:
-                    case EGameRobinsonsRequiem1:     strcpy(alis.platform.name, "Robinson's Requiem");      alis.platform.version = 31; alis.basemem = 0x2b400;  break;
-                    case EGameAsghan:                strcpy(alis.platform.name, "Asghan");                  alis.platform.version = 40; alis.basemem = 0x22400;  break;
-                    case EGameDeus:                  strcpy(alis.platform.name, "Deus");                    alis.platform.version = 40; alis.basemem = 0x22400;  break;
-                    case EGameTimeWarriors:          strcpy(alis.platform.name, "Time Warriors");           alis.platform.version = 40; alis.basemem = 0x22400;  break;
-                    case EGameTournamentOfWarriors:  strcpy(alis.platform.name, "Tournament Of Warriors");  alis.platform.version = 40; alis.basemem = 0x22400;  break;
-                    default:                         strcpy(alis.platform.name, "UNKNOWN");                 alis.platform.version = 20; alis.basemem = 0x22400;  break;
+                    case EGameRobinsonsRequiem1:     strcpy(alis.platform.name, "Robinson's Requiem");
+                                                     alis.platform.version = 31;  // 3.0 [0x1e]
+                                                     alis.basemem = 0x2b400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameIshar_3:               strcpy(alis.platform.name, "Ishar 3");
+                                                     alis.platform.version = 30;  // 3.0 [0x1e]
+                                                     alis.basemem = 0x25a00;
+                                                     break;
+                    //#######################################################################################
+                    case EGameManualRRQ:             strcpy(alis.platform.name, "Robinson's Requiem CD Manual");
+                                                     alis.platform.version = 60;  // 6.0 [0x3c]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameDeus:                  strcpy(alis.platform.name, "Deus");
+                                                     alis.platform.version = 60;  // 6.0 [0x3c]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameTimeWarriors:          strcpy(alis.platform.name, "Time Warriors");
+                                                     alis.platform.version = 72;  // 7.2 [0x48]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameAsghan:                strcpy(alis.platform.name, "Asghan");
+                                                     alis.platform.version = 95;  // 9.5 [0x5f]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameTournamentOfWarriors:  strcpy(alis.platform.name, "Tournament Of Warriors");
+                                                     alis.platform.version = 97;  // 9.7 [0x61]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameArabianNights:         strcpy(alis.platform.name, "Arabian Nights");
+                                                     alis.platform.version = 113; // 11.3 [0x71]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameLesVisiteurs:          strcpy(alis.platform.name, "Les Visiteurs");
+                                                     alis.platform.version = 113; // 11.3 [0x71]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    case EGameInspectorGadget:       strcpy(alis.platform.name, "Inspector Gadget");
+                                                     alis.platform.version = 224; // 22.4 [0xe0]
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
+                    default:                         strcpy(alis.platform.name, "UNKNOWN");
+                                                     alis.platform.version = 20;
+                                                     alis.basemem = 0x22400;
+                                                     break;
+                    //#######################################################################################
                 }
 
-                printf("Starting %s %s (ALIS v %.1f)\n", alis.platform.name, alis.platform.desc, alis.platform.version / 10.0);
+                printf("Starting %s %s (ALIS ver. %.1f)\n", alis.platform.name, alis.platform.desc, alis.platform.version / 10.0);
+                printf("         Host:  %s,  Platform:  %s,  Artificial version: %d\n", is_host_le() ? "LE" : "BE", alis.platform.is_little_endian ? "LE" : "BE", alis.platform.version);
+                printf("         Platform UID: Specs+0x08 x Specs+0x0c = Vmaxvram x Vmaxsprite\n");
+                printf("                   =>  0x%08x x 0x%08x = 0x%08x\n", alis.header.val3, alis.header.val4, alis.platform.uid);
+                fflush(stdout);
+            }
+            else {
+                debug(EDebugError, "The version of the %s file is not supported, or it is not a valid main file of the game.\n", script_path);
             }
         }
-
+        else {
+            debug(EDebugError, "The size of the main file %s is %d bytes, and it is smaller than required.\n", script_path, input_sz);
+        }
         // cleanup
         fclose(fp);
+    }
+    else {
+        debug(EDebugError, "Could not open main file %s.\n", script_path);
     }
 }
 
@@ -596,6 +757,7 @@ s32 get_context_size(void)
             break;
         case EGameCrystalsOfArborea0:
         case EGameCrystalsOfArborea1:
+        case EGameCrystalsOfArborea2:
         case EGameStormMaster:
         case EGameMetalMutant:
         case EGameTransarctica:

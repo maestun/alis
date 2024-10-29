@@ -278,7 +278,7 @@ void alis_load_main(void) {
 // =============================================================================
 // MARK: - VM API
 // =============================================================================
-void alis_init(sPlatform platform) {
+u8 alis_init(sPlatform platform) {
     debug(EDebugVerbose, "ALIS: Init.\n");
 
     alis.platform = platform;
@@ -289,6 +289,8 @@ void alis_init(sPlatform platform) {
     vram_init();
 
     script_guess_game(platform.main);
+    if (alis.platform.uid <= 0) return 1;
+
     alis.timeclock = 0;
     
     audio.fsound = 1;
@@ -448,6 +450,8 @@ void alis_init(sPlatform platform) {
     
     gettimeofday(&alis.frametime, NULL); // TODO: remove system dependencies
     gettimeofday(&alis.looptime, NULL);
+
+    return 0;
 }
 
 

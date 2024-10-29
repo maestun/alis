@@ -115,7 +115,8 @@ int main(int argc, char *argv[]) {
             printf("#############################\n");
             printf("# ALIS VM initialization...\n");
             printf("#############################\n");
-            alis_init(*pl);
+            result = alis_init(*pl);
+            if (result == 1) return result; 
 
             printf("#############################\n");
             printf("# Starting ALIS VM...\n");

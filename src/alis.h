@@ -389,7 +389,7 @@ extern sHost host;
 // MARK: - API
 // =============================================================================
 
-void            alis_init(sPlatform platform);
+u8              alis_init(sPlatform platform);
 int             alis_thread(void *data);
 void            alis_deinit(void);
 
