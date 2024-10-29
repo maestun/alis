@@ -4243,6 +4243,7 @@ static void cbackstar(void) {
         case EGameTarghan1:
         case EGameCrystalsOfArborea0:
         case EGameCrystalsOfArborea1:
+        case EGameCrystalsOfArborea2:
         case EGameMetalMutant:
         case EGameTransarctica:
         case EGameBostonBombClub:
