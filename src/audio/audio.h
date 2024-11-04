@@ -186,9 +186,11 @@ typedef struct {
 
 extern sAudio audio;
 
-void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop);
+void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop, s8 priorson);
 void playsound(eChannelType type, u8 pereson, u8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson);
 void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson);
+
+void offsound(void);
 
 // older music variant (atari st/amiga ishar and older)
 

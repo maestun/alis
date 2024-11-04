@@ -714,8 +714,8 @@ u8 pblanc10(sChannel *channel, u8 d1b)
 void io_canal(sChannel *channel, s16 index)
 {
     giaccess(index + 0x88, (channel->volume >> 11) & 0xf, index);
-    giaccess(index * 2 + 0x80, channel->freq >> 3, index);
-    giaccess(index * 2 + 0x81, ((channel->freq >> 3) >> 8) & 0xf, index);
+    giaccess(index * 2 + 0x80, max(8, channel->freq >> 3), index);
+    giaccess(index * 2 + 0x81, max(1, ((channel->freq >> 3) >> 8)) & 0xf, index);
     
     u8 mixer = giaccess(7, 0, index);
 
@@ -864,6 +864,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
                             else
                             {
                                 ch->type = eChannelTypeNone;
+                                ch->curson = 0x80;
                                 break;
                             }
                         }
@@ -927,6 +928,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
                             else
                             {
                                 ch->type = eChannelTypeNone;
+                                ch->curson = 0x80;
                                 break;
                             }
                         }

@@ -67,6 +67,8 @@ Todo list
 - 2024-10-25: Incompatible savestates made on alis compiled on different compilers (CYGWIN and MinGW etc.) due different sizes of some structures.
 - 2024-10-25: Turn off the music and sound when the save state is going to load, otherwise the old sound that was playing before loading continues to play after loading.
 
+- 2024-11-04: YM2149 emulation is imprecise. Sounds in general are slighly off, low frequency sounds like steps are not played at all. Try to replace it with something else.
+
 #############################################
   2. Games list:
 #############################################
@@ -156,7 +158,7 @@ x 2024-09-28: Game bug: when entering load name, previous name is not cleared. S
 
 Ishar I
 + 2024-02-19: 2024-06-19: BG music plays after every second map segment load
-- 2024-06-26: DOS: screen corrupted after hitting 'cscmov()'
+- 2024-06-26: screen corrupted after hitting 'cscmov()'
     (setting xyz 0, or not setting it at all seams to solve the issue)
 + 2024-10-05: 2024-10-08: AMIGA/AGA: wrong palette in language selection menu. Github Issue #23.
 - 2024-10-08: DOS: Palette problem in fade-out/fade-in effects (logo screen -> title screen); (language selection screen -> authors screen). Github Issue #24.

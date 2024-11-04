@@ -34,31 +34,129 @@ extern SDL_AudioSpec *_audio_spec;
 
 sAudio audio = {};
 
-
-void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop)
+void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop, s8 priorson)
 {
-    s32 channelidx = -1;
-    for (s32 i = 0; i < 4; i ++)
+    char cson = CHAR_MAX;
+    sChannel *canal = NULL;
+    
+    for (int i = 0; i < 4; i++)
     {
-        if (audio.channels[i].type == eChannelTypeNone)
+        if (priorson == audio.channels[i].curson)
         {
-            channelidx = i;
+            canal = &audio.channels[i];
+            cson = priorson;
             break;
         }
     }
     
-    if (channelidx >= 0)
+    if (canal == NULL)
     {
-        if (freq < 0x1 || 0x14 < freq)
-            freq = 10;
-        
-        audio.channels[channelidx].address = address;
-        audio.channels[channelidx].volume = volume;
-        audio.channels[channelidx].length = length;
-        audio.channels[channelidx].freq = freq * 1000;
-        audio.channels[channelidx].loop = loop;
-        audio.channels[channelidx].played = 0;
-        audio.channels[channelidx].type = type;
+        for (int i = 0; i < 4; i++)
+        {
+            if (audio.channels[i].curson < cson)
+            {
+                canal = &audio.channels[i];
+                cson = audio.channels[i].curson;
+            }
+        }
+    }
+    
+    if ((priorson >= 0 && cson < 0 && cson != -0x80) || priorson < cson)
+        return;
+
+    if (freq < 0x1 || 0x14 < freq)
+        freq = 10;
+
+    canal->address = address;
+    canal->volume = volume;
+    canal->length = length;
+    canal->freq = freq * 1000;
+    canal->loop = loop;
+    canal->played = 0;
+    canal->type = type;
+    canal->curson = priorson;
+}
+
+void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson)
+{
+    char cson = CHAR_MAX;
+    sChannel *canal = NULL;
+
+    if (priorson < 0)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (priorson == audio.channels[i].curson)
+            {
+                canal = &audio.channels[i];
+                cson = priorson;
+                break;
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (pereson == audio.channels[i].pere && priorson == audio.channels[i].curson)
+            {
+                canal = &audio.channels[i];
+                cson = priorson;
+                break;
+            }
+        }
+    }
+    
+    if (canal == NULL)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (audio.channels[i].curson < cson)
+            {
+                canal = &audio.channels[i];
+                cson = audio.channels[i].curson;
+            }
+        }
+    }
+    
+    if ((priorson >= 0 && cson < 0 && cson != -0x80) || priorson < cson)
+        return;
+
+//    if ((s8)type < '\0')
+//    {
+//        gosound(canal);
+//    }
+//    else
+    {
+        canal->state = -0x80;
+        canal->curson = priorson;
+        canal->type = type;
+        canal->freq = freqson;
+        canal->delta_freq = dfreqson;
+        canal->volume = volson;
+        canal->delta_volume = dvolson;
+        canal->length = longson;
+        canal->pere = pereson;
+        canal->state = 2;
+    }
+}
+
+void offsound(void)
+{
+    for (int i = 0; i < 4; i++)
+    {
+        audio.channels[i].type = eChannelTypeNone;
+        audio.channels[i].volume = 0;
+        audio.channels[i].freq = 0;
+        audio.channels[i].curson = 0x80;
+        audio.channels[i].pere = 0;
+        audio.channels[i].state = 0;
+        audio.channels[i].played = 0;
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+        io_canal(&(audio.channels[i]), i);
     }
 }
 
@@ -103,91 +201,3 @@ s32 save_wave_file(const char *name, float *data, s32 sample_rate, s32 channel_c
     fclose(f);
     return 1;
 }
-
-void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson)
-{
-    sChannel *canal;
-    
-    if (priorson < 0)
-    {
-        for (int i = 0; i < 2; i++)
-        {
-            canal = &audio.channels[i];
-            if (priorson == canal->curson)
-                goto runson10;
-        }
-        
-        canal = &audio.channels[2];
-        if (priorson == audio.channels[2].curson)
-            goto runson10;
-    }
-    else
-    {
-        for (int i = 0; i < 2; i++)
-        {
-            canal = &audio.channels[i];
-            if (pereson == canal->pere && priorson == canal->curson)
-                goto runson10;
-        }
-        
-        if (pereson == audio.channels[2].pere)
-        {
-            canal = &audio.channels[2];
-            if (priorson == audio.channels[2].curson)
-                goto runson10;
-
-        }
-    }
-    
-    canal = &audio.channels[0];
-    char cson = audio.channels[0].curson;
-    if (audio.channels[1].curson < audio.channels[0].curson)
-    {
-        canal = &audio.channels[1];
-        cson = audio.channels[1].curson;
-    }
-    
-    if (audio.channels[2].curson < cson)
-    {
-        canal = &audio.channels[2];
-        cson = audio.channels[2].curson;
-    }
-    
-//    if (audio.channels[3].curson < cson)
-//    {
-//        canal = &audio.channels[3];
-//        cson = audio.channels[3].curson;
-//    }
-    
-    if (((-1 < priorson) && (cson < 0)) && (cson != -0x80))
-    {
-        return;
-    }
-    
-    if (priorson < cson)
-    {
-        return;
-    }
-    
-runson10:
-    
-//    if ((s8)type < '\0')
-//    {
-//        gosound(canal);
-//    }
-//    else
-    {
-        canal->state = -0x80;
-        canal->curson = priorson;
-        canal->type = type;
-        canal->freq = freqson;
-        canal->delta_freq = dfreqson;
-        canal->volume = volson;
-        canal->unk0x7 = '\0';
-        canal->delta_volume = dvolson;
-        canal->length = longson;
-        canal->pere = pereson;
-        canal->state = 2;
-    }
-}
-

@@ -41,7 +41,6 @@ typedef struct {
     u8 *address;
     u32 played;
     s16 volume;
-    u8 unk0x7;
     u32 length;
     s16 freq;
     u8 loop;

@@ -1758,7 +1758,7 @@ u8 calcnear(u32 source, u32 target, s32 *val)
     s32 wcy = xread16(target + ALIS_SCR_WCY) - xread16(source + ALIS_SCR_WCY);
     s32 wcz = xread16(target + ALIS_SCR_WCZ) - xread16(source + ALIS_SCR_WCZ);
     *val = (wcx * wcx) + (wcy * wcy) + (wcz * wcz);
-    return (*val <= alis.valnorme && (alis.fview == 0 || *val <= ((s8)xread8(source + ALIS_SCR_WCX2) * wcx + (s8)xread8(source + ALIS_SCR_WCY2) * wcy + (s8)xread8(source + ALIS_SCR_WCZ2) * wcz) * (s32)alis.valchamp)) ? 1 : 0;
+    return (*val <= alis.valnorme && (alis.fview == 0 || *val <= ((s8)xread8(source + ALIS_SCR_WCX2) * wcx + (s8)xread8(source + ALIS_SCR_WCY2) * wcy + (s8)xread8(source + ALIS_SCR_WCZ2) * wcz) * (s32)alis.valchamp)) ? 0 : 1;
 }
 
 void trinorme(int bufidx)
@@ -2364,7 +2364,7 @@ static void cding(void) {
     readexec_opername();
     s16 volson = alis.varD7 << 8;
     readexec_opername();
-    u16 freqson = alis.varD7;
+    u16 freqson = alis.varD7 >> 1;
     readexec_opername();
     u16 longson = alis.varD7;
     if (longson == 0)
@@ -3352,7 +3352,7 @@ static void sound(void) {
             longsam = xpcread32(alis.script->data->data_org + addr + 2) - 0x10;
 
         u32 startsam = alis.script->data->data_org + addr + 0x10;
-        playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam);
+        playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam, priorson);
     }
 }
 
@@ -3380,23 +3380,7 @@ static void credoff(void) {
 
 // Codopname no. 162 opcode 0xa1 cdelsound
 static void cdelsound(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
-    for (int i = 0; i < 4; i++)
-    {
-        audio.channels[i].type = eChannelTypeNone;
-    }
-
-    for (int i = 0; i < 3; i++)
-    {
-        audio.channels[i].type = eChannelTypeNone;
-        audio.channels[i].volume = 0;
-        audio.channels[i].freq = 0;
-        audio.channels[i].curson = 0x80;
-        audio.channels[i].state = 0;
-        audio.channels[i].played = 0;
-        io_canal(&(audio.channels[i]), i);
-    }
+    offsound();
 }
 
 // Codopname no. 163 opcode 0xa2 cwmov

@@ -820,7 +820,7 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     set_0x04_cstart_csleep(script->vram_org, 0xff);
     set_0x1a_cforme(script->vram_org, 0xffff);
     set_0x0e_script_ent(script->vram_org, alis.dernent);
-    set_0x24_scan_inter(script->vram_org, 2);
+    set_0x24_scan_inter(script->vram_org, alis.platform.version >= 31 ? 6 : 2);
     set_0x18_unknown(script->vram_org, 0);
     set_0x0c_vacc_offset(script->vram_org, 0);
     set_0x22_cworld(script->vram_org, 0);
