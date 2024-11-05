@@ -2168,56 +2168,61 @@ static void corient(void) {
 
 // Codopname no. 098 opcode 0x61 csend
 static void csend(void) {
+
     s16 length = script_read8();
 
-    readexec_opername();
+    do {
+        readexec_opername();
+        
+        s16 entry = alis.varD7;
+        if (entry == -1)
+            break;
 
-    s16 entry = alis.varD7;
-    if (entry != -1)
-    {
         s32 vram = xread32(alis.atent + entry);
-        if (vram != 0)
-        {
-            if ((get_0x24_scan_inter(vram) & 1) == 0)
-            {
-                s16 offset = xread16(get_0x14_script_org_offset(vram) + 0x16);
-                s16 limit = alis.platform.version >= 30 ? -0x3f : -0x35;
-                s16 old_val = get_0x1c_scan_clr(vram);
-                s16 new_val;
+        if (vram == 0)
+            break;
 
-                while (true)
-                {
-                    readexec_opername();
-                    
-                    new_val = old_val + 2;
-                    if (limit < new_val)
-                    {
-                        new_val -= offset;
-                    }
-                    
-                    if (new_val == get_0x1e_scan_clr(vram))
-                    {
-                        break;
-                    }
-                    
-                    xwrite16(vram + old_val, alis.varD7);
-                    
-                    old_val = new_val;
-                    length--;
-                    
-                    if (length == -1)
-                    {
-                        set_0x1c_scan_clr(vram, new_val);
-                        set_0x24_scan_inter(vram, get_0x24_scan_inter(vram) | 0x80);
-                        return;
-                    }
-                }
-                
-                set_0x1c_scan_clr(vram, new_val);
+        if ((get_0x24_scan_inter(vram) & 1) != 0)
+            break;
+
+        s16 limit = alis.platform.version >= 30 ? -0x3f : -0x35;
+
+        s16 offset = xread16(get_0x14_script_org_offset(vram) + 0x16);
+        s16 scanclr1 = get_0x1c_scan_clr(vram);
+        s16 scanclr2;
+
+        while (true)
+        {
+            readexec_opername();
+            
+            scanclr2 = scanclr1 + 2;
+            if (limit < scanclr2)
+            {
+                scanclr2 -= offset;
+            }
+            
+            if (scanclr2 == get_0x1e_scan_clr(vram))
+            {
+                length--;
+                break;
+            }
+            
+            xwrite16(vram + scanclr1, alis.varD7);
+
+            scanclr1 = scanclr2;
+            
+            if ((--length) == -1)
+            {
+                set_0x1c_scan_clr(vram, scanclr2);
+                set_0x24_scan_inter(vram, get_0x24_scan_inter(vram) | 0x80);
+                return;
             }
         }
+        
+        set_0x1c_scan_clr(vram, scanclr2);
     }
-    
+    while (false);
+
     while ((length--) != -1) {
         readexec_opername();
     }
