@@ -43,10 +43,7 @@ sAlisError errors[] = {
 };
 
 
-const u32 kControlsTicks        = (1000000 / 120);  // poll keyboard 120 times per second
-const u32 kFrameTicks           = (1000000 / 50);   // 50 fps screen update
-
-const u32 kHostRAMSize          = 1024 * 1024 * 8;
+const u32 kHostRAMSize          = 1024 * 1024 * 2;
 const u32 kVirtualRAMSize       = 0xffff * sizeof(u8);
 
 
@@ -54,7 +51,6 @@ const u32 kVirtualRAMSize       = 0xffff * sizeof(u8);
 // MARK: - Private
 // =============================================================================
 void readexec(sAlisOpcode * table, char * name, u8 identation) {
-    
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
         printf("\n");
@@ -434,8 +430,7 @@ u8 alis_init(sPlatform platform) {
     // init host system stuff
     host.pixelbuf.w = alis.platform.width;
     host.pixelbuf.h = alis.platform.height;
-    host.pixelbuf.data = (u8 *)malloc(host.pixelbuf.w * host.pixelbuf.h);
-    memset(host.pixelbuf.data, 0x0, host.pixelbuf.w * host.pixelbuf.h);
+    host.pixelbuf.data = image.physic;
     host.pixelbuf.palette = image.ampalet;
 
     alis.load_delay = 0;
@@ -447,13 +442,9 @@ u8 alis_init(sPlatform platform) {
     alis.basemain = alis.main->vram_org;
     
     alis.desmouse = NULL;
-    
-    gettimeofday(&alis.frametime, NULL); // TODO: remove system dependencies
-    gettimeofday(&alis.looptime, NULL);
 
     return 0;
 }
-
 
 void alis_deinit(void) {
     // free scripts
@@ -463,7 +454,6 @@ void alis_deinit(void) {
     // }
     
     //vram_deinit(alis.vram);
-    // free(host.pixelbuf.data);
     free(alis.mem);
 }
 
@@ -899,9 +889,8 @@ void alis_load_state(void)
 
     host.pixelbuf.palette = image.ampalet;
 
-    gettimeofday(&alis.frametime, NULL);
-    gettimeofday(&alis.looptime, NULL);
-    
+    sys_init_timers();
+
     sys_enable_mouse(enable_mouse);
     set_update_cursor();
 
@@ -1072,7 +1061,7 @@ void alis_main_V2(void) {
                 alis.fseq++;
                 alis_loop();
                 
-                sleep_until(&alis.looptime, 4000);
+                sys_delay_loop();
                 
                 if (alis.restart_loop == 0)
                 {
@@ -1103,6 +1092,9 @@ void alis_main_V2(void) {
         {
             alis.script = ENTSCR(alis.varD5);
             draw();
+#if ALIS_USE_THREADS <= 0
+            sys_poll_event();
+#endif
         }
     }
 }
@@ -1190,6 +1182,9 @@ void alis_main_V3(void) {
         {
             alis.script = ENTSCR(alis.varD5);
             draw();
+#if ALIS_USE_THREADS <= 0
+            sys_poll_event();
+#endif
         }
     }
 }
@@ -1423,34 +1418,4 @@ FILE *afopen(char *path, u16 openmode)
     }
     
     return alis.fp;
-}
-
-void sleep_until(struct timeval *start, s32 len)
-{
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    
-    s64 wait = len - ((s64)(now.tv_sec * 1000000LL + now.tv_usec) - (s64)(start->tv_sec * 1000000LL + start->tv_usec));
-    if (wait > 0)
-        usleep((u32)wait);
-    
-    gettimeofday(&now, NULL);
-    *start = now;
-}
-
-void sleep_interactive(s32 *loop, s32 intr)
-{
-    struct timeval now, prev;
-    gettimeofday(&prev, NULL);
-
-    while (*loop > intr || (*loop > 0 && io_inkey() == 0))
-    {
-        usleep(kControlsTicks);
-        
-        gettimeofday(&now, NULL);
-        *loop -= ((now.tv_sec * 1000000LL) + now.tv_usec) - ((prev.tv_sec * 1000000LL) + prev.tv_usec);
-        prev = now;
-    }
-    
-    *loop = 0;
 }

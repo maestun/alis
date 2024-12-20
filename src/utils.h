@@ -29,7 +29,7 @@ char *      strarr(char *haystack, const char *needle, int length);
 int         is_host_le(void);
 
 #ifdef _MSC_VER
-#define fileno _fileno
+# define fileno _fileno
 # define strncasecmp _strnicmp
 # define strcasecmp _stricmp
 

@@ -24,12 +24,6 @@
 #include "config.h"
 #include "mem.h"
 
-#ifdef _MSC_VER
-# include "SDL.h"
-#else
-# include <SDL2/SDL.h>
-#endif
-
 #include "emu2149.h"
 
 void mv2_soundrout(void);
@@ -49,8 +43,7 @@ s16 mv2_chipinstr(sChipChannel *chanel, s16 idx);
 void mv2_chipcanal(sChipChannel *chanel, s32 idx);
 u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel);
 
-extern SDL_AudioSpec *_audio_spec;
-extern PSG *_psg;
+extern PSG *audio_psg;
 
 sAudioTrkfrq mv2_trkfrq[7] = {
     { 0xB, 0xA3, 0x1B989B4 },
@@ -196,7 +189,7 @@ void mv2_gomusic(void)
 
 void mv2_calculfrq(void)
 {
-    float ratio = 50000.0f / _audio_spec->freq;
+    float ratio = 50000.0f / audio.host_freq;
     mv2a.frqmod = ratio * 0x48D378;
     mv2a.samples = 0x3E7 / ratio;
 
@@ -794,13 +787,13 @@ f_chiprouttc:
         
         for (int i = 0; i < 13; i++)
         {
-            PSG_writeReg(_psg, chipdata[i * 4], chipdata[4 * i + 2]);
+            PSG_writeReg(audio_psg, chipdata[i * 4], chipdata[4 * i + 2]);
         }
         
         memset(audio.muadresse, 0, audio.mutaloop * 2);
         for (int index = 0; index < audio.mutaloop; index ++)
         {
-            audio.muadresse[index] = PSG_calc(_psg) * 4;
+            audio.muadresse[index] = PSG_calc(audio_psg) * 4;
         }
     }
 }

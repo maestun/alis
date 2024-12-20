@@ -29,6 +29,12 @@
 #include "utils.h"
 #include "video.h"
 
+#if ALIS_SDL_VER < 2
+# include <SDL/SDL.h>
+extern u8 dirty_pal;
+extern SDL_Rect dirty_rects[4096];
+extern int dirty_len;
+#endif
 
 u8 *endframe = NULL;
 
@@ -135,6 +141,23 @@ u8 *fls_decomp(u8 *addr)
         }
     }
     
+#if ALIS_SDL_VER < 2
+    // TODO: SDL1
+    if (dirty_len >= 0)
+    {
+//        if (dirty_len > 2043)
+        {
+            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+            dirty_len = -1;
+        }
+//        else
+//        {
+//            dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
+//            dirty_len++;
+//        }
+    }
+#endif
+    
     return endframe;
 }
 
@@ -174,7 +197,7 @@ u8 *fls_pal(u8 *addr)
     addr += read32(addr);
 
     int c = 0;
-    for (int i = 0; i < 16; i++, palette += 2, c += 3)
+    for (int i = 0; i < 16; i++, palette += 2, c += 4)
     {
         image.mpalet[c + 0] = (palette[0] & 0b00001111) << 4;
         image.mpalet[c + 1] = (palette[1] >> 4) << 4;
@@ -286,13 +309,12 @@ void fli_palette(u8 *addr)
             packets = 1;
         }
 
-        u8 *ptr = image.mpalet + 3 * index;
-        for (int c = 0; c < len; c++)
+        u8 *ptr = image.mpalet + 4 * index;
+        for (int c = 0; c < len; c++, ptr += 4)
         {
             ptr[0] = *(addr) << 2; addr++;
             ptr[1] = *(addr) << 2; addr++;
             ptr[2] = *(addr) << 2; addr++;
-            ptr += 3;
         }
         
         index += len;
@@ -370,6 +392,24 @@ void fli_decomp(u8 *addr, u8 partial)
         
         index += alis.platform.width;
     }
+    
+//#if ALIS_SDL_VER < 2
+    // TODO: SDL1
+//    if (dirty_len >= 0)
+//    {
+////        if (dirty_len > 2043)
+//        {
+//            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+//            dirty_len = -1;
+//        }
+////        else
+////        {
+////            dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
+////            dirty_len++;
+////        }
+//    }
+//#endif
+
 }
 
 void fli_elements(u8 *addr)
@@ -407,6 +447,23 @@ void fli_elements(u8 *addr)
     
     memcpy(image.physic, vgalogic, alis.platform.width*alis.platform.height);
     memcpy(image.logic, vgalogic, alis.platform.width*alis.platform.height);
+    
+#if ALIS_SDL_VER < 2
+    // TODO: SDL1
+    if (dirty_len >= 0)
+    {
+//        if (dirty_len > 2043)
+        {
+            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+            dirty_len = -1;
+        }
+//        else
+//        {
+//            dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
+//            dirty_len++;
+//        }
+    }
+#endif
 }
 
 void fli_init(u8 *flcaddr)
@@ -492,7 +549,12 @@ void runfilm(void)
                 index = 1;
             }
             
-            do { } while (alis.timeclock < (u32)(index + prevclock));
+            do {
+#if ALIS_SDL_VER == 1
+                // TODO: SDL1
+                dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h }; dirty_len = 1; itroutine(20, NULL);
+#endif
+            } while (alis.timeclock < (u32)(index + prevclock));
         }
         
         if (result == 0)

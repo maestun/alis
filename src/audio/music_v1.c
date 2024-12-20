@@ -24,12 +24,6 @@
 #include "config.h"
 #include "mem.h"
 
-#ifdef _MSC_VER
-# include "SDL.h"
-#else
-# include <SDL2/SDL.h>
-#endif
-
 
 void mv1_initchannels(void);
 void mv1_muroutine(void);
@@ -41,8 +35,6 @@ void mv1_calcvolmusic(u16 vol);
 void mv1_setvolmusic(s16 vol);
 void mv1_stopmusic(void);
 
-
-extern SDL_AudioSpec *_audio_spec;
 
 u32 mv1_tabfrq_st[] = {
     0x10000, 0x10000, 0x10000, 0x10000,
@@ -91,7 +83,7 @@ void mv1_gomusic(void)
     mv1a.flag2 = 0;
     mv1a.muspeed = 0;
     
-    float ratio = (48.0 * 200.0) / _audio_spec->freq;
+    float ratio = (48.0 * 200.0) / audio.host_freq;
     for (int i = 0; i < 128; i++)
     {
         mv1a.tabfrq[i] = mv1_tabfrq_st[i] * ratio;

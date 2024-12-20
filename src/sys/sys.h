@@ -27,16 +27,28 @@
 
 
 // =============================================================================
+#pragma mark - Signals
+// =============================================================================
+
+void    sys_errors_init(void);
+void    sys_errors_deinit(void);
+void    signals_info(int signo);
+
+// =============================================================================
 #pragma mark - LIFECYCLE
 // =============================================================================
 typedef void (*vmStep)(void);
-void    sys_errors_init(void);
-void    sys_errors_deinit(void);
 void    sys_main(vmStep fStep);
 void    sys_init(sPlatform *pl, int fullscreen);
 u8      sys_start(void);
+void    sys_poll_event(void);
 void    sys_deinit(void);
 
+void    sys_init_timers(void);
+void    sys_delay_loop(void);
+void    sys_delay_frame(void);
+void    sys_sleep_until_music_stops(void);
+void    sys_sleep_interactive(s32 *loop, s32 intr);
 
 // =============================================================================
 #pragma mark - I/O
@@ -51,7 +63,7 @@ void    sys_set_mouse(u16 x, u16 y);
 void    sys_enable_mouse(u8 enable);
 
 void    set_update_cursor(void);
-void    sys_update_cursor(void);
+void    sys_dirty_mouse(void);
 
 u8      io_getkey(void);
 u8      io_inkey(void);

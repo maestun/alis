@@ -47,9 +47,6 @@
 #endif
 
 
-extern const u32 kControlsTicks;
-extern const u32 kFrameTicks;
-
 extern const u32 kHostRAMSize;
 extern const u32 kVirtualRAMSize;
 
@@ -363,9 +360,6 @@ typedef struct {
     
     u16             basedark;
     u32             ptrdark;
-    
-    struct timeval  frametime;
-    struct timeval  looptime;
 
     u8              swap_endianness;
     
@@ -413,6 +407,3 @@ s32             tabchar(u32 address);
 s32             tabstring(u32 address);
 
 FILE            *afopen(char *path, u16 openmode);
-
-void            sleep_until(struct timeval *start, s32 len);
-void            sleep_interactive(s32 *loop, s32 intr);

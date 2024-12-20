@@ -24,14 +24,6 @@
 #include "channel.h"
 #include "mem.h"
 
-#ifdef _MSC_VER
-# include "SDL.h"
-#else
-# include <SDL2/SDL.h>
-#endif
-
-extern SDL_AudioSpec *_audio_spec;
-
 sAudio audio = {};
 
 void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop, s8 priorson)

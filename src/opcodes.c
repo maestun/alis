@@ -328,15 +328,14 @@ void io_mfree(s32 addr);
 // Codesc1name no. 01 opcode 0x00 -> cnul
 void cnul(void)      {
 
-    if (!VM_IGNORE_ERRORS) {
-        printf("\n");
-        debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
-        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-        alis.state = eAlisStateStopped;
-    }
-    else {
-       debug(EDebugError, "[N/I] cnul: NULL opcode called");
-    }
+#if VM_IGNORE_ERRORS == 0
+    printf("\n");
+   debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
+    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+    alis.state = eAlisStateStopped;
+#else
+   debug(EDebugError, "[N/I] cnul: NULL opcode called");
+#endif
 }
 
 // Opername no. 31 opcode 0x3c -> pnul
@@ -350,11 +349,11 @@ void cnul(void)      {
 void pnul(void)      {
 
     printf("\n");
-    debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
-    if (!VM_IGNORE_ERRORS) {
-        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-        alis.state = eAlisStateStopped;
-    }
+   debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
+#if VM_IGNORE_ERRORS == 0
+    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+    alis.state = eAlisStateStopped;
+#endif
 }
 
 // Ishar 3 Korean (IBM PC):
@@ -367,15 +366,14 @@ void pnul(void)      {
 // tcodop_FD: cchartmap => map_cnul
 void map_cnul(void)      {
 
-    if (!VM_IGNORE_ERRORS) {
-        printf("\n");
-        debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
-        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-        alis.state = eAlisStateStopped;
-    }
-    else {
-       debug(EDebugError, "[N/I] cnul for map opcodes: NULL opcode called");
-    }
+#if VM_IGNORE_ERRORS == 0
+    printf("\n");
+   debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
+    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+    alis.state = eAlisStateStopped;
+#else
+    debug(EDebugError, "[N/I] cnul for map opcodes: NULL opcode called");
+#endif
 }
 
 // ============================================================================
@@ -694,7 +692,9 @@ static void cswitch1(void) {
         test = script_read16();
         if (alis.varD7 == test)
         {
-            alis.script->pc += script_read16();
+//            alis.script->pc += script_read16();
+            s16 offset = script_read16();
+            alis.script->pc += offset;
             return;
         }
         
@@ -723,7 +723,9 @@ static void cswitch2(void) {
     {
         alis.varD7 *= 2;
         alis.script->pc += alis.varD7;
-        alis.script->pc += script_read16();
+        addition = script_read16();
+        alis.script->pc += addition;
+//        alis.script->pc += script_read16();
     }
     else
     {
@@ -960,7 +962,7 @@ static void cunload(void) {
             debug(EDebugVerbose, "\n (NAME: %s, ID: 0x%x ORG: 0x%x (0x%x) SZ: %d (%d)) \n", script->name, script->header.id, script->data_org, data_org, script->sz, data_end - data_org);
             
             // NOTE: interuptable delay to make everything work more like on original platforms
-            sleep_interactive(&alis.unload_delay, alis.unload_delay - 100000);
+            sys_sleep_interactive(&alis.unload_delay, alis.unload_delay - 100);
 
             shrinkprog(data_org, data_end - data_org, id);
         }
@@ -1085,7 +1087,7 @@ void clivin(void)
 
             if (alis.maxent < alis.nbent)
             {
-                debug(EDebugFatal, "ERROR: Exceeded number of scripts slots!\n");
+               debug(EDebugFatal, "ERROR: Exceeded number of scripts slots!\n");
                 return;
             }
         }
@@ -1134,7 +1136,7 @@ static void cexit(void) {
 static void cload(void) {
 
     // NOTE: interuptable delay to make everything work more like on original platforms
-    sleep_interactive(&alis.load_delay, alis.load_delay - 100000);
+    sys_sleep_interactive(&alis.load_delay, alis.load_delay - 100);
 
     // get script ID
     u16 id = script_read16();
@@ -2697,19 +2699,14 @@ static void cfwriteb(void) {
     }
 }
 
+
 s16 adptsin[2];
-
-void plot(s16 x0, s16 y0)
-{
-    image.logic[x0 + y0 * alis.platform.width] = image.inkcolor;
-}
-
 void SYS_PutPixel(void)
 {
     adptsin[0] = alis.poldx;
     adptsin[1] = alis.poldy;
     
-    plot(alis.poldx, alis.poldy);
+    draw_pixel(alis.poldx, alis.poldy);
 }
 
 // Codopname no. 122 opcode 0x79 cplot
@@ -2723,73 +2720,6 @@ static void cplot(void) {
     SYS_PutPixel();
 }
 
-void io_drawline(s16 x0, s16 y0, s16 x1, s16 y1)
-{
-    s32 dx = abs(x1 - x0);
-    s32 sx = x0 < x1 ? 1 : -1;
-    s32 dy = -abs(y1 - y0);
-    s32 sy = y0 < y1 ? 1 : -1;
-    s32 error = dx + dy;
-    
-    while (true)
-    {
-        plot(x0, y0);
-        if (x0 == x1 && y0 == y1)
-            break;
-            
-        s32 e2 = 2 * error;
-        if (e2 >= dy)
-        {
-            if (x0 == x1)
-                break;
-                
-            error += dy;
-            x0 += sx;
-        }
-        
-        if (e2 <= dx)
-        {
-            if (y0 == y1)
-                break;
-            
-            error += dx;
-            y0 += sy;
-        }
-    }
-}
-
-void io_box(s16 x1,s16 y1,s16 x2,s16 y2)
-{
-    if (alis.platform.kind == EPlatformMac)
-    {
-        mac_update_pos(&x1, &y1);
-        mac_update_pos(&x2, &y2);
-    }
-
-    io_drawline(x1, y1, x2, y1);
-    io_drawline(x2, y1, x2, y2);
-    io_drawline(x2, y2, x1, y2);
-    io_drawline(x1, y2, x1, y1);
-}
-
-void io_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
-{
-    if (alis.platform.kind == EPlatformMac)
-    {
-        mac_update_pos(&x1, &y1);
-        mac_update_pos(&x2, &y2);
-    }
-    
-    s16 tmpx = min(x1, x2);
-    x2 = max(x1, x2);
-    x1 = tmpx;
-    tmpx = x2 - x1;
-    for (s16 y = y1; y <= y2; y++)
-    {
-        memset(image.logic + x1 + y * alis.platform.width, image.inkcolor, tmpx);
-    }
-}
-
 // Codopname no. 123 opcode 0x7a cdraw
 static void cdraw(void) {
     readexec_opername();
@@ -2801,7 +2731,7 @@ static void cdraw(void) {
     alis.poldx += alis.varD7;
     alis.poldy += alis.varD6;
     
-    io_drawline(oldx, oldy, alis.poldx, alis.poldy);
+    draw_line(oldx, oldy, alis.poldx, alis.poldy);
 }
 
 // Codopname no. 124 opcode 0x7b cbox
@@ -2815,7 +2745,7 @@ static void cbox(void) {
     alis.poldx += alis.varD7;
     alis.poldy += alis.varD6;
 
-    io_box(oldx, oldy, alis.poldx, alis.poldy);
+    draw_box(oldx, oldy, alis.poldx, alis.poldy);
 }
 
 // Codopname no. 125 opcode 0x7c cboxf
@@ -2829,7 +2759,7 @@ static void cboxf(void) {
     alis.poldx += alis.varD7;
     alis.poldy += alis.varD6;
 
-    io_boxf(oldx, oldy, alis.poldx, alis.poldy);
+    draw_boxf(oldx, oldy, alis.poldx, alis.poldy);
 }
 
 // Codopname no. 126 opcode 0x7d cink
@@ -3816,15 +3746,15 @@ static void cmovcolor(void) {
         {
             change = -change;
  
-            image.mpalet[index * 3 + 0] = subcol(change       , image.mpalet[index * 3 + 0] >> 5) << 5;
-            image.mpalet[index * 3 + 0] = subcol(change >> 4  , image.mpalet[index * 3 + 0] >> 5) << 5;
-            image.mpalet[index * 3 + 0] = subcol(change >> 8  , image.mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 0] = subcol(change       , image.mpalet[index * 4 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 0] = subcol(change >> 4  , image.mpalet[index * 4 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 0] = subcol(change >> 8  , image.mpalet[index * 4 + 0] >> 5) << 5;
         }
         else
         {
-            image.mpalet[index * 3 + 0] = addcol(change       , image.mpalet[index * 3 + 0] >> 5) << 5;
-            image.mpalet[index * 3 + 0] = addcol(change >> 4  , image.mpalet[index * 3 + 0] >> 5) << 5;
-            image.mpalet[index * 3 + 0] = addcol(change >> 8  , image.mpalet[index * 3 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 0] = addcol(change       , image.mpalet[index * 4 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 0] = addcol(change >> 4  , image.mpalet[index * 4 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 0] = addcol(change >> 8  , image.mpalet[index * 4 + 0] >> 5) << 5;
         }
         
         image.ftopal = 0xff;
@@ -6690,20 +6620,7 @@ void killent(u16 killent)
     sAlisScriptLive *script = ENTSCR(killent);
     if (script->data->header.id == audio.musicId)
     {
-        audio.working = 1;
-
-        for (int count = 0; count < 1000 && audio.muflag; count++)
-        {
-            usleep(1000);
-        }
-
-        audio.muflag = 0;
-        audio.musicId = 0xffff;
-
-        while (audio.working)
-        {
-            usleep(1000);
-        }
+        sys_sleep_until_music_stops();
     }
     
     s32 vram = xread32(alis.atent + killent);

@@ -187,7 +187,7 @@ sPlatform* pl_guess(const char * path, int mode) {
     closedir(dir);
     if(platform->kind == EPlatformUnknown)
     {
-       debug(EDebugFatal, "Platform is unknown, unsupported or main file is not found.\n");
+      debug(EDebugFatal, "Platform is unknown, unsupported or main file is not found.\n");
     }
     return platform;
 }

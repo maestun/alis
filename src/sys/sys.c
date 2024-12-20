@@ -19,13 +19,7 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#ifdef _MSC_VER
-# include "SDL.h"
-# include "SDL_thread.h"
-#else
-# include <SDL2/SDL.h>
-# include <SDL2/SDL_thread.h>
-#endif
+#include "config.h"
 
 #include "sys.h"
 #include "alis.h"
@@ -46,107 +40,107 @@
 
 #define ALIS_SND_INTERPOLATE_TYPE 1
 
+extern const u32 k_event_ticks;
+extern const u32 k_frame_ticks;
 
-u8 joystick0 = 0;
-u8 joystick1 = 0;
-u8 shift = 0;
-SDL_Keysym button = { 0, 0, 0, 0 };
+#if ALIS_SDL_VER == 1
 
-mouse_t _mouse;
+#include <SDL/SDL.h>
 
-SDL_Renderer *  _renderer;
-SDL_TimerID     _timerID;
-SDL_Window *    _window;
-SDL_Event       _event;
-Uint32 *        _pixels;
-SDL_Texture *   _texture;
-SDL_Cursor *    _cursor;
-bool            _update_cursor;
-float           _scale = 2;
-float           _aspect_ratio = 1.2;
-float           _scaleX;
-float           _scaleY;
-u32             _width = 320;
-u32             _height = 200;
-SDL_sem *       _render_sem = NULL;
+SDL_keysym      button = { 0, 0, 0, 0 };
+SDL_Rect        dirty_rects[2048];
+SDL_Rect        dirty_mouse_rect;
 
-int             _audio_id;
-SDL_AudioSpec   *_audio_spec;
-PSG             *_psg;
+#define SDLK_KP_0   SDLK_KP0
+#define SDLK_KP_1   SDLK_KP1
+#define SDLK_KP_2   SDLK_KP2
+#define SDLK_KP_3   SDLK_KP3
+#define SDLK_KP_4   SDLK_KP4
+#define SDLK_KP_5   SDLK_KP5
+#define SDLK_KP_6   SDLK_KP6
+#define SDLK_KP_7   SDLK_KP7
+#define SDLK_KP_8   SDLK_KP8
+#define SDLK_KP_9   SDLK_KP9
+
+#define SDL_GetKeyboardState    SDL_GetKeyState
+#define sys_sleep(t) SDL_Delay(t); sys_poll_event();
+
+#elif ALIS_SDL_VER == 2
+
+#ifdef _MSC_VER
+# include "SDL.h"
+# include "SDL_thread.h"
+#else
+# include <SDL2/SDL.h>
+# include <SDL2/SDL_thread.h>
+#endif
+
+SDL_Renderer    *renderer;
+SDL_Texture     *texture;
+SDL_Window      *window;
+SDL_Cursor      *cursor;
+SDL_Keysym      button = { 0, 0, 0, 0 };
+SDL_TimerID     timer_id;
+SDL_sem         *render_sem = NULL;
+
+#define sys_sleep(t) usleep(t)
+
+#endif
+
+SDL_Event       event;
+
+u8              joystick0 = 0;
+u8              joystick1 = 0;
+u8              shift = 0;
+
+mouse_t         mouse;
+
+bool            dirty_mouse;
+float           scale = 2;
+float           aspect_ratio = 1.2;
+float           scale_x;
+float           scale_y;
+u32             width = 320;
+u32             height = 200;
+
+int             audio_id;
+SDL_AudioSpec   *audio_spec;
+PSG             *audio_psg;
 
 extern u8       fls_ham6;
 extern u8       fls_s512;
 extern u8       *vgalogic_df;
 
-u8              global_failure;
+u8              failure;
 
-double isr_step;
-double isr_counter;
+u32             poll_ticks;
+struct timeval  frame_time;
+struct timeval  loop_time;
+
+double          isr_step;
+double          isr_counter;
+
+//static u32      samplelength = 0;
+//static u8       *samplebuffer[1024 * 1024 * 4];
+
 
 u8 giaccess(s8 cmd, u8 data, u8 ch);
 bool priorblanc(sChannel *channel);
 u8 pblanc10(sChannel *a0, u8 d1b);
 
-void sys_audio_callback(void *userdata, Uint8 *stream, int len);
+void sys_audio_callback(void *userdata, u8 *stream, s32 len);
 
 // ============================================================================
 #pragma mark - Signals
 // ============================================================================
 
-void signals_info(int signo) {
-
-    if (signo == 0) return;
-
-    printf("\n");
-    switch (signo) {
-        case SIGSEGV:
-        {
-            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGSEGV: Invalid memory access (segmentation fault).\n");
-            break;
-        }
-        case SIGABRT:
-        {
-            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGABRT: Abnormal termination.\n");
-            break;
-        }
-        case SIGFPE:
-        {
-            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGFPE: Erroneous arithmetic operation.\n");
-            break;
-        }
-        case SIGINT:
-        {
-            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGINT: External interrupt.\n");
-            break;
-        }
-        case SIGTERM:
-        {
-            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGTERM: Termination request.\n");
-            break;
-        }
-        case SIGILL:
-        {
-            debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGILL: Invalid program image.\n");
-            break;
-        }
-        default:
-            if (disalis) {
-                debug(EDebugFatal, "FATAL ERROR: An unidentified error %d occurred.\n", signo);
-            }
-            else {
-                debug(EDebugFatal, "An unidentified error %d occurred.\n", signo);
-            } 
-        }
-    debug(EDebugSystem, "A STOP signal has been sent to the host system queue...\n");
-}
-
 void signals_handler(int signo) {
 
-    if (signo>0) { 
-        global_failure = signo;
+    if (signo>0) {
+        failure = signo;
     }
     else {
-        global_failure = 1;
+        failure = 1;
     }
     alis.state = eAlisStateStopped;
 
@@ -156,7 +150,7 @@ void signals_handler(int signo) {
 
 void sys_errors_init(void) {
 
-    global_failure = 0;
+    failure = 0;
     signal(SIGSEGV, signals_handler);
     signal(SIGABRT, signals_handler);
     signal(SIGFPE,  signals_handler);
@@ -179,482 +173,53 @@ void sys_errors_deinit(void) {
     signal(SIGILL,  SIG_DFL);
 }
 
-// ============================================================================
-#pragma mark - System init
-// ============================================================================
+void signals_info(int signo) {
 
-void sys_init(sPlatform *pl, int fullscreen) {
+    if (signo == 0) return;
 
-    _width = pl->width;
-    _height = pl->height;
-    
-    _scaleX = _scale;
-    _scaleY = _scale * _aspect_ratio;
-    
-    printf("  SDL initialization...\n");
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)<0) {
-        fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
-        exit(-1);
-    }
-    
-    _timerID = SDL_AddTimer(20, itroutine, NULL);
-    if (!_timerID) {
-        fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
-        exit(-1);
-    }
-    
-    printf("  Video initialization...\n");
-    _window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width * _scaleX, _height * _scaleY, SDL_WINDOW_RESIZABLE | fullscreen * SDL_WINDOW_FULLSCREEN_DESKTOP);
-    if (_window == NULL) {
-        fprintf(stderr, "   Could not create %.0fx%.0f window: %s\n", (_width * _scaleX), (_height * _scaleY), SDL_GetError());
-        exit(-1);
-    }
-    
-    _renderer = SDL_CreateRenderer(_window, -1, 0);
-    if (_renderer == NULL) {
-        fprintf(stderr, "   Could not create renderer: %s\n", SDL_GetError());
-        SDL_DestroyWindow(_window);
-        exit(-1);
-    }
-    
-    SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
-    SDL_RenderSetScale(_renderer, _scale, _scale);
-    SDL_RenderSetLogicalSize(_renderer, _width, _height * _aspect_ratio);
-    
-    _pixels = malloc(_width * _height * sizeof(*_pixels));
-    memset(_pixels, 0, _width * _height * sizeof(*_pixels));
-    
-    _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, _width, _height);
-    if (_texture == NULL) {
-        fprintf(stderr, "   Could not create texture: %s\n", SDL_GetError());
-        SDL_DestroyRenderer(_renderer);
-        SDL_DestroyWindow(_window);
-        exit(-1);
-    }
-    
-    SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_NONE);
-    
-    _cursor = NULL;
-    _update_cursor = 0;
-    
-    printf("  Audio initialization...\n");
-    _audio_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
-    
-    SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
-    
-    SDL_zero(*desired_spec);
-    desired_spec->freq = 44100;
-    desired_spec->format = AUDIO_S16;
-    desired_spec->channels = 1;
-    desired_spec->samples = desired_spec->freq / 50; // 20 ms
-    desired_spec->callback = sys_audio_callback;
-    desired_spec->userdata = NULL;
-    desired_spec->size = desired_spec->samples * 2;
-    
-    if ((_audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, _audio_spec, 0)) <= 0 ) {
-        fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
-        exit(-1);
-    }
-    
-    // Extended information on obtained audio for tests and reports
-    printf("  Opened audio device id %d successfully:\n", _audio_id);
-    printf("    Frequency:  %d\n", _audio_spec->freq);
-    printf("    Format:     0x%04x => %d bits per sample\n", _audio_spec->format, (int) SDL_AUDIO_BITSIZE(_audio_spec->format));
-    printf("    Channels:   %d\n", _audio_spec->channels);
-    printf("    Samples:    %d\n", _audio_spec->samples);
-    printf("    Silence:    %d\n", _audio_spec->silence);
-    printf("    Padding:    %d\n", _audio_spec->padding);
-    printf("    Size:       %d\n", _audio_spec->size);
-    
-    free(desired_spec);
-    
-    _psg = PSG_new(2000000, _audio_spec->freq);
-    PSG_setClockDivider(_psg, 1);
-    PSG_setVolumeMode(_psg, 1); // YM style
-    PSG_setQuality(_psg, 1);
-    PSG_reset(_psg);
-    
-    isr_step = (double)50.0 / (double)(_audio_spec->freq);
-    isr_counter = 1;
-    
-    SDL_PauseAudioDevice(_audio_id, 0);
-    
-    _render_sem = SDL_CreateSemaphore(1);
-    if (_render_sem == NULL) {
-        fprintf(stderr, "   Could not create semaphore: %s\n", SDL_GetError());
-        exit(-1);
-    };
-}
-
-// ============================================================================
-#pragma mark - Main system loop
-// ============================================================================
-
-u8 sys_start(void) {
-
-    if (global_failure) return -1;
-
-    alis.state = eAlisStateRunning;
-
-    SDL_Thread *thread = SDL_CreateThread(alis_thread, "ALIS", (void *)NULL);
-    if (thread == NULL) {
-        printf("Could not create thread! %s\n", SDL_GetError());
-        return 1;
-    }
-    
-    while (alis.state && !global_failure) {
-
-        // wait so image is drawn and keyboard is polled at 120 fps
-        usleep(kControlsTicks);
-        
-        sys_render(host.pixelbuf);
-        
-        SDL_PollEvent(&_event);
-
-        // update mouse
-        u32 bt = SDL_GetMouseState(&_mouse.x, &_mouse.y);
-        
-        float newx, newy;
-        SDL_RenderWindowToLogical(_renderer, _mouse.x, _mouse.y, &newx, &newy);
-        
-        _mouse.x = newx;
-        _mouse.y = newy / _aspect_ratio;
-        _mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
-        _mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
-        
-        switch (_event.type) {
-                
-            case SDL_QUIT:
-            {
-                printf("\n");
-                debug(EDebugSystem, "SDL2: Quit.\n");
-                debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-                alis.state = eAlisStateStopped;
-                break;
-            }
-            case SDL_KEYUP:
-            {
-                switch (_event.key.keysym.sym)
-                {
-                    case SDLK_LALT:
-                        printf("\n");
-                        debug(EDebugSystem, "INTERRUPT: User debug label.\n");
-                        break;
-
-                    case SDLK_F11:
-                        alis.state = eAlisStateSave;
-                        break;
-
-                    case SDLK_F12:
-                        alis.state = eAlisStateLoad;
-                        break;
-                        
-                    default:
-                        break;
-                }
-
-                break;
-            }
-            case SDL_KEYDOWN:
-            {
-                if (_event.key.keysym.mod == KMOD_RSHIFT || _event.key.keysym.mod == KMOD_LSHIFT)
-                {
-                    shift = 1;
-                }
-
-                if (_event.key.keysym.sym == SDLK_F11 || _event.key.keysym.sym == SDLK_F12)
-                {
-                    break;
-                }
-
-                if (_event.key.keysym.sym == SDLK_PAUSE)
-                {
-                    printf("\n");
-                    debug(EDebugSystem, "INTERRUPT: Quit by user request.\n");
-                    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-                    alis.state = eAlisStateStopped;
-                }
-                else
-                {
-                    button = _event.key.keysym;
-                }
-                
-                break;
-            }
-            case SDL_WINDOWEVENT:
-            {
-                if (_event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-                {
-                    SDL_RenderGetScale(_renderer, &_scaleX, &_scaleY);
-                    _scaleY *= _aspect_ratio;
-                    
-                    _update_cursor = true;
-                }
-                
-                break;
-            }
-        };
-    }
-
-    signals_info(global_failure);
-    if (!global_failure) {
-         debug(EDebugInfo, "Waiting for the VM kernel thread to finish...\n");
-         SDL_WaitThread(thread, NULL);
-         } 
-         else {
-                debug(EDebugSystem, "Ignoring the crashed VM kernel thread...\n");
-              }
-
-    return 0;
-}
-
-// ============================================================================
-#pragma mark - Video
-// ============================================================================
-
-void sys_render(pixelbuf_t buffer) {
-    
-    SDL_SemWait(_render_sem);
-    
-    if (_update_cursor)
-    {
-        _update_cursor = false;
-        sys_update_cursor();
-    }
-
-    if (fls_ham6)
-    {
-        u8 *bitmap = vgalogic_df + 0xa0;
-    
-        // Amiga HAM bitplanes
-        
-        u32 px = 0;
-        u32 planesize = (buffer.w * buffer.h) / 8;
-        u8 c0, c1, c2, c3, c4, c5;
-        u8 r = 0;
-        u8 g = 0;
-        u8 b = 0;
-
-        for (s32 h = 0; h < buffer.h; h++)
+    printf("\n");
+    switch (signo) {
+        case SIGSEGV:
         {
-            u8 *tgt = buffer.data + (h * buffer.w);
-            for (s32 w = 0; w < buffer.w; w++, tgt++, px++)
-            {
-                s32 idx = (w + h * buffer.w) / 8;
-                c0 = *(bitmap + idx);
-                c1 = *(bitmap + (idx += planesize));
-                c2 = *(bitmap + (idx += planesize));
-                c3 = *(bitmap + (idx += planesize));
-                c4 = *(bitmap + (idx += planesize));
-                c5 = *(bitmap + (idx += planesize));
-
-                int bit = 7 - (w % 8);
-                
-                int control = ((c4 >> bit) & 1) << 0 | ((c5 >> bit) & 1) << 1;
-                int index = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3;
-
-                switch (control) {
-                    case 0:
-                        r = buffer.palette[index * 3 + 0];
-                        g = buffer.palette[index * 3 + 1];
-                        b = buffer.palette[index * 3 + 2];
-                        break;
-                    case 1:
-                        b = index << 4;
-                        break;
-                    case 2:
-                        r = index << 4;
-                        break;
-                    case 3:
-                        g = index << 4;
-                        break;
-                }
-
-                _pixels[px] = (u32)(0xff000000 + (r << 16) + (g << 8) + (b << 0));
+           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGSEGV: Invalid memory access (segmentation fault).\n");
+            break;
+        }
+        case SIGABRT:
+        {
+           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGABRT: Abnormal termination.\n");
+            break;
+        }
+        case SIGFPE:
+        {
+           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGFPE: Erroneous arithmetic operation.\n");
+            break;
+        }
+        case SIGINT:
+        {
+           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGINT: External interrupt.\n");
+            break;
+        }
+        case SIGTERM:
+        {
+           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGTERM: Termination request.\n");
+            break;
+        }
+        case SIGILL:
+        {
+           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGILL: Invalid program image.\n");
+            break;
+        }
+        default:
+            if (disalis) {
+               debug(EDebugFatal, "FATAL ERROR: An unidentified error %d occurred.\n", signo);
+            }
+            else {
+               debug(EDebugFatal, "An unidentified error %d occurred.\n", signo);
             }
         }
-
-        SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
-
-        // render
-        SDL_SetRenderDrawColor(_renderer, 255, 0, 0, 255);
-        SDL_RenderClear(_renderer);
-        SDL_RenderCopy(_renderer, _texture, NULL, NULL);
-        SDL_RenderPresent(_renderer);
-    }
-    else if (fls_s512)
-    {
-        u8 *bitmap = vgalogic_df + 0xa0;
-
-        // Atari ST Spectrum 512 bitplanes
-        
-        u16 curpal[16];
-        memcpy(curpal, vgalogic_df + 32000, 32);
-
-        // s16 pallines = 0xc5 - fls_pallines;
-
-        u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
-
-        // ST scanline width 48 + 320 + 44 (412)
-        // change palette every 412 / 48 ?
-        float pxs = 9.6;
-
-        int limit0 = -4;
-        int limit1 = 156;
-        
-        u32 px = 0;
-        u32 at = 0;
-
-        u32 palidx;
-        u8 *rawcolor;
-        u8 r, g, b;
-        
-        for (int y = 0; y < buffer.h; y++, palette += 16)
-        {
-            int lpx = 0;
-            
-            for (int x = 0; x < buffer.w; x+=16, at+=8)
-            {
-                for (int dpx = 0; dpx < 8; dpx++, lpx++, px++)
-                {
-                    // handle palette for the fist 8 pixels
-                    
-                    if (lpx >= limit0)
-                    {
-                        if (lpx == limit1)
-                        {
-                            palette += 16;
-                        }
-                        
-                        palidx = lpx < limit1 ? (lpx - limit0) / pxs : (lpx - limit1) / pxs;
-                        if (palidx < 16)
-                        {
-                            curpal[palidx] = palette[palidx];
-                        }
-                    }
-                    
-                    u32 rot = (7 - dpx);
-                    u32 mask = 1 << rot;
-                    
-                    rawcolor = (u8 *)&(curpal[(((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3)]);
-                    r = (rawcolor[0] & 0b00000111) << 5;
-                    g = (rawcolor[1] >> 4) << 5;
-                    b = (rawcolor[1] & 0b00000111) << 5;
-                    _pixels[px] = (u32)(0xff000000 + (r << 16) + (g << 8) + (b << 0));
-                }
-                
-                for (int dpx = 0; dpx < 8; dpx++, lpx++, px++)
-                {
-                    // handle palette for the second 8 pixels
-                    
-                    if (lpx >= limit0)
-                    {
-                        if (lpx == limit1)
-                        {
-                            palette += 16;
-                        }
-                        
-                        palidx = lpx < limit1 ? (lpx - limit0) / pxs : (lpx - limit1) / pxs;
-                        if (palidx < 16)
-                        {
-                            curpal[palidx] = palette[palidx];
-                        }
-                    }
-                    
-                    u32 rot = (7 - dpx);
-                    u32 mask = 1 << rot;
-                    
-                    rawcolor = (u8 *)&(curpal[(((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3)]);
-                    r = (rawcolor[0] & 0b00000111) << 5;
-                    g = (rawcolor[1] >> 4) << 5;
-                    b = (rawcolor[1] & 0b00000111) << 5;
-                    _pixels[px] = (u32)(0xff000000 + (r << 16) + (g << 8) + (b << 0));
-                }
-            }
-            
-            palette += 16;
-            memcpy(curpal, palette, 32);
-        }
-
-        SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
-
-        // render
-        SDL_RenderClear(_renderer);
-        SDL_RenderCopy(_renderer, _texture, NULL, NULL);
-        SDL_RenderPresent(_renderer);
-    }
-    else
-    {
-        if (image.flinepal == 0)
-        {
-            int index;
-            for (int px = 0; px < buffer.w * buffer.h; px++)
-            {
-                index = buffer.data[px];
-                _pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 3 + 0] << 16) + (buffer.palette[index * 3 + 1] << 8) + (buffer.palette[index * 3 + 2] << 0));
-            }
-        }
-        else
-        {
-            s16 *palentry = image.firstpal;
-            
-            for (int i = 0; i < 3; i++)
-            {
-                s16 unk1 = palentry[0];
-                if (unk1 == 0xff)
-                    break;
-                
-                s16 y1 = palentry[1];
-                u8 *palette = *(u8 **)&(palentry[2]);
-                
-                palentry += 2 + (sizeof(u8 *) >> 1);
-                s16 y2 = palentry[0] == 0xff ? _height : min(palentry[1], _height);
-                
-                int index;
-                for (int y = y1; y < y2; y++)
-                {
-                    s32 px = y * buffer.w;
-                    for (int x = 0; x < buffer.w; x++, px++)
-                    {
-                        index = buffer.data[px];
-                        _pixels[px] = (u32)(0xff000000 + (palette[index * 3 + 0] << 16) + (palette[index * 3 + 1] << 8) + (palette[index * 3 + 2] << 0));
-                    }
-                }
-            }
-        }
-        
-        SDL_UpdateTexture(_texture, NULL, _pixels, _width * sizeof(*_pixels));
-        
-        // render
-        SDL_RenderClear(_renderer);
-        SDL_RenderCopy(_renderer, _texture, NULL, NULL);
-        SDL_RenderPresent(_renderer);
-    }
-    
-    SDL_SemPost(_render_sem);
+    debug(EDebugSystem, "A STOP signal has been sent to the host system queue...\n");
 }
 
-// ============================================================================
-#pragma mark - System deinit
-// ============================================================================
-
-void sys_deinit(void) {
-    
-    SDL_RemoveTimer(_timerID);
-    SDL_PauseAudioDevice(_audio_id, 1);
-    SDL_CloseAudioDevice(_audio_id);
-    SDL_DestroySemaphore(_render_sem);
-    
-    SDL_Delay(20);   // 20ms fail-safe delay to make sure that sound buffer is empty
-
-    PSG_delete(_psg);
-    free(_audio_spec);
-
-//   SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(_renderer);
-    SDL_DestroyWindow(_window);
-    SDL_Quit();
-}
 
 // ============================================================================
 #pragma mark - Audio
@@ -687,9 +252,6 @@ float interpolate_hermite(float x0, float x1, float x2, float x3, float t)
     float c2 = -(2 * diff + c1 + c3);
     return 0.5f * ((c3 * t + c2) * t + c1) * t + x1;
 }
-
-static u32 samplelength = 0;
-static u8 *samplebuffer[1024 * 1024 * 4];
 
 bool priorblanc(sChannel *channel)
 {
@@ -745,13 +307,13 @@ u8 giaccess(s8 cmd, u8 data, u8 ch)
     u8 regval = cmd & 0xf;
     if ((regval < 0xe) && (cmd < 0))
     {
-        PSG_writeReg(_psg, regval, data);
+        PSG_writeReg(audio_psg, regval, data);
     }
 
-    return PSG_readReg(_psg, regval);
+    return PSG_readReg(audio_psg, regval);
 }
 
-void sys_audio_callback(void *userdata, Uint8 *s, int length)
+void sys_audio_callback(void *userdata, u8 *s, s32 length)
 {
     // TODO: create channels structure holding info about sounds to be played
     // type: (smaple, sound, noise, ...)
@@ -846,7 +408,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
                 {
                     case eChannelTypeSample:
                     {
-                        ratio = (float)(ch->freq) / (float)(_audio_spec->freq);
+                        ratio = (float)(ch->freq) / (float)(audio_spec->freq);
                         volratio = ((float)(ch->volume) / 128.0) / 4;
                         
 #if ALIS_SND_INTERPOLATE_TYPE > 0
@@ -987,7 +549,7 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
                         break;
                 }
                 
-                s32 s0 = PSG_calc(_psg);
+                s32 s0 = PSG_calc(audio_psg);
                 s32 s1 = strm[p] - 0x8000;
                 
                 s32 val = (strm[p] + ((s0 + s1) + 0x8000)) / 2;
@@ -1026,186 +588,48 @@ void sys_audio_callback(void *userdata, Uint8 *s, int length)
 // =============================================================================
 
 mouse_t sys_get_mouse(void) {
-    return _mouse;
+    return mouse;
 }
 
 void sys_set_mouse(u16 x, u16 y) {
-    _mouse.x = x;
-    _mouse.y = y;
+    mouse.x = x;
+    mouse.y = y;
 }
 
 void sys_enable_mouse(u8 enable) {
-    _mouse.enabled = enable;
+    mouse.enabled = enable;
 
-    if (!_mouse.enabled)
+    if (!mouse.enabled)
         alis.desmouse = NULL;
     
-    _update_cursor = true;
+    dirty_mouse = true;
 }
 
 void set_update_cursor(void) {
     
-    _update_cursor = true;
-}
-
-void sys_update_cursor(void) {
-    
-    if (alis.desmouse == NULL)
-    {
-        SDL_ShowCursor(_mouse.enabled);
-        return;
-    }
-    
-    u8 type = alis.desmouse[0];
-    u16 width = read16(alis.desmouse + 2) + 1;
-    u16 height = read16(alis.desmouse + 4) + 1;
-    
-    u32 *pixels = malloc(width * height * sizeof(u32));
-
-    switch (type)
-    {
-        case 0x00:
-        case 0x02:
-        {
-            u8 *palette = host.pixelbuf.palette;
-
-            if (image.flinepal)
-            {
-                s16 *palentry = image.firstpal;
-
-                for (int i = 0; i < 3; i++)
-                {
-                    s16 unk1 = palentry[0];
-                    if (unk1 == 0xff)
-                        break;
-
-                    palette = *(u8 **)&(palentry[2]);
-                    palentry += 2 + (sizeof(u8 *) >> 1);
-                }
-            }
-            
-            // ST image
-            
-            u8 color;
-            u8 clear = type == 0 ? 0 : -1;
-            
-            u8 *at = alis.desmouse + 6;
-
-            s32 px = 0;
-            for (s32 h = 0; h < height; h++)
-            {
-                for (s32 w = 0; w < width; w++, px++)
-                {
-                    s16 wh = w / 2;
-                    color = *(at + wh + h * (width / 2));
-                    color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                    pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (palette[color * 3 + 0] << 16) + (palette[color * 3 + 1] << 8) + (palette[color * 3 + 2] << 0));
-                }
-            }
-            
-            break;
-        }
-            
-        case 0x10:
-        case 0x12:
-        {
-            // 4 bit image
-            u8 palidx = alis.desmouse[6];
-            u8 clear = alis.desmouse[0] == 0x10 ? alis.desmouse[7] : -1;
-            u8 *at = alis.desmouse + 8;
-            u8 color;
-
-            s32 px = 0;
-            for (s32 h = 0; h < width; h++)
-            {
-                for (s32 w = 0; w < height; w++, px++)
-                {
-                    s16 wh = w / 2;
-                    color = *(at + wh + h * (width / 2));
-                    color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                    int index = palidx + color;
-                    pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (host.pixelbuf.palette[index * 3 + 0] << 16) + (host.pixelbuf.palette[index * 3 + 1] << 8) + (host.pixelbuf.palette[index * 3 + 2] << 0));
-                }
-            }
-            break;
-        }
-
-            
-        case 0x14:
-        case 0x16:
-        {
-            // 8 bit image
-            
-            u8 color;
-
-            // Ishar 1 & 3
-            u8 clear = 0;
-
-            if (alis.platform.uid == EGameIshar_2)
-            {
-                // Ishar 2
-                clear = alis.desmouse[0] == 0x14 ? alis.desmouse[7] : -1;
-            }
-            
-            u8 *at = alis.desmouse + 8;
-
-            for (int px = 0; px < width * height; px++)
-            {
-                color = at[px];
-                pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (host.pixelbuf.palette[color * 3 + 0] << 16) + (host.pixelbuf.palette[color * 3 + 1] << 8) + (host.pixelbuf.palette[color * 3 + 2] << 0));
-            }
-
-            break;
-        }
-            
-        default:
-        {
-            break;
-        }
-    };
-    
-    SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(pixels, width, height, 32, width * 4, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-    if (!surface)
-    {
-        printf("Failed to create mouse surface: %s\n", SDL_GetError());
-        return;
-    }
-    
-    SDL_Surface *scaledSurface = SDL_CreateRGBSurface(0, width * _scaleX, height * _scaleY, surface->format->BitsPerPixel, surface->format->Rmask, surface->format->Gmask, surface->format->Bmask, surface->format->Amask);
-    if (SDL_BlitScaled(surface, NULL, scaledSurface, NULL) < 0)
-    {
-        printf("Failed to scale mouse cursor: %s\n", SDL_GetError());
-
-        SDL_FreeSurface(scaledSurface);
-        scaledSurface = NULL;
-    }
-    else
-    {
-        SDL_FreeSurface(surface);
-
-        surface = scaledSurface;
-        width = surface->w;
-        height = surface->h;
-    }
-    
-    _cursor = SDL_CreateColorCursor(surface, 0, 0);
-    
-    SDL_FreeSurface(surface);
-    
-    SDL_SetCursor(_cursor);
-    SDL_ShowCursor(_mouse.enabled);
-
-    free(pixels);
+    dirty_mouse = true;
 }
 
 u8 io_inkey(void)
 {
+#if ALIS_SDL_VER == 1
+    SDL_PumpEvents();
+    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    if (!currentKeyStates[button.sym])
+#else
     const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
     if (!currentKeyStates[button.scancode])
+#endif
     {
         button.scancode = 0;
         button.sym = 0;
     }
+    
+    if (button.sym)
+    {
+        sleep(0);
+    }
+
     debug(EDebugInfo, " [\"%s\"]", SDL_GetKeyName(button.sym));
     switch (button.sym) {
         case SDLK_ESCAPE:       return 0x1b;
@@ -1242,8 +666,7 @@ u8 io_inkey(void)
 }
 
 u8 io_shiftkey(void) {
-    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
-    if (shift && !currentKeyStates[SDL_SCANCODE_LSHIFT] && !currentKeyStates[SDL_SCANCODE_RSHIFT])
+    if (shift && !(SDL_GetModState() & KMOD_SHIFT))
     {
         shift = 0;
     }
@@ -1254,8 +677,8 @@ u8 io_shiftkey(void) {
 u8 io_getkey(void) {
     
     u8 result = 0;
-    while (alis.state && (result = io_inkey()) == 0) { usleep(kControlsTicks); }
-    while (alis.state && io_inkey() != 0) { usleep(kControlsTicks); }
+    while (alis.state && (result = io_inkey()) == 0) { sys_sleep(k_event_ticks); }
+    while (alis.state && io_inkey() != 0) { sys_sleep(k_event_ticks); }
     return result;
 }
 
@@ -1369,18 +792,4 @@ u16 sys_get_model(void) {
 
 u16 sys_random(void) {
     return rand() & 0xffff;
-}
-
-// =============================================================================
-#pragma mark - SYNC
-// =============================================================================
-
-void sys_lock_renderer(void) {
-    
-    SDL_SemWait(_render_sem);
-}
-
-void sys_unlock_renderer(void) {
-    
-    SDL_SemPost(_render_sem);
 }

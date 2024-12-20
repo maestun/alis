@@ -89,7 +89,7 @@ u16 read16(const u8 *ptr) {
 
 u32 read24(const u8 *ptr) {
     u32 result = 0;
-    result = (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16);
+    result = is_host_le() ? (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16) : (u32)ptr[2] | ((u32)ptr[1] << 8) | ((u32)ptr[0] << 16);
     result = _convert24(result);
     return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
 }

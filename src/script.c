@@ -154,21 +154,9 @@ void invdigit(u8 *sample)
         }
     }
 
-    // TODO: causes crashes in some older games, investigate!
-    switch (alis.platform.uid)
+    if (alis.platform.version >= 20)
     {
-        case EGameIshar_1:
-        case EGameIshar_2:
-        case EGameIshar_3:
-        case EGameTransarctica:
-        case EGameRobinsonsRequiem0:
-        case EGameRobinsonsRequiem1:
-        case EGameBunnyBricks:
-            *(u8 *)(sample + 0x10 + length - 1) = 0;
-            break;
-            
-        default:
-            break;
+        *(u8 *)(sample + 0x10 + length - 1) = 0;
     }
 }
 
@@ -1059,22 +1047,22 @@ bool is_delay_script(char *name) {
     
     if (alis.platform.uid == EGameIshar_1 && strstr(name, "auteur."))
     {
-        alis.unload_delay = 5000000;
+        alis.unload_delay = 5000;
         return true;
     }
     else if (alis.platform.uid == EGameLeFeticheMaya)
     {
         if (strstr(name, "abomaya."))
         {
-            alis.load_delay = 1000000;
+            alis.load_delay = 1000;
         }
         else if (strstr(name, "presente."))
         {
-            alis.load_delay = alis.platform.kind == EPlatformPC ? 2500000 : 30000000;
+            alis.load_delay = alis.platform.kind == EPlatformPC ? 2500 : 30000;
         }
         else if (strstr(name, "sdivers."))
         {
-            alis.load_delay = 2500000;
+            alis.load_delay = 2500;
         }
 
         return true;
@@ -1083,7 +1071,7 @@ bool is_delay_script(char *name) {
     {
         if (strstr(name, "gen."))
         {
-            alis.load_delay = alis.platform.kind == EPlatformPC || alis.platform.kind == EPlatformMac ? 2500000 : 60000000;
+            alis.load_delay = alis.platform.kind == EPlatformPC || alis.platform.kind == EPlatformMac ? 2500 : 60000;
         }
 
         return true;

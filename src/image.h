@@ -90,7 +90,7 @@ typedef struct {
     s16 oldacy;
     s16 oldacz;
     
-    s16 dkpalet[768];
+    s16 dkpalet[1024];
     u8 fdarkpal;
 
     s32 backdes;
@@ -128,11 +128,11 @@ typedef struct {
     
     u8 tvmode;
 
-    u8 svpalet[768];
-    u8 svpalet2[768];
-    u8 tpalet[768 * 4];
-    u8 mpalet[768 * 4];
-    float dpalet[768];
+    u8 svpalet[1024];
+    u8 svpalet2[1024];
+    u8 tpalet[1024];
+    u8 mpalet[1024];
+    float dpalet[1024];
 
     u8 *atpalet;
     u8 *ampalet;
@@ -228,6 +228,11 @@ void putin(u16 idx);
 u32 itroutine(u32 interval, void *param);
 void draw(void);
 
+void draw_pixel(s16 x0, s16 y0);
+void draw_line(s16 x0, s16 y0, s16 x1, s16 y1);
+void draw_box(s16 x1,s16 y1,s16 x2,s16 y2);
+void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2);
+
 void topalette(u8 *paldata, s32 duration);
 void toblackpal(s16 duration);
 
@@ -248,6 +253,6 @@ void log_sprites(void);
 
 void mac_update_pos(short *x,short *y);
 
-extern u8 cga_palette[12];
+extern u8 cga_palette[16];
 extern u8 masks[4];
 extern u8 rots[4];

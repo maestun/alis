@@ -15,8 +15,8 @@
                   <BuildableReference
                      BuildableIdentifier = "primary"
                      BlueprintIdentifier = "8B9C4019250A2A5B00C947F9"
-                     BuildableName = "alis"
-                     BlueprintName = "alis"
+                     BuildableName = "ALIS"
+                     BlueprintName = "alis (sdl2)"
                      ReferencedContainer = "container:alis.xcodeproj">
                   </BuildableReference>
                </EnvironmentBuildable>
@@ -33,8 +33,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8B9C4019250A2A5B00C947F9"
-               BuildableName = "alis"
-               BlueprintName = "alis"
+               BuildableName = "ALIS"
+               BlueprintName = "alis (sdl2)"
                ReferencedContainer = "container:alis.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -58,14 +58,16 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES">
+      allowLocationSimulation = "YES"
+      consoleMode = "0"
+      structuredConsoleMode = "1">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8B9C4019250A2A5B00C947F9"
-            BuildableName = "alis"
-            BlueprintName = "alis"
+            BuildableName = "ALIS"
+            BlueprintName = "alis (sdl2)"
             ReferencedContainer = "container:alis.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -88,6 +90,14 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/dos/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar/mac/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/ishar/mac_bw/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -116,7 +126,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar3/atari/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar3/amiga/"
@@ -280,7 +290,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/targhan/amiga/"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/targhan/dos/"
@@ -335,8 +345,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8B9C4019250A2A5B00C947F9"
-            BuildableName = "alis"
-            BlueprintName = "alis"
+            BuildableName = "ALIS"
+            BlueprintName = "alis (sdl2)"
             ReferencedContainer = "container:alis.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -24,10 +24,12 @@
 #include "unpack.h"
 #include "sys/sys.h"
 
-#ifdef _MSC_VER
-# include "SDL.h"
-#else
-# include <SDL2/SDL.h>
+#if ALIS_SDL_VER >= 2
+# ifdef _MSC_VER
+#  include "SDL.h"
+# else
+#  include <SDL2/SDL.h>
+# endif
 #endif
 
 // To avoid the issue of undefined reference to 'SDL_main' in some compilers,

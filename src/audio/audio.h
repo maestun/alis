@@ -21,12 +21,12 @@
 
 #pragma once
 
-#ifdef _MSC_VER
+//#ifdef _MSC_VER
 # define a32 u32
-#else
-# include <stdatomic.h>
-# define a32 atomic_int
-#endif
+//#else
+//# include <stdatomic.h>
+//# define a32 atomic_int
+//#endif
 
 #include "channel.h"
 #include "config.h"
@@ -153,6 +153,9 @@ typedef struct {
 
 typedef struct {
 
+    s32 host_freq;
+    u16 host_format;
+    
     u16 musicId;
     a32 working;
 

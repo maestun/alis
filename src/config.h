@@ -83,4 +83,14 @@ typedef enum {
 #define DEBUG_SCRIPT        0
 #define VM_IGNORE_ERRORS    0
 
+#ifndef ALIS_SDL_VER
+# define ALIS_SDL_VER       2
+#endif
+
+#if ALIS_SDL_VER <= 1
+# define ALIS_USE_THREADS   0
+#else
+# define ALIS_USE_THREADS   1
+#endif
+
 extern int disalis;
