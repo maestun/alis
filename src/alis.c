@@ -50,21 +50,34 @@ const u32 kVirtualRAMSize       = 0xffff * sizeof(u8);
 // =============================================================================
 // MARK: - Private
 // =============================================================================
+
+//u8 used_opcodes[512];
+
 void readexec(sAlisOpcode * table, char * name, u8 identation) {
+#ifndef NDEBUG
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
         // pc overflow !
         printf("\n");
-        debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "PC OVERFLOW !\n");
-        debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+        ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: %s" : "%s", "PC OVERFLOW !\n");
+        ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.state = eAlisStateStopped;
     }
     else {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
+        
+//        if (table == opcodes)
+//        {
+//            if (used_opcodes[code] == 0)
+//            {
+//                printf("Use of: %s\n", opcode.name);
+//                used_opcodes[code] ++;
+//            }
+//        }
 
         if (!disalis) {
-            debug(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+            ALIS_DEBUG(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         }
         else {
             u32 prg_offset = (alis.script->pc - alis.script->pc_org)-1;                        // -1 -> start with 0 not with 1
@@ -73,19 +86,19 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
             if (alis.script->name == alis.main->name) { file_offset += 16; }                   // 16 -> kVMSpecsSize = 16
 
             if (!strcmp(name, "opcode")) {
-                debug(EDebugInfo, "\n%s [%.6x]%.6x: %.2x: %s ### ", alis.script->name, file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+                ALIS_DEBUG(EDebugInfo, "\n%s [%.6x]%.6x: %.2x: %s ### ", alis.script->name, file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
             }
             else {
-                debug(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
+                ALIS_DEBUG(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
             }
         }
         if (opcode.name[0] == 0) {  // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
                                     // It is necessary to add it to the appropriate name table
                                     // (codop, codesc1, codesc2, codesc3, oper, store, or add)
               printf("\n");
-              debug(EDebugFatal, disalis ? "ERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
+              ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
               if (!VM_IGNORE_ERRORS) {
-                  debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+                  ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                   alis.state = eAlisStateStopped;
               }
             }
@@ -93,12 +106,18 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
                opcode.fptr();
             }
     }
+#else
+    sAlisOpcode opcode = table[*(alis.mem + alis.script->pc++)];
+    opcode.fptr();
+#endif
 }
 
 void readexec_opcode(void) {
+#ifndef NDEBUG
     if (!disalis) {
-       debug(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
+       ALIS_DEBUG(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
     }
+#endif
     readexec(opcodes, "opcode", 0);
 }
 
@@ -246,7 +265,7 @@ void alis_load_main(void) {
 
         u32 main_script_data_addr = alis.specs.script_vram_max_addr + alis.specs.vram_to_data_offset;
 
-        debug(EDebugInfo, "\
+        ALIS_DEBUG(EDebugInfo, "\
 - script data table count: %d (0x%x), located at 0x%x\n\
 - script vram table count: %d (0x%x), located at 0x%x, ends at 0x%x\n\
 - script data located at 0x%x\n\
@@ -275,7 +294,7 @@ void alis_load_main(void) {
 // MARK: - VM API
 // =============================================================================
 u8 alis_init(sPlatform platform) {
-    debug(EDebugVerbose, "ALIS: Init.\n");
+    ALIS_DEBUG(EDebugVerbose, "ALIS: Init.\n");
 
     alis.platform = platform;
 
@@ -479,7 +498,7 @@ void alis_save_state(void)
     FILE *fp = fopen(path, "wb");
     if (fp == NULL)
     {
-        debug(EDebugError, "Failed to save state to: %s.\n", path);
+        ALIS_DEBUG(EDebugError, "Failed to save state to: %s.\n", path);
         return;
     }
     
@@ -632,7 +651,7 @@ void alis_save_state(void)
     fclose(fp);
 
     printf("\n");
-    debug(EDebugSystem, "Savestate saved to: %s.\n", path);
+    ALIS_DEBUG(EDebugSystem, "Savestate saved to: %s.\n", path);
 }
 
 void alis_load_state(void)
@@ -645,7 +664,7 @@ void alis_load_state(void)
     if (fp == NULL)
     {
         printf("\n");
-        debug(EDebugError, "Savestate file %s is not found.\n", path);
+        ALIS_DEBUG(EDebugError, "Savestate file %s is not found.\n", path);
         return;
     }
     
@@ -654,7 +673,7 @@ void alis_load_state(void)
     if (strcmp("ALIS", buffer))
     {
         printf("\n");
-        debug(EDebugError, "Unknown savestate format in %s.\n", path);
+        ALIS_DEBUG(EDebugError, "Unknown savestate format in %s.\n", path);
         fclose(fp);
         return;
     }
@@ -665,7 +684,7 @@ void alis_load_state(void)
     if (ver != ver_current)
     {
         printf("\n");
-        debug(EDebugError, "The savestate version %d in %s is not supported.\n", ver, path);
+        ALIS_DEBUG(EDebugError, "The savestate version %d in %s is not supported.\n", ver, path);
         fclose(fp);
         return;
     }
@@ -677,7 +696,7 @@ void alis_load_state(void)
 
     if (current_alis_size != alis_size) {
         printf("\n");
-        debug(EDebugError, "The savestate is made by a different version of alis (platform, version or compiler).\n");
+        ALIS_DEBUG(EDebugError, "The savestate is made by a different version of alis (platform, version or compiler).\n");
         fclose(fp);
         return;
        }
@@ -846,7 +865,7 @@ void alis_load_state(void)
     for (int i = 0; i < 4; i++)
     {
         fread(&value, 4, 1, fp);
-        audio.channels[i].address = alis.mem + value;
+        audio.channels[i].address = (s8 *)alis.mem + value;
     }
     
     fread(&audio_type, sizeof(audio_type), 1, fp);
@@ -895,10 +914,11 @@ void alis_load_state(void)
     set_update_cursor();
 
     printf("\n");
-    debug(EDebugSystem, "Savestate loaded from: %s.\n", path);
+    ALIS_DEBUG(EDebugSystem, "Savestate loaded from: %s.\n", path);
 }
 
 void alis_loop(void) {
+    
     alis.script->running = 1;
     while (alis.state && alis.script->running) {
         
@@ -1040,7 +1060,7 @@ void alis_main_V2(void) {
         
         if (get_0x04_cstart_csleep(alis.script->vram_org) == 0)
         {
-            debug(EDebugInfo, "\n SLEEPING %s", alis.script->name);
+            ALIS_DEBUG(EDebugInfo, "\n SLEEPING %s", alis.script->name);
         }
 
         if (get_0x04_cstart_csleep(alis.script->vram_org) != 0)
@@ -1051,7 +1071,7 @@ void alis_main_V2(void) {
             }
             
             set_0x01_wait_count(alis.script->vram_org, get_0x01_wait_count(alis.script->vram_org) - 1);
-            debug(EDebugInfo, "\n %s %s [%.2x, %.2x] ", get_0x01_wait_count(alis.script->vram_org) == 0 ? "RUNNING" : "WAITING", alis.script->name, get_0x01_wait_count(alis.script->vram_org), get_0x02_wait_cycles(alis.script->vram_org));
+            ALIS_DEBUG(EDebugInfo, "\n %s %s [%.2x, %.2x] ", get_0x01_wait_count(alis.script->vram_org) == 0 ? "RUNNING" : "WAITING", alis.script->name, get_0x01_wait_count(alis.script->vram_org), get_0x02_wait_cycles(alis.script->vram_org));
             if (get_0x01_wait_count(alis.script->vram_org) == 0)
             {
                 savecoord(alis.script->vram_org);
@@ -1136,7 +1156,7 @@ void alis_main_V3(void) {
         
         if (get_0x04_cstart_csleep(alis.script->vram_org) == 0)
         {
-            debug(EDebugInfo, "\n SLEEPING %s", alis.script->name);
+            ALIS_DEBUG(EDebugInfo, "\n SLEEPING %s", alis.script->name);
         }
 
         if (get_0x04_cstart_csleep(alis.script->vram_org) != 0)
@@ -1221,7 +1241,7 @@ void alis_error(int errnum, ...) {
         }
     }
     
-    vdebug(EDebugError, err.descfmt, args);
+    ALIS_VDEBUG(EDebugError, err.descfmt, args);
     va_end(args);
     exit(-1);
 }
@@ -1239,7 +1259,7 @@ s32 adresdes(s32 idx)
     if (len > idx)
         return addr + xread32(addr) + idx * 4;
 
-    debug(EDebugFatal, "ERROR: Failed to read graphic resource at index %d (0x%06x >= length 0x%06x) from script %s\n", idx, idx, len, alis.flagmain ? alis.main->name : alis.script->name);
+    ALIS_DEBUG(EDebugFatal, "ERROR: Failed to read graphic resource at index %d (0x%06x >= length 0x%06x) from script %s\n", idx, idx, len, alis.flagmain ? alis.main->name : alis.script->name);
     return 0xf;
 }
 
@@ -1264,7 +1284,7 @@ s32 adresmus(s32 idx)
         return xread32(mem + at) + at;
     }
 
-    debug(EDebugFatal, "ERROR: Failed to read sound resource at index %d from script %s\n", idx, alis.flagmain ? alis.main->name : alis.script->name);
+    ALIS_DEBUG(EDebugFatal, "ERROR: Failed to read sound resource at index %d from script %s\n", idx, alis.flagmain ? alis.main->name : alis.script->name);
     return 0x11;
 }
 

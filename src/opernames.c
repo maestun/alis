@@ -31,7 +31,7 @@
 
 void pop_sd6(void)
 {
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
     
     char *src = (char *)alis.acc;
     strcpy(alis.sd6, src);
@@ -48,7 +48,7 @@ void pop_sd6(void)
 
 void pop_sd7(void)
 {
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.acc, (u8 *)alis.acc - alis.mem);
     
     char *src = (char *)alis.acc;
     strcpy(alis.sd7, src);
@@ -107,7 +107,7 @@ void oimmw(void) {
 void oimmp(void) {
     // reads null-terminated data into bssChunk3
     script_read_until_zero(alis.sd7);
-    debug(EDebugVerbose, " [\"%s\" <= sd7]", alis.sd7);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= sd7]", alis.sd7);
 }
 
 // Opername no. 04 opcode 0x06 olocb
@@ -127,14 +127,14 @@ void olocw(void) {
 // Opername no. 06 opcode 0x0a olocp
 void olocp(void) {
     s16 offset = script_read16();
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 // Opername no. 07 opcode 0x0c oloctp
 void oloctp(void) {
     s32 addr = tabstring(alis.script->vram_org + script_read16());
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
@@ -171,14 +171,14 @@ void odirw(void) {
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
 void odirp(void) {
     u8 offset = script_read8();
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 // Opername no. 13 opcode 0x18 odirtp
 void odirtp(void) {
     s32 addr = tabstring(alis.script->vram_org + script_read8());
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
@@ -209,14 +209,14 @@ void omainw(void) {
 // Opername no. 18 opcode 0x22 omainp
 void omainp(void) {
     s16 offset = script_read16();
-    debug(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
+    ALIS_DEBUG(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
     strcpy(alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 // Opername no. 19 opcode 0x24 omaintp
 void omaintp(void) {
     s32 addr = tabstring(alis.basemain + script_read16());
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
@@ -256,23 +256,23 @@ void ohimp(void) {
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
     strcpy(alis.sd7, (char *)(alis.mem + vram_addr + offset));
 }
 
 // Opername no. 25 opcode 0x30 ohimtp
 void ohimtp(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Opername no. 26 opcode 0x32 ohimtc
 void ohimtc(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Opername no. 27 opcode 0x34 ohimti
 void ohimti(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Opername no. 28 opcode 0x36 opile
@@ -291,7 +291,7 @@ void oeval(void) {
         readexec_opername();
     }
     
-    debug(EDebugInfo, " [ = %d]", (s8)alis.varD7);
+    ALIS_DEBUG(EDebugInfo, " [ = %d]", (s8)alis.varD7);
 }
 
 // Opername no. 30 opcode 0x3a ofin
@@ -456,13 +456,13 @@ void onot(void) {
 // Opername no. 54 opcode 0x6a oinkey
 void oinkey(void) {
     alis.varD7 = alis.automode ? alis.prevkey : (alis.prevkey = io_inkey());
-    debug(EDebugInfo, " [%d] ", alis.varD7);
+    ALIS_DEBUG(EDebugInfo, " [%d] ", alis.varD7);
 }
 
 // Opername no. 55 opcode 0x6c okeyon
 // [N/I]: Robinson's Requiem (IBM PC)
 void okeyon(void) {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Opername no. 56 opcode 0x6e ojoy
@@ -636,7 +636,7 @@ void omodel(void) {
 // Opername no. 62 opcode 0x7a ogetkey
 void ogetkey(void) {
     alis.varD7 = io_getkey();
-    debug(EDebugInfo, " [%d] ", alis.varD7);
+    ALIS_DEBUG(EDebugInfo, " [%d] ", alis.varD7);
 }
 
 // Opername no. 63 opcode 0x7c oleft
@@ -647,7 +647,7 @@ void oleft(void) {
 
 // Opername no. 64 opcode 0x7e oright
 void oright(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Opername no. 65 opcode 0x80 omid
@@ -713,28 +713,28 @@ void osdiff(void) {
 
 // Opername no. 72 opcode 0x8e osinfeg
 void osinfeg(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) <= 0 ? -1 : 0;
 }
 
 // Opername no. 73 opcode 0x90 ossupeg
 void ossupeg(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) >= 0 ? -1 : 0;
 }
 
 // Opername no. 74 opcode 0x92 osinf
 void osinf(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) < 0 ? -1 : 0;
 }
 
 // Opername no. 75 opcode 0x94 ossup
 void ossup(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) > 0 ? -1 : 0;
 }
@@ -756,7 +756,7 @@ void ospile(void) {
 // Opername no. 78 opcode 0x9a oval
 void oval(void) {
     // TODO: compute int value of bssChunk3 string -> d7 ??
-//    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+//    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
     s16 result = 0;
     u8 flip = 0;
@@ -843,16 +843,16 @@ void ochr(void) {
 // Opername no. 81 opcode 0xa0 ochange
 void ochange(void) {
     // TODO: change le drive courant ??
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.varD7 = 0;
 }
 
 // Opername no. 82 opcode 0xa2 ocountry
 void ocountry(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.varD7 = alis.pays;
     if(disalis) {
-       debug(EDebugInfo, " [=> d7 = {0x%02x}]", alis.pays);
+       ALIS_DEBUG(EDebugInfo, " [=> d7 = {0x%02x}]", alis.pays);
        }
 }
 

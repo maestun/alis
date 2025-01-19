@@ -78,7 +78,6 @@ extern u32             width;
 extern u32             height;
 
 extern int             audio_id;
-extern PSG             *audio_psg;
 
 extern u8              fls_ham6;
 extern u8              fls_s512;
@@ -101,7 +100,7 @@ void sys_audio_callback(void *userdata, u8 *stream, s32 len);
 #pragma mark - SDL2 System init
 // ============================================================================
 
-void sys_init(sPlatform *pl, int fullscreen) {
+void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 
     width = pl->width;
     height = pl->height;
@@ -189,16 +188,12 @@ void sys_init(sPlatform *pl, int fullscreen) {
     audio.host_freq = audio_spec->freq;
     audio.host_format = audio_spec->format;
 
-    audio_psg = PSG_new(2000000, audio_spec->freq);
-    PSG_setClockDivider(audio_psg, 1);
-    PSG_setVolumeMode(audio_psg, 1); // YM style
-    PSG_setQuality(audio_psg, 1);
-    PSG_reset(audio_psg);
+    sys_init_psg();
     
     isr_step = (double)50.0 / (double)(audio_spec->freq);
     isr_counter = 1;
     
-    SDL_PauseAudioDevice(audio_id, 0);
+    SDL_PauseAudioDevice(audio_id, mutesound);
     
     render_sem = SDL_CreateSemaphore(1);
     if (render_sem == NULL) {
@@ -266,20 +261,19 @@ void sys_delay_frame(void)
 
 void sys_sleep_until_music_stops(void)
 {
+    if (SDL_GetAudioDeviceStatus(audio_id) != SDL_AUDIO_PLAYING)
+        return;
+    
     audio.working = 1;
 
-    for (int count = 0; count < 1000 && audio.muflag; count++)
-    {
-        usleep(1000);
-    }
+    for (int count = 0; count < 100 && audio.muflag; count++)
+        usleep(10000);
 
     audio.muflag = 0;
     audio.musicId = 0xffff;
 
-    while (audio.working)
-    {
-        usleep(1000);
-    }
+    for (int count = 0; count < 100 && audio.working; count++)
+        usleep(10000);
 }
 
 // ============================================================================
@@ -307,11 +301,11 @@ u8 sys_start(void) {
 
     signals_info(failure);
     if (!failure) {
-        debug(EDebugInfo, "Waiting for the VM kernel thread to finish...\n");
+        ALIS_DEBUG(EDebugInfo, "Waiting for the VM kernel thread to finish...\n");
         SDL_WaitThread(thread, NULL);
     }
     else {
-        debug(EDebugSystem, "Ignoring the crashed VM kernel thread...\n");
+        ALIS_DEBUG(EDebugSystem, "Ignoring the crashed VM kernel thread...\n");
     }
 
     return 0;
@@ -339,8 +333,8 @@ void sys_poll_event(void) {
         case SDL_QUIT:
         {
             printf("\n");
-            debug(EDebugSystem, "SDL2: Quit.\n");
-            debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+            ALIS_DEBUG(EDebugSystem, "SDL2: Quit.\n");
+            ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
             alis.state = eAlisStateStopped;
             break;
         }
@@ -350,7 +344,7 @@ void sys_poll_event(void) {
             {
                 case SDLK_LALT:
                     printf("\n");
-                    debug(EDebugSystem, "INTERRUPT: User debug label.\n");
+                    ALIS_DEBUG(EDebugSystem, "INTERRUPT: User debug label.\n");
                     break;
 
                 case SDLK_F11:
@@ -382,8 +376,8 @@ void sys_poll_event(void) {
             if (event.key.keysym.sym == SDLK_PAUSE)
             {
                 printf("\n");
-                debug(EDebugSystem, "INTERRUPT: Quit by user request.\n");
-                debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+                ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request.\n");
+                ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                 alis.state = eAlisStateStopped;
             }
             else
@@ -566,7 +560,8 @@ void sys_deinit(void) {
     
     SDL_Delay(20);   // 20ms fail-safe delay to make sure that sound buffer is empty
 
-    PSG_delete(audio_psg);
+    sys_deinit_psg();
+
     free(audio_spec);
 
 //   SDL_DestroyTexture(texture);

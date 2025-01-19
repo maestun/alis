@@ -190,7 +190,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/amiga/"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/dos/"
@@ -290,7 +290,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/targhan/amiga/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/targhan/dos/"

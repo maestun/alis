@@ -171,8 +171,7 @@ void script_guess_game(const char * script_path) {
     alis.platform.uid = 0;
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
-        debug(EDebugInfo,
-              "\nLoading script file: %s\n", script_path);
+        ALIS_DEBUG(EDebugInfo, "\nLoading script file: %s\n", script_path);
         
         // get packed file size
         fseek(fp, 0L, SEEK_END);
@@ -390,17 +389,17 @@ void script_guess_game(const char * script_path) {
                 fflush(stdout);
             }
             else {
-                debug(EDebugError, "The version of the %s file is not supported, or it is not a valid main file of the game.\n", script_path);
+                ALIS_DEBUG(EDebugError, "The version of the %s file is not supported, or it is not a valid main file of the game.\n", script_path);
             }
         }
         else {
-            debug(EDebugError, "The size of the main file %s is %d bytes, and it is smaller than required.\n", script_path, input_sz);
+            ALIS_DEBUG(EDebugError, "The size of the main file %s is %d bytes, and it is smaller than required.\n", script_path, input_sz);
         }
         // cleanup
         fclose(fp);
     }
     else {
-        debug(EDebugError, "Could not open main file %s.\n", script_path);
+        ALIS_DEBUG(EDebugError, "Could not open main file %s.\n", script_path);
     }
 }
 
@@ -415,14 +414,14 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         {
             for (int i = 0; i < alis.nbprog; i++)
             {
-                debug(EDebugVerbose, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
+                ALIS_DEBUG(EDebugVerbose, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
             }
             
-            debug(EDebugVerbose, "\n");
+            ALIS_DEBUG(EDebugVerbose, "\n");
 
-            debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
+            ALIS_DEBUG(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 
-            debug(EDebugVerbose, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
+            ALIS_DEBUG(EDebugVerbose, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
             return script;
         }
     }
@@ -477,11 +476,11 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
 
     for (int i = 0; i < alis.nbprog; i++)
     {
-        debug(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
+        ALIS_DEBUG(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
     }
     
-    debug(EDebugInfo, "\n");
-    debug(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
+    ALIS_DEBUG(EDebugInfo, "\n");
+    ALIS_DEBUG(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
     if (alis.platform.version == 10)
         return script;
@@ -794,7 +793,7 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     int caller_idx = curent / sizeof(sScriptLoc);
     int script_idx = alis.dernent / sizeof(sScriptLoc);
 
-    debug(EDebugVerbose, " add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
+    ALIS_DEBUG(EDebugVerbose, " add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
 
     set_0x0a_vacc_offset(script->vram_org, script->vacc_off);
     set_0x1c_scan_clr(script->vram_org, script->vacc_off);
@@ -851,7 +850,7 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     alis.finent += vram_length;
     alis.nbent ++;
 
-    debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off, script->pc_org);
+    ALIS_DEBUG(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", script->name, script->vram_org, alis.finent, script->vacc_off, script->pc_org);
     return script;
 }
 
@@ -888,8 +887,7 @@ sAlisScriptData * script_load(const char * script_path) {
     
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
-        debug(EDebugInfo,
-              "\nLoading script file: %s\n", script_path);
+        ALIS_DEBUG(EDebugInfo, "\nLoading script file: %s\n", script_path);
         
         // get packed file size
         fseek(fp, 0L, SEEK_END);
@@ -911,11 +909,11 @@ sAlisScriptData * script_load(const char * script_path) {
         alis.typepack = magic >> 24;
         if (alis.typepack < 0)
         {
-            debug(EDebugInfo, "Unpacking...\n");
+            ALIS_DEBUG(EDebugInfo, "Unpacking...\n");
 
             u32 pak_sz = input_sz - kPackedHeaderSize - kPackedDictionarySize;
             if(is_main(check)) {
-                debug(EDebugInfo, "Main script detected.\n");
+                ALIS_DEBUG(EDebugInfo, "Main script detected.\n");
                 
                 // skip vm specs
                 fseek(fp, kVMSpecsSize, SEEK_CUR);
@@ -943,7 +941,7 @@ sAlisScriptData * script_load(const char * script_path) {
         }
         else {
 
-            debug(EDebugInfo, "Loading...\n");
+            ALIS_DEBUG(EDebugInfo, "Loading...\n");
 
             // not packed, still might be script
 
@@ -964,12 +962,12 @@ sAlisScriptData * script_load(const char * script_path) {
         fclose(fp);
         
         if (unpack_sz < 0) {
-            debug(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
+            ALIS_DEBUG(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
             exit(-1);
         }
     }
     else {
-        debug(EDebugFatal, "Failed to open script at path '%s'\n", script_path);
+        ALIS_DEBUG(EDebugFatal, "Failed to open script at path '%s'\n", script_path);
     }
     
     if (alis.platform.uid == EGameMadShow && alis.platform.kind == EPlatformAtari)
@@ -1006,7 +1004,7 @@ sAlisScriptData * script_load(const char * script_path) {
                             }
                             else
                             {
-                                debug(EDebugFatal, "Failed to create '%s'\n", path);
+                                ALIS_DEBUG(EDebugFatal, "Failed to create '%s'\n", path);
                             }
                         }
                     }
@@ -1083,27 +1081,16 @@ bool is_delay_script(char *name) {
 // =============================================================================
 // MARK: - Script data access
 // =============================================================================
-void script_read_debug(s32 value, size_t sz) {
-    switch (sz) {
-        case 1:
-            debug(EDebugInfo, " 0x%02x", value & 0xff);
-            break;
-        case 2:
-            debug(EDebugInfo, " 0x%04x", value & 0xffff);
-            break;
-        case 4:
-            debug(EDebugInfo, " 0x%06x", value & 0xffffff);
-            break;
-        default:
-            debug(EDebugInfo, " 0x%x", value);
-            break;
-    }
-}
 
+u32 g_val;
 u8 script_read8(void) {
+#ifndef NDEBUG
     u8 ret = (alis.mem[alis.script->pc++]);
-    script_read_debug(ret, sizeof(u8));
+    ALIS_DEBUG(EDebugInfo, " 0x%02x", ret & 0xff);
     return ret;
+#else
+    return alis.mem[alis.script->pc++];
+#endif
 }
 
 /**
@@ -1113,25 +1100,25 @@ u8 script_read8(void) {
  */
 u16 script_read16(void) {
     
-    u16 ret = read16(alis.mem + alis.script->pc);
+    g_val = read16(alis.mem + alis.script->pc);
     alis.script->pc += 2;
-    script_read_debug(ret, sizeof(u16));
-    return ret;
+    ALIS_DEBUG(EDebugInfo, " 0x%04x", g_val & 0xffff);
+    return g_val;
 }
 
 u32 script_read24(void) {
-    u32 ret = read24(alis.mem + alis.script->pc);
+    g_val = read24(alis.mem + alis.script->pc);
     alis.script->pc += 3;
-    script_read_debug(ret, sizeof(u32));
-    return ret;
+    ALIS_DEBUG(EDebugInfo, " 0x%06x", g_val & 0xffffff);
+    return g_val;
 }
 
 u32 script_read32(void) {
     
-    u32 ret = read32(alis.mem + alis.script->pc);
+    g_val = read32(alis.mem + alis.script->pc);
     alis.script->pc += 4;
-    script_read_debug(ret, -1);
-    return ret;
+    ALIS_DEBUG(EDebugInfo, " 0x%x", g_val);
+    return g_val;
 }
 
 void script_read_bytes(u32 len, u8 * dest) {

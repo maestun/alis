@@ -39,7 +39,7 @@ void    signals_info(int signo);
 // =============================================================================
 typedef void (*vmStep)(void);
 void    sys_main(vmStep fStep);
-void    sys_init(sPlatform *pl, int fullscreen);
+void    sys_init(sPlatform *pl, int fullscreen, int mutesound);
 u8      sys_start(void);
 void    sys_poll_event(void);
 void    sys_deinit(void);
@@ -49,6 +49,12 @@ void    sys_delay_loop(void);
 void    sys_delay_frame(void);
 void    sys_sleep_until_music_stops(void);
 void    sys_sleep_interactive(s32 *loop, s32 intr);
+
+void    sys_init_psg(void);
+void    sys_deinit_psg(void);
+void    sys_write_psg(u32 reg, u32 val);
+u8      sys_read_psg(u32 reg);
+void    sys_calc_psg_music(void);
 
 // =============================================================================
 #pragma mark - I/O

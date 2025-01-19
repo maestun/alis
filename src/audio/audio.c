@@ -59,7 +59,7 @@ void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, 
     if (freq < 0x1 || 0x14 < freq)
         freq = 10;
 
-    canal->address = address;
+    canal->address = (s8 *)address;
     canal->volume = volume;
     canal->length = length;
     canal->freq = freq * 1000;

@@ -38,7 +38,7 @@ typedef struct {
     s8 curson;
     s16 pere;
     eChannelType type;
-    u8 *address;
+    s8 *address;
     u32 played;
     s16 volume;
     u32 length;

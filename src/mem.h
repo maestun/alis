@@ -23,9 +23,14 @@
 
 #include "config.h"
 
-u16         read16(const u8 *ptr);
-u32         read24(const u8 *ptr);
-u32         read32(const u8 *ptr);
+typedef u16 (*fRead16)(const u8 *);
+typedef u32 (*fRead24)(const u8 *);
+typedef u32 (*fRead32)(const u8 *);
+
+extern fRead16 read16;
+extern fRead24 read24;
+extern fRead32 read32;
+
 void        write32(const u8 *ptr, u32 value);
 
 u16         fread16(FILE * fp);

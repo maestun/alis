@@ -330,11 +330,11 @@ void cnul(void)      {
 
 #if VM_IGNORE_ERRORS == 0
     printf("\n");
-   debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
-    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+    ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul: NULL opcode called\n");
+    ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
     alis.state = eAlisStateStopped;
 #else
-   debug(EDebugError, "[N/I] cnul: NULL opcode called");
+    ALIS_DEBUG(EDebugError, "[N/I] cnul: NULL opcode called");
 #endif
 }
 
@@ -349,9 +349,9 @@ void cnul(void)      {
 void pnul(void)      {
 
     printf("\n");
-   debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
+    ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] pnul: NULL code pointer called\n");
 #if VM_IGNORE_ERRORS == 0
-    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+    ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
     alis.state = eAlisStateStopped;
 #endif
 }
@@ -368,11 +368,11 @@ void map_cnul(void)      {
 
 #if VM_IGNORE_ERRORS == 0
     printf("\n");
-   debug(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
-    debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+    ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: %s" : "%s", "[N/I] cnul for map opcodes: NULL opcode called\n");
+    ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
     alis.state = eAlisStateStopped;
 #else
-    debug(EDebugError, "[N/I] cnul for map opcodes: NULL opcode called");
+    ALIS_DEBUG(EDebugError, "[N/I] cnul for map opcodes: NULL opcode called");
 #endif
 }
 
@@ -395,7 +395,7 @@ static void cesc1(void)     {
 // The function is not yet found in ALIS interpreters (no confirmation that the codesc1 table
 // has been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc2(void)     {
-    debug(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
     readexec_codesc2name();
 }
 
@@ -403,7 +403,7 @@ static void cesc2(void)     {
 // The function is not yet found in ALIS interpreters (no confirmation that tables codesc1 and codesc2
 // have been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc3(void)     {
-    debug(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
     readexec_codesc3name();
 }
 
@@ -425,79 +425,79 @@ static void cesc3(void)     {
 // Codopname no. 005 opcode 0x04 cbreakpt
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cbreakpt(void)  {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 012 opcode 0x0b cjsrabs
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cjsrabs(void)   {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 013 opcode 0x0c cjmpabs
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cjmpabs(void)   {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 014 opcode 0x0d cjsrind16
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cjsrind16(void) {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 015 opcode 0x0e cjsrind24
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cjsrind24(void) {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 016 opcode 0x0f cjmpind16
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cjmpind16(void) {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 017 opcode 0x10 cjmpind24
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cjmpind24(void) {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 035 opcode 0x22 cmul
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cmul(void)      {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 036 opcode 0x23 cdiv
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cdiv(void)      {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 202 opcode 0xc9 cscdump
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cscdump(void) {
-    debug(EDebugWarning, "[N/I] (NOP?): %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I] (NOP?): %s", __FUNCTION__);
 }
 
 // Codopname no. 213 opcode 0xd4 cautobase
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cautobase(void) {
-    debug(EDebugWarning, "[N/I] (NOP?): %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I] (NOP?): %s", __FUNCTION__);
 }
 
 // Codopname no. 236 opcode 0xeb cscantab
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cscantab(void) {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // Codopname no. 237 opcode 0xec cneartab
 // [N/I]: Robinson's Requiem (IBM PC)
 static void cneartab(void) {
-    debug(EDebugWarning, "[N/I]: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
 // ============================================================================
@@ -553,7 +553,7 @@ static void csprinta(void) {
 
 // Codopname no. 040 opcode 0x27 clocate
 static void clocate(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.charmode = 0;
     readexec_opername_saveD7();
     readexec_opername_saveD6();
@@ -565,7 +565,7 @@ static void clocate(void) {
 
 // Codopname no. 041 opcode 0x28 ctab
 static void ctab(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.charmode = 0;
     readexec_opername_saveD7();
     alis.xlocate = (u8)(alis.varD7 & 0xff);
@@ -650,10 +650,10 @@ static void cloop(s32 offset) {
 
         if(disalis) {
              if (offset<0) {
-                 debug(EDebugInfo, " [loop jmp up -0x%06x]", abs(offset));
+                 ALIS_DEBUG(EDebugInfo, " [loop jmp up -0x%06x]", abs(offset));
              }
              else {
-                 debug(EDebugInfo, " [loop jmp dn +0x%06x]", offset);
+                 ALIS_DEBUG(EDebugInfo, " [loop jmp dn +0x%06x]", offset);
              }
            }
 
@@ -692,9 +692,7 @@ static void cswitch1(void) {
         test = script_read16();
         if (alis.varD7 == test)
         {
-//            alis.script->pc += script_read16();
-            s16 offset = script_read16();
-            alis.script->pc += offset;
+            alis.script->pc += script_read16();
             return;
         }
         
@@ -723,9 +721,7 @@ static void cswitch2(void) {
     {
         alis.varD7 *= 2;
         alis.script->pc += alis.varD7;
-        addition = script_read16();
-        alis.script->pc += addition;
-//        alis.script->pc += script_read16();
+        alis.script->pc += script_read16();
     }
     else
     {
@@ -735,7 +731,7 @@ static void cswitch2(void) {
 
 // Codopname no. 052 opcode 0x33 cleave
 static void cleave(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     if (alis.fseq == 0)
     {
         s16 vacc_offset = get_0x0c_vacc_offset(alis.script->vram_org);
@@ -760,7 +756,7 @@ static void cleave(void) {
     
     cret();
 
-    debug(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
+    ALIS_DEBUG(EDebugVerbose, " (NAME: %s, VRAM: 0x%x - 0x%x, VACC: 0x%x, PC: 0x%x) ", alis.script->name, alis.script->vram_org, alis.finent, alis.script->vacc_off, alis.script->pc_org);
 }
 
 // Codopname no. 053 opcode 0x34 cprotect
@@ -874,7 +870,7 @@ static void cclipping(void) {
 // it must be set, otherwise the game won't show anything
 static void cswitching(void) {
 //    if (alis.platform.kind == EPlatformPC) {
-//        debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
+//        ALIS_DEBUG(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
 //        return;
 //    }
     alis.fswitch = 1;
@@ -959,7 +955,7 @@ static void cunload(void) {
             }
 
             sAlisScriptData *script = alis.loaded_scripts[index];
-            debug(EDebugVerbose, "\n (NAME: %s, ID: 0x%x ORG: 0x%x (0x%x) SZ: %d (%d)) \n", script->name, script->header.id, script->data_org, data_org, script->sz, data_end - data_org);
+            ALIS_DEBUG(EDebugVerbose, "\n (NAME: %s, ID: 0x%x ORG: 0x%x (0x%x) SZ: %d (%d)) \n", script->name, script->header.id, script->data_org, data_org, script->sz, data_end - data_org);
             
             // NOTE: interuptable delay to make everything work more like on original platforms
             sys_sleep_interactive(&alis.unload_delay, alis.unload_delay - 100);
@@ -987,7 +983,7 @@ static void cwakeup(void) {
 static void cstop(void) {
     // in real program, adds 4 to real stack pointer
     alis.script->running = 0;
-    debug(EDebugInfo, "\n-- CSTOP --");
+    ALIS_DEBUG(EDebugInfo, "\n-- CSTOP --");
 }
 
 // Codopname no. 064 opcode 0x3f csleep
@@ -1058,7 +1054,7 @@ void clivin(void)
 
             // NOTE: just to show already running scripts
             
-            debug(EDebugInfo, "\n");
+            ALIS_DEBUG(EDebugInfo, "\n");
 
             u16 tent = 0;
             u32 loop = alis.nbent;
@@ -1074,20 +1070,20 @@ void clivin(void)
                     s32 vramsize = s->data->header.vram_alloc_sz;
                     s32 shrinkby = datasize + vramsize;
                     
-                    debug(EDebugInfo, "%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", script->vram_org == s->vram_org ? '*' : ' ', s->name, s->data->header.id, get_0x10_script_id(s->vram_org), xswap16(tent), s->vram_org, shrinkby);
+                    ALIS_DEBUG(EDebugInfo, "%c[%s ID: %.2x(%.2x), %.2x, %.6x, %.6x] \n", script->vram_org == s->vram_org ? '*' : ' ', s->name, s->data->header.id, get_0x10_script_id(s->vram_org), xswap16(tent), s->vram_org, shrinkby);
                 }
                 else
                 {
-                    debug(EDebugInfo, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
+                    ALIS_DEBUG(EDebugInfo, " [ empty  ID: 00(00), %.2x, 000000, 000000] \n", xswap16(tent));
                     loop++;
                 }
             }
 
-            debug(EDebugInfo, " [finent %.6x] \n", alis.finent);
+            ALIS_DEBUG(EDebugInfo, " [finent %.6x] \n", alis.finent);
 
             if (alis.maxent < alis.nbent)
             {
-               debug(EDebugFatal, "ERROR: Exceeded number of scripts slots!\n");
+                ALIS_DEBUG(EDebugFatal, "ERROR: Exceeded number of scripts slots!\n");
                 return;
             }
         }
@@ -1156,7 +1152,7 @@ static void cload(void) {
     {
         // NOTE: load main script and start game loop
         // we are dooing it elsewhere, shouldnt ever be reached;
-        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+        ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
         readexec_opername_swap();
     }
@@ -1364,13 +1360,13 @@ u8 multifirm(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 a4)
         {
             if (!traitfirm(ent_vram, formedata, a4, forme + forme))
             {
-                debug(EDebugInfo, "\n    Hit!");
+                ALIS_DEBUG(EDebugInfo, "\n    Hit!");
                 return 0;
             }
         }
     }
     
-    debug(EDebugInfo, "\n    No hits!");
+    ALIS_DEBUG(EDebugInfo, "\n    No hits!");
     return 1;
 }
 
@@ -1393,7 +1389,7 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
     u16 result = xread16(ent_formedata) & alis.matmask;
     if (result == 0)
     {
-        debug(EDebugInfo, "\n    Masked");
+        ALIS_DEBUG(EDebugInfo, "\n    Masked");
         return 1;
     }
     
@@ -1420,7 +1416,7 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
     }
     else
     {
-        debug(EDebugWarning, "Unexpected form data!");
+        ALIS_DEBUG(EDebugWarning, "Unexpected form data!");
         return 1;
     }
 
@@ -1467,9 +1463,9 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
             
             if ((px1 <= tmpx2) && (tmp <= px2))
             {
-                debug(EDebugInfo, "\n    tx: %.3d, %.3d", tmpx1, tmpx2);
-                debug(EDebugInfo, "    ty: %.3d, %.3d", tmpy1, tmpy2);
-                debug(EDebugInfo, "    tz: %.3d, %.3d", tmpz1, tmpz2);
+                ALIS_DEBUG(EDebugInfo, "\n    tx: %.3d, %.3d", tmpx1, tmpx2);
+                ALIS_DEBUG(EDebugInfo, "    ty: %.3d, %.3d", tmpy1, tmpy2);
+                ALIS_DEBUG(EDebugInfo, "    tz: %.3d, %.3d", tmpz1, tmpz2);
 
                 return 0;
             }
@@ -1501,13 +1497,13 @@ s32 multiform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform)
         {
             if (!traitform(ent_vram, ent_formedata, ent_baseform, wforme + wforme))
             {
-                debug(EDebugInfo, "\n    Hit!");
+                ALIS_DEBUG(EDebugInfo, "\n    Hit!");
                 return 0;
             }
         }
     }
     
-    debug(EDebugInfo, "\n    No hits!");
+    ALIS_DEBUG(EDebugInfo, "\n    No hits!");
     return 1;
 }
 
@@ -1540,7 +1536,7 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
     }
     else
     {
-        debug(EDebugWarning, "Unexpected form data!");
+        ALIS_DEBUG(EDebugWarning, "Unexpected form data!");
         return 1;
     }
 
@@ -1579,9 +1575,9 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
         px2 = frmx;
     }
     
-    debug(EDebugInfo, "\n    px: %.3d, %.3d", px1, px2);
-    debug(EDebugInfo, "    py: %.3d, %.3d", py1, py2);
-    debug(EDebugInfo, "    pz: %.3d, %.3d", pz1, pz2);
+    ALIS_DEBUG(EDebugInfo, "\n    px: %.3d, %.3d", px1, px2);
+    ALIS_DEBUG(EDebugInfo, "    py: %.3d, %.3d", py1, py2);
+    ALIS_DEBUG(EDebugInfo, "    pz: %.3d, %.3d", pz1, pz2);
     
     s16 test = alis.platform.kind == EPlatformPC ? (s8)xread16(ent_formedata) : xread16(ent_formedata);     ent_formedata += 2;
     if (test < 0)
@@ -1605,7 +1601,7 @@ void clipform(void) {
         s32 formedata = (u16)xread16(alis.baseform + (u32)alis.wforme * 2) + alis.baseform;
         s16 entidx = 0;
 
-        debug(EDebugInfo, "\nChecking: %s (%.2x)", alis.script->name, alis.wforme);
+        ALIS_DEBUG(EDebugInfo, "\nChecking: %s (%.2x)", alis.script->name, alis.wforme);
         
         do
         {
@@ -1619,7 +1615,7 @@ void clipform(void) {
                 s32 ent_formedata = xread16(ent_baseform + ent_wforme2x) + ent_baseform;
                 
                 sAlisScriptLive *sc = ENTSCR(entidx);
-                debug(EDebugInfo, "\n  to: %s", sc->name);
+                ALIS_DEBUG(EDebugInfo, "\n  to: %s", sc->name);
                 
                 s32 result = 0;
 
@@ -1633,7 +1629,7 @@ void clipform(void) {
                     result = monoform(ent_vram, ent_formedata, formedata + 2, ent_baseform, ent_wforme2x);
                 }
                 
-                debug(EDebugInfo, "    = %d", result);
+                ALIS_DEBUG(EDebugInfo, "    = %d", result);
                 if (!result)
                 {
                     if (alis.witmov != 0)
@@ -1704,7 +1700,7 @@ static void ctstmov(void) {
 
 // Codopname no. 085 opcode 0x54 ctstset
 static void ctstset(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 086 opcode 0x55 cftstmov
@@ -1792,7 +1788,7 @@ void trinorme(int bufidx)
 
 void sviewtyp(void)
 {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
     s16 id = alis.varD7;
     if (id < 0)
@@ -1923,7 +1919,7 @@ s16 clipmat(s32 src_vram, s32 tgt_vram)
 
 void sviewmat(void)
 {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
     s16 bufidx = 0;
     if (alis.fallent == 0)
@@ -1989,7 +1985,7 @@ LAB_00015c8a:
 
 void sviewent(void)
 {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
     if (alis.platform.version >= 30)
     {
@@ -2415,7 +2411,7 @@ static void cnoise(void) {
 
 // Codopname no. 112 opcode 0x6f cinitab
 static void cinitab(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 113 opcode 0x70 cfopen
@@ -2458,19 +2454,19 @@ static void cfclose(void) {
 
 // Codopname no. 115 opcode 0x72 cfcreat
 static void cfcreat(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 116 opcode 0x73 cfdel
 static void cfdel(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 117 opcode 0x74 cfreadv
 static void cfreadv(void) {
     fread(alis.buffer, 2, 1, alis.fp);
     alis.varD7 = xpcswap16(*(s16 *)alis.buffer);
-    debug(EDebugInfo, " 0x%04x", alis.varD7);
+    ALIS_DEBUG(EDebugInfo, " 0x%04x", alis.varD7);
     cstore_continue();
 }
 
@@ -2478,13 +2474,13 @@ static void cfreadv(void) {
 static void cfwritev(void) {
     readexec_opername();
     s16 val = xpcswap16(alis.varD7);
-    debug(EDebugInfo, " 0x%04x", alis.varD7);
+    ALIS_DEBUG(EDebugInfo, " 0x%04x", alis.varD7);
     fwrite(&val, 2, 1, alis.fp);
 }
 
 // Codopname no. 119 opcode 0x76 cfwritei
 static void cfwritei(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void unmixword(s32 tgt_addr, u32 tgt_len)
@@ -2699,7 +2695,6 @@ static void cfwriteb(void) {
     }
 }
 
-
 s16 adptsin[2];
 void SYS_PutPixel(void)
 {
@@ -2770,17 +2765,17 @@ static void cink(void) {
 
 // Codopname no. 127 opcode 0x7e cpset
 static void cpset(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 128 opcode 0x7f cpmove
 static void cpmove(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 129 opcode 0x80 cpmode
 static void cpmode(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
     readexec_opername();
     image.line_a_mode = alis.varD7;
@@ -2788,7 +2783,7 @@ static void cpmode(void) {
 
 // Codopname no. 130 opcode 0x81 cpicture
 static void cpicture(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 131 opcode 0x82 cxyscroll
@@ -3011,7 +3006,7 @@ static void cvmov(void) {
 
 // Codopname no. 146 opcode 0x91 cdefworld
 static void cdefworld(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     s16 offset = script_read16();
     u8 counter = 5;
     while(counter--) {
@@ -3027,7 +3022,7 @@ static void cworld(void) {
 
 // Codopname no. 148 opcode 0x93 cfindmat
 static void cfindmat(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 149 opcode 0x94 cfindtyp
@@ -3126,7 +3121,7 @@ void music(void) {
         }
         else
         {
-            debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+            ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
         }
 
         audio.mustate = 1;
@@ -3175,7 +3170,7 @@ void music(void) {
         readexec_opername();
         readexec_opername();
         
-        debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+        ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     }
 }
 
@@ -3329,12 +3324,12 @@ static void cwmov(void) {
 
 // Codopname no. 164 opcode 0xa3 cwtstmov
 static void cwtstmov(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 165 opcode 0xa4 cwftstmov
 static void cwftstmov(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 166 opcode 0xa5 ctstform
@@ -3569,7 +3564,7 @@ void sendmess(u32 vram, u16 idx)
 
 // Codopname no. 179 opcode 0xb2 casleepfar
 static void casleepfar(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
     alis.valnorme = (alis.varD7 & 0xffff) * (alis.varD7 & 0xffff);
     
@@ -3634,7 +3629,7 @@ void printd0(s16 d0w)
     valtostr(alis.sd7, d0w);
 
     if(disalis) {
-       debug(EDebugInfo, " [\"%s\"]", alis.sd7);
+       ALIS_DEBUG(EDebugInfo, " [\"%s\"]", alis.sd7);
     }
     
     while (*ptr != 0)
@@ -3650,7 +3645,7 @@ void putval(s16 d7w)
 
 // Codopname no. 183 opcode 0xb6 cvpicprint
 static void cvpicprint(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.charmode = 1;
     readexec_opername_saveD7();
     putval(alis.varD7);
@@ -3693,7 +3688,7 @@ static void cfont(void) {
 
 // Codopname no. 188 opcode 0xbb cpaper
 static void cpaper(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     readexec_opername();
     
     // TODO: ...
@@ -3987,12 +3982,12 @@ static void cfindcla(void) {
 
 // Codopname no. 204 opcode 0xcb cnearcla
 static void cnearcla(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 205 opcode 0xcc cviewcla
 static void cviewcla(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 206 opcode 0xcd cinstru
@@ -4066,7 +4061,7 @@ static void cordspr(void) {
 
 // Codopname no. 209 opcode 0xd0 calign
 static void calign(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     u8 bit;
 
@@ -4108,7 +4103,7 @@ s16 starbuff[8];
 
 // Codopname no. 210 opcode 0xd1 cbackstar
 static void cbackstar(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
     readexec_opername();
     starbuff[0] = alis.varD7;
@@ -4227,7 +4222,7 @@ static void cbackstar(void) {
 
 // Codopname no. 211 opcode 0xd2 cstarring
 static void cstarring(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
     readexec_opername();
     starbuff[0] = alis.varD7;
@@ -4256,7 +4251,7 @@ static void cstarring(void) {
 // [N/I]: Robinson's Requiem, Ishar 3, Storm Master (IBM PC)
 static void cengine(void) {
     if (alis.platform.kind == EPlatformPC) {
-        debug(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
+        ALIS_DEBUG(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
         return;
     }
     readexec_opername();
@@ -4273,7 +4268,7 @@ static void cquality(void) {
 
 // Codopname no. 215 opcode 0xd6 chsprite
 static void chsprite(void) {
-    debug(EDebugWarning, "STUBBED: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
     readexec_opername();
     set_0x2f_chsprite(alis.script->vram_org, (s8)alis.varD7);
@@ -4334,7 +4329,7 @@ static void clinepalet(void) {
 
 // Codopname no. 218 opcode 0xd9 cautomode
 static void cautomode(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 219 opcode 0xda cautofile
@@ -4353,7 +4348,7 @@ static void cautofile(void) {
 
 // Codopname no. 220 opcode 0xdb ccancel
 static void ccancel(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 221 opcode 0xdc ccancall
@@ -4490,7 +4485,7 @@ void cscback(void)
 
 // Codopname no. 225 opcode 0xe0 cscrolpage
 static void cscrolpage(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
     image.spag = (s8)alis.varD7;
     readexec_opername();
@@ -4578,11 +4573,11 @@ static void cshrink(void) {
         xwrite16(addr + 2, 0xf);
         xwrite16(addr + 4, 0);
         
-        debug(EDebugVerbose, " (NAME: %s, ID: 0x%x) ", alis.script->name, alis.script->data->header.id);
+        ALIS_DEBUG(EDebugVerbose, " (NAME: %s, ID: 0x%x) ", alis.script->name, alis.script->data->header.id);
         shrinkprog(addr + 6, bits, 0);
         alis.script->data->sz -= bits;
 
-        debug(EDebugVerbose, "\n (NAME: %s, ID: 0x%x SZ: %d) \n", alis.script->name, alis.script->data->header.id, alis.script->data->sz);
+        ALIS_DEBUG(EDebugVerbose, "\n (NAME: %s, ID: 0x%x SZ: %d) \n", alis.script->name, alis.script->data->header.id, alis.script->data->sz);
     }
 }
 
@@ -4624,7 +4619,7 @@ static void cdefmap(void) {
     }
     else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
     {
-        debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+        ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
         u32 mapram = alis.script->vram_org;
         s16 offset = script_read16();
@@ -4711,14 +4706,14 @@ static void cdefmap(void) {
     }
     else
     {
-        debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+        ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
     }
 }
 
 // Codopname no. 229 opcode 0xe4 csetmap
 // Ishar 3 Korean (IBM PC): csetmap => map_cnul
 static void csetmap(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     u32 mapram = alis.script->vram_org;
     
@@ -5003,7 +4998,7 @@ static void csavepal(void) {
 
 // Codopname no. 232 opcode 0xe7 csczoom
 static void csczoom(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 s32 texmap(u32 a0, s16 d0w, s16 d1w)
@@ -5015,7 +5010,7 @@ s32 texmap(u32 a0, s16 d0w, s16 d1w)
 // Codopname no. 233 opcode 0xe8 ctexmap
 // Ishar 3 Korean (IBM PC): ctexmap => map_cnul
 static void ctexmap(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     alis.flagmain = 0;
     
@@ -5125,12 +5120,12 @@ static void calloctab(void) {
 
 // Codopname no. 235 opcode 0xea cfreetab
 static void cfreetab(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 238 opcode 0xed cscsun
 static void cscsun(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 239 opcode 0xee cdarkpal
@@ -5221,22 +5216,22 @@ static void cscdark(void) {
 
 // Codopname no. 241 opcode 0xf0 caset
 static void caset(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 242 opcode 0xf1 camov
 static void camov(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 243 opcode 0xf2 cscaset
 static void cscaset(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 244 opcode 0xf3 cscamov
 static void cscamov(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 245 opcode 0xf4 cscfollow
@@ -5499,7 +5494,7 @@ s16 walkmap(s32 addr)
 // Codopname no. 248 opcode 0xf7 cwalkmap
 // Ishar 3 Korean (IBM PC): cwalkmap => map_cnul
 static void cwalkmap(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     s16 offset = script_read16();
     u32 vram = alis.script->vram_org;
@@ -5588,7 +5583,7 @@ u16 atstmap(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 wcz2)
 // Codopname no. 249 opcode 0xf8 catstmap
 // Ishar 3 Korean (IBM PC): catstmap => map_cnul
 static void catstmap(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     s16 offset = script_read16();
     u32 addr = alis.script->vram_org;
@@ -5632,7 +5627,7 @@ static void cavtstmov(void) {
 
     if (alis.platform.version >= 31)
     {
-        debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+        ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
 
         s16 wcax = xread16(vram + ALIS_SCR_WCAX);
         s16 wcaz = xread16(vram + ALIS_SCR_WCAZ);
@@ -5659,7 +5654,7 @@ static void cavtstmov(void) {
 
 // Codopname no. 251 opcode 0xfa cavmov
 static void cavmov(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 void getangle(s16 *atx, s16 *aty)
@@ -5782,7 +5777,7 @@ void polarang(s16 *cx, s16 *cy, s16 *cz, s16 *oldcx, s16 *oldcy, s16 *oldcz)
 
 // Codopname no. 252 opcode 0xfb caim
 static void caim(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     // TODO: on Atari ST values for the first call should be: 0x19e0, 0x560, 0x5 but aren't
     // we should call it at afe12 NOT on aff24
@@ -5893,13 +5888,13 @@ static void caim(void) {
 
 // Codopname no. 253 opcode 0xfc cpointpix
 static void cpointpix(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 254 opcode 0xfd cchartmap
 // Ishar 3 Korean (IBM PC): cchartmap => map_cnul
 static void cchartmap(void) {
-    debug(EDebugWarning, "CHECK: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     
     // TODO: verify and clean
     
@@ -6116,7 +6111,7 @@ static void cscsky(void) {
 
 // Codopname no. 256 opcode 0xff czoom
 static void czoom(void) {
-    debug(EDebugWarning, "I3 SPECIFIC ?: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "I3 SPECIFIC ?: %s", __FUNCTION__);
     
 //    readexec_opername();
 //    s16 tmp0 = alis.varD7;
@@ -6155,7 +6150,7 @@ static void cret(void) {
 
         if (alis.script->vacc_off >= -0x34)
         {
-            debug(EDebugError, " VACC out of bounds!!! ");
+            ALIS_DEBUG(EDebugError, " VACC out of bounds!!! ");
         }
         
         alis.script->vacc_off += sizeof(s32);
@@ -6181,10 +6176,10 @@ static void cjsr8(void) {
 
     if(disalis) {
          if (offset<0) {
-             debug(EDebugInfo, " [call up -0x%02x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [call up -0x%02x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [call dn +0x%02x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [call dn +0x%02x]", offset);
          }
        }
 
@@ -6197,10 +6192,10 @@ static void cjsr16(void) {
 
     if(disalis) {
          if (offset<0) {
-             debug(EDebugInfo, " [call up -0x%04x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [call up -0x%04x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [call dn +0x%04x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [call dn +0x%04x]", offset);
          }
        }
 
@@ -6213,10 +6208,10 @@ static void cjsr24(void) {
 
     if(disalis) {
          if (offset<0) {
-             debug(EDebugInfo, " [call up -0x%06x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [call up -0x%06x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [call dn +0x%06x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [call dn +0x%06x]", offset);
          }
        }
 
@@ -6234,10 +6229,10 @@ static void cjmp8(void) {
 
     if(disalis) {
          if (offset<0) {
-             debug(EDebugInfo, " [jmp up -0x%02x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [jmp up -0x%02x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [jmp dn +0x%02x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [jmp dn +0x%02x]", offset);
          }
        }
 
@@ -6250,10 +6245,10 @@ static void cjmp16(void) {
 
     if(disalis) {
          if (offset<0) {
-             debug(EDebugInfo, " [jmp up -0x%04x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [jmp up -0x%04x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [jmp dn +0x%04x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [jmp dn +0x%04x]", offset);
          }
        }
 
@@ -6266,10 +6261,10 @@ static void cjmp24(void) {
 
     if(disalis) {
          if (offset<0) {
-             debug(EDebugInfo, " [jmp up -0x%06x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [jmp up -0x%06x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [jmp dn +0x%06x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [jmp dn +0x%06x]", offset);
          }
        }
 
@@ -6287,14 +6282,14 @@ static void cbz8(void) {
 
     if(disalis) {
        if (alis.varD7 != 0) {
-           debug(EDebugInfo, " [d7<>0 => no jmp +1]");
+           ALIS_DEBUG(EDebugInfo, " [d7<>0 => no jmp +1]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7==0 => jmp up -0x%02x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7==0 => jmp up -0x%02x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7==0 => jmp dn +0x%02x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7==0 => jmp dn +0x%02x]", offset);
          }
        }
     }
@@ -6308,14 +6303,14 @@ static void cbz16(void) {
 
     if(disalis) {
        if (alis.varD7 != 0) {
-           debug(EDebugInfo, " [d7<>0 => no jmp +2]");
+           ALIS_DEBUG(EDebugInfo, " [d7<>0 => no jmp +2]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7==0 => jmp up -0x%04x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7==0 => jmp up -0x%04x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7==0 => jmp dn +0x%04x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7==0 => jmp dn +0x%04x]", offset);
          }
        }
     }
@@ -6329,14 +6324,14 @@ static void cbz24(void) {
 
     if(disalis) {
        if (alis.varD7 != 0) {
-           debug(EDebugInfo, " [d7<>0 => no jmp +3]");
+           ALIS_DEBUG(EDebugInfo, " [d7<>0 => no jmp +3]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7==0 => jmp up -0x%06x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7==0 => jmp up -0x%06x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7==0 => jmp dn +0x%06x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7==0 => jmp dn +0x%06x]", offset);
          }
        }
     }
@@ -6355,14 +6350,14 @@ static void cbnz8(void) {
 
     if(disalis) {
        if (alis.varD7 == 0) {
-           debug(EDebugInfo, " [d7==0 => no jmp +1]");
+           ALIS_DEBUG(EDebugInfo, " [d7==0 => no jmp +1]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7<>0 => jmp up -0x%02x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7<>0 => jmp up -0x%02x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7<>0 => jmp dn +0x%02x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7<>0 => jmp dn +0x%02x]", offset);
          }
        }
     }
@@ -6376,14 +6371,14 @@ static void cbnz16(void) {
 
     if(disalis) {
        if (alis.varD7 == 0) {
-           debug(EDebugInfo, " [d7==0 => no jmp +2]");
+           ALIS_DEBUG(EDebugInfo, " [d7==0 => no jmp +2]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7<>0 => jmp up -0x%04x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7<>0 => jmp up -0x%04x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7<>0 => jmp dn +0x%04x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7<>0 => jmp dn +0x%04x]", offset);
          }
        }
     }
@@ -6397,14 +6392,14 @@ static void cbnz24(void) {
 
     if(disalis) {
        if (alis.varD7 == 0) {
-           debug(EDebugInfo, " [d7==0 => no jmp +3]");
+           ALIS_DEBUG(EDebugInfo, " [d7==0 => no jmp +3]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7<>0 => jmp up -0x%06x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7<>0 => jmp up -0x%06x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7<>0 => jmp dn +0x%06x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7<>0 => jmp dn +0x%06x]", offset);
          }
        }
     }
@@ -6423,14 +6418,14 @@ static void cbeq8(void) {
 
     if(disalis) {
        if (alis.varD7 == alis.varD6) {
-           debug(EDebugInfo, " [d7==d6 => no jmp +1]");
+           ALIS_DEBUG(EDebugInfo, " [d7==d6 => no jmp +1]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7<>d6 => jmp up -0x%02x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7<>d6 => jmp up -0x%02x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7<>d6 => jmp dn +0x%02x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7<>d6 => jmp dn +0x%02x]", offset);
          }
        }
     }
@@ -6444,14 +6439,14 @@ static void cbeq16(void) {
 
     if(disalis) {
        if (alis.varD7 == alis.varD6) {
-           debug(EDebugInfo, " [d7==d6 => no jmp +2]");
+           ALIS_DEBUG(EDebugInfo, " [d7==d6 => no jmp +2]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7<>d6 => jmp up -0x%04x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7<>d6 => jmp up -0x%04x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7<>d6 => jmp dn +0x%04x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7<>d6 => jmp dn +0x%04x]", offset);
          }
        }
     }
@@ -6465,14 +6460,14 @@ static void cbeq24(void) {
 
     if(disalis) {
        if (alis.varD7 == alis.varD6) {
-           debug(EDebugInfo, " [d7==d6 => no jmp +3]");
+           ALIS_DEBUG(EDebugInfo, " [d7==d6 => no jmp +3]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7<>d6 => jmp up -0x%06x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7<>d6 => jmp up -0x%06x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7<>d6 => jmp dn +0x%06x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7<>d6 => jmp dn +0x%06x]", offset);
          }
        }
     }
@@ -6491,14 +6486,14 @@ static void cbne8(void) {
 
     if(disalis) {
        if (alis.varD7 != alis.varD6) {
-           debug(EDebugInfo, " [d7<>d6 => no jmp +1]");
+           ALIS_DEBUG(EDebugInfo, " [d7<>d6 => no jmp +1]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7==d6 => jmp up -0x%02x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7==d6 => jmp up -0x%02x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7==d6 => jmp dn +0x%02x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7==d6 => jmp dn +0x%02x]", offset);
          }
        }
     }
@@ -6512,14 +6507,14 @@ static void cbne16(void) {
 
     if(disalis) {
        if (alis.varD7 != alis.varD6) {
-           debug(EDebugInfo, " [d7<>d6 => no jmp +2]");
+           ALIS_DEBUG(EDebugInfo, " [d7<>d6 => no jmp +2]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7==d6 => jmp up -0x%04x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7==d6 => jmp up -0x%04x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7==d6 => jmp dn +0x%04x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7==d6 => jmp dn +0x%04x]", offset);
          }
        }
     }
@@ -6533,14 +6528,14 @@ static void cbne24(void) {
 
     if(disalis) {
        if (alis.varD7 != alis.varD6) {
-           debug(EDebugInfo, " [d7<>d6 => no jmp +3]");
+           ALIS_DEBUG(EDebugInfo, " [d7<>d6 => no jmp +3]");
        }
        else {
          if (offset<0) {
-             debug(EDebugInfo, " [d7==d6 => jmp up -0x%06x]", abs(offset));
+             ALIS_DEBUG(EDebugInfo, " [d7==d6 => jmp up -0x%06x]", abs(offset));
          }
          else {
-             debug(EDebugInfo, " [d7==d6 => jmp dn +0x%06x]", offset);
+             ALIS_DEBUG(EDebugInfo, " [d7==d6 => jmp dn +0x%06x]", offset);
          }
        }
     }
@@ -6705,7 +6700,7 @@ void shrinkprog(s32 start, s32 length, u16 id)
         target[i] = source[i];
     }
     
-    debug(EDebugInfo, "\nFreeing range %.6x - %.6x", start, start + length);
+    ALIS_DEBUG(EDebugInfo, "\nFreeing range %.6x - %.6x", start, start + length);
 
     alis.finprog -= length;
     
@@ -6718,11 +6713,11 @@ void shrinkprog(s32 start, s32 length, u16 id)
             if (scr->header.id == id)
             {
                 idx = i;
-                debug(EDebugInfo, "\nRemoved prog: %s at: %.6x ", scr->name, scr->data_org);
+                ALIS_DEBUG(EDebugInfo, "\nRemoved prog: %s at: %.6x ", scr->name, scr->data_org);
             }
             else
             {
-                debug(EDebugInfo, "\nSkipped prog: %s at: %.6x ", scr->name, scr->data_org);
+                ALIS_DEBUG(EDebugInfo, "\nSkipped prog: %s at: %.6x ", scr->name, scr->data_org);
             }
 
             if (idx > 0)
@@ -6750,28 +6745,28 @@ void shrinkprog(s32 start, s32 length, u16 id)
         alis.nbprog --;
     }
 
-    debug(EDebugInfo, "\nShifting range %.6x - %.6x", alis.atprog, alis.dernprog);
+    ALIS_DEBUG(EDebugInfo, "\nShifting range %.6x - %.6x", alis.atprog, alis.dernprog);
 
     for (int i = 0; i < alis.nbprog; i++)
     {
         sAlisScriptData *script = alis.loaded_scripts[i];
-        debug(EDebugInfo, "\nChecking prog: %s at: %.6x ", script->name, script->data_org);
+        ALIS_DEBUG(EDebugInfo, "\nChecking prog: %s at: %.6x ", script->name, script->data_org);
             
         if (start <= script->data_org)
         {
-            debug(EDebugInfo, "pre-shrinked: %.6x", script->data_org);
+            ALIS_DEBUG(EDebugInfo, "pre-shrinked: %.6x", script->data_org);
 
             script->data_org -= length;
             alis.atprog_ptr[i] -= length;
-            debug(EDebugInfo, "shrinked to: %.6x", script->data_org);
+            ALIS_DEBUG(EDebugInfo, "shrinked to: %.6x", script->data_org);
         }
         else
         {
-            debug(EDebugInfo, "OK");
+            ALIS_DEBUG(EDebugInfo, "OK");
         }
     }
 
-    debug(EDebugInfo, "\n");
+    ALIS_DEBUG(EDebugInfo, "\n");
 
     if (id != 0)
     {
@@ -6783,13 +6778,13 @@ void shrinkprog(s32 start, s32 length, u16 id)
         while ((entidx = xread16(alis.atent + 4 + entidx)))
         {
             sAlisScriptLive *script = ENTSCR(entidx);
-            debug(EDebugInfo, "\nChecking script: %s at: %.6x ", script->name, script->data->data_org);
+            ALIS_DEBUG(EDebugInfo, "\nChecking script: %s at: %.6x ", script->name, script->data->data_org);
 
             if (id == get_0x10_script_id(script->vram_org))
             {
                 killent(entidx);
                 entidx = prevent; //alis.varD5;
-                debug(EDebugInfo, "removed");
+                ALIS_DEBUG(EDebugInfo, "removed");
             }
             else if (start <= get_0x14_script_org_offset(script->vram_org))
             {
@@ -6800,26 +6795,26 @@ void shrinkprog(s32 start, s32 length, u16 id)
                 
                 u32 org_offset = get_0x14_script_org_offset(script->vram_org);
                 script->vacc_off = -contextsize - xread16(org_offset + 0x16);
-                debug(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
+                ALIS_DEBUG(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
 
                 // NOTE: no longer needed, we are calculating proper value using script start location
 //                while (get_0x0a_vacc_offset(script->vram_org) < script->vacc_off)
 //                {
 //                    script->vacc_off -= 4;
 //                    xsub32(script->vram_org + script->vacc_off, length);
-//                    debug(EDebugInfo, " [%.8x => va %.4x + %.6x (%.6x)]", xread32(script->vram_org + script->vacc_off), (s16)script->vacc_off, script->vram_org, script->vacc_off + script->vram_org);
+//                    ALIS_DEBUG(EDebugInfo, " [%.8x => va %.4x + %.6x (%.6x)]", xread32(script->vram_org + script->vacc_off), (s16)script->vacc_off, script->vram_org, script->vacc_off + script->vram_org);
 //                }
             }
             else
             {
-                debug(EDebugInfo, "OK");
+                ALIS_DEBUG(EDebugInfo, "OK");
             }
             
             prevent = entidx;
         }
     }
     
-    debug(EDebugInfo, "\n");
+    ALIS_DEBUG(EDebugInfo, "\n");
 
     // move addresses to sprite data to match actual new locations
     

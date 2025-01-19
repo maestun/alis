@@ -417,7 +417,7 @@ void mv1_playnote(void)
 
     if (mv1a.effect == 0x2a78)
     {
-        debug(EDebugWarning, "MISSING MUSIC EFFECT: %s", __FUNCTION__);
+        ALIS_DEBUG(EDebugWarning, "MISSING MUSIC EFFECT: %s", __FUNCTION__);
     }
 
     mix *= mv1a.volume;

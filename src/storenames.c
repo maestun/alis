@@ -61,7 +61,7 @@ static void slocw(void) {
  */
 static void slocp(void) {
     s16 offset = script_read16();
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
@@ -69,7 +69,7 @@ static void slocp(void) {
 // Store at LOCation with offseT: Pointer
 static void sloctp(void) {
     s32 addr = tabstring(alis.script->vram_org + script_read16());
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 
@@ -118,14 +118,14 @@ static void sdirw(void) {
  */
 static void sdirp(void) {
     u8 offset = script_read8();
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)get_vram(offset), (char *)alis.oldsd7);
 }
 
 // Storename no. 13 opcode 0x18 sdirtp
 static void sdirtp(void) {
     s32 addr = tabstring(alis.script->vram_org + script_read8());
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)alis.oldsd7, (u8 *)alis.oldsd7 - alis.mem);
     strcpy((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 
@@ -146,28 +146,28 @@ static void sdirti(void) {
 // Storename no. 16 opcode 0x1e smainb
 static void smainb(void) {
     s16 offset = script_read16();
-//    debug(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
+//    ALIS_DEBUG(EDebugWarning, " [%.2x => %.6x]", (u8)alis.varD7, alis.basemain + offset);
     xwrite8(alis.basemain + offset, (u8)alis.varD7);
 }
 
 // Storename no. 17 opcode 0x20 smainw
 static void smainw(void) {
     s16 offset = script_read16();
-//    debug(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
+//    ALIS_DEBUG(EDebugWarning, " [%.4x => %.6x]", (s16)alis.varD7, alis.basemain + offset);
     xwrite16(alis.basemain + offset, (s16)alis.varD7);
 }
 
 // Storename no. 18 opcode 0x22 smainp
 static void smainp(void) {
     s16 offset = script_read16();
-    debug(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
+    ALIS_DEBUG(EDebugWarning, " [%s => %.6x]", (char *)alis.oldsd7, alis.basemain + offset);
     strcpy((char *)(alis.mem + alis.basemain + offset), (char *)alis.oldsd7);
 }
 
 // Storename no. 19 opcode 0x24 smaintp
 static void smaintp(void) {
     s32 addr = tabstring(alis.basemain + script_read16());
-    debug(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
+    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
 
@@ -209,22 +209,22 @@ static void shimw(void) {
 
 // Storename no. 24 opcode 0x2e shimp
 static void shimp(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Storename no. 25 opcode 0x30 shimtp
 static void shimtp(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Storename no. 26 opcode 0x32 shimtc
 static void shimtc(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Storename no. 27 opcode 0x34 shimti
 static void shimti(void) {
-    debug(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Storename no. 28 opcode 0x36 spile

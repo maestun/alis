@@ -86,14 +86,14 @@ sPlatform* pl_guess(const char * path, int mode) {
     FILE * file = NULL;
     if (path == NULL)
     {
-        debug(EDebugError,"Enter valid data path.\n");
+        ALIS_DEBUG(EDebugError,"Enter valid data path.\n");
         return platform;
     }
     
     size_t pathlen = strlen(path);
     if (pathlen <= 0)
     {
-        debug(EDebugError,"Enter valid data path.\n");
+        ALIS_DEBUG(EDebugError,"Enter valid data path.\n");
         return platform;
     }
     
@@ -114,17 +114,17 @@ sPlatform* pl_guess(const char * path, int mode) {
        {
            fclose(file);
            if (!mode) {
-              debug(EDebugInfo, "It seems you are trying to run alis with a file: %s\n", data_path);
-              debug(EDebugError,"Working with individual files is not supported in a game mode.\n");
-              debug(EDebugError,"Enter valid data path (game folder) located inside the alis folder.\n");
+              ALIS_DEBUG(EDebugInfo, "It seems you are trying to run alis with a file: %s\n", data_path);
+              ALIS_DEBUG(EDebugError,"Working with individual files is not supported in a game mode.\n");
+              ALIS_DEBUG(EDebugError,"Enter valid data path (game folder) located inside the alis folder.\n");
            } else
            {
               platform = pl_get(data_path);
               if(platform->kind == EPlatformUnknown)
                 {
-                  debug(EDebugInfo, "It seems you are trying to unpack a file %s\n", data_path);
-                  debug(EDebugError,"Unable to identify the plaftorm by file name.\n");
-                  debug(EDebugError,"Platform is unknown or unsupported.\n");
+                  ALIS_DEBUG(EDebugInfo, "It seems you are trying to unpack a file %s\n", data_path);
+                  ALIS_DEBUG(EDebugError,"Unable to identify the plaftorm by file name.\n");
+                  ALIS_DEBUG(EDebugError,"Platform is unknown or unsupported.\n");
                 } else
                 {
                   strcpy(platform->path, data_path);
@@ -133,7 +133,7 @@ sPlatform* pl_guess(const char * path, int mode) {
        }
        else
        {
-           debug(EDebugError,"%s is not a valid data path.\n", data_path);
+           ALIS_DEBUG(EDebugError,"%s is not a valid data path.\n", data_path);
        } 
        return platform;
     }
@@ -169,7 +169,7 @@ sPlatform* pl_guess(const char * path, int mode) {
                    fclose(file);
                 }
                 else {
-                   debug(EDebugError,"Cannot open %s for reading: No such file or directory.\n", main_path);
+                   ALIS_DEBUG(EDebugError,"Cannot open %s for reading: No such file or directory.\n", main_path);
                    closedir(dir);
                    return platform;
                 }
@@ -187,7 +187,7 @@ sPlatform* pl_guess(const char * path, int mode) {
     closedir(dir);
     if(platform->kind == EPlatformUnknown)
     {
-      debug(EDebugFatal, "Platform is unknown, unsupported or main file is not found.\n");
+      ALIS_DEBUG(EDebugFatal, "Platform is unknown, unsupported or main file is not found.\n");
     }
     return platform;
 }

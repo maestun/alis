@@ -1,6 +1,14 @@
-CC=m68k-atari-mint-gcc
-CXX=m68k-atari-mint-gcc
-CXX=m68k-atari-mint-gcc
+#CC=m68k-atari-mint-gcc
+#CXX=m68k-atari-mint-gcc
+#CXX=m68k-atari-mint-gcc
+
+CC=m68k-atari-mint-gcc-13.3.0
+CXX=m68k-atari-mint-gcc-13.3.0
+CXX=m68k-atari-mint-gcc-13.3.0
+
+#CC=m68k-atari-mint-gcc-14.2.0
+#CXX=m68k-atari-mint-gcc-14.2.0
+#CXX=m68k-atari-mint-gcc-14.2.0
 
 
 # Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
@@ -32,15 +40,19 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 # These files will have .d instead of .o as the output.
 CPPFLAGS := $(INC_FLAGS) -MMD -MP
 
-# enable debug
-CFLAGS :=  -g -m68020-60 -std=c99 -DALIS_SDL_VER=1
+# -mfastcall -mshort
+#CFLAGS := -O2 -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
+#CFLAGS := -O2 -fomit-frame-pointer -m5475 -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
+#CFLAGS := -O2 -fomit-frame-pointer -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
 
+CFLAGS := -g -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0
+  
 # The final build step.
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CXX) $(OBJS) -o $@ $(LDFLAGS) $(SDL_FLAGS)
 
 # Build step for C source
-$(BUILD_DIR)/%.c.o: %.c
+$(BUILD_DIR)/%.c.o: %.c                         
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 

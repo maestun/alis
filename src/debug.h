@@ -25,3 +25,11 @@
 
 void debug(EDebugLevel level, char * format, ...);
 void vdebug(EDebugLevel level, char * format, va_list args);
+
+#ifndef NDEBUG
+# define ALIS_DEBUG(l, ...) debug(l, __VA_ARGS__)
+# define ALIS_VDEBUG(l, f, a) vdebug(l, f, a)
+#else
+# define ALIS_DEBUG(l, ...)
+# define ALIS_VDEBUG(l, f, a)
+#endif

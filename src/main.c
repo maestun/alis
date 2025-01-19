@@ -45,9 +45,10 @@ void usage(void) {
             "Usage:\n"\
             "\tGame mode (Windowed):     %s <data_path>\n"\
             "\tGame mode (Fullscreen):   %s -f <data_path>\n"\
+            "\tGame mode (No Sound):     %s -m <data_path>\n"\
             "\tEnable runtime disalis:   %s -d <data_path>\n"\
             "\tUnpack mode:              %s -u <data_path>\n",
-            kProgName, kProgVersion, kProgName, kProgName, kProgName, kProgName);
+            kProgName, kProgVersion, kProgName, kProgName, kProgName, kProgName, kProgName);
     printf( "\nHotkeys:\n"\
             "\tPause                     Quit\n"\
             "\tPrScr                     Capture screenshot (not implemented yet)\n"\
@@ -69,6 +70,7 @@ int main(int argc, char *argv[]) {
         
         int fullscreen = 0;
         int unpackmode = 0;
+        int mutesound = 0;
 
         const char *path = NULL;
         
@@ -80,14 +82,19 @@ int main(int argc, char *argv[]) {
                 fullscreen = 1;
             }
             else
-            if (strcmp(cmd, "-u") == 0)
+            if (strcmp(cmd, "-m") == 0)
             {
-                unpackmode = 1;
+                mutesound = 1;
             }
             else
             if (strcmp(cmd, "-d") == 0)
             {
                 disalis ^= 1;
+            }
+            else
+            if (strcmp(cmd, "-u") == 0)
+            {
+                unpackmode = 1;
             }
             else
             {
@@ -112,7 +119,7 @@ int main(int argc, char *argv[]) {
             printf("#############################\n");
             printf("# System initialization...\n");
             printf("#############################\n");
-            sys_init(pl, fullscreen);
+            sys_init(pl, fullscreen, mutesound);
 
             printf("#############################\n");
             printf("# ALIS VM initialization...\n");
@@ -126,7 +133,7 @@ int main(int argc, char *argv[]) {
             result = sys_start();
 
             printf("\n");
-            debug(EDebugSystem, "The ALIS VM has been stopped.\n");
+            ALIS_DEBUG(EDebugSystem, "The ALIS VM has been stopped.\n");
 
             // Quit
             printf("\n");
@@ -143,7 +150,7 @@ int main(int argc, char *argv[]) {
             sys_errors_deinit();
         }
         else {
-//          debug(EDebugFatal, "Platform '%s' is not supported.\n", pl->desc);
+            ALIS_DEBUG(EDebugFatal, "Platform '%s' is not supported.\n", pl->desc);
         }
     }
     return result;

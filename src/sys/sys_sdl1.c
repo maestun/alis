@@ -56,7 +56,6 @@ extern u32              width;
 extern u32              height;
 
 extern int              audio_id;
-extern PSG              *audio_psg;
 
 extern u8               fls_ham6;
 extern u8               fls_s512;
@@ -75,11 +74,13 @@ u8                      dirty_pal = 1;
 s32                     dirty_len = 0;
 u32                     tmp_pal[256];
 
+void sys_audio_callback(void *userdata, u8 *stream, s32 len);
+
 // ============================================================================
 #pragma mark - SDL1 System init
 // ============================================================================
 
-void sys_init(sPlatform *pl, int fullscreen) {
+void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 
     dirty_mouse_rect = (SDL_Rect){0, 0, 16, 16};
     
@@ -108,41 +109,45 @@ void sys_init(sPlatform *pl, int fullscreen) {
     printf("  Audio initialization...\n");
     audio_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
     
-//    SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
-//    
-//    SDL_zero(*desired_spec);
-//    desired_spec->freq = 44100;
-//    desired_spec->format = AUDIO_S16;
-//    desired_spec->channels = 1;
-//    desired_spec->samples = desired_spec->freq / 50; // 20 ms
-//    desired_spec->callback = sys_audio_callback;
-//    desired_spec->userdata = NULL;
-//    desired_spec->size = desired_spec->samples * 2;
-//    
-//    if ((audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, audio_spec, 0)) <= 0 ) {
-//        fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
-//        exit(-1);
-//    }
-//    
-//    // Extended information on obtained audio for tests and reports
-//    printf("  Opened audio device id %d successfully:\n", audio_id);
-//    printf("    Frequency:  %d\n", audio_spec->freq);
-//    printf("    Format:     0x%04x => %d bits per sample\n", audio_spec->format, (int) SDL_AUDIO_BITSIZE(audio_spec->format));
-//    printf("    Channels:   %d\n", audio_spec->channels);
-//    printf("    Samples:    %d\n", audio_spec->samples);
-//    printf("    Silence:    %d\n", audio_spec->silence);
-//    printf("    Padding:    %d\n", audio_spec->padding);
-//    printf("    Size:       %d\n", audio_spec->size);
-//    
-//    free(desired_spec);
-    audio.host_freq = 22050;
-    audio.host_format = 0x0008;
+    SDL_AudioSpec *desired_spec = (SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec));
+    
+    memset(desired_spec, 0, sizeof(SDL_AudioSpec));
+    desired_spec->freq = 12500;
+    desired_spec->format = AUDIO_S16MSB;
+    desired_spec->channels = 1;
+    desired_spec->samples = desired_spec->freq / 20; // 20 ms
+    desired_spec->callback = sys_audio_callback;
+    desired_spec->userdata = NULL;
+    desired_spec->size = desired_spec->samples;
+    
+    memcpy(audio_spec, desired_spec, sizeof(SDL_AudioSpec));
+    
+//    if (SDL_OpenAudio(desired_spec, audio_spec) != 0) {
+    if (SDL_OpenAudio(desired_spec, 0) != 0) {
+        fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
+        free(audio_spec);
+        surface->pixels = prev_pixels;
+        SDL_FreeSurface(surface);
+        SDL_Quit();
+        exit(-1);
+    }
+    
+    // Extended information on obtained audio for tests and reports
+    printf("  Opened audio device id %d successfully:\n", audio_id);
+    printf("    Frequency:  %d\n", audio_spec->freq);
+    printf("    Format:     0x%04x\n", audio_spec->format);
+    printf("    Channels:   %d\n", audio_spec->channels);
+    printf("    Samples:    %d\n", audio_spec->samples);
+    printf("    Silence:    %d\n", audio_spec->silence);
+    printf("    Padding:    %d\n", audio_spec->padding);
+    printf("    Size:       %d\n", audio_spec->size);
+    
+    free(desired_spec);
 
-    audio_psg = PSG_new(2000000, audio_spec->freq);
-    PSG_setClockDivider(audio_psg, 1);
-    PSG_setVolumeMode(audio_psg, 1); // YM style
-    PSG_setQuality(audio_psg, 1);
-    PSG_reset(audio_psg);
+    audio.host_freq = audio_spec->freq;
+    audio.host_format = audio_spec->format;
+
+//    sys_init_psg();
     
     isr_step = (double)50.0 / (double)(audio_spec->freq);
     isr_counter = 1;
@@ -151,7 +156,7 @@ void sys_init(sPlatform *pl, int fullscreen) {
     frame_time = SDL_GetTicks();
     loop_time = SDL_GetTicks();
 
- //   SDL_PauseAudioDevice(audio_id, 0);
+    SDL_PauseAudio(mutesound);
 }
 
 void sys_init_timers(void) {
@@ -201,9 +206,12 @@ void sys_delay_frame(void)
 
 void sys_sleep_until_music_stops(void)
 {
+    if (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)
+        return;
+
     audio.working = 1;
 
-    for (int count = 0; count < 100 && audio.muflag; count++)
+    for (int count = 0; count < 10 && audio.muflag; count++)
     {
         SDL_Delay(10);
     }
@@ -211,7 +219,7 @@ void sys_sleep_until_music_stops(void)
     audio.muflag = 0;
     audio.musicId = 0xffff;
 
-    for (int count = 0; count < 100 && audio.working; count++)
+    for (int count = 0; count < 10 && audio.working; count++)
     {
         SDL_Delay(10);
     }
@@ -230,45 +238,18 @@ u8 sys_start(void) {
 
 void sys_poll_event(void) {
 
-    // TODO: to be removed
-    // NOTE: we are not yet calling audio callback so we no longer notify that playback stopped
-    // for now!
-    audio.working = 0;
-    
     sys_sleep_until(&poll_ticks, k_frame_ticks);
     
     itroutine(20, NULL);
     
-    if (mouse.enabled)
-    {
-        dirty_rects[dirty_len] = dirty_mouse_rect;
-        dirty_len++;
-        dirty_rects[dirty_len] = dirty_mouse_rect = (SDL_Rect){ .x = min(max(0, mouse.x), 304), .y = min(max(0, mouse.y), 184), .w = 16, .h = 16 };
-        dirty_len++;
-    }
-    
-    sys_render(host.pixelbuf);
-    
     SDL_PollEvent(&event);
-
-    // update mouse
-    u32 bt = SDL_GetMouseState(&mouse.x, &mouse.y);
-    
-//        float newx, newy;
-//        SDL_RenderWindowToLogical(renderer, mouse.x, mouse.y, &newx, &newy);
-//
-//        mouse.x = newx;
-//        mouse.y = newy / aspect_ratio;
-    mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
-    mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
-    
     switch (event.type) {
             
         case SDL_QUIT:
         {
             printf("\n");
-            debug(EDebugSystem, "SDL: Quit.\n");
-            debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+            ALIS_DEBUG(EDebugSystem, "SDL: Quit.\n");
+            ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
             alis.state = eAlisStateStopped;
             break;
         }
@@ -278,7 +259,7 @@ void sys_poll_event(void) {
             {
                 case SDLK_LALT:
                     printf("\n");
-                    debug(EDebugSystem, "INTERRUPT: User debug label.\n");
+                    ALIS_DEBUG(EDebugSystem, "INTERRUPT: User debug label.\n");
                     break;
 
                 case SDLK_F11:
@@ -310,8 +291,8 @@ void sys_poll_event(void) {
             if (event.key.keysym.sym == SDLK_PAUSE)
             {
                 printf("\n");
-                debug(EDebugSystem, "INTERRUPT: Quit by user request.\n");
-                debug(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+                ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request.\n");
+                ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                 alis.state = eAlisStateStopped;
             }
             else
@@ -322,6 +303,20 @@ void sys_poll_event(void) {
             break;
         }
     };
+    
+    // update mouse
+    dirty_rects[dirty_len] = dirty_mouse_rect;
+    dirty_len++;
+
+    u32 bt = SDL_GetMouseState(&mouse.x, &mouse.y);
+    
+    mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
+    mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
+
+    dirty_rects[dirty_len] = dirty_mouse_rect = (SDL_Rect){ .x = min(max(0, mouse.x), 304), .y = min(max(0, mouse.y), 184), .w = 16, .h = 16 };
+    dirty_len++;
+    
+    sys_render(host.pixelbuf);
 }
 
 // ============================================================================
@@ -641,7 +636,8 @@ void sys_deinit(void) {
     
     SDL_Delay(20);   // 20ms fail-safe delay to make sure that sound buffer is empty
 
-    PSG_delete(audio_psg);
+    sys_deinit_psg();
+
     free(audio_spec);
     
     surface->pixels = prev_pixels;

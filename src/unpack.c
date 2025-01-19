@@ -255,7 +255,7 @@ u32 unpack_new(u8* ptr_packed,
             write_neg(&ptr_unpacked, word(d5), &counter);
         }
     }
-    debug(EDebugInfo, "unpack counter=%d\n", __unpack_counter);
+    ALIS_DEBUG(EDebugInfo, "unpack counter=%d\n", __unpack_counter);
     return __unpack_counter;
 }
 
@@ -333,7 +333,7 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
             }
         }
         
-        debug(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_file_path, packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
+        ALIS_DEBUG(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_file_path, packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
         free(dict);
         free(packed_buffer);
         packed_buffer = NULL;
@@ -341,7 +341,7 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
     }
     else {
         // error
-        debug(EDebugFatal, "Cannot open input file (%s)\n", packed_file_path);
+        ALIS_DEBUG(EDebugFatal, "Cannot open input file (%s)\n", packed_file_path);
         ret = EUnpackErrorInput;
     }
     return ret;
@@ -388,13 +388,13 @@ int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_size) {
             }
         }
         
-        debug(EDebugInfo, "Unpacked FP: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
+        ALIS_DEBUG(EDebugInfo, "Unpacked FP: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
         free(packed_buffer);
         ret = unpacked_size;
     }
     else {
         // error
-        debug(EDebugFatal, "FP is NULL\n");
+        ALIS_DEBUG(EDebugFatal, "FP is NULL\n");
         ret = EUnpackErrorInput;
     }
     return ret;

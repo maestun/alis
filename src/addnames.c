@@ -70,7 +70,7 @@ static void alocp(void) {
 
 // Addname no. 07 opcode 0x0c aloctp
 static void aloctp(void) {
-    debug(EDebugInfo, "CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "CHECK: ", __FUNCTION__);
     s32 addr = tabstring(alis.script->vram_org + script_read16());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
@@ -113,7 +113,7 @@ static void adirp(void) {
 
 // Addname no. 13 opcode 0x18 adirtp
 static void adirtp(void) {
-    debug(EDebugInfo, "CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "CHECK: ", __FUNCTION__);
     s32 addr = tabstring(alis.script->vram_org + script_read8());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
@@ -152,7 +152,7 @@ static void amainp(void) {
 
 // Addname no. 19 opcode 0x24 amaintp
 static void amaintp(void) {
-    debug(EDebugInfo, "CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "CHECK: ", __FUNCTION__);
     s32 addr = tabstring(alis.basemain + script_read16());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
 }
@@ -173,7 +173,7 @@ static void amainti(void) {
 
 // Addname no. 22 opcode 0x2a ahimb
 static void ahimb(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "MISSING: ", __FUNCTION__);
 }
 
 // Addname no. 23 opcode 0x2c ahimw
@@ -185,12 +185,12 @@ static void ahimw(void) {
 
 // Addname no. 24 opcode 0x2e ahimp
 static void ahimp(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "MISSING: ", __FUNCTION__);
 }
 
 // Addname no. 25 opcode 0x30 ahimtp
 static void ahimtp(void) {
-    debug(EDebugInfo, "CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "CHECK: ", __FUNCTION__);
     s32 addr = xread32(alis.atent + xread16(alis.script->vram_org + script_read16()));
     addr = tabstring(addr + script_read16());
     strcat((char *)(alis.mem + addr), (char *)alis.oldsd7);
@@ -198,12 +198,12 @@ static void ahimtp(void) {
 
 // Addname no. 26 opcode 0x32 ahimtc
 static void ahimtc(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "MISSING: ", __FUNCTION__);
 }
 
 // Addname no. 27 opcode 0x34 ahimti
 static void ahimti(void) {
-    debug(EDebugInfo, "MISSING: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugInfo, "MISSING: ", __FUNCTION__);
 }
 
 // Addname no. 28 opcode 0x36 spile

@@ -43,8 +43,6 @@ s16 mv2_chipinstr(sChipChannel *chanel, s16 idx);
 void mv2_chipcanal(sChipChannel *chanel, s32 idx);
 u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel);
 
-extern PSG *audio_psg;
-
 sAudioTrkfrq mv2_trkfrq[7] = {
     { 0xB, 0xA3, 0x1B989B4 },
     { 0x9, 0xC4, 0x16FF2C1 },
@@ -787,14 +785,12 @@ f_chiprouttc:
         
         for (int i = 0; i < 13; i++)
         {
-            PSG_writeReg(audio_psg, chipdata[i * 4], chipdata[4 * i + 2]);
+            sys_write_psg(chipdata[i * 4], chipdata[4 * i + 2]);
         }
         
-        memset(audio.muadresse, 0, audio.mutaloop * 2);
-        for (int index = 0; index < audio.mutaloop; index ++)
-        {
-            audio.muadresse[index] = PSG_calc(audio_psg) * 4;
-        }
+#if !defined(__TOS__) && !defined(__atarist__)
+        sys_calc_psg_music();
+#endif
     }
 }
 

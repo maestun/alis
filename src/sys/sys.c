@@ -38,7 +38,9 @@
 // 2 hermite
 // 3 hermite_4pt_3ox
 
-#define ALIS_SND_INTERPOLATE_TYPE 1
+#ifndef ALIS_SND_INTERPOLATE_TYPE
+# define ALIS_SND_INTERPOLATE_TYPE 1
+#endif
 
 extern const u32 k_event_ticks;
 extern const u32 k_frame_ticks;
@@ -105,7 +107,9 @@ u32             height = 200;
 
 int             audio_id;
 SDL_AudioSpec   *audio_spec;
+#if !defined(__TOS__) && !defined(__atarist__)
 PSG             *audio_psg;
+#endif
 
 extern u8       fls_ham6;
 extern u8       fls_s512;
@@ -181,49 +185,99 @@ void signals_info(int signo) {
     switch (signo) {
         case SIGSEGV:
         {
-           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGSEGV: Invalid memory access (segmentation fault).\n");
+            ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGSEGV: Invalid memory access (segmentation fault).\n");
             break;
         }
         case SIGABRT:
         {
-           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGABRT: Abnormal termination.\n");
+            ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGABRT: Abnormal termination.\n");
             break;
         }
         case SIGFPE:
         {
-           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGFPE: Erroneous arithmetic operation.\n");
+            ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGFPE: Erroneous arithmetic operation.\n");
             break;
         }
         case SIGINT:
         {
-           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGINT: External interrupt.\n");
+            ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGINT: External interrupt.\n");
             break;
         }
         case SIGTERM:
         {
-           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGTERM: Termination request.\n");
+            ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGTERM: Termination request.\n");
             break;
         }
         case SIGILL:
         {
-           debug(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGILL: Invalid program image.\n");
+            ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGILL: Invalid program image.\n");
             break;
         }
         default:
             if (disalis) {
-               debug(EDebugFatal, "FATAL ERROR: An unidentified error %d occurred.\n", signo);
+                ALIS_DEBUG(EDebugFatal, "FATAL ERROR: An unidentified error %d occurred.\n", signo);
             }
             else {
-               debug(EDebugFatal, "An unidentified error %d occurred.\n", signo);
+                ALIS_DEBUG(EDebugFatal, "An unidentified error %d occurred.\n", signo);
             }
-        }
-    debug(EDebugSystem, "A STOP signal has been sent to the host system queue...\n");
+    }
+    
+    ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the host system queue...\n");
 }
 
 
 // ============================================================================
 #pragma mark - Audio
 // ============================================================================
+
+void sys_init_psg(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    audio_psg = PSG_new(2000000, audio_spec->freq);
+    PSG_setClockDivider(audio_psg, 1);
+    PSG_setVolumeMode(audio_psg, 1); // YM style
+    PSG_setQuality(audio_psg, 1);
+    PSG_reset(audio_psg);
+#endif
+}
+
+void sys_deinit_psg(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    PSG_delete(audio_psg);
+#endif
+}
+
+void sys_write_psg(u32 reg, u32 val)
+{
+#if defined(__TOS__) || defined(__atarist__)
+    // TODO:
+#else
+    PSG_writeReg(audio_psg, reg, val);
+#endif
+}
+
+u8 sys_read_psg(u32 reg)
+{
+    return
+#if defined(__TOS__) || defined(__atarist__)
+    // TODO:
+    0;
+#else
+    PSG_readReg(audio_psg, reg);
+#endif
+}
+
+void sys_calc_psg_music(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    memset(audio.muadresse, 0, audio.mutaloop * 2);
+    for (int index = 0; index < audio.mutaloop; index ++)
+    {
+        audio.muadresse[index] = PSG_calc(audio_psg) * 4;
+    }
+#endif
+}
 
 float interpolate_cubic(float x0, float x1, float x2, float x3, float t)
 {
@@ -307,13 +361,13 @@ u8 giaccess(s8 cmd, u8 data, u8 ch)
     u8 regval = cmd & 0xf;
     if ((regval < 0xe) && (cmd < 0))
     {
-        PSG_writeReg(audio_psg, regval, data);
+        sys_write_psg(regval, data);
     }
 
-    return PSG_readReg(audio_psg, regval);
+    return sys_read_psg(regval);
 }
 
-void sys_audio_callback(void *userdata, u8 *s, s32 length)
+void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
 {
     // TODO: create channels structure holding info about sounds to be played
     // type: (smaple, sound, noise, ...)
@@ -321,22 +375,17 @@ void sys_audio_callback(void *userdata, u8 *s, s32 length)
     // frequency: we will have to do some interpolation to play at correct speed
     // ...
 
-    memset(s, 0, length);
+    memset(s, 0, buffer_length);
 
-    float ratio = 0;
-    float volratio = 0;
-
-    int amplitude = 0;
-    int frequency = 0;
-    int tone_off = 0;
-    int noise_off = 1;
-    int envelope_on = 0;
+    u32 ratio = 0;
+    s32 volratio = 0;
     
     bool update_ym = false;
 
 #if ALIS_SND_INTERPOLATE_TYPE > 0
-    float smpidxf = 0;
-    float x0, x1, x2, x3, t, r;
+    int a0, a1, a2, a3;
+    int x0, x1, x2, x3;
+    float t, r;
 #endif
 
     int smpidx = 0;
@@ -345,10 +394,10 @@ void sys_audio_callback(void *userdata, u8 *s, s32 length)
     
     if (audio.muflag > 0)
     {
-        int smprem = length;
+        int smprem = buffer_length;
 
         int buflen = audio.mutaloop * 2;
-        float lenf = (float)length / (float)buflen;
+        float lenf = (float)buffer_length / (float)buflen;
         int len = ceil(lenf);
         
         if (audio.smpidx)
@@ -385,175 +434,170 @@ void sys_audio_callback(void *userdata, u8 *s, s32 length)
     
     if (audio.fsound)
     {
-        u16 *strm = (u16 *)s;
-        length /= 2;
+        u16 *audio_buffer = (u16 *)s;
+        buffer_length >>= 1;
         
-        for (int p = 0; p < length; p++)
+        double prev_counter = isr_counter;
+        u32 add = 0;
+        s32 s0, s1;
+        s32 accumulator, prevsmpidx;
+        
+        for (int i = 0; i < 4; i++)
         {
-            isr_counter += isr_step;
-            if (isr_counter >= 1)
-            {
-                isr_counter--;
-                update_ym = true;
-            }
-            else
-            {
-                update_ym = false;
-            }
+            isr_counter = prev_counter;
             
-            for (int i = 0; i < 4; i++)
+            sChannel *ch = &audio.channels[i];
+            switch (ch->type)
             {
-                sChannel *ch = &audio.channels[i];
-                switch (ch->type)
+                case eChannelTypeSample:
                 {
-                    case eChannelTypeSample:
-                    {
-                        ratio = (float)(ch->freq) / (float)(audio_spec->freq);
-                        volratio = ((float)(ch->volume) / 128.0) / 4;
-                        
+                    add = 0;
+                    volratio = ch->volume >> 1;
+
+                    ratio = (ch->freq << 16) / audio_spec->freq;
+                    accumulator = ch->played * ratio;
+                    smpidx = accumulator >> 16;
+                    accumulator &= 0xFFFF;
+
 #if ALIS_SND_INTERPOLATE_TYPE > 0
-                        // interpolation
-                        
-                        smpidxf = ch->played * ratio;
-                        smpidx = (int)smpidxf;
-                        if (smpidx >= ch->length)
-                        {
-                            if (ch->loop > 1)
-                            {
-                                ch->loop--;
-                                ch->played = smpidx = 0;
-                            }
-                            else
-                            {
-                                ch->type = eChannelTypeNone;
-                                ch->curson = 0x80;
-                                break;
-                            }
-                        }
-                        
-                        int i1 = (int)smpidxf;
-                        if (i1 >= ch->length)
-                            i1 = (ch->loop > 1) ? 0 : -1;
-                        
-                        int i2 = i1 + 1;
-                        if (i2 >= ch->length)
-                            i2 = (ch->loop > 1) ? 0 : -1;
-                        
-                        int i3 = i2 + 1;
-                        if (i3 >= ch->length)
-                            i3 = (ch->loop > 1) ? 0 : -1;
-                        
-                        int i0 = i1 - 1;
-                        if (i0 < 0)
-                            i0 = (ch->loop > 1) ? ch->length -1 : -1;
-                        
-                        
-                        //                        s8 sam = xread8(startsam1 + test3 - 0x10);
-                        //                        int total = audio.muadresse[index] + sam;
-                        //                        if (total < -32768)
-                        //                            total = -32768;
-                        //
-                        //                        if (total > 32767)
-                        //                            total = 32767;
-                        
-                        //                        x0 = (i0 >= 0) ? (s16)((ch->address[i0] | ch->address[i0] << 8) - 0x8000) : 0;
-                        //                        x1 = (i1 >= 0) ? (s16)((ch->address[i1] | ch->address[i1] << 8) - 0x8000) : 0;
-                        //                        x2 = (i2 >= 0) ? (s16)((ch->address[i2] | ch->address[i2] << 8) - 0x8000) : 0;
-                        //                        x3 = (i3 >= 0) ? (s16)((ch->address[i3] | ch->address[i3] << 8) - 0x8000) : 0;
-                        x0 = (i0 >= 0) ? (s16)(ch->address[i0] * 256) : 0;
-                        x1 = (i1 >= 0) ? (s16)(ch->address[i1] * 256) : 0;
-                        x2 = (i2 >= 0) ? (s16)(ch->address[i2] * 256) : 0;
-                        x3 = (i3 >= 0) ? (s16)(ch->address[i3] * 256) : 0;
-                        
-                        t = smpidxf - (int)smpidxf;
-                        
+                    x0 = (smpidx - 1 >= 0) ? (s16)(ch->address[smpidx - 1] * 256) : ch->loop > 1 ? (s16)(ch->address[ch->length - 1] * 256) : 0;
+                    x1 = (s16)(ch->address[smpidx] * 256);
+                    x2 = (smpidx + 1 < ch->length) ? (s16)(ch->address[smpidx + 1] * 256) : ch->loop > 1 ? (s16)(ch->address[0] * 256) : 0;
+                    x3 = (smpidx + 2 < ch->length) ? (s16)(ch->address[smpidx + 2] * 256) : ch->loop > 1 ? (s16)(ch->address[0] * 256) : 0;
 # if ALIS_SND_INTERPOLATE_TYPE == 1
-                        r = interpolate_cubic(x0, x1, x2, x3, t);
-# elif ALIS_SND_INTERPOLATE_TYPE == 2
-                        r = interpolate_hermite(x0, x1, x2, x3, t);
-# else // 3
-                        r = interpolate_hermite_4pt_3ox(x0, x1, x2, x3, t);
+                    a0 = x3 - x2 - x0 + x1;
+                    a1 = x0 - x1 - a0;
+                    a2 = x2 - x0;
 # endif
-                        
-                        s32 s0 = r * volratio;
 #else
-                        // no interpolation
-                        
-                        smpidx = ch->played * ratio;
-                        if (smpidx >= ch->length)
+                    s0 = (s8)ch->address[smpidx] * volratio;
+#endif
+                    
+                    for (int buffer_index = 0; buffer_index < buffer_length; buffer_index++, ch->played++, accumulator+=ratio)
+                    {
+                        if ((add = accumulator >> 16))
                         {
-                            if (ch->loop > 1)
+                            smpidx += add;
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                            if (smpidx < ch->length - 3)
                             {
-                                ch->loop--;
-                                ch->played = smpidx = 0;
+                                x0 = x1;
+                                x1 = x2;
+                                x2 = x3;
+                                x3 = (s16)(ch->address[smpidx + 2] * 256);
                             }
                             else
                             {
-                                ch->type = eChannelTypeNone;
-                                ch->curson = 0x80;
-                                break;
-                            }
-                        }
-                        
-                        //                        s32 s0 = ((ch->address[smpidx] | ch->address[smpidx] << 8) - 0x8000) * volratio;
-                        s32 s0 = (ch->address[smpidx] * 256) * volratio;
+                                x0 = x1;
+                                x1 = x2;
+                                x2 = x3;
+                                x3 = 0;
 #endif
-                        s32 s1 = strm[p] - 0x8000;
-                        strm[p] = (s0 + s1) + 0x8000;
-                        
-                        ch->played ++;
-                    }
-                        break;
-                        
-                    case eChannelTypeDingZap:
-                    case eChannelTypeNoise:
-                    case eChannelTypeExplode:
-                    {
-                        if (i < 3 && update_ym)
-                        {
-                            if (ch->played < ch->length)
-                            {
-                                ch->played ++;
-                                
-                                s32 vol = (s32)ch->delta_volume + (s32)ch->volume;
-                                if (-1 < vol)
+                                if (smpidx >= ch->length + 1)
                                 {
-                                    if (0x7fff < vol)
+                                    if (ch->loop > 1)
                                     {
-                                        vol = 0x7fff;
+                                        ch->loop--;
+                                        ch->played = smpidx = accumulator = 0;
                                     }
-                                    
-                                    ch->volume = (s16)vol;
-                                    u16 freq = ch->delta_freq + ch->freq;
-                                    if (-1 < (s32)((u32)freq << 0x10))
+                                    else
                                     {
-                                        ch->freq = freq;
-                                        io_canal(ch, i);
+                                        ch->type = eChannelTypeNone;
+                                        ch->curson = 0x80;
                                         break;
                                     }
                                 }
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                            }
+
+# if ALIS_SND_INTERPOLATE_TYPE == 1
+                            a0 = x3 - x2 - x0 + x1;
+                            a1 = x0 - x1 - a0;
+                            a2 = x2 - x0;
+# endif
+#else
+                            s0 = (s8)ch->address[smpidx] * volratio;
+#endif
+                        }
+                        
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                        t = (accumulator / 65536.0) - add;
+# if ALIS_SND_INTERPOLATE_TYPE == 1
+                        r = ((a0 * (t * t * t)) + (a1 * (t * t)) + (a2 * t) + x1) / 256.0;
+# elif ALIS_SND_INTERPOLATE_TYPE == 2
+                        r = interpolate_hermite(x0, x1, x2, x3, t);
+# else
+                        r = interpolate_hermite_4pt_3ox(x0, x1, x2, x3, t);
+# endif
+                        s0 = r * volratio;
+#endif
+                        audio_buffer[buffer_index] = (s0 + audio_buffer[buffer_index]);
+                        accumulator &= 0xFFFF;
+                    }
+                    break;
+                }
+                    
+                case eChannelTypeDingZap:
+                case eChannelTypeNoise:
+                case eChannelTypeExplode:
+                {
+                    if (i < 3)
+                    {
+                        for (int p = 0; p < buffer_length; p++)
+                        {
+                            isr_counter += isr_step;
+                            if (isr_counter >= 1)
+                            {
+                                isr_counter--;
+                                
+                                do
+                                {
+                                    if (ch->played < ch->length)
+                                    {
+                                        ch->played ++;
+                                        
+                                        s32 vol = (s32)ch->delta_volume + (s32)ch->volume;
+                                        if (-1 < vol)
+                                        {
+                                            if (0x7fff < vol)
+                                            {
+                                                vol = 0x7fff;
+                                            }
+                                            
+                                            ch->volume = (s16)vol;
+                                            u32 freq = ch->delta_freq + ch->freq;
+                                            if (-1 < (s32)(freq << 0x10))
+                                            {
+                                                ch->freq = freq;
+                                                io_canal(ch, i);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    ch->type = eChannelTypeNone;
+                                    ch->volume = 0;
+                                    ch->freq = 0;
+                                    ch->curson = 0x80;
+                                    ch->state = 0;
+                                    ch->played = 0;
+                                    io_canal(ch, i);
+                                }
+                                while (false);
                             }
                             
-                            ch->type = eChannelTypeNone;
-                            ch->volume = 0;
-                            ch->freq = 0;
-                            ch->curson = 0x80;
-                            ch->state = 0;
-                            ch->played = 0;
-                            io_canal(ch, i);
+#if !defined(__TOS__) && !defined(__atarist__)
+                            s0 = PSG_calc(audio_psg);
+                            s1 = audio_buffer[p] - 0x8000;
+                            audio_buffer[p] = (s0 + s1) + 0x8000;
+#endif
                         }
                     }
-                        break;
-                        
-                    default:
-                        break;
+                    break;
                 }
-                
-                s32 s0 = PSG_calc(audio_psg);
-                s32 s1 = strm[p] - 0x8000;
-                
-                s32 val = (strm[p] + ((s0 + s1) + 0x8000)) / 2;
-                strm[p] = val;
+                    
+                default:
+                    break;
             }
         }
     }
@@ -614,10 +658,10 @@ u8 io_inkey(void)
 {
 #if ALIS_SDL_VER == 1
     SDL_PumpEvents();
-    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    const u8 *currentKeyStates = SDL_GetKeyboardState(NULL);
     if (!currentKeyStates[button.sym])
 #else
-    const Uint8 *currentKeyStates = SDL_GetKeyboardState(NULL);
+    const u8 *currentKeyStates = SDL_GetKeyboardState(NULL);
     if (!currentKeyStates[button.scancode])
 #endif
     {
@@ -625,12 +669,7 @@ u8 io_inkey(void)
         button.sym = 0;
     }
     
-    if (button.sym)
-    {
-        sleep(0);
-    }
-
-    debug(EDebugInfo, " [\"%s\"]", SDL_GetKeyName(button.sym));
+    ALIS_DEBUG(EDebugInfo, " [\"%s\"]", SDL_GetKeyName(button.sym));
     switch (button.sym) {
         case SDLK_ESCAPE:       return 0x1b;
             
@@ -731,7 +770,7 @@ FILE * sys_fopen(char * path, u16 mode) {
         strcpy(flag, "ab");
     }
 
-    debug(EDebugInfo, " [%s][%.3x] ", path, mode);
+    ALIS_DEBUG(EDebugInfo, " [%s][%.3x] ", path, mode);
     return fopen(strlower(path), flag);
 }
 
