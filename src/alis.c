@@ -482,8 +482,6 @@ extern sMV2Audio mv2a;
 extern u16 fls_drawing;
 extern u16 fls_pallines;
 extern s8  fls_state;
-extern u8 fls_ham6;
-extern u8 fls_s512;
 extern u8 pvgalogic[1024 * 1024];
 extern u8 *vgalogic;
 extern u8 *vgalogic_df;
@@ -635,8 +633,6 @@ void alis_save_state(void)
     fwrite(&fls_drawing, sizeof(fls_drawing), 1, fp);
     fwrite(&fls_pallines, sizeof(fls_pallines), 1, fp);
     fwrite(&fls_state, sizeof(fls_state), 1, fp);
-    fwrite(&fls_ham6, sizeof(fls_ham6), 1, fp);
-    fwrite(&fls_s512, sizeof(fls_s512), 1, fp);
     fwrite(&pvgalogic, sizeof(pvgalogic), 1, fp);
     
     value = (u32)((s64)vgalogic - (s64)pvgalogic);
@@ -894,8 +890,6 @@ void alis_load_state(void)
     fread(&fls_drawing, sizeof(fls_drawing), 1, fp);
     fread(&fls_pallines, sizeof(fls_pallines), 1, fp);
     fread(&fls_state, sizeof(fls_state), 1, fp);
-    fread(&fls_ham6, sizeof(fls_ham6), 1, fp);
-    fread(&fls_s512, sizeof(fls_s512), 1, fp);
     fread(&pvgalogic, sizeof(pvgalogic), 1, fp);
     fread(&value, 4, 1, fp);
     vgalogic = pvgalogic + value;
@@ -1419,18 +1413,18 @@ FILE *afopen(char *path, u16 openmode)
                 {
                     fread(alis.buffer, 0xc, 1, alis.fp);
 
-                    u32 type = xpcswap32(*(u32 *)alis.buffer);
+                    u32 type = xswap32be(*(u32 *)alis.buffer);
                     if (type == 0x50423630)
                     {
                         alis.typepack = 0xa0;
                         alis.wordpack = 0;
-                        alis.longpack = xpcswap32(*(u32 *)(alis.buffer + 4));
+                        alis.longpack = xswap32be(*(u32 *)(alis.buffer + 4));
                     }
                     else if (type == 0x50573630)
                     {
                         alis.typepack = 0xa0;
                         alis.wordpack = 1;
-                        alis.longpack = xpcswap32(*(u32 *)(alis.buffer + 4));
+                        alis.longpack = xswap32be(*(u32 *)(alis.buffer + 4));
                     }
                 }
             }

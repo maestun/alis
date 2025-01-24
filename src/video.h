@@ -21,6 +21,14 @@
 
 #pragma once
 
+typedef enum {
+    
+    eAlisVideoNone        = 0,
+    eAlisVideoS512        = 1,
+    eAlisVideoHAM6        = 2,
+    eAlisVideoFLIC        = 3,
+} eAlisVideo;
+
 typedef struct {
     s16 id;
     u8  playing;
@@ -34,6 +42,7 @@ typedef struct {
     s16 batchframes;
     s16 waitclock;
     u32 basemain;
+    eAlisVideo type;
 } sFLICData;
 
 void inifilm(void);

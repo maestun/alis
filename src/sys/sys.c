@@ -111,8 +111,6 @@ SDL_AudioSpec   *audio_spec;
 PSG             *audio_psg;
 #endif
 
-extern u8       fls_ham6;
-extern u8       fls_s512;
 extern u8       *vgalogic_df;
 
 u8              failure;

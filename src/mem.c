@@ -30,24 +30,30 @@ fRead16 read16;
 fRead24 read24;
 fRead32 read32;
 
+fRead16 read16be;
+fRead32 read32be;
+
+fRead16 read16le;
+fRead32 read32le;
+
 static u16 _read16(const u8 *ptr) {
     return *((u16*)ptr);
 }
 
-static u16 _read16LE(const u8 *ptr) {
+static u16 _read16le(const u8 *ptr) {
     return (u16)ptr[0] | ((u16)ptr[1] << 8);
 }
 
-static u16 _read16BE(const u8 *ptr) {
+static u16 _read16be(const u8 *ptr) {
     return (u16)ptr[1] | ((u16)ptr[0] << 8);
 }
 
-static u32 _read24LE(const u8 *ptr) {
+static u32 _read_le24(const u8 *ptr) {
     u32 result = (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16);
     return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
 }
 
-static u32 _read24BE(const u8 *ptr) {
+static u32 _read_be_24(const u8 *ptr) {
     u32 result = (u32)ptr[2] | ((u32)ptr[1] << 8) | ((u32)ptr[0] << 16);
     return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
 }
@@ -56,20 +62,13 @@ static u32 _read32(const u8 *ptr) {
     return *((u32*)ptr);
 }
 
-static u32 _read32LE(const u8 *ptr) {
+static u32 _read32le(const u8 *ptr) {
     return (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16) | ((u32)ptr[3] << 24);
 }
 
-static u32 _read32BE(const u8 *ptr) {
+static u32 _read32be(const u8 *ptr) {
     return (u32)ptr[3] | ((u32)ptr[2] << 8) | ((u32)ptr[1] << 16) | ((u32)ptr[0] << 24);
 }
-
-typedef void (*fWrite16)(u32, s16);
-typedef void (*fWrite32)(u32, s32);
-
-static fWrite16 _write16_fptr;
-static fWrite32 _write24_fptr;
-static fWrite32 _write32_fptr;
 
 typedef u16 (*fConvert16)(u16);
 typedef u32 (*fConvert32)(u32);
@@ -77,8 +76,8 @@ typedef u32 (*fConvert32)(u32);
 static fConvert16 _convert16;
 static fConvert32 _convert32;
 
-static fConvert16 _pcconvert16;
-static fConvert32 _pcconvert32;
+static fConvert16 _convert16be;
+static fConvert32 _convert32be;
 
 static u16 _swap16(u16 value) {
     return (value <<  8) | (value >>  8);
@@ -100,15 +99,22 @@ static u32 _linear32(u32 value) {
 }
 
 void vram_init(void) {
+
+    read16 = (alis.platform.is_little_endian == is_host_le()) ? _read16 : alis.platform.is_little_endian ? _read16le : _read16be;
+    read24 = alis.platform.is_little_endian ? _read_le24 : _read_be_24;
+    read32 = (alis.platform.is_little_endian == is_host_le()) ? _read32 : alis.platform.is_little_endian ? _read32le : _read32be;
+
+    read16le = is_host_le() ? _read16 : _read16le;
+    read32le = is_host_le() ? _read32 : _read32le;
+
+    read16be = is_host_le() ? _read16be : _read16;
+    read32be = is_host_le() ? _read32be : _read32;
+
     _convert16 = (alis.platform.is_little_endian == is_host_le()) ? _linear16 : _swap16;
     _convert32 = (alis.platform.is_little_endian == is_host_le()) ? _linear32 : _swap32;
 
-    read16 = (alis.platform.is_little_endian == is_host_le()) ? _read16 : alis.platform.is_little_endian ? _read16LE : _read16BE;
-    read24 = alis.platform.is_little_endian ? _read24LE : _read24BE;
-    read32 = (alis.platform.is_little_endian == is_host_le()) ? _read32 : alis.platform.is_little_endian ? _read32LE : _read32BE;
-
-    _pcconvert16 = (alis.platform.kind == EPlatformPC) ? ((alis.platform.is_little_endian == is_host_le()) ? _swap16 : _linear16) : _convert16;
-    _pcconvert32 = (alis.platform.kind == EPlatformPC) ? ((alis.platform.is_little_endian == is_host_le()) ? _swap32 : _linear32) : _convert32;
+    _convert16be = is_host_le() ? _swap16 : _linear16;
+    _convert32be = is_host_le() ? _swap32 : _linear32;
 }
 
 void write32(const u8 *ptr, u32 value) {
@@ -140,38 +146,6 @@ s32 xread32(u32 offset) {
     g_val = _convert32(*(u32*)(alis.mem + offset));
     ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
     return (s32)g_val;
-}
-
-s16 xpcswap16(u16 value) {
-    return _pcconvert16(value);
-}
-
-s32 xpcswap32(u32 value) {
-    return _pcconvert32(value);
-}
-
-s16 xpcread16(u32 offset) {
-    u16* ptr = (u16*)(alis.mem + offset);
-    g_val = _pcconvert16(*ptr);
-    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
-    return (s16)g_val;
-}
-
-s32 xpcread32(u32 offset) {
-    u32* ptr = (u32*)(alis.mem + offset);
-    g_val = _pcconvert32(*ptr);
-    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
-    return (s32)g_val;
-}
-
-void xpcwrite16(u32 offset, s16 value) {
-    ALIS_DEBUG(EDebugVerbose, " [%.4x => %.6x]", value, offset);
-    *(s16 *)(alis.mem + offset) = _pcconvert16(value);
-}
-
-void xpcwrite32(u32 offset, s32 value) {
-    ALIS_DEBUG(EDebugVerbose, " [%.8x => %.6x]", value, offset);
-    *(s32 *)(alis.mem + offset) = _pcconvert32(value);
 }
 
 u8 * get_vram(s16 offset) {
@@ -267,4 +241,26 @@ u16 fread16(FILE* fp) {
 u32 fread32(FILE* fp) {
     fread(&g_val, sizeof(u32), 1, fp);
     return swap32((u8 *)&g_val);
+}
+
+s16 xswap16be(u16 value) {
+    return _convert16be(value);
+}
+
+s32 xswap32be(u32 value) {
+    return _convert32be(value);
+}
+
+s16 xread16be(u32 offset) {
+    u16* ptr = (u16*)(alis.mem + offset);
+    g_val = _convert16be(*ptr);
+    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
+    return (s16)g_val;
+}
+
+s32 xread32be(u32 offset) {
+    u32* ptr = (u32*)(alis.mem + offset);
+    g_val = _convert32be(*ptr);
+    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
+    return (s32)g_val;
 }

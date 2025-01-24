@@ -307,7 +307,7 @@ void mv1_checkcom(void)
                         s32 instr = channel->instr;
                         u16 data = channel->data;
                         channel->startsam.address = instr;
-                        s32 instre = xpcread32(instr - 8);
+                        s32 instre = xread32be(instr - 8);
                         if (instre != 0)
                         {
                             instre += instr;
@@ -341,7 +341,7 @@ void mv1_checkcom(void)
                 }
                 case 3:
                 {
-                    s32 instre = xpcread32(channel->instr - 4);
+                    s32 instre = xread32be(channel->instr - 4);
                     if (instre != 0)
                     {
                         instre += channel->instr;

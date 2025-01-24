@@ -40,11 +40,6 @@ u8 *endframe = NULL;
 
 sFLICData bfilm;
 
-// fls/fla video player
-
-u8 fls_ham6 = 0;
-u8 fls_s512 = 0;
-
 u16 fls_drawing = 0;
 u16 fls_pallines = 0;
 s8  fls_state = 0;
@@ -86,11 +81,10 @@ void fls_cleanup(void)
 {
     // TODO: restore palette and screen
 
+    bfilm.type = eAlisVideoNone;
     bfilm.addr1 = 0;
     fls_state = 0;
     
-    fls_ham6 = 0;
-    fls_s512 = 0;
 //    last_touche = 0;
 }
 
@@ -141,31 +135,11 @@ u8 *fls_decomp(u8 *addr)
         }
     }
     
-#if ALIS_SDL_VER < 2
-    // TODO: SDL1
-    if (dirty_len >= 0)
-    {
-//        if (dirty_len > 2043)
-        {
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-            dirty_len = -1;
-        }
-//        else
-//        {
-//            dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
-//            dirty_len++;
-//        }
-    }
-#endif
-    
     return endframe;
 }
 
 void fls_init(u8 *addr)
 {
-    fls_ham6 = alis.platform.kind == EPlatformAmiga;
-    fls_s512 = alis.platform.kind == EPlatformAtari;
-    
     fls_pallines = (u16)*(addr + 8) * 2;
     bfilm.frames = read16(addr + 6);
     bfilm.endptr = addr + read32(addr);
@@ -279,6 +253,8 @@ u32 flstofen(s16 clean)
 void endfilm(void)
 {
     flstofen(-1);
+    bfilm.type = eAlisVideoNone;
+
 //    if (pvgalogic != 0)
 //    {
 //        io_mfree();
@@ -291,7 +267,7 @@ void endfilm(void)
 
 void fli_palette(u8 *addr)
 {
-    u16 packets = *(u16 *)(addr), index = 0;
+    u16 packets = read16le(addr), index = 0;
     addr+=2;
     
     do
@@ -345,8 +321,8 @@ void fli_decomp(u8 *addr, u8 partial)
     
     if (partial)
     {
-        index = *(u16 *)(addr) * alis.platform.width; addr+=2;
-        len = *(u16 *)(addr); addr+=2;
+        index = read16le(addr) * alis.platform.width; addr+=2;
+        len = read16le(addr); addr+=2;
     }
     
     while (len--)
@@ -392,24 +368,6 @@ void fli_decomp(u8 *addr, u8 partial)
         
         index += alis.platform.width;
     }
-    
-//#if ALIS_SDL_VER < 2
-    // TODO: SDL1
-//    if (dirty_len >= 0)
-//    {
-////        if (dirty_len > 2043)
-//        {
-//            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-//            dirty_len = -1;
-//        }
-////        else
-////        {
-////            dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
-////            dirty_len++;
-////        }
-//    }
-//#endif
-
 }
 
 void fli_elements(u8 *addr)
@@ -419,10 +377,10 @@ void fli_elements(u8 *addr)
         return;
     }
 
-    u32 offset = *(u32 *)(addr);
+    u32 offset = read32le(addr);
     addr+=4;
 
-    u16 type = *(u16 *)(addr);
+    u16 type = read16le(addr);
     addr+=2;
     
     switch (type) {
@@ -445,39 +403,24 @@ void fli_elements(u8 *addr)
 
     fli_elements(addr + offset - 6);
     
+#if ALIS_SDL_VER >= 2
     memcpy(image.physic, vgalogic, alis.platform.width*alis.platform.height);
     memcpy(image.logic, vgalogic, alis.platform.width*alis.platform.height);
-    
-#if ALIS_SDL_VER < 2
-    // TODO: SDL1
-    if (dirty_len >= 0)
-    {
-//        if (dirty_len > 2043)
-        {
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-            dirty_len = -1;
-        }
-//        else
-//        {
-//            dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
-//            dirty_len++;
-//        }
-    }
 #endif
 }
 
 void fli_init(u8 *flcaddr)
 {
-    u32 length = *(u32 *)(flcaddr);
+    u32 length = read32le(flcaddr);
     bfilm.endptr = flcaddr + length;
     bfilm.addr1 = flcaddr + 0x80;
-    bfilm.frames = *(u16 *)(flcaddr + 6);
+    bfilm.frames = read16le(flcaddr + 6);
     bfilm.frame = 0;
 }
 
 void fli_next(u8 *addr)
 {
-    u32 length = *(u32 *)(addr);
+    u32 length = read32le(addr);
     endframe = addr + length;
     fli_elements(addr + 16);
     bfilm.addr1 = endframe;
@@ -488,7 +431,7 @@ s16 flitofen(void)
 {
     if (bfilm.addr1 != NULL)
     {
-        u16 type = *(u16 *)(bfilm.addr1 + 4);
+        u16 type = read16le(bfilm.addr1 + 4);
         if (type == 0xaf11)
         {
             fli_init(bfilm.addr1);
@@ -507,7 +450,18 @@ s16 flitofen(void)
 void inifilm(void)
 {
     bfilm.playing = 0;
-    
+    switch (alis.platform.kind) {
+        case EPlatformAtari:
+            bfilm.type = eAlisVideoS512;
+            break;
+        case EPlatformAmiga:
+            bfilm.type = eAlisVideoHAM6;
+            break;
+        default:
+            bfilm.type = eAlisVideoFLIC;
+            break;
+    };
+
     if (alis.platform.kind == EPlatformAtari || alis.platform.kind == EPlatformAmiga)
     {
         flstofen(0);
@@ -521,12 +475,12 @@ void inifilm(void)
 void runfilm(void)
 {
     u32 basemain = bfilm.basemain;
-    image.fenx1 = *(u16 *)(alis.mem + basemain + 0xe);
-    image.fenx2 = *(u16 *)(alis.mem + basemain + 0x12) + image.fenx1;
-    image.clipl = *(u16 *)(alis.mem + basemain + 0x12) + 1;
-    image.feny1 = *(u16 *)(alis.mem + basemain + 0x10);
-    image.feny2 = *(u16 *)(alis.mem + basemain + 0x14) + image.feny1;
-    image.cliph = *(u16 *)(alis.mem + basemain + 0x14) + 1;
+    image.fenx1 = read16le(alis.mem + basemain + 0xe);
+    image.fenx2 = read16le(alis.mem + basemain + 0x12) + image.fenx1;
+    image.clipl = read16le(alis.mem + basemain + 0x12) + 1;
+    image.feny1 = read16le(alis.mem + basemain + 0x10);
+    image.feny2 = read16le(alis.mem + basemain + 0x14) + image.feny1;
+    image.cliph = read16le(alis.mem + basemain + 0x14) + 1;
     image.wloglarg = image.loglarg;
     image.wlogx1 = 0;
     image.wlogy1 = 0;
@@ -551,8 +505,8 @@ void runfilm(void)
             
             do {
 #if ALIS_SDL_VER == 1
-                // TODO: SDL1
-                dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h }; dirty_len = 1; itroutine(20, NULL);
+                sys_delay_frame();
+                itroutine(20, NULL);
 #endif
             } while (alis.timeclock < (u32)(index + prevclock));
         }

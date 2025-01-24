@@ -2465,7 +2465,7 @@ static void cfdel(void) {
 // Codopname no. 117 opcode 0x74 cfreadv
 static void cfreadv(void) {
     fread(alis.buffer, 2, 1, alis.fp);
-    alis.varD7 = xpcswap16(*(s16 *)alis.buffer);
+    alis.varD7 = xswap16be(*(s16 *)alis.buffer);
     ALIS_DEBUG(EDebugInfo, " 0x%04x", alis.varD7);
     cstore_continue();
 }
@@ -2473,7 +2473,7 @@ static void cfreadv(void) {
 // Codopname no. 118 opcode 0x75 cfwritev
 static void cfwritev(void) {
     readexec_opername();
-    s16 val = xpcswap16(alis.varD7);
+    s16 val = xswap16be(alis.varD7);
     ALIS_DEBUG(EDebugInfo, " 0x%04x", alis.varD7);
     fwrite(&val, 2, 1, alis.fp);
 }
@@ -3279,7 +3279,7 @@ static void sound(void) {
 
         u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
         if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly || alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya))
-            longsam = xpcread32(alis.script->data->data_org + addr + 2) - 0x10;
+            longsam = xread32be(alis.script->data->data_org + addr + 2) - 0x10;
 
         u32 startsam = alis.script->data->data_org + addr + 0x10;
         playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam, priorson);

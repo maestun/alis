@@ -27,16 +27,22 @@ typedef u16 (*fRead16)(const u8 *);
 typedef u32 (*fRead24)(const u8 *);
 typedef u32 (*fRead32)(const u8 *);
 
-extern fRead16 read16;
-extern fRead24 read24;
-extern fRead32 read32;
+extern fRead16  read16;
+extern fRead24  read24;
+extern fRead32  read32;
 
-void        write32(const u8 *ptr, u32 value);
+extern fRead16  read16be;
+extern fRead32  read32be;
 
-u16         fread16(FILE * fp);
-u32         fread32(FILE * fp);
-u16         swap16(const u8 *);
-u32         swap32(const u8 *);
+extern fRead16  read16le;
+extern fRead32  read32le;
+
+void            write32(const u8 *ptr, u32 value);
+
+u16             fread16(FILE * fp);
+u32             fread32(FILE * fp);
+u16             swap16(const u8 *);
+u32             swap32(const u8 *);
 
 
 u16             xswap16(u16 value);
@@ -62,17 +68,8 @@ void            xpush32(s32 value);
 s32             xpeek32(void);
 s32             xpop32(void);
 
-s16             xpcswap16(u16 value);
-s32             xpcswap32(u32 value);
+s16             xswap16be(u16 value);
+s32             xswap32be(u32 value);
 
-s16             xpcread16(u32 offset);
-s32             xpcread32(u32 offset);
-
-void            xpcwrite16(u32 offset, s16 value);
-void            xpcwrite32(u32 offset, s32 value);
-
-#define vread16 xread16
-#define vread32 xread32
-#define vwrite8 xwrite8
-#define vwrite16 xwrite16
-#define vwrite32 xwrite32
+s16             xread16be(u32 offset);
+s32             xread32be(u32 offset);

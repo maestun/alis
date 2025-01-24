@@ -33,6 +33,7 @@
 #include "mem.h"
 #include "platform.h"
 #include "utils.h"
+#include "video.h"
 
 #include "emu2149.h"
 #include "math.h"
@@ -57,8 +58,7 @@ extern u32              height;
 
 extern int              audio_id;
 
-extern u8               fls_ham6;
-extern u8               fls_s512;
+extern u8               *vgalogic;
 extern u8               *vgalogic_df;
 
 extern u32              poll_ticks;
@@ -69,6 +69,8 @@ extern double           isr_step;
 extern double           isr_counter;
 
 u8                      *prev_pixels = NULL;
+u8                      mouse_pixels[16 * 16];
+u8                      mouse_bg_pixels[16 * 16];
 
 u8                      dirty_pal = 1;
 s32                     dirty_len = 0;
@@ -305,16 +307,37 @@ void sys_poll_event(void) {
     };
     
     // update mouse
-    dirty_rects[dirty_len] = dirty_mouse_rect;
-    dirty_len++;
+    
+    if (dirty_mouse_rect.x < host.pixelbuf.w && dirty_mouse_rect.y < host.pixelbuf.h)
+    {
+        dirty_rects[dirty_len] = dirty_mouse_rect;
+        dirty_len++;
+    }
 
     u32 bt = SDL_GetMouseState(&mouse.x, &mouse.y);
     
+    if (mouse.x >= host.pixelbuf.w)
+        mouse.x = host.pixelbuf.w;
+    
+    if (mouse.y >= host.pixelbuf.h)
+        mouse.y = host.pixelbuf.h;
+
     mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
     mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
 
-    dirty_rects[dirty_len] = dirty_mouse_rect = (SDL_Rect){ .x = min(max(0, mouse.x), 304), .y = min(max(0, mouse.y), 184), .w = 16, .h = 16 };
-    dirty_len++;
+    s16 wcopy = 16;
+    if (mouse.x + wcopy > host.pixelbuf.w)
+        wcopy = host.pixelbuf.w - mouse.x;
+    
+    s16 hcopy = 16;
+    if (mouse.y + hcopy > host.pixelbuf.h)
+        hcopy = host.pixelbuf.h - mouse.y;
+
+    if (mouse.x < host.pixelbuf.w && mouse.y < host.pixelbuf.h)
+    {
+        dirty_rects[dirty_len] = dirty_mouse_rect = (SDL_Rect){ .x = mouse.x, .y = mouse.y, .w = wcopy, .h = hcopy };
+        dirty_len++;
+    }
     
     sys_render(host.pixelbuf);
 }
@@ -358,7 +381,7 @@ void sys_render(pixelbuf_t buffer) {
         sys_dirty_mouse();
     }
 
-    if (fls_ham6)
+    if (bfilm.type == eAlisVideoHAM6)
     {
         u8 *bitmap = vgalogic_df + 0xa0;
         u32 *pixels = surface->pixels;
@@ -440,8 +463,11 @@ void sys_render(pixelbuf_t buffer) {
                 to_pixels(pixels, px, rawcolor);
             }
         }
+
+        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_len = 1;
     }
-    else if (fls_s512)
+    else if (bfilm.type == eAlisVideoS512)
     {
         dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
         dirty_len = 1;
@@ -540,9 +566,50 @@ void sys_render(pixelbuf_t buffer) {
             memcpy(curpal, palette, 32);
         }
 
+        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_len = 1;
     }
     else
     {
+        if (bfilm.type == eAlisVideoFLIC)
+        {
+            memcpy(buffer.data, vgalogic, host.pixelbuf.w * host.pixelbuf.h);
+            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+            dirty_len = 1;
+            dirty_pal = 1;
+        }
+        
+        if (mouse.enabled && alis.desmouse != NULL)
+        {
+            u16 width = read16(alis.desmouse + 2) + 1;
+            u16 height = read16(alis.desmouse + 4) + 1;
+            
+            s16 wcopy = width;
+            if (dirty_mouse_rect.x + wcopy > host.pixelbuf.w)
+                wcopy = host.pixelbuf.w - dirty_mouse_rect.x;
+            
+            s16 hcopy = height;
+            if (dirty_mouse_rect.y + height > host.pixelbuf.h)
+                hcopy = host.pixelbuf.h - dirty_mouse_rect.y;
+            
+            if (wcopy > 0 && hcopy > 0)
+            {
+                u8 *bgr = mouse_bg_pixels;
+                u8 *src = mouse_pixels;
+                u8 *tgt = buffer.data + dirty_mouse_rect.x + dirty_mouse_rect.y * buffer.w;
+                for (int y = 0; y < hcopy; y++, src += width, bgr += width, tgt += buffer.w) {
+                    
+                    memcpy(bgr, tgt, wcopy);
+                    
+                    for (int x = 0; x < wcopy; x++) {
+                        
+                        if (src[x])
+                            tgt[x] = src[x];
+                    }
+                }
+            }
+        }
+        
         if (dirty_pal)
         {
             switch (surface->format->BitsPerPixel)
@@ -626,6 +693,30 @@ void sys_render(pixelbuf_t buffer) {
     
     SDL_UpdateRects(surface, abs(dirty_len), dirty_rects);
     dirty_len = 0;
+    
+    if (mouse.enabled && alis.desmouse != NULL)
+    {
+        u16 width = read16(alis.desmouse + 2) + 1;
+        u16 height = read16(alis.desmouse + 4) + 1;
+        
+        s16 wcopy = width;
+        if (dirty_mouse_rect.x + wcopy > host.pixelbuf.w)
+            wcopy = host.pixelbuf.w - dirty_mouse_rect.x;
+        
+        s16 hcopy = height;
+        if (dirty_mouse_rect.y + hcopy > host.pixelbuf.h)
+            hcopy = host.pixelbuf.h - dirty_mouse_rect.y;
+
+        if (wcopy > 0 && hcopy > 0)
+        {
+            u8 *bgr = mouse_bg_pixels;
+            u8 *tgt = buffer.data + dirty_mouse_rect.x + dirty_mouse_rect.y * buffer.w;
+            for (int y = 0; y < hcopy; y++, bgr += width, tgt += buffer.w) {
+                
+                memcpy(tgt, bgr, wcopy);
+            }
+        }
+    }
 }
 
 // ============================================================================
@@ -648,7 +739,116 @@ void sys_deinit(void) {
 
 void sys_dirty_mouse(void) {
     
-    SDL_ShowCursor(mouse.enabled);
+    SDL_ShowCursor(0);
+    if (alis.desmouse == NULL)
+    {
+        return;
+    }
+    
+    u8 type = alis.desmouse[0];
+    u16 width = read16(alis.desmouse + 2) + 1;
+    u16 height = read16(alis.desmouse + 4) + 1;
+
+    switch (type)
+    {
+        case 0x00:
+        case 0x02:
+        {
+            s8 palidx = 0;
+            if (image.flinepal)
+            {
+                s16 *palentry = image.firstpal;
+
+                for (int i = 0; i < 3; i++)
+                {
+                    s16 unk1 = palentry[0];
+                    if (unk1 == 0xff)
+                        break;
+
+                    palidx = palentry[2];
+                    palentry += 2 + (sizeof(u8 *) >> 1);
+                }
+            }
+            
+            // ST image
+            
+            u8 color;
+            u8 clear = type == 0 ? 0 : -1;
+            
+            u8 *at = alis.desmouse + 6;
+
+            s32 px = 0;
+            for (s32 h = 0; h < height; h++)
+            {
+                for (s32 w = 0; w < width; w++, px++)
+                {
+                    s16 wh = w / 2;
+                    color = *(at + wh + h * (width / 2));
+                    color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                    mouse_pixels[px] = color == clear ? 0 : color + palidx;
+                }
+            }
+            
+            break;
+        }
+            
+        case 0x10:
+        case 0x12:
+        {
+            // 4 bit image
+            u8 palidx = alis.desmouse[6];
+            u8 clear = alis.desmouse[0] == 0x10 ? alis.desmouse[7] : -1;
+            u8 *at = alis.desmouse + 8;
+            u8 color;
+
+            s32 px = 0;
+            for (s32 h = 0; h < width; h++)
+            {
+                for (s32 w = 0; w < height; w++, px++)
+                {
+                    s16 wh = w / 2;
+                    color = *(at + wh + h * (width / 2));
+                    color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
+                    int index = palidx + color;
+                    mouse_pixels[px] = color == clear ? 0 : color;
+                }
+            }
+            break;
+        }
+
+            
+        case 0x14:
+        case 0x16:
+        {
+            // 8 bit image
+            
+            u8 color;
+
+            // Ishar 1 & 3
+            u8 clear = 0;
+
+            if (alis.platform.uid == EGameIshar_2)
+            {
+                // Ishar 2
+                clear = alis.desmouse[0] == 0x14 ? alis.desmouse[7] : -1;
+            }
+            
+            u8 *at = alis.desmouse + 8;
+
+            for (int px = 0; px < width * height; px++)
+            {
+                color = at[px];
+                mouse_pixels[px] = color == clear ? 0 : color;
+            }
+
+            break;
+        }
+            
+        default:
+        {
+            break;
+        }
+    };
 }
 
 // =============================================================================

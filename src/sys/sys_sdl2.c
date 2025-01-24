@@ -39,6 +39,7 @@
 #include "mem.h"
 #include "platform.h"
 #include "utils.h"
+#include "video.h"
 
 #include "emu2149.h"
 #include "math.h"
@@ -79,8 +80,6 @@ extern u32             height;
 
 extern int             audio_id;
 
-extern u8              fls_ham6;
-extern u8              fls_s512;
 extern u8              *vgalogic_df;
 
 extern u8              failure;
@@ -416,7 +415,7 @@ void sys_render(pixelbuf_t buffer) {
         sys_dirty_mouse();
     }
 
-    if (fls_ham6)
+    if (bfilm.type == eAlisVideoHAM6)
     {
         u8 *bitmap = vgalogic_df + 0xa0;
     
@@ -468,7 +467,7 @@ void sys_render(pixelbuf_t buffer) {
             }
         }
     }
-    else if (fls_s512)
+    else if (bfilm.type == eAlisVideoS512)
     {
         u8 *bitmap = vgalogic_df + 0xa0;
 
@@ -619,7 +618,6 @@ void sys_dirty_mouse(void) {
                     if (unk1 == 0xff)
                         break;
 
-                    u16 paloff = palentry[2];
                     palette = host.pixelbuf.palette + palentry[2] * 4;
                     palentry += 2 + (sizeof(u8 *) >> 1);
                 }

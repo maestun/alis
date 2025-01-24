@@ -330,7 +330,7 @@ f_soundroutc:
 
 u32 mv2_soundvoix(u32 noteat, sAudioVoice *voice)
 {
-    u32 notedata = xpcread32(noteat);
+    u32 notedata = xread32be(noteat);
     if (notedata != 0)
     {
         voice->value = (s16)(notedata >> 0x10);
@@ -339,7 +339,7 @@ u32 mv2_soundvoix(u32 noteat, sAudioVoice *voice)
     }
     
     u32 nextat = (noteat + 2);
-    s16 newfreq = xpcread16(noteat);
+    s16 newfreq = xread16be(noteat);
     if (newfreq != 0)
     {
         u16 instidx = xread8(nextat);
@@ -964,7 +964,7 @@ u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel)
     
     do
     {
-        u32 test = xpcread16(noteat); noteat += 2;
+        u32 test = xread16be(noteat); noteat += 2;
         if (test == 0)
         {
             goto chipvoixend;
