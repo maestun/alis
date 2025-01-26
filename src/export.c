@@ -765,7 +765,7 @@ void export_audio(u32 addr, const char *name)
     if (type == 1 || type == 2)
     {
         u32 freq = xread8(addr + 1);
-        u32 length = ((alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly || alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya)) ? xpcread32(addr + 2) : xread32(addr + 2)) - 0x10;
+        u32 length = ((alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly || alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya)) ? xread32be(addr + 2) : xread32(addr + 2)) - 0x10;
         
         if (freq < 0x1 || 0x14 < freq)
             freq = 10;
