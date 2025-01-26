@@ -98,7 +98,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     printf("  Video initialization...\n");
     
     SDL_WM_SetCaption(kProgName, "icon");
-    surface = SDL_SetVideoMode(width, height, 0, SDL_SWSURFACE | SDL_RESIZABLE);
+    surface = SDL_SetVideoMode(width, height, 0, SDL_SWSURFACE);
     if (surface == NULL) {
         fprintf(stderr, "   Could not create %.0dx%.0d window: %s\n", (width), (height), SDL_GetError());
         exit(-1);
