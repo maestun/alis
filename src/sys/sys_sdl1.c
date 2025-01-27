@@ -419,48 +419,51 @@ void sys_render(pixelbuf_t buffer) {
                 break;
             }
         };
-
+        
         u32 px = 0;
-        u32 planesize = (buffer.w * buffer.h) / 8;
-        u8 c0, c1, c2, c3, c4, c5;
-        u8 rawcolor[3];
+        u32 planesize = (buffer.w * buffer.h) >> 3;
 
-        for (s32 h = 0; h < buffer.h; h++)
+        s32 index;
+        s32 control;
+
+        u8 r = 0;
+        u8 g = 0;
+        u8 b = 0;
+
+        u8 *c0 = bitmap;
+        u8 *c1 = c0 + planesize;
+        u8 *c2 = c1 + planesize;
+        u8 *c3 = c2 + planesize;
+        u8 *c4 = c3 + planesize;
+        u8 *c5 = c4 + planesize;
+
+        for (s32 y = 0; y < buffer.h; y++)
         {
-            u8 *tgt = buffer.data + (h * buffer.w);
-            for (s32 w = 0; w < buffer.w; w++, tgt++, px++)
+            for (s32 x = 0; x < buffer.w; x+=8, c0++, c1++, c2++, c3++, c4++, c5++)
             {
-                s32 idx = (w + h * buffer.w) / 8;
-                c0 = *(bitmap + idx);
-                c1 = *(bitmap + (idx += planesize));
-                c2 = *(bitmap + (idx += planesize));
-                c3 = *(bitmap + (idx += planesize));
-                c4 = *(bitmap + (idx += planesize));
-                c5 = *(bitmap + (idx += planesize));
+                for (s32 bit = 7; bit >= 0; bit--, px++)
+                {
+                    index = (((*c0 >> bit) & 1) | ((*c1 >> bit) & 1) << 1 | ((*c2 >> bit) & 1) << 2 | ((*c3 >> bit) & 1) << 3) << 2;
+                    control = ((*c4 >> bit) & 1) << 0 | ((*c5 >> bit) & 1) << 1;
+                    switch (control) {
+                        case 0:
+                            r = buffer.palette[index + 0];
+                            g = buffer.palette[index + 1];
+                            b = buffer.palette[index + 2];
+                            break;
+                        case 1:
+                            b = index << 2;
+                            break;
+                        case 2:
+                            r = index << 2;
+                            break;
+                        case 3:
+                            g = index << 2;
+                            break;
+                    }
 
-                int bit = 7 - (w % 8);
-                
-                int control = ((c4 >> bit) & 1) << 0 | ((c5 >> bit) & 1) << 1;
-                int index = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3;
-
-                switch (control) {
-                    case 0:
-                        rawcolor[0] = buffer.palette[(index << 2) + 0];
-                        rawcolor[1] = buffer.palette[(index << 2) + 1];
-                        rawcolor[2] = buffer.palette[(index << 2) + 2];
-                        break;
-                    case 1:
-                        rawcolor[2] = index << 4;
-                        break;
-                    case 2:
-                        rawcolor[0] = index << 4;
-                        break;
-                    case 3:
-                        rawcolor[1] = index << 4;
-                        break;
+                    to_pixels(pixels, px, rawcolor);
                 }
-
-                to_pixels(pixels, px, rawcolor);
             }
         }
 
@@ -520,9 +523,11 @@ void sys_render(pixelbuf_t buffer) {
         // change palette every 412 / 48 ?
         float pxs = 9.6;
 
-        int limit0 = -4;
-        int limit1 = 156;
-        
+        s32 limit;
+        s32 limit0 = -4;
+        s32 limit1 = 156;
+        s32 lpx = 0;
+
         u32 px = 0;
         u32 at = 0;
 
@@ -534,26 +539,26 @@ void sys_render(pixelbuf_t buffer) {
 
         for (int y = 0; y < buffer.h; y++, palette += 16)
         {
-            int lpx = 0;
-            
+            limit = limit0;
+            lpx = 0;
+
             for (int x = 0; x < buffer.w; x+=16, at+=8)
             {
                 for (int i = 0; i < 2; i++)
                 {
                     iat = at + i;
-                    for (int dpx = 0; dpx < 8; dpx++, lpx++, px++)
+                    for (int rot = 7; rot >= 0; rot--, lpx++, px++)
                     {
-                        if (lpx >= limit0)
+                        if (lpx == limit1)
                         {
-                            if (lpx == limit1)
-                                palette += 16;
-                            
-                            palidx = lpx < limit1 ? (lpx - limit0) / pxs : (lpx - limit1) / pxs;
-                            if (palidx < 16)
-                                curpal[palidx] = palette[palidx];
+                            limit = limit1;
+                            palette += 16;
                         }
+
+                        palidx = (lpx - limit) / pxs;
+                        if (palidx < 16)
+                            curpal[palidx] = palette[palidx];
                         
-                        rot = (7 - dpx);
                         mask = 1 << rot;
                         
                         rawcolor = (u8 *)&(curpal[(((bitmap[iat + 0] & mask) >> rot) << 0) | (((bitmap[iat + 2] & mask) >> rot) << 1) | (((bitmap[iat + 4] & mask) >> rot) << 2) | (((bitmap[iat + 6] & mask) >> rot) << 3)]);
