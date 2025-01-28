@@ -69,7 +69,23 @@ extern double           isr_step;
 extern double           isr_counter;
 
 u8                      *prev_pixels = NULL;
-u8                      mouse_pixels[16 * 16];
+u8                      mouse_pixels[16 * 16] =
+    { 0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+      0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
+      0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,
+      0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,
+      0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,
+      0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,
+      0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,
+      0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,
+      0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+      0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
+      0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
+      0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,
+      0,1,1,1,0,1,1,1,0,0,0,0,0,0,0,0,
+      0,1,1,0,0,1,1,1,1,0,0,0,0,0,0,0,
+      0,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,
+      0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0};
 u8                      mouse_bg_pixels[16 * 16];
 
 u8                      dirty_pal = 1;
@@ -325,17 +341,12 @@ void sys_poll_event(void) {
     mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
     mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
 
-    s16 wcopy = 16;
-    if (mouse.x + wcopy > host.pixelbuf.w)
-        wcopy = host.pixelbuf.w - mouse.x;
-    
-    s16 hcopy = 16;
-    if (mouse.y + hcopy > host.pixelbuf.h)
-        hcopy = host.pixelbuf.h - mouse.y;
-
     if (mouse.x < host.pixelbuf.w && mouse.y < host.pixelbuf.h)
     {
-        dirty_rects[dirty_len] = dirty_mouse_rect = (SDL_Rect){ .x = mouse.x, .y = mouse.y, .w = wcopy, .h = hcopy };
+        s16 width = mouse.x + 16 > host.pixelbuf.w ? host.pixelbuf.w - mouse.x : 16;
+        s16 height = mouse.y + 16 > host.pixelbuf.h ? host.pixelbuf.h - mouse.y : 16;
+
+        dirty_rects[dirty_len] = dirty_mouse_rect = (SDL_Rect){ .x = mouse.x, .y = mouse.y, .w = width, .h = height };
         dirty_len++;
     }
     
@@ -426,9 +437,7 @@ void sys_render(pixelbuf_t buffer) {
         s32 index;
         s32 control;
 
-        u8 r = 0;
-        u8 g = 0;
-        u8 b = 0;
+        u8 rawcolor[3];
 
         u8 *c0 = bitmap;
         u8 *c1 = c0 + planesize;
@@ -447,18 +456,18 @@ void sys_render(pixelbuf_t buffer) {
                     control = ((*c4 >> bit) & 1) << 0 | ((*c5 >> bit) & 1) << 1;
                     switch (control) {
                         case 0:
-                            r = buffer.palette[index + 0];
-                            g = buffer.palette[index + 1];
-                            b = buffer.palette[index + 2];
+                            rawcolor[0] = buffer.palette[index + 0];
+                            rawcolor[1] = buffer.palette[index + 1];
+                            rawcolor[2] = buffer.palette[index + 2];
                             break;
                         case 1:
-                            b = index << 2;
+                            rawcolor[2] = index << 2;
                             break;
                         case 2:
-                            r = index << 2;
+                            rawcolor[0] = index << 2;
                             break;
                         case 3:
-                            g = index << 2;
+                            rawcolor[1] = index << 2;
                             break;
                     }
 
@@ -512,56 +521,51 @@ void sys_render(pixelbuf_t buffer) {
 
         // Atari ST Spectrum 512 bitplanes
         
-        u16 curpal[16];
+        u16 curpal[32];
         memcpy(curpal, vgalogic_df + 32000, 32);
-
-        // s16 pallines = 0xc5 - fls_pallines;
-
+        
         u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
-
-        // ST scanline width 48 + 320 + 44 (412)
-        // change palette every 412 / 48 ?
-        float pxs = 9.6;
-
-        s32 limit;
-        s32 limit0 = -4;
-        s32 limit1 = 156;
-        s32 lpx = 0;
-
+        
+        int palcntr = 0;
+        
         u32 px = 0;
         u32 at = 0;
-
-        u32 palidx;
+        
+        s32 palidx, mask;
         u8 *rawcolor;
         
-        u32 rot;
-        u32 mask, iat;
-
         for (int y = 0; y < buffer.h; y++, palette += 16)
         {
-            limit = limit0;
-            lpx = 0;
-
-            for (int x = 0; x < buffer.w; x+=16, at+=8)
+            palcntr = 408;
+            
+            for (int x = 0; x < 10; x++, at+=8)
             {
-                for (int i = 0; i < 2; i++)
+                for (int i = at; i < at + 2; i++)
                 {
-                    iat = at + i;
-                    for (int rot = 7; rot >= 0; rot--, lpx++, px++)
+                    for (int rot = 7; rot >= 0; rot--, palcntr+=102, px++)
                     {
-                        if (lpx == limit1)
-                        {
-                            limit = limit1;
-                            palette += 16;
-                        }
-
-                        palidx = (lpx - limit) / pxs;
-                        if (palidx < 16)
-                            curpal[palidx] = palette[palidx];
-                        
+                        palidx = palcntr >> 10;
+                        curpal[palidx] = palette[palidx];
                         mask = 1 << rot;
-                        
-                        rawcolor = (u8 *)&(curpal[(((bitmap[iat + 0] & mask) >> rot) << 0) | (((bitmap[iat + 2] & mask) >> rot) << 1) | (((bitmap[iat + 4] & mask) >> rot) << 2) | (((bitmap[iat + 6] & mask) >> rot) << 3)]);
+                        rawcolor = (u8 *)&(curpal[((bitmap[i + 0] & mask) >> rot) | (((bitmap[i + 2] & mask) >> rot) << 1) | (((bitmap[i + 4] & mask) >> rot) << 2) | (((bitmap[i + 6] & mask) >> rot) << 3)]);
+                        to_pixels(pixels, px, rawcolor);
+                    }
+                }
+            }
+            
+            palcntr = 510;
+            palette += 16;
+            
+            for (int x = 10; x < 20; x++, at+=8)
+            {
+                for (int i = at; i < at + 2; i++)
+                {
+                    for (int rot = 7; rot >= 0; rot--, palcntr+=102, px++)
+                    {
+                        palidx = palcntr >> 10;
+                        curpal[palidx] = palette[palidx];
+                        mask = 1 << rot;
+                        rawcolor = (u8 *)&(curpal[((bitmap[i + 0] & mask) >> rot) | (((bitmap[i + 2] & mask) >> rot) << 1) | (((bitmap[i + 4] & mask) >> rot) << 2) | (((bitmap[i + 6] & mask) >> rot) << 3)]);
                         to_pixels(pixels, px, rawcolor);
                     }
                 }
@@ -584,33 +588,22 @@ void sys_render(pixelbuf_t buffer) {
             dirty_pal = 1;
         }
         
-        if (mouse.enabled && alis.desmouse != NULL)
+        if (mouse.enabled && dirty_mouse_rect.x < host.pixelbuf.w && dirty_mouse_rect.y < host.pixelbuf.h)
         {
-            u16 width = read16(alis.desmouse + 2) + 1;
-            u16 height = read16(alis.desmouse + 4) + 1;
-            
-            s16 wcopy = width;
-            if (dirty_mouse_rect.x + wcopy > host.pixelbuf.w)
-                wcopy = host.pixelbuf.w - dirty_mouse_rect.x;
-            
-            s16 hcopy = height;
-            if (dirty_mouse_rect.y + height > host.pixelbuf.h)
-                hcopy = host.pixelbuf.h - dirty_mouse_rect.y;
-            
-            if (wcopy > 0 && hcopy > 0)
+            s16 width = dirty_mouse_rect.x + 16 > host.pixelbuf.w ? host.pixelbuf.w - dirty_mouse_rect.x : 16;
+            s16 height = dirty_mouse_rect.y + 16 > host.pixelbuf.h ? host.pixelbuf.h - dirty_mouse_rect.y : 16;
+
+            u8 *bgr = mouse_bg_pixels;
+            u8 *src = mouse_pixels;
+            u8 *tgt = buffer.data + dirty_mouse_rect.x + dirty_mouse_rect.y * buffer.w;
+            for (int y = 0; y < height; y++, src += 16, bgr += width, tgt += buffer.w)
             {
-                u8 *bgr = mouse_bg_pixels;
-                u8 *src = mouse_pixels;
-                u8 *tgt = buffer.data + dirty_mouse_rect.x + dirty_mouse_rect.y * buffer.w;
-                for (int y = 0; y < hcopy; y++, src += width, bgr += width, tgt += buffer.w) {
-                    
-                    memcpy(bgr, tgt, wcopy);
-                    
-                    for (int x = 0; x < wcopy; x++) {
-                        
-                        if (src[x])
-                            tgt[x] = src[x];
-                    }
+                memcpy(bgr, tgt, width);
+                
+                for (int x = 0; x < width; x++)
+                {
+                    if (src[x])
+                        tgt[x] = src[x];
                 }
             }
         }
@@ -699,27 +692,16 @@ void sys_render(pixelbuf_t buffer) {
     SDL_UpdateRects(surface, abs(dirty_len), dirty_rects);
     dirty_len = 0;
     
-    if (mouse.enabled && alis.desmouse != NULL)
+    if (mouse.enabled && dirty_mouse_rect.x < host.pixelbuf.w && dirty_mouse_rect.y < host.pixelbuf.h)
     {
-        u16 width = read16(alis.desmouse + 2) + 1;
-        u16 height = read16(alis.desmouse + 4) + 1;
-        
-        s16 wcopy = width;
-        if (dirty_mouse_rect.x + wcopy > host.pixelbuf.w)
-            wcopy = host.pixelbuf.w - dirty_mouse_rect.x;
-        
-        s16 hcopy = height;
-        if (dirty_mouse_rect.y + hcopy > host.pixelbuf.h)
-            hcopy = host.pixelbuf.h - dirty_mouse_rect.y;
+        s16 width = dirty_mouse_rect.x + 16 > host.pixelbuf.w ? host.pixelbuf.w - dirty_mouse_rect.x : 16;
+        s16 height = dirty_mouse_rect.y + 16 > host.pixelbuf.h ? host.pixelbuf.h - dirty_mouse_rect.y : 16;
 
-        if (wcopy > 0 && hcopy > 0)
+        u8 *bgr = mouse_bg_pixels;
+        u8 *tgt = buffer.data + dirty_mouse_rect.x + dirty_mouse_rect.y * buffer.w;
+        for (int y = 0; y < height; y++, bgr += width, tgt += buffer.w)
         {
-            u8 *bgr = mouse_bg_pixels;
-            u8 *tgt = buffer.data + dirty_mouse_rect.x + dirty_mouse_rect.y * buffer.w;
-            for (int y = 0; y < hcopy; y++, bgr += width, tgt += buffer.w) {
-                
-                memcpy(tgt, bgr, wcopy);
-            }
+            memcpy(tgt, bgr, width);
         }
     }
 }
@@ -731,6 +713,9 @@ void sys_render(pixelbuf_t buffer) {
 void sys_deinit(void) {
     
     SDL_Delay(20);   // 20ms fail-safe delay to make sure that sound buffer is empty
+
+    // NOTE: make sure cursor is visible when quiting
+    SDL_ShowCursor(1);
 
     sys_deinit_psg();
 
@@ -815,7 +800,7 @@ void sys_dirty_mouse(void) {
                     color = *(at + wh + h * (width / 2));
                     color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
                     int index = palidx + color;
-                    mouse_pixels[px] = color == clear ? 0 : color;
+                    mouse_pixels[px] = color == clear ? 0 : color + palidx;
                 }
             }
             break;

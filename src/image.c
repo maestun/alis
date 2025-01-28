@@ -35,6 +35,8 @@
 extern u8 dirty_pal;
 extern SDL_Rect dirty_rects[4096];
 extern int dirty_len;
+
+u32 prevtick = 0xffffffff;
 #endif
 
 #define DEBUG_CHECK 0
@@ -2537,7 +2539,6 @@ void affiscr(u16 scene, u16 screenidx)
     }
 }
 
-u32 prevtick = 0xffffffff;
 u32 itroutine(u32 interval, void *param)
 {
 #if ALIS_SDL_VER < 2

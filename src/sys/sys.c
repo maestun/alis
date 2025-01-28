@@ -386,28 +386,35 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
     float t, r;
 #endif
 
+    u16 *audio_buffer = (u16 *)s;
+    buffer_length >>= 1;
+
     int smpidx = 0;
+    u8 adv = audio_spec->channels;
 
     // handle music
     
     if (audio.muflag > 0)
     {
-        int smprem = buffer_length;
+        int smprem = buffer_length / adv;
 
-        int buflen = audio.mutaloop * 2;
+        int buflen = audio.mutaloop;
         float lenf = (float)buffer_length / (float)buflen;
         int len = ceil(lenf);
         
         if (audio.smpidx)
         {
             int smpcopy = min(audio.smpidx, smprem);
+            s16 *music_buffer = (audio.muadresse + (buflen - audio.smpidx));
             
-            memcpy(s, (u8 *)audio.muadresse + (buflen - audio.smpidx), smpcopy);
+            int music_index = 0;
+            for (int audio_index = 0; music_index < smpcopy; audio_index+=adv, music_index++)
+                audio_buffer[audio_index] = music_buffer[music_index];
 
-            smpidx += smpcopy;
-            smprem -= smpcopy;
+            smpidx += music_index;
+            smprem -= music_index;
             
-            audio.smpidx -= smpcopy;
+            audio.smpidx -= music_index;
         }
         
         for (int i = 0; i < len && smprem; i++)
@@ -416,12 +423,14 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
             
             int smpcopy = min(buflen, smprem);
             
-            memcpy(s + smpidx, audio.muadresse, smpcopy);
+            int music_index = 0;
+            for (int audio_index = smpidx * adv; music_index < smpcopy; audio_index+=adv, music_index++)
+                audio_buffer[audio_index] = audio.muadresse[music_index];
+
+            smpidx += music_index;
+            smprem -= music_index;
             
-            smpidx += smpcopy;
-            smprem -= smpcopy;
-            
-            audio.smpidx = buflen - smpcopy;
+            audio.smpidx = buflen - music_index;
         }
     }
     
@@ -432,13 +441,10 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
     
     if (audio.fsound)
     {
-        u16 *audio_buffer = (u16 *)s;
-        buffer_length >>= 1;
-        
         double prev_counter = isr_counter;
         u32 add = 0;
         s32 s0, s1;
-        s32 accumulator, prevsmpidx;
+        s32 accumulator;
         
         for (int i = 0; i < 4; i++)
         {
@@ -471,9 +477,9 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                     s0 = (s8)ch->address[smpidx] * volratio;
 #endif
                     
-                    for (int buffer_index = 0; buffer_index < buffer_length; buffer_index++, ch->played++, accumulator+=ratio)
+                    for (int buffer_index = 0; buffer_index < buffer_length; buffer_index+=adv, ch->played++, accumulator+=ratio)
                     {
-                        if ((add = accumulator >> 16))
+                        if ((add = accumulator >> 16) > 0)
                         {
                             smpidx += add;
 #if ALIS_SND_INTERPOLATE_TYPE > 0
@@ -532,6 +538,7 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                         audio_buffer[buffer_index] = (s0 + audio_buffer[buffer_index]);
                         accumulator &= 0xFFFF;
                     }
+                    
                     break;
                 }
                     
@@ -598,6 +605,12 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                     break;
             }
         }
+    }
+    
+    for (int o = 1; o < audio_spec->channels; o++)
+    {
+        for (int buffer_index = 0; buffer_index < buffer_length; buffer_index+=adv)
+            audio_buffer[buffer_index + o] = audio_buffer[buffer_index];
     }
     
 //    // NOTE: just for checking

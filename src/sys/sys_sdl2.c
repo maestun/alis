@@ -471,56 +471,54 @@ void sys_render(pixelbuf_t buffer) {
     else if (bfilm.type == eAlisVideoS512)
     {
         u8 *bitmap = vgalogic_df + 0xa0;
-
+        
         // Atari ST Spectrum 512 bitplanes
         
-        u16 curpal[16];
+        u16 curpal[32];
         memcpy(curpal, vgalogic_df + 32000, 32);
-
-        // s16 pallines = 0xc5 - fls_pallines;
-
+        
         u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
-
-        // ST scanline width 48 + 320 + 44 (412)
-        // change palette every 412 / 48 ?
-        float pxs = 9.6;
-
-        s32 limit;
-        s32 limit0 = -4;
-        s32 limit1 = 156;
-        s32 lpx = 0;
-
+        
+        int palcntr = 0;
+        
         u32 px = 0;
         u32 at = 0;
-
-        u32 palidx, iat, rot, mask;
+        
+        s32 palidx, mask;
         u8 *rawcolor;
         
         for (int y = 0; y < buffer.h; y++, palette += 16)
         {
-            limit = limit0;
-            lpx = 0;
-
-            for (int x = 0; x < buffer.w; x+=16, at+=8)
+            palcntr = 408;
+            
+            for (int x = 0; x < 10; x++, at+=8)
             {
-                for (int i = 0; i < 2; i++)
+                for (int i = at; i < at + 2; i++)
                 {
-                    iat = at + i;
-                    for (int rot = 7; rot >= 0; rot--, lpx++, px++)
+                    for (int rot = 7; rot >= 0; rot--, palcntr+=102, px++)
                     {
-                        if (lpx == limit1)
-                        {
-                            limit = limit1;
-                            palette += 16;
-                        }
-                        
-                        palidx = (lpx - limit) / pxs;
-                        if (palidx < 16)
-                            curpal[palidx] = palette[palidx];
-                        
+                        palidx = palcntr >> 10;
+                        curpal[palidx] = palette[palidx];
                         mask = 1 << rot;
-                        
-                        rawcolor = (u8 *)&(curpal[((bitmap[iat + 0] & mask) >> rot) | (((bitmap[iat + 2] & mask) >> rot) << 1) | (((bitmap[iat + 4] & mask) >> rot) << 2) | (((bitmap[iat + 6] & mask) >> rot) << 3)]);
+                        rawcolor = (u8 *)&(curpal[((bitmap[i + 0] & mask) >> rot) | (((bitmap[i + 2] & mask) >> rot) << 1) | (((bitmap[i + 4] & mask) >> rot) << 2) | (((bitmap[i + 6] & mask) >> rot) << 3)]);
+                        pixels[px] = (u32)(0xff000000 + (((rawcolor[0] & 0b00000111) << 5) << 16) + (((rawcolor[1] >> 4) << 5) << 8) + (((rawcolor[1] & 0b00000111) << 5) << 0));
+                    }
+                }
+            }
+            
+            palcntr = 510;
+            palette += 16;
+            
+            for (int x = 10; x < 20; x++, at+=8)
+            {
+                for (int i = at; i < at + 2; i++)
+                {
+                    for (int rot = 7; rot >= 0; rot--, palcntr+=102, px++)
+                    {
+                        palidx = palcntr >> 10;
+                        curpal[palidx] = palette[palidx];
+                        mask = 1 << rot;
+                        rawcolor = (u8 *)&(curpal[((bitmap[i + 0] & mask) >> rot) | (((bitmap[i + 2] & mask) >> rot) << 1) | (((bitmap[i + 4] & mask) >> rot) << 2) | (((bitmap[i + 6] & mask) >> rot) << 3)]);
                         pixels[px] = (u32)(0xff000000 + (((rawcolor[0] & 0b00000111) << 5) << 16) + (((rawcolor[1] >> 4) << 5) << 8) + (((rawcolor[1] & 0b00000111) << 5) << 0));
                     }
                 }
