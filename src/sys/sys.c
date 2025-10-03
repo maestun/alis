@@ -710,17 +710,24 @@ u8 io_inkey(void)
         case SDLK_F8:           return 0xc2;
         case SDLK_F9:           return 0xc3;
         case SDLK_F10:          return 0xc4;
+            
+        case SDLK_LSHIFT:       return 0;
+        case SDLK_RSHIFT:       return 0;
 
-        default:                return button.sym;
+        case SDLK_LCTRL:
+        case SDLK_RCTRL:        return 0;
+
+        default:               return button.sym;
     }
 }
 
 u8 io_shiftkey(void) {
-    if (shift && !(SDL_GetModState() & KMOD_SHIFT))
-    {
-        shift = 0;
-    }
 
+    shift = (SDL_GetModState() & KMOD_RSHIFT) ? shift |  1 : shift & 0xfe;
+    shift = (SDL_GetModState() & KMOD_LSHIFT) ? shift |  2 : shift & 0xfd;
+    shift = (SDL_GetModState() & KMOD_CTRL)   ? shift |  4 : shift & 0xfb;
+    shift = (SDL_GetModState() & KMOD_ALT)    ? shift |  8 : shift & 0xf7;
+    shift = (SDL_GetModState() & KMOD_CAPS)   ? shift | 16 : shift & 0xef;
     return shift;
 }
 
