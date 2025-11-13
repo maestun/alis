@@ -43,7 +43,7 @@ PACK_PUSH typedef struct PACK_ATTR {
     s16 depx;               // 0x16
     s16 depy;               // 0x18
     s16 depz;               // 0x1a
-    u8 credon_off;          // 0x1c
+    s8 credon_off;          // 0x1c
     u8 creducing;           // 0x1d
     s16 clinking;           // 0x1e
     u8 cordspr;             // 0x20
@@ -55,6 +55,12 @@ PACK_PUSH typedef struct PACK_ATTR {
     u16 newzoomx;           // 0x2c
     u16 newzoomy;           // 0x2e
 } sSprite; PACK_POP
+
+typedef struct {
+    s32 x;
+    s32 y;
+    s32 z;
+} sVector;
 
 typedef struct {
     s16 x1;
@@ -179,6 +185,7 @@ typedef struct {
     s16 feny1;
     s16 fenx2;
     s16 feny2;
+    s16 fenlargw;
     s16 clipx1;
     s16 clipy1;
     s16 clipx2;
@@ -205,6 +212,85 @@ typedef struct {
     s16 wloglarg;
     s16 loglarg; // 0x50 for st
     u8 insid;
+    
+    // Robinsons Requiem
+
+    s16 switchland;
+    u8 fdoland;
+    s16 landfenx1;
+    s16 landfeny1;
+    s16 landfenx2;
+    s16 landfeny2;
+    s16 landclipx1;
+    s16 landclipy1;
+    s16 landclipx2;
+    s16 landclipy2;
+    s16 landclipl;
+    s16 landcliph;
+    s16 vbarclipx1;
+    s16 vbarclipy1;
+    s16 vbarclipx2;
+    s16 vbarclipy2;
+
+    s16 scdirect;
+
+    s16 vbarbot;
+    s16 vbarlarg;
+    s16 vbarx;
+    s16 vbarmid;
+    s16 skyposx;
+    s16 skyposy;
+    s16 skyleft;
+
+    u8 ftstpix;
+    s16 xtstpix;
+    s16 ytstpix;
+    s32 antstpix;
+    s16 cxtstpix;
+    s16 cytstpix;
+    s16 cztstpix;
+    s16 dtstpix;
+    s16 ntstpix;
+    s16 etstpix;
+    
+    s16 solpixy;
+    s16 solh;
+    
+    s16 toppixy;
+    s16 toph;
+    s16 precx;
+    
+    u32 tlpix;
+    u32 atalti;
+    u32 atlpix;
+    u32 atalias;
+    u32 tlland;
+    u32 atlland;
+    u8 landone;
+    s16 purey;
+    s16 purey2;
+    s16 fhorizon;
+   
+    s16 vdarkw;
+    
+    u32 mapscreen;
+    
+    u32 zoombid;
+    u32 landnewad;
+    u32 landdata;
+    
+    s16 signedx;
+    s16 signedy;
+    
+    s16 vgamodulo;
+    s16 bitmodulo;
+    s16 bitlarg;
+
+    s32 spritprof;
+    s32 spritnext;
+    
+    s32 ztflowx;
+    s32 ztflowy;
 
 } sImage;
 
@@ -224,6 +310,7 @@ void put_char(s8 character);
 void put_string(void);
 
 void putin(u16 idx);
+void putmapin(s16 spridx, s32 bitmap);
 
 u32 itroutine(u32 interval, void *param);
 void draw(void);
@@ -251,8 +338,12 @@ void valtostr(char *string, s16 value);
 
 void log_sprites(void);
 
-void mac_update_pos(short *x,short *y);
+void mac_update_pos(s16 *x,s16 *y);
 
 extern u8 cga_palette[16];
 extern u8 masks[4];
 extern u8 rots[4];
+
+s32 calctop(u32 a0, s16 d0w, s16 d1w);
+
+void tvtofen(void);

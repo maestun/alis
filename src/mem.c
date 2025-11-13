@@ -153,11 +153,11 @@ u8 * get_vram(s16 offset) {
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
-u16 xswap16(u16 value) {
+s16 xswap16(u16 value) {
     return _convert16(value);
 }
 
-u32 xswap32(u32 value) {
+s32 xswap32(u32 value) {
     return _convert32(value);
 }
 
@@ -263,4 +263,46 @@ s32 xread32be(u32 offset) {
     g_val = _convert32be(*ptr);
     ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
     return (s32)g_val;
+}
+
+s32 io_malloc(s32 rawsize)
+{
+    s32 size = (rawsize - 1U | 3) + 9;
+    s32 blockloc = alis.finmem - size;
+    if (alis.finprog < blockloc)
+    {
+        alis.finmem = blockloc;
+        xwrite32(blockloc, size);
+
+        if (alis.platform.version < 30)
+        {
+            return blockloc;
+        }
+        
+        for (int i = 0; i < 0xf; i++)
+        {
+            if (xread32(alis.tabptr + i * 8) == 0)
+            {
+                xwrite32(alis.tabptr + i * 8 + 0, blockloc + 8);
+                xwrite32(alis.tabptr + i * 8 + 4, blockloc + 8);
+
+                // NOTE: silmarils originaly used 32 bit pointer to pointer table allocated in (alis.mem) block
+                return alis.tabptr + i * 8;
+            }
+        }
+    }
+    
+    return 0;
+}
+
+void io_mfree(s32 addr)
+{
+    s32 blockloc = xread32(addr + 4);
+    xwrite32(addr + 0, 0);
+    xwrite32(addr + 4, 0);
+    
+    if (alis.finmem == blockloc - 8)
+    {
+        alis.finmem += xread32(alis.finmem);
+    }
 }

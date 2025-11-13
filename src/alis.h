@@ -64,9 +64,9 @@ extern const u32 kVirtualRAMSize;
 #define ALIS_SCR_WCY    (alis.platform.version >= 30 ? 8 : 2)
 #define ALIS_SCR_WCZ    (alis.platform.version >= 30 ? 16 : 4)
 
-#define ALIS_SCR_WCAX    (alis.platform.version >= 30 ? 24 : -1)
-#define ALIS_SCR_WCAY    (alis.platform.version >= 30 ? 32 : -1)
-#define ALIS_SCR_WCAZ    (alis.platform.version >= 30 ? 40 : -1)
+#define ALIS_SCR_WCAX    (alis.platform.version >= 30 ? 0x18 : -1)
+#define ALIS_SCR_WCAY    (alis.platform.version >= 30 ? 0x20 : -1)
+#define ALIS_SCR_WCAZ    (alis.platform.version >= 30 ? 0x28 : -1)
 
 #define ALIS_SCR_ADDR    (alis.platform.version >= 30 ? 0x32 : 0x8)
 
@@ -262,6 +262,17 @@ typedef struct {
     u8 *            mem; // host: system memory (hardware)
     
     u8              flagmain;
+    
+    // requiem
+    
+    s16 *pretrlinetra;
+    s16 *pretglinetra;
+    
+    s16 *tlinetra;
+    s16 *itlinetra;
+    s16 *trlinetra;
+    s16 *tglinetra;
+
     
     // in atari, located at $22400
     // contains the addresses of the loaded scripts' data

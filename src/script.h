@@ -286,3 +286,16 @@ void set_0x04_cstart_csleep(u32 vram, u8 val);
 void set_0x03_xinv(u32 vram, u8 val);
 void set_0x02_wait_cycles(u32 vram, u8 val);
 void set_0x01_wait_count(u32 vram, u8 val);
+
+#define NOP
+#define SWAP16    xswap16
+#define SWAP32    xswap16
+
+#define SC_WAIT_COUNT           0, u8, NOP
+#define SC_RETURN_OFFSET        8, u32, SWAP32
+
+#define SCENE_GET_AT(i, r, w, s)     ( s(*(w *)(alis.mem + alis.basemain + r + i)) )
+#define SCENE_SET_AT(i, r, w, s, v)  ( *(w *)(alis.mem + alis.basemain + r + i) = s(v) )
+
+#define SCENE_GET(i, x) SCENE_GET_AT(i, x)
+#define SCENE_SET(i, x, v) SCENE_SET_AT(i, x, v)

@@ -27,6 +27,7 @@
 #include "alis_private.h"
 #include "debug.h"
 #include "mem.h"
+#include "render3d.h"
 #include "screen.h"
 #include "utils.h"
 
@@ -47,6 +48,13 @@ u32 prevtick = 0xffffffff;
 # define VERIFYINTEGRITY
 #endif
 
+u16 moduly;
+u16 modumap16;
+u16 xdeschart;
+u16 ydeschart;
+u8 (*chartproc)(u32 a5);
+u16 chartvncol;
+u8 chartvcol0;
 
 u8 cga_palette[] = {
     0x00, 0x00, 0x00, 0x00,
@@ -93,7 +101,6 @@ sImage image = {
     .pback = 0
 };
 
-
 void draw_mac_rect(sRect *pos, sRect *bmp, u8 color);
 void draw_rect(sRect *pos, sRect *bmp, u8 color);
 void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
@@ -109,8 +116,113 @@ void draw_4to8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip, u8 pal_o
 void draw_8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
 void draw_8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip);
 void draw_fli_video(u8 *bitmap);
-void draw_map(sSprite *sprite, u32 mapaddr, sRect lim);
+void draw_transarctica_map(sSprite *sprite, u32 mapaddr, sRect lim);
+void draw_requiem_map(sSprite *sprite, u32 bitmap);
 
+
+#pragma mark -
+#pragma mark Robinsons Requiem
+
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#pragma pack(push, 1) // Ensure no padding in structures
+
+// BMP File Header (14 bytes)
+typedef struct {
+    u16 bfType;      // File type ('BM')
+    u32 bfSize;      // File size in bytes
+    u16 bfReserved1; // Reserved (0)
+    u16 bfReserved2; // Reserved (0)
+    u32 bfOffBits;   // Offset to pixel data
+} BMPFileHeader;
+
+// BMP Info Header (40 bytes)
+typedef struct {
+    u32 biSize;          // Header size
+    s32 biWidth;          // Image width
+    s32 biHeight;         // Image height
+    u16 biPlanes;        // Number of color planes (1)
+    u16 biBitCount;      // Bits per pixel (8 for grayscale)
+    u32 biCompression;   // Compression type (0 = BI_RGB)
+    u32 biSizeImage;     // Image data size (can be 0 for BI_RGB)
+    s32 biXPelsPerMeter;  // X pixels per meter
+    s32 biYPelsPerMeter;  // Y pixels per meter
+    u32 biClrUsed;       // Number of colors in the palette (256 for 8-bit)
+    u32 biClrImportant;  // Important colors (0 means all are important)
+} BMPInfoHeader;
+
+#pragma pack(pop) // Restore default alignment
+
+// Function to save an 8-bit grayscale bitmap as a BMP file
+int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path) {
+    FILE *file;
+    s32 rowSize = (width + 3) & ~3; // BMP row size must be a multiple of 4 bytes
+    s32 dataSize = rowSize * height;
+    s32 paletteSize = 256 * 4; // 256 colors * 4 bytes (R, G, B, 0)
+    s32 fileSize = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + paletteSize + dataSize;
+
+    // Create BMP Headers
+    BMPFileHeader fileHeader = {
+        .bfType = 0x4D42, // 'BM' in little-endian
+        .bfSize = fileSize,
+        .bfReserved1 = 0,
+        .bfReserved2 = 0,
+        .bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + paletteSize
+    };
+
+    BMPInfoHeader infoHeader = {
+        .biSize = sizeof(BMPInfoHeader),
+        .biWidth = width,
+        .biHeight = -height, // Negative height to store in top-down order
+        .biPlanes = 1,
+        .biBitCount = 8, // 8-bit grayscale
+        .biCompression = 0, // BI_RGB (no compression)
+        .biSizeImage = dataSize,
+        .biXPelsPerMeter = 2835, // 72 DPI
+        .biYPelsPerMeter = 2835, // 72 DPI
+        .biClrUsed = 256,
+        .biClrImportant = 256
+    };
+
+    // Open file for writing
+    file = fopen(path, "wb");
+    if (!file) {
+        perror("Error opening file");
+        return -1;
+    }
+
+    // Write BMP headers
+    fwrite(&fileHeader, sizeof(BMPFileHeader), 1, file);
+    fwrite(&infoHeader, sizeof(BMPInfoHeader), 1, file);
+
+    // Write grayscale palette (256 shades of gray)
+    for (int i = 0; i < 256; i++) {
+        u8 color[4] = {i, i, i, 0}; // R, G, B, Reserved (0)
+        fwrite(color, sizeof(color), 1, file);
+    }
+
+    // Write pixel data (row-by-row, ensuring 4-byte alignment)
+    u8 *row = (u8 *)malloc(rowSize);
+    if (!row) {
+        fclose(file);
+        return -1;
+    }
+
+    for (int y = 0; y < height; y++) {
+        memcpy(row, data + y * width, width);
+        memset(row + width, 0, rowSize - width); // Padding bytes
+        fwrite(row, rowSize, 1, file);
+    }
+
+    // Clean up
+    free(row);
+    fclose(file);
+    return 0;
+}
 
 #pragma mark -
 #pragma mark Palette management
@@ -207,7 +319,7 @@ void topalette(u8 *paldata, s32 duration)
                 image.palc = 0;
                 u8 offset = paldata[2];
                 
-                int p = 4;
+                s32 p = 4;
                 for (int i = offset; i <= offset + colors; i++)
                 {
                     image.atpalet[i * 4 + 0] = paldata[p++];
@@ -509,7 +621,7 @@ void log_sprites(void)
                 s32 addr = 0;
                 s32 index = -1;
                 
-                bool deleted = false;
+                u8 deleted = false;
                 
                 if (script->vram_org)
                 {
@@ -634,8 +746,12 @@ void inisprit(void)
     *(s32 *)(image.spritemem + cursprit + 0x5c) = 0;
     *(s8 *) (image.spritemem + cursprit + 0x50) = 0xfe;
     alis.mousflag = 0;
-    image.libsprit = 0x78; // 0x8078;
-    cursprit += 0x78;
+    image.atexsprite = 0x78;
+    image.libsprit = 0xa8;
+    cursprit += 0xa8;
+    
+//    image.libsprit = 0x78; // 0x8078;
+//    cursprit += 0x78;
     
     sSprite *sprite = SPRITE_VAR(cursprit);
     for (; cursprit < image.finsprit; sprite = SPRITE_VAR(cursprit), cursprit += 0x30)
@@ -961,42 +1077,60 @@ void putin(u16 idx)
         }
 
         addr = adresdes(idx);
-
-        sSprite *cursprvar = SPRITE_VAR(newidx);
-        cursprvar->data       = addr;
-        cursprvar->newad      = 0;
-        cursprvar->flaginvx   = (u8)image.invert_x;
-        cursprvar->depx       = image.oldcx + image.depx;
-        cursprvar->depy       = image.oldcy + image.depy;
-        cursprvar->depz       = image.oldcz + image.depz;
-        cursprvar->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
-        cursprvar->creducing  = get_0x27_creducing(alis.script->vram_org);
-        cursprvar->clinking   = get_0x2a_clinking(alis.script->vram_org);
-        cursprvar->cordspr    = get_0x2b_cordspr(alis.script->vram_org);
-        cursprvar->script_ent = get_0x0e_script_ent(alis.script->vram_org);
-        
-        s32 contextsize = get_context_size();
-        if (contextsize > 0x2e)
-        {
-            cursprvar->chsprite = get_0x2f_chsprite(alis.script->vram_org);
-        }
-        else if (contextsize > 0x2e)
-        {
-            // TODO: ...
-        }
-        
-        cursprvar->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
-        if (-1 < (s8)cursprvar->credon_off)
-        {
-            cursprvar->creducing = get_0x27_creducing(alis.script->vram_org);
-            cursprvar->credon_off = get_0x26_creducing(alis.script->vram_org);
-            if ((s8)cursprvar->credon_off < 0)
-            {
-                cursprvar->creducing = 0;
-                cursprvar->credon_off = xread8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x1f);
-            }
-        }
+        putmapin(newidx, addr);
     }
+}
+
+void putmapin(s16 spridx, s32 bitmap)
+{
+    sSprite *sprite = SPRITE_VAR(spridx);
+    sprite->data = bitmap;
+    sprite->flaginvx = image.invert_x;
+    sprite->sprite_0x28 = get_0x28_unknown(alis.script->vram_org);
+    sprite->script_ent = get_0x0e_script_ent(alis.script->vram_org);
+    sprite->clinking = get_0x2a_clinking(alis.script->vram_org);
+    sprite->cordspr = get_0x2b_cordspr(alis.script->vram_org);
+    sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+    sprite->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
+    
+    // TODO: ...
+//-
+//    s32 contextsize = get_context_size();
+//    if (contextsize > 0x2e)
+//    {
+//        sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
+//
+//        if ((s8)sprite->credon_off == -0x80)
+//        {
+//            sprite->newzoomx = get_0x38_unknown(alis.script->vram_org);
+//            sprite->newzoomy = get_0x36_unknown(alis.script->vram_org);
+//            sprite->creducing = 0;
+//        }
+//    }
+//    
+//    if ((s8)sprite->credon_off >= 0)
+//    {
+//        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+//        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
+//    }
+//-
+    sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
+    if ((s8)get_0x25_credon_credoff(alis.script->vram_org) == -0x80)
+    {
+        sprite->newzoomx = get_0x36_unknown(alis.script->vram_org);
+        sprite->newzoomy = get_0x38_unknown(alis.script->vram_org);
+        sprite->creducing = 0;
+    }
+    else
+    {
+        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
+    }
+//-
+    
+    sprite->depx = image.oldcx + image.depx;
+    sprite->depy = image.oldcy + image.depy;
+    sprite->depz = image.oldcz + image.depz;
     
     if (alis.fmuldes == 0)
     {
@@ -1104,7 +1238,7 @@ void valtostr(char *string, s16 value)
         tmpval = -tmpval;
     }
     
-    s32 *tabptr = (int *)&tprintd0;
+    s32 *tabptr = (s32 *)&tprintd0;
     s32 tprintv;
     s16 length = 9;
     s16 cw;
@@ -1214,6 +1348,10 @@ u8 calcfen(u16 elemidx1, u16 elemidx3)
         if (tmph < image.blocy2)
             image.feny2 = tmph;
         
+        image.fenlargw = (u16)((image.fenx2 - image.fenx1) + 1) >> 2;
+        
+        // NOTE: as far as I know it is never read
+        // image.adfenintv = image.physic + (s32)(s16)(image.fenx1 >> 1) + (u32)image.feny1 * 0xa0;
         return 1;
     }
     
@@ -1364,12 +1502,17 @@ void depscreen(u16 scene, u16 elemidx)
 
 void deptopix(u16 scene, u16 elemidx)
 {
-    if ((get_scr_numelem(scene) & 2) == 0)
+    if ((get_scr_numelem(scene) & 2) != 0)
+    {
+        landtopix(alis.basemain + scene, elemidx);
+    }
+    else
     {
         sSprite *elemsprvar = SPRITE_VAR(elemidx);
         
         scene = elemsprvar->screen_id;
         image.newf = elemsprvar->flaginvx;
+
         s16 tmpdepx = elemsprvar->depx - get_scr_depx(scene);
         s16 tmpdepy = elemsprvar->depy - get_scr_depy(scene);
         s16 tmpdepz = elemsprvar->depz - get_scr_depz(scene);
@@ -1385,8 +1528,9 @@ void deptopix(u16 scene, u16 elemidx)
                 tmpdepz = 1;
             }
             
-            tmpdepx = (s16)(((s32)tmpdepx << (cred & 0x3f)) / (s32)tmpdepz);
-            tmpdepy = (s16)(((s32)tmpdepy << (cred & 0x3f)) / (s32)tmpdepz);
+            tmpdepx = (s16)(((s32)tmpdepx << (cred & 0x3f)) / tmpdepz);
+            tmpdepy = (s16)(((s32)tmpdepy << (cred & 0x3f)) / tmpdepz);
+
             offset = (tmpdepz >> (elemsprvar->credon_off & 0x3f)) + (s8)elemsprvar->creducing;
             if (offset < 0)
             {
@@ -1394,7 +1538,7 @@ void deptopix(u16 scene, u16 elemidx)
             }
             else
             {
-                int clink = (s8)xread8(alis.basemain + scene + 0x1e);
+                s16 clink = (s16)get_scr_clinking(scene);
                 if (clink < offset)
                 {
                     offset = clink;
@@ -1428,7 +1572,6 @@ void deptopix(u16 scene, u16 elemidx)
         image.newzoomx = 0;
         image.newzoomy = 0;
         
-        
         // TODO:
 //        if (alis.platform.version < 30)
 //        {
@@ -1441,7 +1584,7 @@ void deptopix(u16 scene, u16 elemidx)
 //                    if (elemsprvar->calign2d < bVar3)
 //                    {
 //                        u8 bVar1 = get_scr_clinking(scene) - elemsprvar->calign2d;
-//                        if ((-1 < (short)((ushort)bVar1 << 8)) && (bVar1 != 0))
+//                        if ((-1 < (s16)((u16)bVar1 << 8)) && (bVar1 != 0))
 //                        {
 //                            reducing *= (reducing * (bVar3 - elemsprvar->calign2d)) / bVar1 & 0xffff;
 //                        }
@@ -1606,55 +1749,64 @@ void setphysic(void)
     image.fphysic = 1;
 }
 
-u8 *folscreen(u8 *scene)
+// when position or angle changes set screen update flag
+void folscreen(s32 scene)
 {
-    // TODO: ...
-//    s16 *psVar1 = *(s16 **)(alis.atent + *(s16 *)(scene + 0x60));
-//    if ((-1 < *(s16 *)(scene + 0x60)) && (psVar1 != (s16 *)0x0))
-//    {
-//        if ((scene[0x84] & 1) != 0)
-//        {
-//            if ((s16)(*psVar1 + *(s16 *)(scene + 0x86)) != *(s16 *)(scene + 0x16))
-//            {
-//                *(s16 *)(scene + 0x16) = *psVar1 + *(s16 *)(scene + 0x86);
-//                *scene = *scene | 0x80;
-//            }
-//            if ((s16)(psVar1[4] + *(s16 *)(scene + 0x88)) != *(s16 *)(scene + 0x18))
-//            {
-//                *(s16 *)(scene + 0x18) = psVar1[4] + *(s16 *)(scene + 0x88);
-//                *scene = *scene | 0x80;
-//            }
-//            if ((s16)(psVar1[8] + *(s16 *)(scene + 0x8a)) != *(s16 *)(scene + 0x1a))
-//            {
-//                *(s16 *)(scene + 0x1a) = psVar1[8] + *(s16 *)(scene + 0x8a);
-//                *scene = *scene | 0x80;
-//            }
-//        }
-//
-//        if ((scene[0x84] & 2) != 0)
-//        {
-//            s16 sVar2 = psVar1[0x0c] + psVar1[0x20] + *(s16 *)(scene + 0x8c);
-//            if (sVar2 != *(s16 *)(scene + 0x34))
-//            {
-//                *(s16 *)(scene + 0x34) = sVar2;
-//                *scene = *scene | 0x80;
-//            }
-//            sVar2 = psVar1[0x10] + psVar1[0x22] + *(s16 *)(scene + 0x8e);
-//            if (sVar2 != *(s16 *)(scene + 0x36))
-//            {
-//                *(s16 *)(scene + 0x36) = sVar2;
-//                *scene = *scene | 0x80;
-//            }
-//            sVar2 = psVar1[0x14] + psVar1[0x24] + *(s16 *)(scene + 0x90);
-//            if (sVar2 != *(s16 *)(scene + 0x38))
-//            {
-//                *(s16 *)(scene + 0x38) = sVar2;
-//                *scene = *scene | 0x80;
-//            }
-//        }
-//    }
-
-    return scene;
+    if (-1 < xread16(alis.basemain + scene + 0x60))
+    {
+        s32 addr = xread32(alis.atent + xread16(alis.basemain + scene + 0x60));
+        if (addr != 0)
+        {
+            s16 val;
+            if ((xread8(alis.basemain + scene + 0x84) & 1) != 0)
+            {
+                val = xread16(alis.basemain + scene + 0x86) + xread16(addr + ALIS_SCR_WCX);
+                if (val != xread16(alis.basemain + scene + 0x16))
+                {
+                    xwrite16(alis.basemain + scene + 0x16, val);
+                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                }
+                
+                val = xread16(alis.basemain + scene + 0x88) + xread16(addr + ALIS_SCR_WCY);
+                if (val != xread16(alis.basemain + scene + 0x18))
+                {
+                    xwrite16(alis.basemain + scene + 0x18, val);
+                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                }
+                
+                val = xread16(alis.basemain + scene + 0x8a) + xread16(addr + ALIS_SCR_WCZ);
+                if (val != xread16(alis.basemain + scene + 0x1a))
+                {
+                    xwrite16(alis.basemain + scene + 0x1a, val);
+                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                }
+            }
+            
+            if ((xread8(alis.basemain + scene + 0x84) & 2) != 0)
+            {
+                val = xread16(alis.basemain + scene + 0x8c) + xread16(addr + 0x40) + xread16(addr + ALIS_SCR_WCAX);
+                if (val != xread16(alis.basemain + scene + 0x34))
+                {
+                    xwrite16(alis.basemain + scene + 0x34, val);
+                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                }
+                
+                val = xread16(alis.basemain + scene + 0x8e) + xread16(addr + 0x44) + xread16(addr + ALIS_SCR_WCAY);
+                if (val != xread16(alis.basemain + scene + 0x36))
+                {
+                    xwrite16(alis.basemain + scene + 0x36, val);
+                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                }
+                
+                val = xread16(alis.basemain + scene + 0x90) + xread16(addr + 0x48) + xread16(addr + ALIS_SCR_WCAZ);
+                if (val != xread16(alis.basemain + scene + 0x38))
+                {
+                    xwrite16(alis.basemain + scene + 0x38, val);
+                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                }
+            }
+        }
+    }
 }
 
 void addlink(u16 elemidx)
@@ -1749,9 +1901,6 @@ u16 iefflink(u16 elemidx1, u16 elemidx2)
     
     return elemidx2;
 }
-
-s16 scdirect = 0;
-u8 fdoland = 0;
 
 void clrfen(void)
 {
@@ -1992,7 +2141,22 @@ void destofen(sSprite *sprite)
             
         case 0x7f:
         {
-            draw_map(sprite, sprite->newad + xread32(sprite->newad), (sRect){ .x1 = (bmp.x1 + pos.x1), .y1 = (bmp.y1 + pos.y1), .x2 = (bmp.x2 + pos.x1), .y2 = (bmp.y2 + pos.y1) });
+            switch (alis.platform.uid)
+            {
+                case EGameTransarctica:
+                    draw_transarctica_map(sprite, (sprite->newad + xread32(sprite->newad)), (sRect){ .x1 = (bmp.x1 + pos.x1), .y1 = (bmp.y1 + pos.y1), .x2 = (bmp.x2 + pos.x1), .y2 = (bmp.y2 + pos.y1) });
+                    break;
+                    
+                case EGameRobinsonsRequiem0:
+                case EGameRobinsonsRequiem1:
+                    draw_requiem_map(sprite, (sprite->newad + xread32(sprite->newad)));
+                    break;
+                    
+                default:
+                    ALIS_DEBUG(EDebugError, "MISSING DRAW MAP IMPLEMENTETATION");
+                    break;
+            }
+            
             break;
         }
             
@@ -2001,9 +2165,10 @@ void destofen(sSprite *sprite)
     }
 }
 
-void calctop(void)
+s32 calctop(u32 a0, s16 d0w, s16 d1w)
 {
-    return;
+    s32 topoff = ((s32)d1w + (s32)d0w * xread16(a0 - 0x3ca)) * 2;
+    return topoff;
 }
 
 void fentotv(void)
@@ -2011,7 +2176,7 @@ void fentotv(void)
     trsfen(image.logic, image.physic);
 }
 
-void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
+void fenetre(u16 scene, u16 elemidx1, u16 elemidx3, u16 prevspidx)
 {
     u16 tmpidx;
 
@@ -2022,12 +2187,12 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
         return;
     }
 
-    scdirect = 0;
+    image.scdirect = 0;
     if (calcfen(elemidx1, elemidx3))
     {
         if ((get_scr_numelem(scene) & 2) != 0)
         {
-            fdoland = 1;
+            image.fdoland = 1;
         }
         
         for (s16 scridx = screen.ptscreen; scridx != 0; scridx = get_scr_to_next(scridx))
@@ -2134,7 +2299,7 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
                         }
                         else
                         {
-                            calctop();
+                            landtofi(prevspidx, scridx);
                         }
                     }
                 }
@@ -2194,17 +2359,17 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3)
 
 void scrolpage(void)
 {
-//    int *piVar1;
-//    short sVar2;
+//    s32 *piVar1;
+//    s16 sVar2;
 //
-//    paglogic = (int *)0x0;
+//    paglogic = (s32 *)0x0;
 //    pagphysic = addr_physic_vram_start;
 //    piVar1 = io_malloc();
-//    if (piVar1 != (int *)0x0)
+//    if (piVar1 != (s32 *)0x0)
 //    {
-//        pagphysic = (int *)(((int)piVar1 - 1U | 0xff) + 1);
+//        pagphysic = (s32 *)(((s32)piVar1 - 1U | 0xff) + 1);
 //        paglogic = piVar1;
-//        transfen((byte *)addr_physic_vram_start,(byte *)pagphysic);
+//        transfen((u8 *)addr_physic_vram_start,(u8 *)pagphysic);
 //    }
 //
 //    vtiming = 0;
@@ -2236,7 +2401,7 @@ void scrolpage(void)
 //            }
 //
 //            piVar1 = pagphysic;
-//            if (paglogic != (int *)0x0)
+//            if (paglogic != (s32 *)0x0)
 //            {
 //                pagphysic = addr_physic_vram_start;
 //                addr_physic_vram_start = piVar1;
@@ -2247,11 +2412,11 @@ void scrolpage(void)
 //        }
 //        while (sVar2 != -1);
 //
-//        if (paglogic != (int *)0x0)
+//        if (paglogic != (s32 *)0x0)
 //        {
 //            if (paglogic == addr_physic_vram_start)
 //            {
-//                transfen((byte *)addr_physic_vram_start,(byte *)pagphysic);
+//                transfen((u8 *)addr_physic_vram_start,(u8 *)pagphysic);
 //                addr_physic_vram_start = pagphysic;
 //                setphysic();
 //                waitphysic();
@@ -2263,7 +2428,7 @@ void scrolpage(void)
 //
 //    if (pagcount != 0x14)
 //    {
-//        transfen((byte *)addr_physic_vram_start,logic);
+//        transfen((u8 *)addr_physic_vram_start,logic);
 //    }
 }
 
@@ -2302,19 +2467,30 @@ void affiscr(u16 scene, u16 screenidx)
     u16 prevspidx;
     u16 linkidx;
     
-//    if (a2[0x84] != 0)
-//    {
-//        a2 = folscreen(a2);
-//    }
+    if (xread8(alis.basemain + scene + 0x84) != 0)
+    {
+        folscreen(scene);
+    }
     
     if ((image.fremap != 0) || ((s8)get_scr_state(scene) < 0))
     {
         depscreen(scene, screenidx);
     }
     
-    u8 draw = alis.platform.version == 0
-                    ? alis.fswitch == 0
-                    : ((get_scr_numelem(scene) & 2) == 0 || (get_scr_state(scene) & 0x80) == 0);
+    u8 draw = false;
+    if (alis.platform.version == 0)
+    {
+        draw = alis.fswitch == 0;
+    }
+    else if ((get_scr_numelem(scene) & 2) == 0)
+    {
+        draw = true;
+    }
+    else
+    {
+        affiland(scene);
+        draw = (get_scr_state(scene) & 0x80) == 0;
+    }
     
     if (draw)
     {
@@ -2369,7 +2545,7 @@ void affiscr(u16 scene, u16 screenidx)
                             if (image.joints == 0)
                             {
                                 SPRITE_VAR(prevspidx)->link = sprite->link;
-                                fenetre(scene, spriteidx, screenidx);
+                                fenetre(scene, spriteidx, screenidx, prevspidx);
                             }
                             else
                             {
@@ -2412,7 +2588,7 @@ void affiscr(u16 scene, u16 screenidx)
                         }
                     }
                     
-                    fenetre(scene, spriteidx, screenidx);
+                    fenetre(scene, spriteidx, screenidx, prevspidx);
                     spriteidx = prevspidx;
                 }
             }
@@ -3606,19 +3782,233 @@ void draw_fli_video(u8 *bitmap)
 {
     // FLI video
     
-    uint32_t size1 = read32(bitmap + 2);
+    u32 size1 = read32(bitmap + 2);
     s8 *fliname = (s8 *)&bitmap[6];
     ALIS_DEBUG(EDebugVerbose, "FLI video (%s) %d bytes [", fliname, size1);
 
-    uint32_t size2 = (*(uint32_t *)(&bitmap[32]));
-    uint16_t frames = (*(uint16_t *)(&bitmap[38]));
+    u32 size2 = (*(u32 *)(&bitmap[32]));
+    u16 frames = (*(u16 *)(&bitmap[38]));
 
     ALIS_DEBUG(EDebugVerbose, "size: %d frames: %d]\n", size2, frames);
 
     // TODO: ...
 }
 
-void draw_map(sSprite *sprite, u32 mapaddr, sRect lim)
+void mapchar(int a2,char *a4,s16 d3w,s16 d4w,s16 d5w)
+{
+    
+}
+
+u8 chartpalti16(u32 src)
+{
+    return chartvcol0 + (xread8(src + 1) >> 4);
+}
+
+u8 chartpalti8(u32 src)
+{
+    return chartvcol0 + (xread8(src + 1) >> 5);
+}
+
+u8 chartpalti6(u32 src)
+{
+    return chartvcol0 + (xread8(src + 1) / 43);
+}
+
+u8 chartpalti4(u32 src)
+{
+    return chartvcol0 + (xread8(src + 1) >> 6);
+}
+
+u8 chartpalti(u32 src)
+{
+    u32 tmp = (u32)xread8(src + 1) * (u32)chartvncol;
+    return chartvcol0 + (s8)(tmp >> 0x10);
+}
+
+u8 chartpbyte(u32 src)
+{
+    return xread8(src + 1);
+}
+
+u8 chartpdeco(u32 src)
+{
+    return xread8(src);
+}
+
+u8 chartptra(u32 src)
+{
+    s16 sVar8 = ((s8)xread8(src) & 0x3f) * 0x20 - 0xc00;
+    if ((s8)xread8(alis.script->vram_org + 0x1 + sVar8) < 0)
+    {
+        src += xread16(alis.script->vram_org + 0x10 + sVar8);
+        sVar8 = ((u16)xread16(src + 1) & 0x3f) * 0x20 - 0xc00;
+    }
+    
+    s16 sVar4 = (u16)((s8)xread8(src + 1) >> 4) + (alis.basedark - (u16)((s8)xread8(src) >> 6));
+    if (sVar4 < 0)
+    {
+        sVar4 = 0;
+    }
+    else if (0xf < sVar4)
+    {
+        sVar4 = 0xf;
+    }
+    
+    sVar8 = (s8)xread8(alis.script->vram_org + 0x8 + sVar8) * 2;
+    
+    s8 result = ((xdeschart ^ ydeschart) & 1) == 0 ? (s8)xread8(alis.ptrdark + sVar8) : (s8)xread8(alis.ptrdark + 1 + sVar8);
+    return result;
+}
+
+void draw_requiem_map(sSprite *sprite, u32 bitmap)
+{
+    s32 mapdata = (bitmap + 0x3d8);
+    if (xread8(bitmap - 0x28) != 0x9)
+    {
+        if ((xread8(bitmap - 0x28) != 0xa) && (xread32(alis.atent + xread16(bitmap - 0x24)) != 0))
+        {
+            s32 iVar13 = xread32(xread32(alis.atent + xread16(bitmap - 0x24)) - 0x14);
+            s32 piVar12 = (xread32(iVar13 + 0xe) + iVar13);
+            iVar13 = xread32(piVar12) + piVar12;
+            u16 uVar8 = xread16(bitmap - 6) + (image.blocy1 - sprite->newy);
+            u16 mapligdep = uVar8 / (u16)xread16(bitmap - 0x18);
+            s16 sVar6 = image.blocy1 - uVar8 % (u16)xread16(bitmap - 0x18);
+            u32 pbVar15 = (mapdata + (int)(s16)(mapligdep + xread16(bitmap + 0x3d4) * ((u16)(xread16(bitmap - 0xa) + (image.blocx1 - sprite->newx)) / (u16)xread16(bitmap - 0x1c))));
+            s16 sVar11 = (u16)(xread16(bitmap - 6) + (image.blocy2 - sprite->newy)) / (u16)xread16(bitmap - 0x18) - mapligdep;
+            u32 uVar1 = (u32)(u16)(image.blocx2 - image.blocx1) / (u32)(u16)xread16(bitmap - 0x1c);
+            s16 sVar5 = xread16(bitmap + 0x3d4);
+            if (((u8)xread8(bitmap - 0x26) & 2) != 0)
+            {
+                sVar6 = ((u16)(xread16(bitmap - 0x18) - 1U) >> 1) + sVar6;
+                if (mapligdep != 0)
+                {
+                    sVar11++;
+                    pbVar15--;
+                    sVar6 = sVar6 - xread16(bitmap - 0x18);
+                }
+                
+                sVar11++;
+            }
+          
+            u32 uVar3 = (u32)(u16)image.blocx1;
+            u32 uVar7 = uVar1;
+            s16 sVar10 = sVar11;
+            u32 uVar2 = image.blocx1;
+
+            do
+            {
+                do
+                {
+                    if ((u8)xread8(pbVar15) != 0 && (uVar8 = (xread16(bitmap - 0x22) + (u16)xread8(pbVar15)) - 1) <= (u16)xread16(bitmap - 0x20))
+                    {
+                        piVar12 = (iVar13 + (s16)(uVar8 * 4));
+                        mapchar((int)mapdata,(char *)(alis.mem + xread32(piVar12) + piVar12), sVar11, (s16)uVar2, sVar6);
+                    }
+                  
+                    pbVar15 += xread16(bitmap + 0x3d4);
+                    uVar2 = (u32)(u16)(xread16(bitmap - 0x1c) + (s16)uVar2);
+                    uVar8 = (s16)uVar7 - 1;
+                    uVar7 = (u32)uVar8;
+                }
+                while (uVar8 != 0xffff);
+                
+                sVar6 = xread16(bitmap - 0x18) + sVar6;
+                uVar2 = uVar3 & 0xffff;
+                pbVar15 += (s16)(1 - ((s16)uVar1 + 1) * sVar5);
+                sVar10--;
+                uVar7 = uVar1;
+            }
+            while (sVar10 != -1);
+        }
+    }
+    else
+    {
+        u32 uVar6 = ((image.blocx1 - sprite->newx)/* >> 4*/) + (u16)xread16(mapdata - 0x3e2) / (u16)xread16(mapdata - 0x3f4);
+        s32 iVar8 = (((xread16(mapdata - 0x3d4) + sprite->newy) - image.blocy2) + (u16)xread16(mapdata - 0x3e0) / (u16)xread16(mapdata - 0x3f2));
+        
+        u32 addr = xread32(mapdata - 0x3ba);
+        if (addr == 0)
+        {
+//            SYS_PrintError();
+            return;
+        }
+        
+        u32 src = addr;
+        if ((s8)xread8(addr - 1) < 0)
+        {
+            src = xread32(xread32(addr));
+        }
+        
+        s16 test = xread16(addr - 0x3c4);
+        src += iVar8 * 2 + uVar6 * test;
+        s16 height = image.blocy2 - image.blocy1;
+        s16 width = image.blocx2 - image.blocx1;
+       
+        s16 type = xread16(mapdata - 0x3b6);
+        switch (type)
+        {
+            case 1:
+            {
+                chartvcol0 = (u8)xread16(mapdata - 0x3b4);
+                chartvncol = xread16(mapdata - 0x3b2);
+                switch (chartvncol)
+                {
+                    case 0x10:
+                        chartproc = &chartpalti16;
+                        break;
+                    case 0x8:
+                        chartproc = &chartpalti8;
+                        break;
+                    case 0x6:
+                        chartproc = &chartpalti6;
+                        break;
+                    case 0x4:
+                        chartproc = &chartpalti4;
+                        break;
+                    default:
+                        chartproc = &chartpalti;
+                        break;
+                }
+                break;
+            }
+
+            case 2:
+            {
+                chartproc = &chartpdeco;
+                break;
+            }
+
+            case 3:
+            {
+                chartproc = &chartpbyte;
+                break;
+            }
+
+            default:
+                chartproc = &chartptra;
+                break;
+        }
+
+        xdeschart = image.blocx1 - image.wlogx1;
+        ydeschart = image.blocy2 - image.wlogy1;
+        
+        u8 *tgt = image.logic;
+
+        height++;
+        width++;
+        
+        for (int w = 0; w < width; w++, src += test - (height * 2))
+        {
+            for (int h = 0; h < height; h++, src+=2)
+            {
+                tgt = image.logic + (xdeschart + w) + (ydeschart - h) * host.pixelbuf.w;
+                *tgt = (*chartproc)(src);
+            }
+        }
+    }
+}
+
+void draw_transarctica_map(sSprite *sprite, u32 mapaddr, sRect lim)
 {
     s32 vram = xread32(xread16(mapaddr - 0x24) + alis.atent);
     if (vram != 0)
@@ -3865,7 +4255,7 @@ void draw_map(sSprite *sprite, u32 mapaddr, sRect lim)
 #pragma mark Helper functions
 
 
-void mac_update_pos(short *x,short *y)
+void mac_update_pos(s16 *x,s16 *y)
 {
     *x *= 1.5;
     *y *= 1.5;

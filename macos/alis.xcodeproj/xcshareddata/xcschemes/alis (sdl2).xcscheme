@@ -60,7 +60,7 @@
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES"
       consoleMode = "0"
-      structuredConsoleMode = "1">
+      structuredConsoleMode = "2">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
@@ -190,7 +190,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/amiga/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/dos/"
@@ -237,8 +237,8 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/requiem/atari/"
-            isEnabled = "NO">
+            argument = "-m /Users/gildor/Work/alis/data/requiem/atari/"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/amiga/"

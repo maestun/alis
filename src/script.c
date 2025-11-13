@@ -61,6 +61,15 @@ int is_main(u16 check) {
 // =============================================================================
 
 int search_insert(u32 *nums, u32 size, int target_id) {
+    
+//    u8 a = SCENE_GET_AT(8, 0, u8, NOP);
+//    u8 x = SCENE_GET(8, SC_RETURN_OFFSET);
+//    u8 y = SCENE_GET(8, SC_WAIT_COUNT);
+    
+    // TODO: why was it there and why it caused rendering artifacts in RRQ?
+//    SCENE_SET_AT(8, 0, u8, NOP, 10);
+//    SCENE_SET(8, SC_WAIT_COUNT, 12);
+    
     int start = 0;
     int end = size - 1;
         
@@ -81,14 +90,15 @@ int search_insert(u32 *nums, u32 size, int target_id) {
 
 void protect(void)
 {
-  if (alis.vprotect != 0)
-  {
-    u8 *workbuffptr = alis.buffer;
+    if (alis.vprotect != 0)
+    {
+        u8 *workbuffptr = alis.buffer;
 //    uVar1 = FUN_0000f00e();
-//    if ((short)uVar1 == 0) {
-      alis.basemain = alis.atprog;
+//    if ((s16)uVar1 == 0) {
+        alis.basemain = alis.atprog;
 //    }
-  }
+    }
+    
     alis.vprotect = 0;
 }
 
@@ -527,7 +537,7 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         }
     }
     
-    if ((script->type & 1) == 0)
+//    if ((script->type & 1) == 0)
     {
         data = alis.mem + script->data_org;
         s32 l = read32(data + 0xe);
@@ -548,75 +558,97 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                 
                 if (bitmap[0] == 0 || bitmap[0] == 2)
                 {
+                    if ((script->type & 1) == 0)
+                    {
+                        u16 width = read16(bitmap + 2) + 1;
+                        u16 height = read16(bitmap + 4) + 1;
+                        
+                        at = 6;
+                        
+                        for (int b = 0; b < width * height; b+=16)
+                        {
+                            memset(pixels, 0, 16);
+                            for (int c = 0; c < 8; c++)
+                            {
+                                uint32_t rot = (7 - c);
+                                uint32_t mask = 1 << rot;
+                                pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
+                                pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
+                            }
+                            
+                            for (int d = 0; d < 8; d++)
+                            {
+                                bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
+                            }
+                        }
+                    }
+                }
+                else if (bitmap[0] == 0x18 || bitmap[0] == 0x1a)
+                {
                     u16 width = read16(bitmap + 2) + 1;
                     u16 height = read16(bitmap + 4) + 1;
-                    
-                    at = 6;
-                    
-                    for (int b = 0; b < width * height; b+=16)
+                    u16 hwidth = width >> 1;
+
+                    u16 *ptr = (u16 *)(bitmap + 6);
+                    for (int h = 0; h < height * hwidth; h++, ptr++)
                     {
-                        memset(pixels, 0, 16);
-                        for (int c = 0; c < 8; c++)
-                        {
-                            uint32_t rot = (7 - c);
-                            uint32_t mask = 1 << rot;
-                            pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
-                            pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
-                        }
-                        
-                        for (int d = 0; d < 8; d++)
-                        {
-                            bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
-                        }
+                        *ptr = (*ptr | *ptr << 4);
                     }
                 }
             }
         }
-        else if (alis.platform.kind == EPlatformAmiga && (alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya || alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1))
+        else if (alis.platform.kind == EPlatformAmiga)
         {
             s32 sprites = read16(data + l + 4);
             
             for (s32 i = 0; i < sprites; i++)
             {
-                s32 a = read32(data + l) + l + i * 4;
-                u32 at = read32(data + a) + a;
-                u8 *bitmap = data + at;
-                
-                if (bitmap[0] == 0 || bitmap[0] == 2)
+                if ((script->type & 1) == 0)
                 {
-                    u16 width = read16(bitmap + 2) + 1;
-                    u16 height = read16(bitmap + 4) + 1;
+                    s32 a = read32(data + l) + l + i * 4;
+                    u32 at = read32(data + a) + a;
+                    u8 *bitmap = data + at;
                     
-                    u8 *temp = malloc(width * height);
-                    
-                    at = 6;
-                    
-                    s32 px = 0;
-                    u32 planesize = (width * height) / 8;
-                    u8 c0, c1, c2, c3;
-
-                    for (s32 h = 0; h < height; h++)
+                    if (bitmap[0] == 0 || bitmap[0] == 2)
                     {
-                        u8 *tgt = temp + (h * width);
-                        for (s32 w = 0; w < width; w++, tgt++, px++)
+                        if (alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya || alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1)
                         {
-                            s32 idx = at + (w + h * width) / 8;
-                            c0 = *(bitmap + idx);
-                            c1 = *(bitmap + (idx += planesize));
-                            c2 = *(bitmap + (idx += planesize));
-                            c3 = *(bitmap + (idx += planesize));
-
-                            int bit = 7 - (w % 8);
-                            *tgt = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3;
+                            u16 width = read16(bitmap + 2) + 1;
+                            u16 height = read16(bitmap + 4) + 1;
+                            
+                            u8 *temp = malloc(width * height);
+                            
+                            at = 6;
+                            
+                            s32 px = 0;
+                            u32 planesize = (width * height) / 8;
+                            u8 c0, c1, c2, c3;
+                            
+                            for (s32 h = 0; h < height; h++)
+                            {
+                                u8 *tgt = temp + (h * width);
+                                for (s32 w = 0; w < width; w++, tgt++, px++)
+                                {
+                                    s32 idx = at + (w + h * width) / 8;
+                                    c0 = *(bitmap + idx);
+                                    c1 = *(bitmap + (idx += planesize));
+                                    c2 = *(bitmap + (idx += planesize));
+                                    c3 = *(bitmap + (idx += planesize));
+                                    
+                                    int bit = 7 - (w % 8);
+                                    *tgt = ((c0 >> bit) & 1) | ((c1 >> bit) & 1) << 1 | ((c2 >> bit) & 1) << 2 | ((c3 >> bit) & 1) << 3;
+                                }
+                            }
+                            
+                            for (int b = 0; b < width * height / 2; b++)
+                            {
+                                bitmap[at++] = (temp[b * 2 + 0] << 4) | (temp[b * 2 + 1]);
+                            }
+                            
+                            free(temp);
                         }
                     }
-                    
-                    for (int b = 0; b < width * height / 2; b++)
-                    {
-                        bitmap[at++] = (temp[b * 2 + 0] << 4) | (temp[b * 2 + 1]);
-                    }
-
-                    free(temp);
+                    // TODO: else if (bitmap[0] == 0x18 || bitmap[0] == 0x1a)
                 }
             }
         }
@@ -805,7 +837,7 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     set_0x02_wait_cycles(script->vram_org, 1);
     set_0x01_wait_count(script->vram_org, 1);
     set_0x04_cstart_csleep(script->vram_org, 0xff);
-    set_0x1a_cforme(script->vram_org, 0xffff);
+    set_0x1a_cforme(script->vram_org, -1);
     set_0x0e_script_ent(script->vram_org, alis.dernent);
     set_0x24_scan_inter(script->vram_org, alis.platform.version >= 31 ? 6 : 2);
     set_0x18_unknown(script->vram_org, 0);
@@ -819,7 +851,12 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     set_0x2a_clinking(script->vram_org, 0); // byte
     set_0x2c_calign(script->vram_org, 0);
     set_0x2d_calign(script->vram_org, 0);
-    
+
+    // TODO: RRQ changes
+//    0001bde6 42 68 ff ca     clr.w      (-0x36,A0)
+//    0001bdea 42 68 ff c8     clr.w      (-0x38,A0)
+    set_0x26_creducing(script->vram_org, 0);
+    // -----------------
     
     if (contextsize > 0x2e)
     {
@@ -920,24 +957,10 @@ sAlisScriptData * script_load(const char * script_path) {
                 pak_sz -= kVMSpecsSize;
             }
 
-            // read dictionary
-            u8 *dic = malloc(kPackedDictionarySize);
-            fread(dic, sizeof(u8), kPackedDictionarySize, fp);
-            
-            // read file into buffer
-            // NOTE: unpacker actualy reads past loaded data, adding few bytes is easy hacky "fix"
-            u8 * pak_buf = (u8 *)malloc(pak_sz * sizeof(u8) + 16);
-            memset(pak_buf, 0, pak_sz + 16);
-            fread(pak_buf, sizeof(u8), pak_sz, fp);
-
             unpack_sz = unpack_script(script_path, unpack_buf);
             if (unpack_sz > 0) {
                 script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
             }
-
-            // cleanup
-            free(dic);
-            free(pak_buf);
         }
         else {
 

@@ -55,6 +55,10 @@
 		68B507182CF409ED0061E1FB /* sys_sdl2.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B507162CF409ED0061E1FB /* sys_sdl2.c */; };
 		68B5071B2CF418160061E1FB /* sys_sdl1.c in Sources */ = {isa = PBXBuildFile; fileRef = 681881A62CE40AA000FF1567 /* sys_sdl1.c */; };
 		68B5071C2CF418240061E1FB /* sys.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B507132CF3E8930061E1FB /* sys.c */; };
+		68E1856F2E909A0000C4F075 /* render3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 68E1856E2E909A0000C4F075 /* render3d.c */; };
+		68E185702E909A0000C4F075 /* render3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 68E1856E2E909A0000C4F075 /* render3d.c */; };
+		68F07E682EC55547008CEF63 /* export.c in Sources */ = {isa = PBXBuildFile; fileRef = 68F07E672EC55547008CEF63 /* export.c */; };
+		68F07E692EC55547008CEF63 /* export.c in Sources */ = {isa = PBXBuildFile; fileRef = 68F07E672EC55547008CEF63 /* export.c */; };
 		8B9C401B250A2A5B00C947F9 /* alis.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C400F250921E900C947F9 /* alis.c */; };
 		8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4016250A247D00C947F9 /* opcodes.c */; };
 		8B9C402C250A2A8F00C947F9 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402B250A2A8F00C947F9 /* main.c */; };
@@ -127,7 +131,11 @@
 		68B507102CF3E86D0061E1FB /* mem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mem.c; sourceTree = "<group>"; };
 		68B507132CF3E8930061E1FB /* sys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys.c; sourceTree = "<group>"; };
 		68B507162CF409ED0061E1FB /* sys_sdl2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys_sdl2.c; sourceTree = "<group>"; };
+		68E1856D2E909A0000C4F075 /* render3d.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = render3d.h; sourceTree = "<group>"; };
+		68E1856E2E909A0000C4F075 /* render3d.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = render3d.c; path = ../../../../../../../../work/alis.rrq/src/render3d.c; sourceTree = BUILT_PRODUCTS_DIR; };
 		68E591932CE55D89007595EB /* SDL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL.framework; path = ../../../../../Library/Frameworks/SDL.framework; sourceTree = "<group>"; };
+		68F07E662EC55547008CEF63 /* export.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = export.h; sourceTree = "<group>"; };
+		68F07E672EC55547008CEF63 /* export.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = export.c; sourceTree = "<group>"; };
 		68F3BDE42A7F2F64008E516A /* mem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mem.h; sourceTree = "<group>"; };
 		8B28A6802507C5A600E3F0FF /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		8B28A6822507C5AA00E3F0FF /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
@@ -252,12 +260,16 @@
 				8B9C4042250A6AC200C947F9 /* debug.h */,
 				8B9C4043250A6AC200C947F9 /* debug.c */,
 				0981CBCF250B46970097F862 /* escnames.c */,
+				68F07E662EC55547008CEF63 /* export.h */,
+				68F07E672EC55547008CEF63 /* export.c */,
 				8B9C4016250A247D00C947F9 /* opcodes.c */,
 				0981CBD0250B46970097F862 /* opernames.c */,
 				68AC2DA12A5F52B60046C6EB /* platform.c */,
 				68AC2DA22A5F52B60046C6EB /* platform.h */,
 				6808EE03297069760045BA8A /* image.h */,
 				6808EE04297069760045BA8A /* image.c */,
+				68E1856D2E909A0000C4F075 /* render3d.h */,
+				68E1856E2E909A0000C4F075 /* render3d.c */,
 				68F3BDE42A7F2F64008E516A /* mem.h */,
 				68B507102CF3E86D0061E1FB /* mem.c */,
 				8B9C402B250A2A8F00C947F9 /* main.c */,
@@ -357,6 +369,7 @@
 				6840F4932CF29BBC00421CAF /* utils.c in Sources */,
 				6840F4942CF29BBC00421CAF /* main.c in Sources */,
 				6840F4962CF29BBC00421CAF /* alis.c in Sources */,
+				68F07E682EC55547008CEF63 /* export.c in Sources */,
 				6840F4972CF29BBC00421CAF /* image.c in Sources */,
 				6840F4982CF29BBC00421CAF /* screen.c in Sources */,
 				6840F4992CF29BBC00421CAF /* opernames.c in Sources */,
@@ -366,6 +379,7 @@
 				68B507182CF409ED0061E1FB /* sys_sdl2.c in Sources */,
 				6840F49D2CF29BBC00421CAF /* escnames.c in Sources */,
 				68B5071C2CF418240061E1FB /* sys.c in Sources */,
+				68E1856F2E909A0000C4F075 /* render3d.c in Sources */,
 				6840F49E2CF29BBC00421CAF /* video.c in Sources */,
 				6840F49F2CF29BBC00421CAF /* emu2149.c in Sources */,
 				6840F4A02CF29BBC00421CAF /* platform.c in Sources */,
@@ -389,6 +403,7 @@
 				6879D5842A942A4F0067C22A /* channel.c in Sources */,
 				8B9C4030250A2F9300C947F9 /* utils.c in Sources */,
 				8B9C402C250A2A8F00C947F9 /* main.c in Sources */,
+				68F07E692EC55547008CEF63 /* export.c in Sources */,
 				8B9C401B250A2A5B00C947F9 /* alis.c in Sources */,
 				6808EE05297069760045BA8A /* image.c in Sources */,
 				685EBE252A52033800E4F465 /* screen.c in Sources */,
@@ -398,6 +413,7 @@
 				687A344D2CCF11EC00334C81 /* newalis.c in Sources */,
 				68B507172CF409ED0061E1FB /* sys_sdl2.c in Sources */,
 				68B507152CF3E8930061E1FB /* sys.c in Sources */,
+				68E185702E909A0000C4F075 /* render3d.c in Sources */,
 				0981CBD3250B46970097F862 /* escnames.c in Sources */,
 				6838DE3B2B57685B005078DD /* video.c in Sources */,
 				68A502C62B23F16100635EEC /* emu2149.c in Sources */,
@@ -416,6 +432,7 @@
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = ECS3E5Z2W9;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
@@ -435,6 +452,7 @@
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = ECS3E5Z2W9;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
@@ -565,6 +583,7 @@
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = ECS3E5Z2W9;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
@@ -585,6 +604,7 @@
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = ECS3E5Z2W9;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",

@@ -217,11 +217,23 @@ void scdosprite(s16 scridx)
 
     sSprite *sprite = SPRITE_VAR(spritidx);
     sprite->numelem = get_scr_numelem(scridx);
-    sprite->newx = get_scr_newx(scridx);
-    sprite->newy = get_scr_newy(scridx);
+    
+    s16 x = get_scr_newx(scridx);
+    s16 y = get_scr_newy(scridx);
+    s16 w = get_scr_width(scridx);
+    s16 h = get_scr_height(scridx);
+
+    if (alis.platform.kind == EPlatformMac)
+    {
+        mac_update_pos(&x, &y);
+        mac_update_pos(&w, &h);
+    }
+    
+    sprite->newx = x;
+    sprite->newy = y;
     sprite->newd = 0x7fff;
-    sprite->depx = get_scr_newx(scridx) + get_scr_width(scridx);
-    sprite->depy = get_scr_newy(scridx) + get_scr_height(scridx);
+    sprite->depx = x + w;
+    sprite->depy = y + h;
 }
 
 void vectoriel(s16 scridx)

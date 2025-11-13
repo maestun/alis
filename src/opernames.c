@@ -431,9 +431,8 @@ void oabs(void) {
 
 // Opername no. 51 opcode 0x64 ornd
 void ornd(void) {
-//    alis.varD7 = sys_random() % alis.varD7;
     u32 result = alis.random_number;
-    result = alis.random_number = (u16)(result * 0x7ab7 + -0x77f);
+    result = alis.random_number = (u16)(result * 0x7ab7 - 0x77f);
     result = (alis.varD7 & 0xffff) * result;
     alis.varD7 = result * 0x10000 | result >> 0x10;
 }

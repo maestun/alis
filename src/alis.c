@@ -47,6 +47,9 @@ const u32 kHostRAMSize          = 1024 * 1024 * 2;
 const u32 kVirtualRAMSize       = 0xffff * sizeof(u8);
 
 
+extern s32 testIndex;
+extern u32 testData[];
+
 // =============================================================================
 // MARK: - Private
 // =============================================================================
@@ -63,25 +66,17 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
         alis.state = eAlisStateStopped;
     }
     else {
+        
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
         
-//        if (table == opcodes)
-//        {
-//            if (used_opcodes[code] == 0)
-//            {
-//                printf("Use of: %s\n", opcode.name);
-//                used_opcodes[code] ++;
-//            }
-//        }
-
         if (!disalis) {
             ALIS_DEBUG(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         }
         else {
-            u32 prg_offset = (alis.script->pc - alis.script->pc_org)-1;                        // -1 -> start with 0 not with 1
-            u32 file_offset = prg_offset + alis.script->data->header.code_loc_offset + 2 + 6;  //  2 -> size of code_loc_offset 
+            u32 prg_offset = alis.script->pc/*(alis.script->pc - alis.script->pc_org)-1*/;                        // -1 -> start with 0 not with 1
+            u32 file_offset = prg_offset + alis.script->data->header.code_loc_offset + 2 + 6;  //  2 -> size of code_loc_offset
                                                                                                //  6 -> kPackedHeaderSize = 6
             if (alis.script->name == alis.main->name) { file_offset += 16; }                   // 16 -> kVMSpecsSize = 16
 
@@ -103,7 +98,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
               }
             }
             else {
-               opcode.fptr();
+                opcode.fptr();
             }
     }
 #else
@@ -248,7 +243,7 @@ void alis_load_main(void) {
         alis.maxprog = alis.specs.script_data_tab_len;
 
         // TODO: ...
-        alis.finmem = kHostRAMSize; // 0xf6e98;
+        alis.finmem = 0x1f7c00 - 0xd68; // kHostRAMSize; // 0x1f6e98;
 
         inisprit();
 
@@ -289,11 +284,11 @@ void alis_load_main(void) {
     }
 }
 
-
 // =============================================================================
 // MARK: - VM API
 // =============================================================================
 u8 alis_init(sPlatform platform) {
+    
     ALIS_DEBUG(EDebugVerbose, "ALIS: Init.\n");
 
     alis.platform = platform;
@@ -420,10 +415,10 @@ u8 alis_init(sPlatform platform) {
     alis.bsd7bis = (char *)(alis.mem + 0x1a3e6);
     
     // NOTE: random address that should be empty
-    alis.vstandard = 0x153C6;
+    alis.vstandard = 0x19d16; // 0x153C6;
     memset(alis.mem + alis.vstandard, 0, 256);
 
-    alis.tabptr = 0x1b82e; // tab containing 2 * 16 pointers
+    alis.tabptr = 0x212ee; // 0x1b82e; // tab containing 2 * 16 pointers
     memset(alis.mem + alis.tabptr, 0, 2 * 16 * 4);
     
     alis.sd7 = alis.bsd7;
@@ -432,7 +427,7 @@ u8 alis_init(sPlatform platform) {
     
     // init helpers
     alis.fp = NULL;
-       
+
     // set the vram origin at some abitrary location (same as atari, to ease debug)
     alis.vram_org = alis.mem + alis.basemem;
     
@@ -442,7 +437,15 @@ u8 alis_init(sPlatform platform) {
     // TODO: init virtual accumulator
 //    alis.acc_org = alis.script->vram_org;
 //    alis.acc = alis.script->vram_org + kVirtualRAMSize;
-    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x1cdc0); // 0x198e2);
+    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x22880/*0x1cdc0*/); // 0x198e2);
+    
+    alis.pretrlinetra = (s16 *)(alis.mem + 0x1ef7c);
+    alis.pretglinetra = (s16 *)(alis.mem + 0x1f58e);
+
+    alis.tlinetra  = (s16 *)(alis.mem + 0x1e602);
+    alis.itlinetra = (s16 *)(alis.mem + 0x1e802);
+    alis.trlinetra = (s16 *)(alis.mem + 0x1f07e);
+    alis.tglinetra = (s16 *)(alis.mem + 0x1f690);
     
     alis.fmouse = 0xff;
 
@@ -461,6 +464,24 @@ u8 alis_init(sPlatform platform) {
     alis.basemain = alis.main->vram_org;
     
     alis.desmouse = NULL;
+
+    // Robinsons Requiem
+    
+    image.fdoland = 0;
+    image.scdirect = 0;
+    image.tlpix = 0;
+    image.atalti = 0;
+    image.atlpix = 0;
+    image.atalias = 0;
+    image.tlland = 0;
+    image.atlland = 0;
+    image.landone = 0;
+    image.purey = 0;
+    image.purey2 = 0;
+    image.fhorizon = 0;
+    
+    image.zoombid = 0x20de2;
+    image.landdata = 0x1ccc2;
 
     return 0;
 }
@@ -906,6 +927,16 @@ void alis_load_state(void)
 
     sys_enable_mouse(enable_mouse);
     set_update_cursor();
+    
+    // requiem
+
+    alis.pretrlinetra = (s16 *)(alis.mem + 0x1ef7c);
+    alis.pretglinetra = (s16 *)(alis.mem + 0x1f58e);
+
+    alis.tlinetra  = (s16 *)(alis.mem + 0x1e602);
+    alis.itlinetra = (s16 *)(alis.mem + 0x1e802);
+    alis.trlinetra = (s16 *)(alis.mem + 0x1f07e);
+    alis.tglinetra = (s16 *)(alis.mem + 0x1f690);
 
     printf("\n");
     ALIS_DEBUG(EDebugSystem, "Savestate loaded from: %s.\n", path);

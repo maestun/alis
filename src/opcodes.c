@@ -25,6 +25,7 @@
 #include "channel.h"
 #include "mem.h"
 #include "image.h"
+#include "render3d.h"
 #include "screen.h"
 #include "unpack.h"
 #include "utils.h"
@@ -255,19 +256,56 @@ u8 tabatan[] = {
     0x00, 0x00, 0x00, 0x00  // TODO four redundant entries?
 };
 
-s16 tabsin[] = {
-    0x0000, 0x0008, 0x0011, 0x001a, 0x0023, 0x002c, 0x0035, 0x003e, 0x0047, 0x0050, 0x0058, 0x0061, 0x006a, 0x0073, 0x007b, 0x0084, 0x008d, 0x0095, 0x009e, 0x00a6, 0x00af, 0x00b7, 0x00bf,
-    0x00c8, 0x00d0, 0x00d8, 0x00e0, 0x00e8, 0x00f0, 0x00f8, 0x0100, 0x0107, 0x010f, 0x0116, 0x011e, 0x0125, 0x012c, 0x0134, 0x013b, 0x0142, 0x0149, 0x014f, 0x0156, 0x015d, 0x0163, 0x016a,
-    0x0170, 0x0176, 0x017c, 0x0182, 0x0188, 0x018d, 0x0193, 0x0198, 0x019e, 0x01a3, 0x01a8, 0x01ad, 0x01b2, 0x01b6, 0x01bb, 0x01bf, 0x01c4, 0x01c8, 0x01cc, 0x01d0, 0x01d3, 0x01d7, 0x01da,
-    0x01dd, 0x01e1, 0x01e4, 0x01e6, 0x01e9, 0x01ec, 0x01ee, 0x01f0, 0x01f2, 0x01f4, 0x01f6, 0x01f8, 0x01f9, 0x01fb, 0x01fc, 0x01fd, 0x01fe, 0x01fe, 0x01ff, 0x01ff, 0x01ff, 0x0200
+s16 tables[] = {
+    
+    0x0000, 0x0008, 0x0011, 0x001A, 0x0023, 0x002C, 0x0035, 0x003E, 0x0047, 0x0050, 0x0058, 0x0061, 0x006A, 0x0073, 0x007B, 0x0084, 0x008D, 0x0095, 0x009E, 0x00A6, 0x00AF, 0x00B7, 0x00BF, 0x00C8, 0x00D0, 0x00D8, 0x00E0, 0x00E8, 0x00F0, 0x00F8, 0x0100, 0x0107, 0x010F, 0x0116, 0x011E,
+    0x0125, 0x012C, 0x0134, 0x013B, 0x0142, 0x0149, 0x014F, 0x0156, 0x015D, 0x0163, 0x016A, 0x0170, 0x0176, 0x017C, 0x0182, 0x0188, 0x018D, 0x0193, 0x0198, 0x019E, 0x01A3, 0x01A8, 0x01AD, 0x01B2, 0x01B6, 0x01BB, 0x01BF, 0x01C4, 0x01C8, 0x01CC, 0x01D0, 0x01D3, 0x01D7, 0x01DA, 0x01DD,
+    0x01E1, 0x01E4, 0x01E6, 0x01E9, 0x01EC, 0x01EE, 0x01F0, 0x01F2, 0x01F4, 0x01F6, 0x01F8, 0x01F9, 0x01FB, 0x01FC, 0x01FD, 0x01FE, 0x01FE, 0x01FF, 0x01FF, 0x01FF, 0x0200, 0x01FF, 0x01FF, 0x01FF, 0x01FE, 0x01FE, 0x01FD, 0x01FC, 0x01FB, 0x01F9, 0x01F8, 0x01F6, 0x01F4, 0x01F2, 0x01F0,
+    0x01EE, 0x01EC, 0x01E9, 0x01E6, 0x01E4, 0x01E1, 0x01DD, 0x01DA, 0x01D7, 0x01D3, 0x01D0, 0x01CC, 0x01C8, 0x01C4, 0x01BF, 0x01BB, 0x01B6, 0x01B2, 0x01AD, 0x01A8, 0x01A3, 0x019E, 0x0198, 0x0193, 0x018D, 0x0188, 0x0182, 0x017C, 0x0176, 0x0170, 0x016A, 0x0163, 0x015D, 0x0156, 0x014F,
+    0x0149, 0x0142, 0x013B, 0x0134, 0x012C, 0x0125, 0x011E, 0x0116, 0x010F, 0x0107, 0x0100, 0x00F8, 0x00F0, 0x00E8, 0x00E0, 0x00D8, 0x00D0, 0x00C8, 0x00BF, 0x00B7, 0x00AF, 0x00A6, 0x009E, 0x0095, 0x008D, 0x0084, 0x007B, 0x0073, 0x006A, 0x0061, 0x0058, 0x0050, 0x0047, 0x003E, 0x0035,
+    0x002C, 0x0023, 0x001A, 0x0011, 0x0008, 0x0000, 0xFFF8, 0xFFEF, 0xFFE6, 0xFFDD, 0xFFD4, 0xFFCB, 0xFFC2, 0xFFB9, 0xFFB0, 0xFFA8, 0xFF9F, 0xFF96, 0xFF8D, 0xFF85, 0xFF7C, 0xFF73, 0xFF6B, 0xFF62, 0xFF5A, 0xFF51, 0xFF49, 0xFF41, 0xFF38, 0xFF30, 0xFF28, 0xFF20, 0xFF18, 0xFF10, 0xFF08,
+    0xFF00, 0xFEF9, 0xFEF1, 0xFEEA, 0xFEE2, 0xFEDB, 0xFED4, 0xFECC, 0xFEC5, 0xFEBE, 0xFEB7, 0xFEB1, 0xFEAA, 0xFEA3, 0xFE9D, 0xFE96, 0xFE90, 0xFE8A, 0xFE84, 0xFE7E, 0xFE78, 0xFE73, 0xFE6D, 0xFE68, 0xFE62, 0xFE5D, 0xFE58, 0xFE53, 0xFE4E, 0xFE4A, 0xFE45, 0xFE41, 0xFE3C, 0xFE38, 0xFE34,
+    0xFE30, 0xFE2D, 0xFE29, 0xFE26, 0xFE23, 0xFE1F, 0xFE1C, 0xFE1A, 0xFE17, 0xFE14, 0xFE12, 0xFE10, 0xFE0E, 0xFE0C, 0xFE0A, 0xFE08, 0xFE07, 0xFE05, 0xFE04, 0xFE03, 0xFE02, 0xFE02, 0xFE01, 0xFE01, 0xFE01, 0xFE00, 0xFE01, 0xFE01, 0xFE01, 0xFE02, 0xFE02, 0xFE03, 0xFE04, 0xFE05, 0xFE07,
+    0xFE08, 0xFE0A, 0xFE0C, 0xFE0E, 0xFE10, 0xFE12, 0xFE14, 0xFE17, 0xFE1A, 0xFE1C, 0xFE1F, 0xFE23, 0xFE26, 0xFE29, 0xFE2D, 0xFE30, 0xFE34, 0xFE38, 0xFE3C, 0xFE41, 0xFE45, 0xFE4A, 0xFE4E, 0xFE53, 0xFE58, 0xFE5D, 0xFE62, 0xFE68, 0xFE6D, 0xFE73, 0xFE78, 0xFE7E, 0xFE84, 0xFE8A, 0xFE90,
+    0xFE96, 0xFE9D, 0xFEA3, 0xFEAA, 0xFEB1, 0xFEB7, 0xFEBE, 0xFEC5, 0xFECC, 0xFED4, 0xFEDB, 0xFEE2, 0xFEEA, 0xFEF1, 0xFEF9, 0xFF00, 0xFF08, 0xFF10, 0xFF18, 0xFF20, 0xFF28, 0xFF30, 0xFF38, 0xFF41, 0xFF49, 0xFF51, 0xFF5A, 0xFF62, 0xFF6B, 0xFF73, 0xFF7C, 0xFF85, 0xFF8D, 0xFF96, 0xFF9F,
+    0xFFA8, 0xFFB0, 0xFFB9, 0xFFC2, 0xFFCB, 0xFFD4, 0xFFDD, 0xFFE6, 0xFFEF, 0xFFF8, 0x0000, 0x0008, 0x0011, 0x001A, 0x0023, 0x002C, 0x0035, 0x003E, 0x0047, 0x0050, 0x0058, 0x0061, 0x006A, 0x0073, 0x007B, 0x0084, 0x008D, 0x0095, 0x009E, 0x00A6, 0x00AF, 0x00B7, 0x00BF, 0x00C8, 0x00D0,
+    0x00D8, 0x00E0, 0x00E8, 0x00F0, 0x00F8, 0x0100, 0x0107, 0x010F, 0x0116, 0x011E, 0x0125, 0x012C, 0x0134, 0x013B, 0x0142, 0x0149, 0x014F, 0x0156, 0x015D, 0x0163, 0x016A, 0x0170, 0x0176, 0x017C, 0x0182, 0x0188, 0x018D, 0x0193, 0x0198, 0x019E, 0x01A3, 0x01A8, 0x01AD, 0x01B2, 0x01B6,
+    0x01BB, 0x01BF, 0x01C4, 0x01C8, 0x01CC, 0x01D0, 0x01D3, 0x01D7, 0x01DA, 0x01DD, 0x01E1, 0x01E4, 0x01E6, 0x01E9, 0x01EC, 0x01EE, 0x01F0, 0x01F2, 0x01F4, 0x01F6, 0x01F8, 0x01F9, 0x01FB, 0x01FC, 0x01FD, 0x01FE, 0x01FE, 0x01FF, 0x01FF, 0x01FF, 0x0200, 0x01FF, 0x01FF, 0x01FF, 0x01FE,
+    0x01FE, 0x01FD, 0x01FC, 0x01FB, 0x01F9, 0x01F8, 0x01F6, 0x01F4, 0x01F2, 0x01F0, 0x01EE, 0x01EC, 0x01E9, 0x01E6, 0x01E4, 0x01E1, 0x01DD, 0x01DA, 0x01D7, 0x01D3, 0x01D0, 0x01CC, 0x01C8, 0x01C4, 0x01BF, 0x01BB, 0x01B6, 0x01B2, 0x01AD, 0x01A8, 0x01A3, 0x019E, 0x0198, 0x0193, 0x018D,
+    0x0188, 0x0182, 0x017C, 0x0176, 0x0170, 0x016A, 0x0163, 0x015D, 0x0156, 0x014F, 0x0149, 0x0142, 0x013B, 0x0134, 0x012C, 0x0125, 0x011E, 0x0116, 0x010F, 0x0107, 0x0100, 0x00F8, 0x00F0, 0x00E8, 0x00E0, 0x00D8, 0x00D0, 0x00C8, 0x00BF, 0x00B7, 0x00AF, 0x00A6, 0x009E, 0x0095, 0x008D,
+    0x0084, 0x007B, 0x0073, 0x006A, 0x0061, 0x0058, 0x0050, 0x0047, 0x003E, 0x0035, 0x002C, 0x0023, 0x001A, 0x0011, 0x0008, 0x0000, 0xFFF8, 0xFFEF, 0xFFE6, 0xFFDD, 0xFFD4, 0xFFCB, 0xFFC2, 0xFFB9, 0xFFB0, 0xFFA8, 0xFF9F, 0xFF96, 0xFF8D, 0xFF85, 0xFF7C, 0xFF73, 0xFF6B, 0xFF62, 0xFF5A,
+    0xFF51, 0xFF49, 0xFF41, 0xFF38, 0xFF30, 0xFF28, 0xFF20, 0xFF18, 0xFF10, 0xFF08, 0xFF00, 0xFEF9, 0xFEF1, 0xFEEA, 0xFEE2, 0xFEDB, 0xFED4, 0xFECC, 0xFEC5, 0xFEBE, 0xFEB7, 0xFEB1, 0xFEAA, 0xFEA3, 0xFE9D, 0xFE96, 0xFE90, 0xFE8A, 0xFE84, 0xFE7E, 0xFE78, 0xFE73, 0xFE6D, 0xFE68, 0xFE62,
+    0xFE5D, 0xFE58, 0xFE53, 0xFE4E, 0xFE4A, 0xFE45, 0xFE41, 0xFE3C, 0xFE38, 0xFE34, 0xFE30, 0xFE2D, 0xFE29, 0xFE26, 0xFE23, 0xFE1F, 0xFE1C, 0xFE1A, 0xFE17, 0xFE14, 0xFE12, 0xFE10, 0xFE0E, 0xFE0C, 0xFE0A, 0xFE08, 0xFE07, 0xFE05, 0xFE04, 0xFE03, 0xFE02, 0xFE02, 0xFE01, 0xFE01, 0xFE01,
+    0xFE00, 0xFE01, 0xFE01, 0xFE01, 0xFE02, 0xFE02, 0xFE03, 0xFE04, 0xFE05, 0xFE07, 0xFE08, 0xFE0A, 0xFE0C, 0xFE0E, 0xFE10, 0xFE12, 0xFE14, 0xFE17, 0xFE1A, 0xFE1C, 0xFE1F, 0xFE23, 0xFE26, 0xFE29, 0xFE2D, 0xFE30, 0xFE34, 0xFE38, 0xFE3C, 0xFE41, 0xFE45, 0xFE4A, 0xFE4E, 0xFE53, 0xFE58,
+    0xFE5D, 0xFE62, 0xFE68, 0xFE6D, 0xFE73, 0xFE78, 0xFE7E, 0xFE84, 0xFE8A, 0xFE90, 0xFE96, 0xFE9D, 0xFEA3, 0xFEAA, 0xFEB1, 0xFEB7, 0xFEBE, 0xFEC5, 0xFECC, 0xFED4, 0xFEDB, 0xFEE2, 0xFEEA, 0xFEF1, 0xFEF9, 0xFF00, 0xFF08, 0xFF10, 0xFF18, 0xFF20, 0xFF28, 0xFF30, 0xFF38, 0xFF41, 0xFF49,
+    0xFF51, 0xFF5A, 0xFF62, 0xFF6B, 0xFF73, 0xFF7C, 0xFF85, 0xFF8D, 0xFF96, 0xFF9F, 0xFFA8, 0xFFB0, 0xFFB9, 0xFFC2, 0xFFCB, 0xFFD4, 0xFFDD, 0xFFE6, 0xFFEF, 0xFFF8, 0x0000, 0x0008, 0x0011, 0x001A, 0x0023, 0x002C, 0x0035, 0x003E, 0x0047, 0x0050, 0x0058, 0x0061, 0x006A, 0x0073, 0x007B,
+    0x0084, 0x008D, 0x0095, 0x009E, 0x00A6, 0x00AF, 0x00B7, 0x00BF, 0x00C8, 0x00D0, 0x00D8, 0x00E0, 0x00E8, 0x00F0, 0x00F8, 0x0100, 0x0107, 0x010F, 0x0116, 0x011E, 0x0125, 0x012C, 0x0134, 0x013B, 0x0142, 0x0149, 0x014F, 0x0156, 0x015D, 0x0163, 0x016A, 0x0170, 0x0176, 0x017C, 0x0182,
+    0x0188, 0x018D, 0x0193, 0x0198, 0x019E, 0x01A3, 0x01A8, 0x01AD, 0x01B2, 0x01B6, 0x01BB, 0x01BF, 0x01C4, 0x01C8, 0x01CC, 0x01D0, 0x01D3, 0x01D7, 0x01DA, 0x01DD, 0x01E1, 0x01E4, 0x01E6, 0x01E9, 0x01EC, 0x01EE, 0x01F0, 0x01F2, 0x01F4, 0x01F6, 0x01F8, 0x01F9, 0x01FB, 0x01FC, 0x01FD,
+    0x01FE, 0x01FE, 0x01FF, 0x01FF, 0x01FF, 0x0200, 0x01FF, 0x01FF, 0x01FF, 0x01FE, 0x01FE, 0x01FD, 0x01FC, 0x01FB, 0x01F9, 0x01F8, 0x01F6, 0x01F4, 0x01F2, 0x01F0, 0x01EE, 0x01EC, 0x01E9, 0x01E6, 0x01E4, 0x01E1, 0x01DD, 0x01DA, 0x01D7, 0x01D3, 0x01D0, 0x01CC, 0x01C8, 0x01C4, 0x01BF,
+    0x01BB, 0x01B6, 0x01B2, 0x01AD, 0x01A8, 0x01A3, 0x019E, 0x0198, 0x0193, 0x018D, 0x0188, 0x0182, 0x017C, 0x0176, 0x0170, 0x016A, 0x0163, 0x015D, 0x0156, 0x014F, 0x0149, 0x0142, 0x013B, 0x0134, 0x012C, 0x0125, 0x011E, 0x0116, 0x010F, 0x0107, 0x0100, 0x00F8, 0x00F0, 0x00E8, 0x00E0,
+    0x00D8, 0x00D0, 0x00C8, 0x00BF, 0x00B7, 0x00AF, 0x00A6, 0x009E, 0x0095, 0x008D, 0x0084, 0x007B, 0x0073, 0x006A, 0x0061, 0x0058, 0x0050, 0x0047, 0x003E, 0x0035, 0x002C, 0x0023, 0x001A, 0x0011, 0x0008, 0x0000, 0xFFF8, 0xFFEF, 0xFFE6, 0xFFDD, 0xFFD4, 0xFFCB, 0xFFC2, 0xFFB9, 0xFFB0,
+    0xFFA8, 0xFF9F, 0xFF96, 0xFF8D, 0xFF85, 0xFF7C, 0xFF73, 0xFF6B, 0xFF62, 0xFF5A, 0xFF51, 0xFF49, 0xFF41, 0xFF38, 0xFF30, 0xFF28, 0xFF20, 0xFF18, 0xFF10, 0xFF08, 0xFF00, 0xFEF9, 0xFEF1, 0xFEEA, 0xFEE2, 0xFEDB, 0xFED4, 0xFECC, 0xFEC5, 0xFEBE, 0xFEB7, 0xFEB1, 0xFEAA, 0xFEA3, 0xFE9D,
+    0xFE96, 0xFE90, 0xFE8A, 0xFE84, 0xFE7E, 0xFE78, 0xFE73, 0xFE6D, 0xFE68, 0xFE62, 0xFE5D, 0xFE58, 0xFE53, 0xFE4E, 0xFE4A, 0xFE45, 0xFE41, 0xFE3C, 0xFE38, 0xFE34, 0xFE30, 0xFE2D, 0xFE29, 0xFE26, 0xFE23, 0xFE1F, 0xFE1C, 0xFE1A, 0xFE17, 0xFE14, 0xFE12, 0xFE10, 0xFE0E, 0xFE0C, 0xFE0A,
+    0xFE08, 0xFE07, 0xFE05, 0xFE04, 0xFE03, 0xFE02, 0xFE02, 0xFE01, 0xFE01, 0xFE01, 0xFE00, 0xFE01, 0xFE01, 0xFE01, 0xFE02, 0xFE02, 0xFE03, 0xFE04, 0xFE05, 0xFE07, 0xFE08, 0xFE0A, 0xFE0C, 0xFE0E, 0xFE10, 0xFE12, 0xFE14, 0xFE17, 0xFE1A, 0xFE1C, 0xFE1F, 0xFE23, 0xFE26, 0xFE29, 0xFE2D,
+    0xFE30, 0xFE34, 0xFE38, 0xFE3C, 0xFE41, 0xFE45, 0xFE4A, 0xFE4E, 0xFE53, 0xFE58, 0xFE5D, 0xFE62, 0xFE68, 0xFE6D, 0xFE73, 0xFE78, 0xFE7E, 0xFE84, 0xFE8A, 0xFE90, 0xFE96, 0xFE9D, 0xFEA3, 0xFEAA, 0xFEB1, 0xFEB7, 0xFEBE, 0xFEC5, 0xFECC, 0xFED4, 0xFEDB, 0xFEE2, 0xFEEA, 0xFEF1, 0xFEF9,
+    0xFF00, 0xFF08, 0xFF10, 0xFF18, 0xFF20, 0xFF28, 0xFF30, 0xFF38, 0xFF41, 0xFF49, 0xFF51, 0xFF5A, 0xFF62, 0xFF6B, 0xFF73, 0xFF7C, 0xFF85, 0xFF8D, 0xFF96, 0xFF9F, 0xFFA8, 0xFFB0, 0xFFB9, 0xFFC2, 0xFFCB, 0xFFD4, 0xFFDD, 0xFFE6, 0xFFEF, 0xFFF8, 0x0000, 0x0008, 0x0011, 0x001A, 0x0023,
+    0x002C, 0x0035, 0x003E, 0x0047, 0x0050, 0x0058, 0x0061, 0x006A, 0x0073, 0x007B, 0x0084, 0x008D, 0x0095, 0x009E, 0x00A6, 0x00AF, 0x00B7, 0x00BF, 0x00C8, 0x00D0, 0x00D8, 0x00E0, 0x00E8, 0x00F0, 0x00F8, 0x0100, 0x0107, 0x010F, 0x0116, 0x011E, 0x0125, 0x012C, 0x0134, 0x013B, 0x0142,
+    0x0149, 0x014F, 0x0156, 0x015D, 0x0163, 0x016A, 0x0170, 0x0176, 0x017C, 0x0182, 0x0188, 0x018D, 0x0193, 0x0198, 0x019E, 0x01A3, 0x01A8, 0x01AD, 0x01B2, 0x01B6, 0x01BB, 0x01BF, 0x01C4, 0x01C8, 0x01CC, 0x01D0, 0x01D3, 0x01D7, 0x01DA, 0x01DD, 0x01E1, 0x01E4, 0x01E6, 0x01E9, 0x01EC,
+    0x01EE, 0x01F0, 0x01F2, 0x01F4, 0x01F6, 0x01F8, 0x01F9, 0x01FB, 0x01FC, 0x01FD, 0x01FE, 0x01FE, 0x01FF, 0x01FF, 0x01FF, 0x0200, 0x01FF, 0x01FF, 0x01FF, 0x01FE, 0x01FE, 0x01FD, 0x01FC, 0x01FB, 0x01F9, 0x01F8, 0x01F6, 0x01F4, 0x01F2, 0x01F0, 0x01EE, 0x01EC, 0x01E9, 0x01E6, 0x01E4,
+    0x01E1, 0x01DD, 0x01DA, 0x01D7, 0x01D3, 0x01D0, 0x01CC, 0x01C8, 0x01C4, 0x01BF, 0x01BB, 0x01B6, 0x01B2, 0x01AD, 0x01A8, 0x01A3, 0x019E, 0x0198, 0x0193, 0x018D, 0x0188, 0x0182, 0x017C, 0x0176, 0x0170, 0x016A, 0x0163, 0x015D, 0x0156, 0x014F, 0x0149, 0x0142, 0x013B, 0x0134, 0x012C,
+    0x0125, 0x011E, 0x0116, 0x010F, 0x0107, 0x0100, 0x00F8, 0x00F0, 0x00E8, 0x00E0, 0x00D8, 0x00D0, 0x00C8, 0x00BF, 0x00B7, 0x00AF, 0x00A6, 0x009E, 0x0095, 0x008D, 0x0084, 0x007B, 0x0073, 0x006A, 0x0061, 0x0058, 0x0050, 0x0047, 0x003E, 0x0035, 0x002C, 0x0023, 0x001A, 0x0011, 0x0008,
+    0x0000, 0xFFF8, 0xFFEF, 0xFFE6, 0xFFDD, 0xFFD4, 0xFFCB, 0xFFC2, 0xFFB9, 0xFFB0, 0xFFA8, 0xFF9F, 0xFF96, 0xFF8D, 0xFF85, 0xFF7C, 0xFF73, 0xFF6B, 0xFF62, 0xFF5A, 0xFF51, 0xFF49, 0xFF41, 0xFF38, 0xFF30, 0xFF28, 0xFF20, 0xFF18, 0xFF10, 0xFF08, 0xFF00, 0xFEF9, 0xFEF1, 0xFEEA, 0xFEE2,
+    0xFEDB, 0xFED4, 0xFECC, 0xFEC5, 0xFEBE, 0xFEB7, 0xFEB1, 0xFEAA, 0xFEA3, 0xFE9D, 0xFE96, 0xFE90, 0xFE8A, 0xFE84, 0xFE7E, 0xFE78, 0xFE73, 0xFE6D, 0xFE68, 0xFE62, 0xFE5D, 0xFE58, 0xFE53, 0xFE4E, 0xFE4A, 0xFE45, 0xFE41, 0xFE3C, 0xFE38, 0xFE34, 0xFE30, 0xFE2D, 0xFE29, 0xFE26, 0xFE23,
+    0xFE1F, 0xFE1C, 0xFE1A, 0xFE17, 0xFE14, 0xFE12, 0xFE10, 0xFE0E, 0xFE0C, 0xFE0A, 0xFE08, 0xFE07, 0xFE05, 0xFE04, 0xFE03, 0xFE02, 0xFE02, 0xFE01, 0xFE01, 0xFE01, 0xFE00, 0xFE01, 0xFE01, 0xFE01, 0xFE02, 0xFE02, 0xFE03, 0xFE04, 0xFE05, 0xFE07, 0xFE08, 0xFE0A, 0xFE0C, 0xFE0E, 0xFE10,
+    0xFE12, 0xFE14, 0xFE17, 0xFE1A, 0xFE1C, 0xFE1F, 0xFE23, 0xFE26, 0xFE29, 0xFE2D, 0xFE30, 0xFE34, 0xFE38, 0xFE3C, 0xFE41, 0xFE45, 0xFE4A, 0xFE4E, 0xFE53, 0xFE58, 0xFE5D, 0xFE62, 0xFE68, 0xFE6D, 0xFE73, 0xFE78, 0xFE7E, 0xFE84, 0xFE8A, 0xFE90, 0xFE96, 0xFE9D, 0xFEA3, 0xFEAA, 0xFEB1,
+    0xFEB7, 0xFEBE, 0xFEC5, 0xFECC, 0xFED4, 0xFEDB, 0xFEE2, 0xFEEA, 0xFEF1, 0xFEF9, 0xFF00, 0xFF08, 0xFF10, 0xFF18, 0xFF20, 0xFF28, 0xFF30, 0xFF38, 0xFF41, 0xFF49, 0xFF51, 0xFF5A, 0xFF62, 0xFF6B, 0xFF73, 0xFF7C, 0xFF85, 0xFF8D, 0xFF96, 0xFF9F, 0xFFA8, 0xFFB0, 0xFFB9, 0xFFC2, 0xFFCB,
+    0xFFD4, 0xFFDD, 0xFFE6, 0xFFEF, 0xFFF8, 0x0000, 0x0008, 0x0011, 0x001A, 0x0023, 0x002C, 0x0035, 0x003E, 0x0047, 0x0050, 0x0058, 0x0061, 0x006A, 0x0073, 0x007B, 0x0084, 0x008D, 0x0095, 0x009E, 0x00A6, 0x00AF, 0x00B7, 0x00BF, 0x00C8, 0x00D0, 0x00D8, 0x00E0, 0x00E8, 0x00F0, 0x00F8,
+    0x0100, 0x0107, 0x010F, 0x0116, 0x011E, 0x0125, 0x012C, 0x0134, 0x013B, 0x0142, 0x0149, 0x014F, 0x0156, 0x015D, 0x0163, 0x016A, 0x0170, 0x0176, 0x017C, 0x0182, 0x0188, 0x018D, 0x0193, 0x0198, 0x019E, 0x01A3, 0x01A8, 0x01AD, 0x01B2, 0x01B6, 0x01BB, 0x01BF, 0x01C4, 0x01C8, 0x01CC,
+    0x01D0, 0x01D3, 0x01D7, 0x01DA, 0x01DD, 0x01E1, 0x01E4, 0x01E6, 0x01E9, 0x01EC, 0x01EE, 0x01F0, 0x01F2, 0x01F4, 0x01F6, 0x01F8, 0x01F9, 0x01FB, 0x01FC, 0x01FD, 0x01FE, 0x01FE, 0x01FF, 0x01FF, 0x01FF, 0x0200
 };
 
-s16 tabcos[] = {
-    0x0200, 0x01ff, 0x01ff, 0x01ff, 0x01fe, 0x01fe, 0x01fd, 0x01fc, 0x01fb, 0x01f9, 0x01f8, 0x01f6, 0x01f4, 0x01f2, 0x01f0, 0x01ee, 0x01ec, 0x01e9, 0x01e6, 0x01e4, 0x01e1, 0x01dd, 0x01da,
-    0x01d7, 0x01d3, 0x01d0, 0x01cc, 0x01c8, 0x01c4, 0x01bf, 0x01bb, 0x01b6, 0x01b2, 0x01ad, 0x01a8, 0x01a3, 0x019e, 0x0198, 0x0193, 0x018d, 0x0188, 0x0182, 0x017c, 0x0176, 0x0170, 0x016a,
-    0x0163, 0x015d, 0x0156, 0x014f, 0x0149, 0x0142, 0x013b, 0x0134, 0x012c, 0x0125, 0x011e, 0x0116, 0x010f, 0x0107, 0x0100, 0x00f8, 0x00f0, 0x00e8, 0x00e0, 0x00d8, 0x00d0, 0x00c8, 0x00bf,
-    0x00b7, 0x00af, 0x00a6, 0x009e, 0x0095, 0x008d, 0x0084, 0x007b, 0x0073, 0x006a, 0x0061, 0x0058, 0x0050, 0x0047, 0x003e, 0x0035, 0x002c, 0x0023, 0x001a, 0x0011, 0x0008, 0x0000
-};
+s16 *tabsin = tables + 720;
+s16 *tabcos = tables + 810;
 
 u8 vstandard[256];
 
@@ -298,10 +336,6 @@ s16 monomat(s32 formeaddr);
 u32 traitmat(s32 baseform, s32 wforme);
 
 static void cret(void);
-
-s32 io_malloc(s32 rawsize);
-void io_mfree(s32 addr);
-
 
 // ============================================================================
 #pragma mark - Stub routines
@@ -1158,32 +1192,23 @@ static void cload(void) {
     }
 }
 
-// Codopname no. 071 opcode 0x46 cdefsc
-// reads 35 bytes
-static void cdefsc(void) {
-    if (image.libsprit == 0)
-        return;
-
-    u16 scridx = script_read16();
-    set_scr_state(scridx, 0x40);
+void cdefsc(void)
+{
+    s16 scridx = script_read16();
+    set_scr_state(scridx, get_scr_state(scridx) | 0x40);
     set_scr_numelem(scridx, script_read8());
     set_scr_screen_id(scridx, image.libsprit);
-    
+
     u16 length = alis.platform.version == 10 ? 26 : 32;
 
     u8 *ptr = alis.mem + alis.basemain + scridx + 6;
     for (int i = 0; i < length; i++, ptr++)
         *ptr = script_read8();
-    
-    set_scr_to_next(scridx, 0);
-    set_scr_unknown0x2a(scridx, 0);
-    set_scr_unknown0x2c(scridx, 0);
-    set_scr_unknown0x2e(scridx, 0);
 
     sSprite *sprite = SPRITE_VAR(image.libsprit);
     sprite->link = 0;
     sprite->numelem = get_scr_numelem(scridx);
-    
+
     s16 x = get_scr_newx(scridx);
     s16 y = get_scr_newy(scridx);
     s16 w = get_scr_width(scridx);
@@ -1194,7 +1219,7 @@ static void cdefsc(void) {
         mac_update_pos(&x, &y);
         mac_update_pos(&w, &h);
     }
-    
+
     sprite->newx = x;
     sprite->newy = y;
     sprite->newd = 0x7fff;
@@ -1202,10 +1227,70 @@ static void cdefsc(void) {
     sprite->depy = y + h;
 
     image.libsprit = sprite->to_next;
+    
+    set_scr_to_next(scridx, 0);
+
+    scdosprite(scridx);
+
+    set_scr_unknown0x2a(scridx, 0);
+    set_scr_unknown0x2c(scridx, 0);
+    set_scr_unknown0x2e(scridx, 0);
+
+    image.libsprit = sprite->to_next;
 
     scadd(scridx);
     vectoriel(scridx);
 }
+
+
+// Codopname no. 071 opcode 0x46 cdefsc
+// reads 35 bytes
+//static void cdefsc(void) {
+//    if (image.libsprit == 0)
+//        return;
+//
+//    u16 scridx = script_read16();
+//    set_scr_state(scridx, 0x40);
+//    set_scr_numelem(scridx, script_read8());
+//    set_scr_screen_id(scridx, image.libsprit);
+//    
+//    u16 length = alis.platform.version == 10 ? 26 : 32;
+//
+//    u8 *ptr = alis.mem + alis.basemain + scridx + 6;
+//    for (int i = 0; i < length; i++, ptr++)
+//        *ptr = script_read8();
+//    
+//    set_scr_to_next(scridx, 0);
+//    set_scr_unknown0x2a(scridx, 0);
+//    set_scr_unknown0x2c(scridx, 0);
+//    set_scr_unknown0x2e(scridx, 0);
+//
+//    sSprite *sprite = SPRITE_VAR(image.libsprit);
+//    sprite->link = 0;
+//    sprite->numelem = get_scr_numelem(scridx);
+//    
+//    s16 x = get_scr_newx(scridx);
+//    s16 y = get_scr_newy(scridx);
+//    s16 w = get_scr_width(scridx);
+//    s16 h = get_scr_height(scridx);
+//
+//    if (alis.platform.kind == EPlatformMac)
+//    {
+//        mac_update_pos(&x, &y);
+//        mac_update_pos(&w, &h);
+//    }
+//    
+//    sprite->newx = x;
+//    sprite->newy = y;
+//    sprite->newd = 0x7fff;
+//    sprite->depx = x + w;
+//    sprite->depy = y + h;
+//
+//    image.libsprit = sprite->to_next;
+//
+//    scadd(scridx);
+//    vectoriel(scridx);
+//}
 
 // Codopname no. 072 opcode 0x47 cscreen
 static void cscreen(void) {
@@ -1319,6 +1404,14 @@ static void copensc(void) {
 
     scbreak(id);
     scadd(id);
+    
+    if (alis.platform.version >= 31)
+    {
+        if ((xread8(alis.basemain + 1 + id) & 2) != 0)
+        {
+            openland(id);
+        }
+    }
 }
 
 // Codopname no. 080 opcode 0x4f cclosesc
@@ -1788,16 +1881,16 @@ void trinorme(int bufidx)
 
 void sviewtyp(void)
 {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
     s16 id = alis.varD7;
     if (id < 0)
         id &= 0xff;
     
     s16 bufidx = 0;
+    s32 *buffer32 = (s32 *)alis.buffer;
+    
     if (alis.fallent == 0)
     {
-        ((s32 *)alis.buffer)[bufidx] = 0x7fffffff;
+        buffer32[bufidx] = 0x7fffffff;
         alis.tablent[bufidx] = 0xffff;
 
         bufidx = 1;
@@ -1811,45 +1904,37 @@ void sviewtyp(void)
     do
     {
         u32 tgt_vram = xread32(alis.atent + entidx);
-
         if (id == get_0x10_script_id(tgt_vram) && xread16(tgt_vram + veradd) == xread16(src_vram + veradd) && src_vram != tgt_vram)
         {
             s32 value = 0;
             u8 result = calcnear(src_vram, tgt_vram, &value);
             if (!result)
             {
-                if (alis.fallent == 0)
+                if (alis.fallent || buffer32[bufidx - 1] > value)
                 {
-                    if (((s32 *)alis.buffer)[bufidx - 1] <= value)
-                        goto LAB_00015d44;
+                    if (alis.fallent == 0)
+                    {
+                        bufidx --;
+                    }
                     
-                    bufidx --;
+                    buffer32[bufidx] = value;
+                    alis.tablent[bufidx] = entidx;
+                    
+                    bufidx ++;
                 }
-                
-                ((s32 *)alis.buffer)[bufidx] = value;
-                alis.tablent[bufidx] = entidx;
-
-                bufidx ++;
             }
-        }
-        
-LAB_00015d44:
-        
-        entidx = xread16(alis.atent + 4 + entidx);
-        if (entidx == 0)
-        {
-            alis.tablent[bufidx] = -1;
-            if (alis.fallent != 0)
-            {
-                trinorme(bufidx);
-            }
-            
-            alis.fallent = 0;
-            crstent();
-            return;
         }
     }
-    while (true);
+    while ((entidx = xread16(alis.atent + 4 + entidx)));
+    
+    alis.tablent[bufidx] = -1;
+    if (alis.fallent != 0)
+    {
+        trinorme(bufidx);
+    }
+    
+    alis.fallent = 0;
+    crstent();
 }
 
 s16 multimat(s32 formeaddr, s32 baseform, s16 wforme)
@@ -3564,7 +3649,6 @@ void sendmess(u32 vram, u16 idx)
 
 // Codopname no. 179 opcode 0xb2 casleepfar
 static void casleepfar(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
     alis.valnorme = (alis.varD7 & 0xffff) * (alis.varD7 & 0xffff);
     
@@ -3573,7 +3657,7 @@ static void casleepfar(void) {
     do
     {
         u32 vram = xread32(alis.atent + ent);
-        if ((xread8(vram - 0x24) & 4) == 0)
+        if ((get_0x24_scan_inter(vram) & 4) == 0)
         {
             s32 xdif = xread16(vram) - xread16(alis.script->vram_org);
             s32 ydif = xread16(vram + 0x8) - xread16(alis.script->vram_org + 0x8);
@@ -4736,14 +4820,14 @@ static void csetmap(void) {
         xwrite16(mapram - 0x3a, alis.varD7);
         readexec_opername();
         xwrite16(mapram - 0x38, alis.varD7);
-        xwrite16(mapram - 0x26, (u16)alis.varD7 - 1U);
-        xwrite16(mapram - 0x3e, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3e));
+        xwrite16(mapram - 0x26, (u16)alis.varD7 - 1);
+        xwrite16(mapram - 0x3e, ((u16)(alis.varD7 - 1) >> 1) + xread16(mapram - 0x3e));
         readexec_opername();
         xwrite16(mapram - 0x36, alis.varD7);
         readexec_opername();
         xwrite16(mapram - 0x34, alis.varD7);
-        xwrite16(mapram - 0x24, (u16)alis.varD7 - 1U);
-        xwrite16(mapram - 0x3a, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3a));
+        xwrite16(mapram - 0x24, (u16)alis.varD7 - 1);
+        xwrite16(mapram - 0x3a, ((u16)(alis.varD7 - 1) >> 1) + xread16(mapram - 0x3a));
     }
     else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
     {
@@ -4755,14 +4839,14 @@ static void csetmap(void) {
         xwrite16(mapram - 0x3ea, alis.varD7);
         readexec_opername();
         xwrite16(mapram - 0x3e8, alis.varD7);
-        xwrite16(mapram - 0x3d6, (u16)alis.varD7 - 1U);
-        xwrite16(mapram - 0x3ee, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3ee));
+        xwrite16(mapram - 0x3d6, (u16)alis.varD7 - 1);
+        xwrite16(mapram - 0x3ee, ((u16)(alis.varD7 - 1) >> 1) + xread16(mapram - 0x3ee));
         readexec_opername();
         xwrite16(mapram - 0x3e6, alis.varD7);
         readexec_opername();
         xwrite16(mapram - 0x3e4, alis.varD7);
-        xwrite16(mapram - 0x3d4, (u16)alis.varD7 - 1U);
-        xwrite16(mapram - 0x3ea, ((u16)(alis.varD7 - 1U) >> 1) + xread16(mapram - 0x3ea));
+        xwrite16(mapram - 0x3d4, (u16)alis.varD7 - 1);
+        xwrite16(mapram - 0x3ea, ((u16)(alis.varD7 - 1) >> 1) + xread16(mapram - 0x3ea));
     }
 }
 
@@ -4776,73 +4860,25 @@ void putmap(s16 spridx, s32 bitmap)
     sprite->cordspr = get_0x2b_cordspr(alis.script->vram_org);
     sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
     sprite->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
-    if (-1 < (s8)sprite->credon_off)
-    {
-        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
-        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
-        if ((s8)sprite->credon_off < 0)
-        {
-            u32 scridx = get_0x16_screen_id(alis.script->vram_org) + alis.basemain;
-            sprite->creducing = 0;
-            sprite->credon_off = xread8(alis.basemain + scridx + 0x1f);
-        }
-    }
     
-    sprite->depx = image.oldcx + image.depx;
-    sprite->depy = image.oldcy + image.depy;
-    sprite->depz = image.oldcz + image.depz;
+    // TODO: ...
+//    if (-1 < (s8)sprite->credon_off)
+//    {
+//        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+//        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
+//        if ((s8)sprite->credon_off < 0)
+//        {
+//            u32 scridx = get_0x16_screen_id(alis.script->vram_org) + alis.basemain;
+//            sprite->creducing = 0;
+//            sprite->credon_off = xread8(alis.basemain + scridx + 0x1f);
+//        }
+//    }
     
-    if (alis.fmuldes == 0)
-    {
-        u16 newidx;
-        u16 oldidx;
-
-        if (!searchelem(&newidx, &oldidx))
-        {
-            return;
-        }
-        
-        do
-        {
-            sSprite *cursprite = SPRITE_VAR(newidx);
-            while (cursprite->state == 0)
-            {
-                killelem(&newidx, &oldidx);
-                if (newidx == 0)
-                {
-                    alis.fadddes = 0;
-                    return;
-                }
-                
-                if (!testnum(&newidx))
-                {
-                    alis.fadddes = 0;
-                    return;
-                }
-            }
-        }
-        while (nextnum(&newidx, &oldidx));
-    }
-    
-    alis.fadddes = 0;
-}
-
-void putmap2(s16 spridx, s32 bitmap)
-{
-    sSprite *sprite = SPRITE_VAR(spridx);
-    sprite->data = bitmap;
-    sprite->flaginvx = image.invert_x;
-    sprite->sprite_0x28 = get_0x28_unknown(alis.script->vram_org);
-    sprite->script_ent = get_0x0e_script_ent(alis.script->vram_org);
-    sprite->clinking = get_0x2a_clinking(alis.script->vram_org);
-    sprite->cordspr = get_0x2b_cordspr(alis.script->vram_org);
     sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
-    sprite->creducing = get_0x27_creducing(alis.script->vram_org);
-    sprite->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
-    if ((s8)sprite->credon_off == - 0x80)
+    if ((s8)get_0x25_credon_credoff(alis.script->vram_org) == -0x80)
     {
-        sprite->newzoomx = get_0x38_unknown(alis.script->vram_org);
-        sprite->newzoomy = get_0x36_unknown(alis.script->vram_org);
+        sprite->newzoomx = get_0x36_unknown(alis.script->vram_org);
+        sprite->newzoomy = get_0x38_unknown(alis.script->vram_org);
         sprite->creducing = 0;
     }
     else
@@ -4938,7 +4974,7 @@ static void cputmap(void) {
         if (searchelem(&newidx, &oldidx))
         {
             sSprite *sprite = SPRITE_VAR(newidx);
-            sprite->credon_off = 0xff;
+            sprite->credon_off = -1;
             sprite->flaginvx = 0;
             sprite->chsprite = 0;
             sprite->depx = xread16(mapram - 0x3e);
@@ -4975,12 +5011,12 @@ static void cputmap(void) {
             sprite->state = 2;
         }
         
-        putmap2(newidx, mapram - 0x3dc);
+        putmapin(newidx, mapram - 0x3dc);
         
         if (searchelem(&newidx, &oldidx))
         {
             sSprite *sprite = SPRITE_VAR(newidx);
-            sprite->credon_off = 0xff;
+            sprite->credon_off = -1;
             sprite->flaginvx = 0;
             sprite->chsprite = 0;
             sprite->depx = xread16(mapram - 0x3ee);
@@ -5001,17 +5037,9 @@ static void csczoom(void) {
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
-s32 texmap(u32 a0, s16 d0w, s16 d1w)
-{
-    s32 DAT_0001cd3c = ((s32)d1w + (s32)d0w * xread16(a0 - 0x3ca)) * 2;
-    return DAT_0001cd3c;
-}
-
 // Codopname no. 233 opcode 0xe8 ctexmap
 // Ishar 3 Korean (IBM PC): ctexmap => map_cnul
 static void ctexmap(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     alis.flagmain = 0;
     
     u32 addr = alis.script->vram_org;
@@ -5025,13 +5053,11 @@ static void ctexmap(void) {
     
     addr += offset;
 
-    readexec_opername_saveD7();
-    alis.varD6 = alis.varD7;
-    alis.varD7 = offset;
+    readexec_opername_saveD6();
     
     u32 a0 = addr;
     
-    addr += (alis.varD6 * 0x20) - 0xc00;
+    addr += (alis.varD6 * 0x20) + (s16)0xf400;
     
     readexec_opername();
     xwrite8(addr + 1, (char)alis.varD7);
@@ -5049,17 +5075,16 @@ static void ctexmap(void) {
     readexec_opername();
     xwrite16(addr + 0xe, alis.varD7);
     readexec_opername();
-    s16 uVar2 = alis.varD7;
-    char cVar4 = (char)uVar2;
-    xwrite8(addr + 0x14, cVar4);
-    if (cVar4 == 0)
+    char type = (char)alis.varD7;
+    xwrite8(addr + 0x14, type);
+    if (type == 0)
     {
         readexec_opername();
         readexec_opername();
         readexec_opername();
         readexec_opername();
     }
-    else if (cVar4 < 0)
+    else if (type < 0)
     {
         readexec_opername();
         xwrite16(addr + 0x10, alis.varD7);
@@ -5069,14 +5094,14 @@ static void ctexmap(void) {
         xwrite16(addr + 0x16, alis.varD7);
         readexec_opername();
         xwrite16(addr + 0x1a, alis.varD7);
-        s32 iVar1 = texmap(a0, xread16(addr + 0x10), xread16(addr + 0x12));
-        xwrite32(addr + 0x10, iVar1);
-        if (iVar1 < 0)
+        s32 top = calctop(a0, xread16(addr + 0x10), xread16(addr + 0x12));
+        xwrite32(addr + 0x10, top);
+        if (top < 0)
         {
             xwrite8(addr + 0x14, 0);
         }
     }
-    else if (cVar4 == 2)
+    else if (type == 2)
     {
         readexec_opername();
         xwrite16(addr + 0x16, alis.varD7);
@@ -5290,7 +5315,7 @@ static void cfilm(void) {
     cstore_continue();
 }
 
-void calcnewax(s16 d4w)
+void headland(s16 d4w)
 {
     s16 newax = d4w - xread16(alis.script->vram_org + ALIS_SCR_WCAX);
     if (newax != 0)
@@ -5325,124 +5350,103 @@ void calcnewax(s16 d4w)
     }
 }
 
-s16 unknownwm01[256];
-
-s16 varwcx;
-s16 varwcy;
-s16 varwcz;
-s16 varwcz2;
-s32 unknownwm02;
-s32 unknownwm03;
-s16 walkmap1;
+s32 walkcx;
+s32 walkcy;
+s16 walkcz;
+s16 walkocz;
+s32 walkdx;
+s32 walkdy;
+s16 walkhaut;
 
 u8 walkmap3;
-u16 walkmap4;
+u16 walkdim;
 
-s16 varmatmask;
+s16 walktete;
 
-u16 atstmap(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 wcz2);
+void landalti(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 *r2, s16 *r3);
 
-s16 walkmap(s32 addr)
+s16 walkland(s32 addr)
 {
     alis.matmask = 0;
-    if (varmatmask < 0)
+    if (walktete < 0)
     {
-        alis.matmask = varmatmask;
+        alis.matmask = walktete;
     }
     
-    s16 sVar4 = tabsin[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
-    s16 sVar5 = tabcos[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
-    s16 wcz2 = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2);
-    if (varmatmask != 0)
+    s16 sinwcaz = tabsin[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
+    s16 coswcaz = tabcos[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
+    s16 wcx2 = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2);
+    s16 wcy2 = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2);
+    if (walktete != 0)
     {
-        unknownwm02 = (s32)-xread16(addr - 0x3f4) * sVar4 * 0x80;
-        unknownwm03 = (s32) xread16(addr - 0x3f4) * sVar5 * 0x80;
+        walkdx = (s32)-xread16(addr - 0x3f4) * sinwcaz * 0x80;
+        walkdy = (s32) xread16(addr - 0x3f4) * coswcaz * 0x80;
     }
     
     s32 wcx = xread32(alis.script->vram_org + ALIS_SCR_WCX);
     s32 wcy = xread32(alis.script->vram_org + ALIS_SCR_WCY);
 
-    s32 iVar1 = wcx + ((s32)sVar5 * (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2) - (s32)sVar4 * (s32)wcz2) * 0x80;
-    s32 iVar2 = wcy + ((s32)sVar5 * (s32)wcz2 + (s32)sVar4 * (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2)) * 0x80;
-    varwcz2 = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
-    varwcx = (s16)((u32)iVar1 >> 0x10);
-    sVar4 = varwcx;
-    varwcy = (s16)((u32)iVar2 >> 0x10);
-    sVar5 = varwcy;
-    varwcx = iVar1;
-    varwcy = iVar2;
-    varwcz = atstmap(addr, alis.script->vram_org, sVar4, sVar5, wcz2);
-    sVar4 = varwcz - varwcz2;
+    walkcx = wcx + ((s32)coswcaz * wcx2 - (s32)sinwcaz * (s32)wcy2) * 0x80;
+    walkcy = wcy + ((s32)coswcaz * (s32)wcy2 + (s32)sinwcaz * wcx2) * 0x80;
+    walkocz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
+    
+    s16 tmpz, d3w;
+    landalti(addr, alis.script->vram_org, walkcx >> 0x10, walkcy >> 0x10, &walkcz, &d3w);
+    s16 varwz = walkcz - walkocz;
     if (alis.matmask != 0)
     {
-        sVar5 = atstmap(addr, alis.script->vram_org,
-                        (s16)((u32)(wcx + unknownwm03 + unknownwm02) >> 0x10),
-                        (s16)((u32)(wcy + unknownwm02 + unknownwm03) >> 0x10), sVar4);
-        if (0xfe < sVar5)
+        landalti(addr, alis.script->vram_org, ((u32)(wcx + walkdy + walkdx) >> 0x10), ((u32)(wcy + walkdx + walkdy) >> 0x10), &tmpz, &d3w);
+        if (0xfe < tmpz)
         {
-            sVar4 = sVar5 - varwcz2;
-            varwcz = sVar5;
+            varwz = tmpz - walkocz;
+            walkcz = tmpz;
         }
         
-        sVar5 = atstmap(addr, alis.script->vram_org,
-                        (s16)((u32)(wcx + (unknownwm02 - unknownwm03)) >> 0x10),
-                        (s16)((u32)(wcy + (unknownwm03 - unknownwm02)) >> 0x10), sVar4);
-        if (0xfe < sVar5)
+        landalti(addr, alis.script->vram_org, ((u32)(wcx + (walkdx - walkdy)) >> 0x10), ((u32)(wcy + (walkdy - walkdx)) >> 0x10), &tmpz, &d3w);
+        if (0xfe < tmpz)
         {
-            sVar4 = sVar5 - varwcz2;
-            varwcz = sVar5;
+            varwz = tmpz - walkocz;
+            walkcz = tmpz;
         }
         
-        sVar5 = atstmap(addr, alis.script->vram_org,
-                        (s16)((u32)(wcx + unknownwm02 * 2) >> 0x10),
-                        (s16)((u32)(wcy + unknownwm03 * 2) >> 0x10),sVar4);
-        if (0xfe < sVar5)
+        landalti(addr, alis.script->vram_org, ((u32)(wcx + walkdx * 2) >> 0x10), ((u32)(wcy + walkdy * 2) >> 0x10), &tmpz, &d3w);
+        if (0xfe < tmpz)
         {
-            sVar4 = sVar5 - varwcz2;
-            varwcz = sVar5;
+            varwz = tmpz - walkocz;
+            walkcz = tmpz;
         }
         
-        sVar5 = atstmap(addr, alis.script->vram_org,
-                        (s16)((u32)(wcx + unknownwm03 + unknownwm02 * 2) >> 0x10),
-                        (s16)((u32)(wcy + unknownwm02 + unknownwm03 * 2) >> 0x10), sVar4);
-        if (0xfe < sVar5)
+        landalti(addr, alis.script->vram_org, ((u32)(wcx + walkdy + walkdx * 2) >> 0x10), ((u32)(wcy + walkdx + walkdy * 2) >> 0x10), &tmpz, &d3w);
+        if (0xfe < tmpz)
         {
-            sVar4 = sVar5 - varwcz2;
-            varwcz = sVar5;
+            varwz = tmpz - walkocz;
+            walkcz = tmpz;
         }
         
-        sVar5 = atstmap(addr, alis.script->vram_org,
-                        (s16)((u32)(wcx + (unknownwm02 * 2 - unknownwm03)) >> 0x10),
-                        (s16)((u32)(wcy + (unknownwm03 * 2 - unknownwm02)) >> 0x10), sVar4);
-        if (0xfe < sVar5)
+        landalti(addr, alis.script->vram_org, ((u32)(wcx + (walkdx * 2 - walkdy)) >> 0x10), ((u32)(wcy + (walkdy * 2 - walkdx)) >> 0x10), &tmpz, &d3w);
+        if (0xfe < tmpz)
         {
-            sVar4 = sVar5 - varwcz2;
-            varwcz = sVar5;
+            varwz = tmpz - walkocz;
+            walkcz = tmpz;
         }
     }
     
-    if (0 < varmatmask)
+    if (0 < walktete)
     {
-        sVar5 = sVar4;
-        if (sVar4 < 0)
+        s16 tmpz = varwz;
+        if (varwz < 0)
         {
-            sVar5 = -sVar4;
+            tmpz = -varwz;
         }
         
-        if (sVar5 <= walkmap1)
+        if (tmpz <= walkhaut)
         {
-            sVar5 = atstmap(addr, alis.script->vram_org,
-                            (s16)((u32)(wcx + unknownwm02) >> 0x10),
-                            (s16)((u32)(wcy + unknownwm03) >> 0x10), sVar4);
-            sVar5 = ((s16)(sVar5) - varwcz2) * 4;
-            sVar5 = atstmap(addr, alis.script->vram_org,
-                            (s16)((u32)(wcx + unknownwm02 * 2) >> 0x10),
-                            (s16)((u32)(wcy + unknownwm03 * 2) >> 0x10), sVar5);
-            sVar4 = ((s16)(sVar5) - varwcz2) * 2;
-            sVar5 = atstmap(addr, alis.script->vram_org,
-                            (s16)((u32)(wcx + unknownwm02 * 4) >> 0x10),
-                            (s16)((u32)(wcy + unknownwm03 * 4) >> 0x10), sVar4);
-            u16 uVar6 = ((s16)(sVar5) - varwcz2) + sVar4 + sVar5;
+            landalti(addr, alis.script->vram_org, (s16)((u32)(wcx + walkdx) >> 0x10), (s16)((u32)(wcy + walkdy) >> 0x10), &tmpz, &d3w);
+            varwz = tmpz = (tmpz - walkocz) * 4;
+            landalti(addr, alis.script->vram_org, (s16)((u32)(wcx + walkdx * 2) >> 0x10), (s16)((u32)(wcy + walkdy * 2) >> 0x10), &tmpz, &d3w);
+            tmpz = (tmpz - walkocz) * 2;
+            landalti(addr, alis.script->vram_org, (s16)((u32)(wcx + walkdx * 4) >> 0x10), (s16)((u32)(wcy + walkdy * 4) >> 0x10), &tmpz, &d3w);
+            u16 uVar6 = ((s16)(tmpz) - walkocz) + varwz + tmpz;
             u16 uVar3 = uVar6;
             if ((s16)uVar6 < 0)
             {
@@ -5454,48 +5458,46 @@ s16 walkmap(s32 addr)
                 uVar6 = 0;
             }
             
-            sVar5 = (s16)(((s32)(s16)uVar6 * (s32)(s16)varmatmask >> 2) / 0xc);
-            sVar4 = sVar5;
-            if (sVar5 < 0)
+            tmpz = (s16)(((s32)(s16)uVar6 * (s32)(s16)walktete >> 2) / 0xc);
+            varwz = tmpz;
+            if (tmpz < 0)
             {
-                sVar4 = -sVar5;
+                varwz = -tmpz;
             }
             
-            if ((u8)sVar4 < walkmap3)
+            if ((u8)varwz < walkmap3)
             {
-                sVar5 = 0;
+                tmpz = 0;
             }
             
-            calcnewax(sVar5);
+            headland(tmpz);
         }
     }
     
-    u16 uVar6 = varwcz - varwcz2;
-    if ((s32)((u32)uVar6 << 0x10) < 0)
+    u16 walklcz = walkcz - walkocz;
+    if ((s32)((u32)walklcz << 0x10) < 0)
     {
-        uVar6 = -uVar6;
+        walklcz = -walklcz;
     }
     
-    if (walkmap1 < (s16)uVar6)
+    if (walkhaut < (s16)walklcz)
     {
-        sVar5 = atstmap(addr, alis.script->vram_org, xread16(alis.script->vram_org + ALIS_SCR_WCX), xread16(alis.script->vram_org + ALIS_SCR_WCY), sVar4);
-        xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, sVar5);
+        landalti(addr, alis.script->vram_org, xread16(alis.script->vram_org + ALIS_SCR_WCX), xread16(alis.script->vram_org + ALIS_SCR_WCY), &tmpz, &d3w);
+        xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, tmpz);
     }
     else
     {
-        xwrite32(alis.script->vram_org + ALIS_SCR_WCX, varwcx);
-        xwrite32(alis.script->vram_org + ALIS_SCR_WCY, varwcy);
-        xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, varwcz);
+        xwrite32(alis.script->vram_org + ALIS_SCR_WCX, walkcx);
+        xwrite32(alis.script->vram_org + ALIS_SCR_WCY, walkcy);
+        xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, walkcz);
     }
     
-    return varwcz - varwcz2;
+    return walkcz - walkocz;
 }
 
 // Codopname no. 248 opcode 0xf7 cwalkmap
 // Ishar 3 Korean (IBM PC): cwalkmap => map_cnul
 static void cwalkmap(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     s16 offset = script_read16();
     u32 vram = alis.script->vram_org;
     if (offset == 0)
@@ -5505,86 +5507,83 @@ static void cwalkmap(void) {
     }
     
     readexec_opername();
-    walkmap1 = alis.varD7;
+    walkhaut = alis.varD7;
     readexec_opername();
-    varmatmask = alis.varD7;
+    walktete = alis.varD7;
     readexec_opername_saveD6();
-    walkmap4 = alis.varD6;
+    walkdim = alis.varD6;
     
-    alis.varD7 = walkmap(vram + offset);
+    alis.varD7 = walkland(vram + offset);
     
     cstore_continue();
 }
 
-void testaim(s16 *wcx2, s16 *wcy2, s16 *wcz2, s16 wcax, s16 wcaz)
+sVector polarmov(s16 wcx2, s16 wcy2, s16 wcz2, s16 wcax, s16 wcaz)
 {
     s32 sinax = tabsin[wcax];
     s32 sinaz = tabsin[wcaz];
     s32 cosax = tabcos[wcax];
     s32 cosaz = tabcos[wcaz];
     
-    *wcz2 = (*wcy2 * sinax + *wcz2 * cosax) * 0x80;
-    s16 tmpx2 = (cosaz * *wcx2 - (s16)(sinaz * cosax >> 9) * *wcy2) * 0x80;
-    s16 tmpy2 = ((s16)(cosaz * cosax >> 9) * *wcy2 + sinaz * *wcx2) * 0x80;
-    *wcx2 = tmpx2;
-    *wcy2 = tmpy2;
+    sVector result;
+    result.x = (cosaz * (int)wcx2 - (int)(s16)(sinaz * cosax >> 9) * (int)wcy2) * 0x80;
+    result.y = ((int)(s16)((int)cosaz * cosax >> 9) * (int)wcy2 + sinaz * (int)wcx2) * 0x80;
+    result.z = ((int)wcy2 * sinax + (int)wcz2 * cosax) * 0x80;
+    
+//    wcz2 = (wcy2 * sinax + wcz2 * cosax) * 0x80;
+//    s16 tmpx2 = (cosaz * wcx2 - (s16)(sinaz * cosax >> 9) * wcy2) * 0x80;
+//    s16 tmpy2 = ((s16)(cosaz * cosax >> 9) * wcy2 + sinaz * wcx2) * 0x80;
+//    wcx2 = tmpx2;
+//    wcy2 = tmpy2;
+    return result;
 }
 
-u16 atstmap(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 wcz2)
+void landalti(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 *r2, s16 *r3)
 {
-    u16 newd7 = 0;
-    u16 result = 0;
-    
     u16 valx = wcx2 >> ((u16)xread16(addr - 0x3c0) & 0x3f);
     u16 valy = wcy2 >> ((u16)xread16(addr - 0x3c0) & 0x3f);
     if ((valy <= (u16)xread16(addr - 0x292)) && (valx <= (u16)xread16(addr - 0x294)))
     {
-        u32 newaddr = ((s32)(s16)valy + (s32)(s16)valy + *(s32 *)(unknownwm01 + (s16)(valx * 4)));
-        newd7 = (u16)xread16(newaddr);
-        result = newd7 & 0xff;
+        u32 newaddr = ((s32)(s16)valy + (s32)(s16)valy + xread32(image.atlland + (s16)(valx * 4)));
+        *r3 = (u16)xread16(newaddr);
+        *r2 = *r3 & 0xff;
         
-        s16 offset = ((newd7 & 0x3f00) >> 3) - 0xc00;
-        s8 test = (s8)xread8(addr + 0x14 + offset);
+        s16 bmpidx = ((*r3 & 0x3f00) >> 3) - 0xc00;
+        s8 test = (s8)xread8(addr + 0x14 + bmpidx);
         if (test != 0)
         {
             if (test < 0)
             {
-                newaddr += xread32(addr + 0x10 + offset);
-                s16 sVar3 = xread8(newaddr + 1) - result;
-                offset = xread16(addr + 0x16 + offset) - sVar3;
-                if ((sVar3 <= offset) || ((s16)(xread8(newaddr + 1) - offset) <= xread16(vram + ALIS_SCR_WCZ)))
+                newaddr += xread32(addr + 0x10 + bmpidx);
+                s16 sVar3 = xread8(newaddr + 1) - *r2;
+                bmpidx = xread16(addr + 0x16 + bmpidx) - sVar3;
+                if ((sVar3 <= bmpidx) || ((s16)(xread8(newaddr + 1) - bmpidx) <= xread16(vram + ALIS_SCR_WCZ)))
                 {
-                    newd7 = (u16)xread16(newaddr);
-                    result = newd7 & 0xff;
+                    *r3 = xread16(newaddr);
+                    *r2 = *r3 & 0xff;
                 }
             }
-            else if ((alis.matmask != 0) && (xread16(addr + 0x1a + offset) != 0))
+            else if ((alis.matmask != 0) && (xread16(addr + 0x1a + bmpidx) != 0))
             {
-                if ((s8)xread8(addr + 0x14 + offset) == 1)
+                if ((s8)xread8(addr + 0x14 + bmpidx) == 1)
                 {
-                    if (xread32(addr + 0x10 + offset) != 0)
+                    if (xread32(addr + 0x10 + bmpidx) != 0)
                     {
-                        result += 0xff;
+                        r2 += 0xff;
                     }
                 }
                 else
                 {
-                    result += xread16(addr + 0x16 + offset);
+                    *r2 += xread16(addr + 0x16 + bmpidx);
                 }
             }
         }
     }
-    
-    alis.varD7 = newd7;
-    
-    return result;
 }
 
 // Codopname no. 249 opcode 0xf8 catstmap
 // Ishar 3 Korean (IBM PC): catstmap => map_cnul
 static void catstmap(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     s16 offset = script_read16();
     u32 addr = alis.script->vram_org;
     if (offset == 0)
@@ -5606,14 +5605,12 @@ static void catstmap(void) {
     s16 wcax = xread16(vram + ALIS_SCR_WCAX);
     s16 wcaz = xread16(vram + ALIS_SCR_WCAZ);
     
-    testaim(&wcx2, &wcy2, &wcz2, wcax, wcaz);
+    sVector vec = polarmov(wcx2, wcy2, wcz2, wcax, wcaz);
     
     alis.matmask = 0;
     
-    atstmap(addr, vram, (s16)((u32)(xread32(vram + ALIS_SCR_WCX) + wcx2) >> 0x10),
-                        (s16)((u32)(xread32(vram + ALIS_SCR_WCY) + wcy2) >> 0x10),
-                        (s16)wcz2);
-    
+    s16 d2w;
+    landalti(addr, vram, (s16)((u32)(xread32(vram + ALIS_SCR_WCX) + vec.x) >> 0x10), (s16)((u32)(xread32(vram + ALIS_SCR_WCY) + vec.y) >> 0x10), &d2w, &alis.varD7);
     cstore_continue();
 }
 
@@ -5627,16 +5624,13 @@ static void cavtstmov(void) {
 
     if (alis.platform.version >= 31)
     {
-        ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
         s16 wcax = xread16(vram + ALIS_SCR_WCAX);
         s16 wcaz = xread16(vram + ALIS_SCR_WCAZ);
         
-        testaim(&wcx2, &wcy2, &wcz2, wcax, wcaz);
-
-        alis.wcx = (xread32(vram + ALIS_SCR_WCX) + wcx2) >> 0x10;
-        alis.wcy = (xread32(vram + ALIS_SCR_WCY) + wcy2) >> 0x10;
-        alis.wcz = (xread32(vram + ALIS_SCR_WCZ) + wcz2) >> 0x10;
+        sVector vec = polarmov(wcx2, wcy2, wcz2, wcax, wcaz);
+        alis.wcx = (xread32(vram + ALIS_SCR_WCX) + vec.x) >> 0x10;
+        alis.wcy = (xread32(vram + ALIS_SCR_WCY) + vec.y) >> 0x10;
+        alis.wcz = (xread32(vram + ALIS_SCR_WCZ) + vec.z) >> 0x10;
     }
     else
     {
@@ -5654,7 +5648,21 @@ static void cavtstmov(void) {
 
 // Codopname no. 251 opcode 0xfa cavmov
 static void cavmov(void) {
-    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    if (alis.platform.version >= 31)
+    {
+        u32 vram = alis.script->vram_org;
+        s16 wcx2 = (s8)xread8(vram + ALIS_SCR_WCX2);
+        s16 wcy2 = (s8)xread8(vram + ALIS_SCR_WCY2);
+        s16 wcz2 = (s8)xread8(vram + ALIS_SCR_WCZ2);
+        s16 wcax = xread16(vram + ALIS_SCR_WCAX);
+        s16 wcaz = xread16(vram + ALIS_SCR_WCAZ);
+        
+        sVector vec = polarmov(wcx2, wcy2, wcz2, wcax, wcaz);
+
+        xadd16(alis.script->vram_org + ALIS_SCR_WCX, vec.x);
+        xadd16(alis.script->vram_org + ALIS_SCR_WCY, vec.y);
+        xadd16(alis.script->vram_org + ALIS_SCR_WCZ, vec.z);
+    }
 }
 
 void getangle(s16 *atx, s16 *aty)
@@ -5777,22 +5785,12 @@ void polarang(s16 *cx, s16 *cy, s16 *cz, s16 *oldcx, s16 *oldcy, s16 *oldcz)
 
 // Codopname no. 252 opcode 0xfb caim
 static void caim(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
-    // TODO: on Atari ST values for the first call should be: 0x19e0, 0x560, 0x5 but aren't
-    // we should call it at afe12 NOT on aff24
-    // INVESTIGATE!!!
-
     readexec_opername();
     s16 cx = alis.varD7;
     readexec_opername();
     s16 cy = alis.varD7;
     readexec_opername();
     s16 cz = alis.varD7;
-
-//    s16 cx = 0x19e0;
-//    s16 cy = 0x560;
-//    s16 cz = 0x5;
     
     s16 oldcx = xread16(alis.script->vram_org + ALIS_SCR_WCX);
     s16 oldcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
@@ -5888,16 +5886,31 @@ static void caim(void) {
 
 // Codopname no. 253 opcode 0xfc cpointpix
 static void cpointpix(void) {
-    ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
+    readexec_opername();
+    readexec_opername_saveD6();
+    
+    pointpix(alis.varD7, alis.varD6);
+    
+    alis.varD7 = image.cxtstpix;
+    cstore_continue();
+    alis.varD7 = image.cytstpix;
+    cstore_continue();
+    alis.varD7 = image.cztstpix;
+    cstore_continue();
+    alis.varD7 = image.dtstpix;
+    cstore_continue();
+    alis.varD7 = image.ntstpix;
+    cstore_continue();
+    alis.varD7 = image.etstpix;
+    cstore_continue();
 }
 
 // Codopname no. 254 opcode 0xfd cchartmap
 // Ishar 3 Korean (IBM PC): cchartmap => map_cnul
+
 static void cchartmap(void) {
     ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
-    // TODO: verify and clean
-    
+
     u32 vram = alis.script->vram_org;
 
     s16 offset = script_read16();
@@ -5908,169 +5921,152 @@ static void cchartmap(void) {
     }
 
     u32 addr = vram + offset;
-
+    s32 iVar3;
+    
     readexec_opername();
     s16 value = alis.varD7;
-    
-    s32 iVar4;
     if (value == 0)
     {
-        iVar4 = 0;
+        iVar3 = 0;
     }
     else
     {
         if (value != 1)
         {
-            if ((value == 2) || (value == 3))
+            if (value == 2 || value == 3)
             {
-                xwrite16(vram - 0x3b6, value);
                 readexec_opername();
+                xwrite16(addr - 0x3b6, alis.varD7);
                 return;
             }
-            
+      
             if (value == 4)
             {
-                xwrite16(vram - 0x3b4, value);
                 readexec_opername();
+                xwrite16(addr - 0x3b4, alis.varD7);
                 return;
             }
-            
-            if (value == 5)
+      
+            s16 sVar4;
+            s16 sVar5;
+            s16 sVar9;
+            if (value != 5)
             {
-                xwrite16(vram - 0x3b2, value);
                 readexec_opername();
+                alis.varD7--;
+                if (alis.varD7 < 0)
+                    alis.varD7 = 0;
+
+                iVar3 = xread32(addr - 0x3ba);
+                s32 iVar2 = (int)(s16)(xread16(vram) - value) / (int)xread16(iVar3 - 0x3f4);
+                sVar4 = (s16)iVar2;
+                if (iVar2 < 0)
+                    sVar4 = 0;
+
+                if (xread16(iVar3 - 1000) <= sVar4)
+                    sVar4 = xread16(iVar3 - 1000);
+
+                iVar2 = (int)(s16)(xread16(vram) + value) / (int)xread16(iVar3 - 0x3f4);
+                sVar5 = (s16)iVar2;
+                if (iVar2 < 0)
+                    sVar5 = 0;
+
+                if (xread16(iVar3 - 1000) <= sVar5)
+                    sVar5 = xread16(iVar3 - 1000);
+
+                iVar2 = (int)(s16)(xread16(vram + 8) - value) / (int)xread16(iVar3 - 0x3f2);
+                sVar9 = (s16)iVar2;
+                if (iVar2 < 0)
+                    sVar9 = 0;
+
+                if (xread16(iVar3 - 0x3e6) <= sVar9)
+                    sVar9 = xread16(iVar3 - 0x3e6);
+
+                iVar2 = (int)(s16)(xread16(vram + 8) + value) / (int)xread16(iVar3 - 0x3f2);
+                value = (s16)iVar2;
+                if (iVar2 < 0)
+                    value = 0;
+            
+                if (xread16(iVar3 - 0x3e6) <= value)
+                    value = xread16(iVar3 - 0x3e6);
+
+                u16 uVar8 = (xread16(addr - 0xf0) - 4) - xread16(iVar3 - 0x3c0);
+                u16 uVar1 = sVar4 >> (uVar8 & 0x3f);
+                u16 uVar7 = sVar5 >> (uVar8 & 0x3f);
+                uVar8 = xread16(addr - 0x3be) - xread16(iVar3 - 0x3be);
+                sVar9 = sVar9 >> (uVar8 & 0x3f);
+                value = (value >> (uVar8 & 0x3f)) - sVar9;
+                u16 uVar6 = ~(0xffffU >> (uVar1 - (uVar1 & 0xfff0) & 0x3f));
+                uVar8 = uVar7 | 0xf;
+                uVar7 = ~(-1 << (-(uVar7 - uVar8) & 0x3f));
+                uVar8 = (ushort)(uVar8 - (uVar1 & 0xfff0)) >> 4;
+                sVar4 = uVar8 - 1;
+                if (sVar4 < 0)
+                {
+                    uVar6 = uVar7 | uVar6;
+                    uVar7 = 0;
+                }
+                
+                if (uVar7 != 0)
+                {
+                    sVar4 = uVar8 - 2;
+                }
+                
+                u32 puVar12 = addr;
+                if ((s8)xread8(addr - 1) < 0)
+                    puVar12 = xread32(xread32(addr));
+
+                u32 puVar13 = (puVar12 + sVar9 * 2 + (u32)(uVar1 >> 4) * (u16)xread16(addr - 0x3c4));
+                sVar5 = xread16(addr - 0x3c4);
+            
+                do
+                {
+                    xwrite16(puVar13, uVar6 & xread16(puVar13));
+                    u32 puVar14 = puVar13 + sVar5;
+                    sVar9 = sVar4;
+                    if (-1 < sVar4)
+                    {
+                        do
+                        {
+                            xwrite16(puVar14, 0);
+                            puVar14 += sVar5;
+                            sVar9--;
+                        }
+                        while (sVar9 != -1);
+                    }
+                    
+                    if (uVar7 != 0)
+                        xwrite16(puVar14, uVar7 & xread16(puVar14));
+
+                    puVar13++;
+                    value--;
+                }
+                while (value != -1);
+                
                 return;
             }
             
             readexec_opername();
-            iVar4 = alis.varD7;
-            
-            value --;
-            if (value < 0)
-            {
-                value = 0;
-            }
-            
-            s32 iVar1 = xread32(addr - 0x3ba);
-            s32 iVar3 = (s16)(xread16(alis.script->vram_org) - value) / xread16(iVar1 - 0x3f4);
-            s16 outval0 = (s16)iVar3;
-            if (iVar3 < 0)
-            {
-                outval0 = 0;
-            }
-            
-            if (xread16(iVar1 - 0x3e8) <= outval0)
-            {
-                outval0 = xread16(iVar1 - 0x3e8);
-            }
-            
-            iVar3 = (s16)(xread16(alis.script->vram_org) + value) / xread16(iVar1 - 0x3f4);
-            s16 outval1 = (s16)iVar3;
-            if (iVar3 < 0)
-            {
-                outval1 = 0;
-            }
-            
-            if (xread16(iVar1 - 0x3e8) <= outval1)
-            {
-                outval1 = xread16(iVar1 - 0x3e8);
-            }
-            
-            iVar3 = (s16)(xread16(alis.script->vram_org + 8) - value) / xread16(iVar1 - 0x3f2);
-            s16 outval2 = (s16)iVar3;
-            if (iVar3 < 0)
-            {
-                outval2 = 0;
-            }
-            
-            if (xread16(iVar1 - 0x3e6) <= outval2)
-            {
-                outval2 = xread16(iVar1 - 0x3e6);
-            }
-            
-            iVar3 = (s16)(xread16(alis.script->vram_org + 8) + value) / xread16(iVar1 - 0x3f2);
-            s16 outval3 = (s16)iVar3;
-            if (iVar3 < 0)
-            {
-                outval3 = 0;
-            }
-            
-            if (xread16(iVar1 - 0x3e6) <= outval3)
-            {
-                outval3 = xread16(iVar1 - 0x3e6);
-            }
-            
-            u32 rot = ((xread16(addr - 0x3c0) - 4) - xread16(iVar1 - 0x3c0)) & 0x3f;
-            u16 outval0u = outval0 >> rot;
-            u16 outval1u = outval1 >> rot;
-            rot = (xread16(addr - 0x3be) - xread16(iVar1 - 0x3be)) & 0x3f;
-            outval2 >>= rot;
-            outval3 = (outval3 >> rot) - outval2;
-            u16 uVar7 = ~(0xffffU >> (outval0u - (outval0u & 0xfff0) & 0x3f));
-            u16 count = outval1u | 0xf;
-            outval1u = ~(-1 << (-(outval1u - count) & 0x3f));
-            count = (u16)(count - (outval0u & 0xfff0)) >> 4;
-            if (count <= 0)
-            {
-                uVar7 |= outval1u;
-                outval1u = 0;
-            }
-            
-            if (outval1u != 0)
-            {
-                count--;
-            }
-            
-            u32 addr2 = addr;
-            if ((s8)xread8(addr - 1) < 0)
-            {
-                addr2 = xread32(addr);
-                addr2 = xread32(addr2);
-            }
-            
-            addr2 += outval2 * 2 + (outval0u >> 4) * xread16(addr - 0x3c4);
-            s16 offset2 = xread16(addr - 0x3c4);
-            
-            do
-            {
-                xwrite16(addr2, xread16(addr2) & uVar7);
-                u32 addr3 = addr2 + offset2;
-
-                for (int i = 0; i < count; i++)
-                {
-                    xwrite16(addr3, 0);
-                    addr3 = addr3 + offset2;
-                }
-                
-                if (outval1u != 0)
-                {
-                    xwrite16(addr3, xread16(addr3) & outval1u);
-                }
-                
-                addr2++;
-                if ((outval3 --) == -1)
-                {
-                    return;
-                }
-            }
-            while (true);
+            xwrite16(addr - 0x3b2, alis.varD7);
+            return;
         }
-        
-        iVar4 = -1;
-    }
-    
-    s16 loops = ((s16)(xread16(addr - 0x3c6) * xread16(addr - 0x3c4)) >> 1);
-    if ((s8)xread8(addr - 1) < 0)
-    {
-        addr = xread32(addr);
-        addr = xread32(addr);
+            
+        iVar3 = -1;
     }
 
-    for (int i = 0; i < loops; i++, addr += 2)
+    s16 loops = ((s16)(xread16(addr - 0x3c6) * xread16(addr - 0x3c4)) >> 1);
+    u32 addr2 = addr;
+    if ((s8)xread8(addr2 - 1) < 0)
     {
-        xwrite16(addr, (s16)iVar4);
+        addr2 = xread32(addr2);
+        addr2 = xread32(addr2);
     }
-    
+
+    for (int i = 0; i < loops; i++, addr2 += 2)
+    {
+        xwrite16(addr2, (s16)iVar3);
+    }
+  
     vram = alis.script->vram_org;
     offset = script_read16();
     if (offset == 0)
@@ -6833,48 +6829,6 @@ void shrinkprog(s32 start, s32 length, u16 id)
                     sprite->data -= length;
             }
         }
-    }
-}
-
-s32 io_malloc(s32 rawsize)
-{
-    s32 size = (rawsize - 1U | 3) + 9;
-    s32 blockloc = alis.finmem - size;
-    if (alis.finprog < blockloc)
-    {
-        alis.finmem = blockloc;
-        xwrite32(blockloc, size);
-
-        if (alis.platform.version < 30)
-        {
-            return blockloc;
-        }
-        
-        for (int i = 0; i < 0xf; i++)
-        {
-            if (xread32(alis.tabptr + i * 8) == 0)
-            {
-                xwrite32(alis.tabptr + i * 8 + 0, blockloc + 8);
-                xwrite32(alis.tabptr + i * 8 + 4, blockloc + 8);
-
-                // NOTE: silmarils originaly used 32 bit pointer to pointer table allocated in (alis.mem) block
-                return alis.tabptr + i * 8;
-            }
-        }
-    }
-    
-    return 0;
-}
-
-void io_mfree(s32 addr)
-{
-    s32 blockloc = xread32(addr + 4);
-    xwrite32(addr + 0, 0);
-    xwrite32(addr + 4, 0);
-    
-    if (alis.finmem == blockloc - 8)
-    {
-        alis.finmem += xread32(alis.finmem);
     }
 }
 

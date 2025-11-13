@@ -45,8 +45,8 @@ u16             swap16(const u8 *);
 u32             swap32(const u8 *);
 
 
-u16             xswap16(u16 value);
-u32             xswap32(u32 value);
+s16             xswap16(u16 value);
+s32             xswap32(u32 value);
 
 u8              xread8(u32 offset);
 s16             xread16(u32 offset);
@@ -73,3 +73,6 @@ s32             xswap32be(u32 value);
 
 s16             xread16be(u32 offset);
 s32             xread32be(u32 offset);
+
+s32             io_malloc(s32 rawsize);
+void            io_mfree(s32 addr);
