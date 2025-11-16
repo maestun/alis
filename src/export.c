@@ -26,6 +26,7 @@
 #include "mem.h"
 #include "screen.h"
 #include "utils.h"
+#include <stdlib.h>
 
 
 void export_script(sAlisScriptData *script)
@@ -817,7 +818,7 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
 
     // Scale factors for world-space coordinates
     float world_scale_x = 1.0f;
-    float world_scale_y = 1.0f;  // Altitude table values already in world units
+    float world_scale_y = 0.5f;  // Altitude table values already in world units
     float world_scale_z = 1.0f;
 
     printf("Exporting terrain: %u x %u grid to %s\n", grid_width, grid_height, filepath);
@@ -835,7 +836,14 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
     // Export vertices
     // Each grid cell (x,y) contains 4 bytes (2 x s16 values)
     // Lower byte of each s16 = altitude table index, upper byte = terrain type
+    //
+    // Terrain supports overhangs/bridges when adjacent cells have height difference:
+    // If current_height < next_height, create overhang geometry
     u32 vertex_count = 0;
+
+    // Store current row heights for overhang detection
+    s16 *current_heights = malloc(sizeof(s16) * grid_width);
+    s16 *next_heights = malloc(sizeof(s16) * grid_width);
 
     for (u16 y = 0; y < grid_height; y++)
     {
@@ -846,9 +854,9 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
             u32 altitude_base = xread32(cell_ptr);
 
             // Read 4 bytes at Y position as 2 x s16 values
-            // Each s16 contains: upper byte = terrain type, lower byte = altitude index
-            s16 cell0 = xread16(altitude_base + (y * 4) + 0);
-            s16 cell1 = xread16(altitude_base + (y * 4) + 2);
+            // s16 contains: upper byte = terrain type, lower byte = altitude index
+            s16 cell0 = xread16(altitude_base + (y * 2) + 0);
+            s16 cell1 = xread16(altitude_base + (y * 2) + 2);
 
             // Extract altitude indices from lower bytes
             u8 alt_index0 = (u8)(cell0 & 0xff);
@@ -857,6 +865,10 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
             // Look up heights in altitude table
             s16 height0 = xread16(altitude_table + (alt_index0 * 2));
             s16 height1 = xread16(altitude_table + (alt_index1 * 2));
+
+            // Clamp positive heights to 0 (terrain doesn't go above ground)
+            if (height0 > 0) height0 = 0;
+            if (height1 > 0) height1 = 0;
 
             // Create first vertex at (x, height0, y)
             float pos_x1 = (float)x * world_scale_x;
@@ -871,8 +883,45 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
             float pos_z2 = (float)y * world_scale_z;
             fprintf(file, "v %.6f %.6f %.6f\n", pos_x2, pos_y2, pos_z2);
             vertex_count++;
+
+            // Store height for overhang detection
+            next_heights[x] = height0;  // Store first cell height for next iteration
         }
+
+        // Detect and export overhang geometry
+        // If next Y cell is higher than current, create overhang top surface
+        if (y > 0)
+        {
+            for (u16 x = 0; x < grid_width; x++)
+            {
+                // Check if overhang exists: current < next
+                if (next_heights[x] < current_heights[x])
+                {
+                    // Create overhang top vertices
+                    // These create a horizontal surface at height of current cell
+                    s16 overhang_height = next_heights[x];
+
+                    float ov_x1 = (float)x * world_scale_x;
+                    float ov_y = (float)overhang_height * world_scale_y;
+                    float ov_z = (float)(y - 1) * world_scale_z + 0.5f;  // Midpoint
+                    fprintf(file, "v %.6f %.6f %.6f\n", ov_x1, ov_y, ov_z);
+                    vertex_count++;
+
+                    float ov_x2 = ((float)x + 0.5f) * world_scale_x;
+                    fprintf(file, "v %.6f %.6f %.6f\n", ov_x2, ov_y, ov_z);
+                    vertex_count++;
+                }
+            }
+        }
+
+        // Swap buffers for next iteration
+        s16 *tmp = current_heights;
+        current_heights = next_heights;
+        next_heights = tmp;
     }
+
+    free(current_heights);
+    free(next_heights);
 
     fprintf(file, "\n");
 
@@ -1302,7 +1351,7 @@ void export_terrain_column_analysis(s32 scene_addr, s32 render_context, const ch
 
     // Show color/property data from barland references
     fprintf(file, "\n=== COLOR/PROPERTY DATA (from barland) ===\n");
-    fprintf(file, "barland reads xread8(terrain_pixel_data) and xread8(terrain_pixel_data+1)\n");
+    fprintf(file, "barland reads xread8(terrain_cell) and xread8(terrain_cell+1)\n");
     fprintf(file, "These appear to be color/terrain type indices.\n");
     fprintf(file, "Showing byte0 and byte1 from sample cells:\n\n");
 

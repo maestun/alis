@@ -1240,10 +1240,14 @@ void bartramin(s32 render_context, u32 tgt, s16 lines, s32 maxpixels, u32 color)
 
 
 // draw bar top
-void bartra(s32 a0, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
+void bartra(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
 {
     s16 maxpixels = barwidth - 1;
-    u16 pixels = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + a0) & 0xc0) + (xread8(a0 + 2) & 0xc0) + (xread8(a0) & 0xc0) * 2) * -2;
+    
+    s16 render1 = xread16(render_context - 0x3c4);
+    u16 render2 = (u16)xread16(render1 + terrain_cell) & 0xc0;
+    
+    u16 pixels = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + (xread8(terrain_cell + 2) & 0xc0) + (xread8(terrain_cell) & 0xc0) * 2) * -2;
     u32 color = (u32)pixels;
     if ((s32)(color << 0x10) < 0)
     {
@@ -1469,7 +1473,7 @@ void bartra(s32 a0, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 
     }
 }
 
-void barland(s32 terrain_pixel_data, s32 render_context, s16 tstx, s16 tsty, s16 bary, s16 barheight, s16 index, s16 barx, s32 altitude_index, s32 d6)
+void barland(s32 terrain_cell, s32 render_context, s16 tstx, s16 tsty, s16 bary, s16 barheight, s16 index, s16 barx, s32 altitude_index, s32 d6)
 {
     s16 prev_screen_x = image.precx;
     s16 barclipy = (bary - image.landclipy1) - image.landcliph;
@@ -1532,14 +1536,14 @@ void barland(s32 terrain_pixel_data, s32 render_context, s16 tstx, s16 tsty, s16
         {
             if (image.ftstpix == 0)
             {
-                bartra(terrain_pixel_data, render_context, drawy, index, barwidth, barheight, bary);
+                bartra(terrain_cell, render_context, drawy, index, barwidth, barheight, bary);
             }
             else
             {
                 if ((s16)drawy <= image.ytstpix && image.ytstpix < (s16)(barheight + drawy) && image.precx <= image.xtstpix && image.xtstpix < (s16)(barwidth + image.precx))
                 {
-                    image.ntstpix = (u16)xread8(terrain_pixel_data);
-                    image.cztstpix = (u16)xread8(terrain_pixel_data + 1);
+                    image.ntstpix = (u16)xread8(terrain_cell);
+                    image.cztstpix = (u16)xread8(terrain_cell + 1);
                     image.cxtstpix = (u16)((s16)((u32)altitude_index >> 0x10) * 2 - tstx << ((u16)xread16(render_context - 0x3c0) & 0x3f)) >> 1;
                     image.cytstpix = (u16)((s16)altitude_index * 2 - tsty << ((u16)xread16(render_context - 0x3c0) & 0x3f)) >> 1;
                     image.etstpix = 0xfffe;
@@ -1553,7 +1557,7 @@ void barland(s32 terrain_pixel_data, s32 render_context, s16 tstx, s16 tsty, s16
 }
 
 
-void tbarland(s32 terrain_pixel_data, s32 render_context, s16 terrain_step_x, s32 a5, u16 bary, s16 barheight, s16 index, s32 screen_x, s32 d4, s32 d6)
+void tbarland(s32 terrain_cell, s32 render_context, s16 terrain_step_x, s32 a5, u16 bary, s16 barheight, s16 index, s32 screen_x, s32 d4, s32 d6)
 {
     s16 prev_screen_x = image.precx;
     s16 clip_calc = (bary - image.landclipy1) - image.landcliph;
@@ -1626,7 +1630,7 @@ void tbarland(s32 terrain_pixel_data, s32 render_context, s16 terrain_step_x, s3
                 if (bothigh <= (s16)drawy)
                 {
                     barwidth --;
-                    u16 uVar1x = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_pixel_data) & 0xc0) + (xread8(terrain_pixel_data + 2) & 0xc0) + (xread8(terrain_pixel_data) & 0xc0) * 2) * -2;
+                    u16 uVar1x = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + (xread8(terrain_cell + 2) & 0xc0) + (xread8(terrain_cell) & 0xc0) * 2) * -2;
                     u32 color = (u32)uVar1x;
                     if ((s32)((u32)uVar1x << 0x10) < 0)
                     {
@@ -1649,14 +1653,14 @@ void tbarland(s32 terrain_pixel_data, s32 render_context, s16 terrain_step_x, s3
             
             if (image.ftstpix == 0)
             {
-                bartra(terrain_pixel_data, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
+                bartra(terrain_cell, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
             }
             else
             {
                 if ((s16)drawy <= image.ytstpix && image.ytstpix < (s16)(barheight + drawy) && image.precx <= image.xtstpix && image.xtstpix < (s16)(barwidth + image.precx))
                 {
-                    image.ntstpix = (u16)xread8(terrain_pixel_data);
-                    image.cztstpix = (u16)xread8(terrain_pixel_data + 1);
+                    image.ntstpix = (u16)xread8(terrain_cell);
+                    image.cztstpix = (u16)xread8(terrain_cell + 1);
                     image.cxtstpix = (u16)((s16)((u32)d4 >> 0x10) * 2 - terrain_step_x << ((u16)xread16(render_context - 0x3c0) & 0x3f)) >> 1;
                     image.cytstpix = (u16)((s16)d4 * 2 - (s16)a5 << ((u16)xread16(render_context - 0x3c0) & 0x3f)) >> 1;
                     image.etstpix = 0xfffe;
@@ -2231,7 +2235,7 @@ void doland(s32 scene_addr, s32 render_context)
     s16 screen_x = (position_x << ((u16)xread16(render_context - 0x3c0) & 0x3f)) - xread16(render_context - 0x360);
     s16 screen_y = (position_y << ((u16)xread16(render_context - 0x3c0) & 0x3f)) - xread16(render_context - 0x35e);
     
-    glandtopix(render_context, &screen_x, &screen_y, (xread16(render_context - 0x378) + screen_x) - xread16(render_context - 0x37e), (xread16(render_context - 0x376) + screen_y) - xread16(render_context - 0x37c),xread16(render_context - 0x2e0));
+    glandtopix(render_context, &screen_x, &screen_y, (xread16(render_context - 0x378) + screen_x) - xread16(render_context - 0x37e), (xread16(render_context - 0x376) + screen_y) - xread16(render_context - 0x37c), xread16(render_context - 0x2e0));
     xwrite32(render_context - 0x280, (u32)(u16)(xread16(render_context - 0x26c) + screen_x) << 0x10);
     xwrite32(render_context - 0x27c, (s32)(s16)(((s32)(s16)(screen_y - screen_x) << 8) / (s32)xread16(render_context - 0x3a4)) << 8);
 
@@ -2241,7 +2245,7 @@ void doland(s32 scene_addr, s32 render_context)
     s32 uVar1, d1, iVar10;
     u16 uVar2, uVar4, uVar5, uVar9;
     s16 sVar3, barx, sVar12;
-    u32 uVar6, d3, unkpos_x, unkpos_y, puVar11;
+    u32 uVar6, d3, unkpos_x, unkpos_y, terrain_cell;
     
     export_terrain_debug(scene_addr, render_context, "terrain_dbg.txt");
     export_terrain_debug_endian(scene_addr, render_context, "terrain_dbg_end.txt");
@@ -2462,7 +2466,7 @@ void doland(s32 scene_addr, s32 render_context)
                         }
                         else
                         {
-                            adresa = ((s32)(s16)testpos_y + (s16)testpos_y + iVar10);
+                            adresa = (iVar10 + (s16)testpos_y + (s32)(s16)testpos_y);
                         }
 
                         // Read processed height value (u8 at offset +1 in terrain cell)
@@ -2493,7 +2497,7 @@ void doland(s32 scene_addr, s32 render_context)
                         {
                             // Y coordinate below grid, use alternative calculation
                             iVar10 = xread32(terrain_data + (s16)(testpos_x * 4));
-                            adresa = ((s32)(s16)testpos_y + (s16)testpos_y + iVar10);
+                            adresa = (iVar10 + (s16)testpos_y + (s32)(s16)testpos_y);
                         }
 
                         // Extract height value from terrain cell (byte at offset +1)
@@ -2554,7 +2558,7 @@ dolanc34:
                         iVar10 += (s32)xread16(render_context - 0x292) << 2;
                     }
                     
-                    puVar11 = ((iVar10 - (s16)position_y) - (s32)(s16)position_y);
+                    terrain_cell = ((iVar10 - (s16)position_y) - (s32)(s16)position_y);
                 }
                 else
                 {
@@ -2562,11 +2566,11 @@ dolanc34:
                     
 dolanc39:
                     
-                    puVar11 = ((s32)(s16)position_y + (s16)position_y + iVar10);
+                    terrain_cell = (iVar10 + (s16)position_y + (s32)(s16)position_y);
                 }
                 
                 s16 bary = xread16(render_context - 0x25c);
-                uVar9 = xread16(puVar11);
+                uVar9 = xread16(terrain_cell);
                 image.solh = uVar9 & 0xff;
                 image.solpixy = xread16(render_context - 0x276) + xread16(altitude_table + (s16)(image.solh * 2));
                 xwrite16(render_context - 0x246, image.solpixy);
@@ -2590,10 +2594,10 @@ dolanc39:
                 {
                     u32 test = CONCAT22((tmppos_x), (tmppos_x >> 16));
                     // Render vertical terrain bar using:
-                    // - puVar11: pointer to terrain cell data in altitude table
+                    // - terrain_cell: pointer to terrain cell data in altitude table
                     // - barheight: pixel height to draw
                     // - index: terrain type selector
-                    barland(puVar11, render_context, sVar12, (s16)(tempstep_y >> 0x10), bary, barheight, index, barx, test, unkpos_x);
+                    barland(terrain_cell, render_context, sVar12, (s16)(tempstep_y >> 0x10), bary, barheight, index, barx, test, unkpos_x);
                 }
                 
                 if (xread8(render_context + index + 0x14) != 0)
@@ -2602,7 +2606,7 @@ dolanc39:
                     {
                         notopa = 1;
                         s16 uVar7 = (s16)(unkpos_x >> 0x10);
-                        iVar10 = CONCAT22(uVar7,prectopa);
+                        iVar10 = CONCAT22(uVar7, prectopa);
                         uVar9 = precbota;
                         if (adresa != 0)
                         {
@@ -2639,13 +2643,13 @@ dolanc39:
                                         precbotb = precbotc;
                                         if (prectopa < screen_x)
                                         {
-                                            iVar10 = CONCAT22(uVar7,screen_x);
+                                            iVar10 = CONCAT22(uVar7, screen_x);
                                         }
                                         
                                         screen_y = (s16)iVar10;
                                         if (screen_y < prectopc)
                                         {
-                                            iVar10 = CONCAT22((s16)((u32)iVar10 >> 0x10),prectopc);
+                                            iVar10 = CONCAT22((s16)((u32)iVar10 >> 0x10), prectopc);
                                         }
                                         
                                         uVar4 = precbota;
@@ -2679,9 +2683,9 @@ dolanc39:
                         
                     dotopa5:
                         
-                        puVar11 = (xread32(render_context + 0x10 + index) + (s32)(s16)position_y + (s32)(s16)position_y + xread32(terrain_data + (s16)(position_x << 2)));
+                        terrain_cell = (xread32(render_context + 0x10 + index) + (s32)(s16)position_y + (s32)(s16)position_y + xread32(terrain_data + (s16)(position_x << 2)));
                         fbottom = 0;
-                        position_x = xread16(puVar11);
+                        position_x = xread16(terrain_cell);
                         image.toph = position_x & 0xff;
                         s16 index3 = ((position_x & 0x3f00) >> 3) - 0xc00;
                         position_x = image.toph - image.solh;
@@ -2753,7 +2757,7 @@ dolanc39:
                                     uVar7 = xread16(render_context - 0x25c);
                                     xwrite16(render_context - 0x25c, prectopi);
                                     u32 test = CONCAT22((tmppos_x), (tmppos_x >> 16));
-                                    tbarland(puVar11, render_context, sVar12, terrainstep_y, position_y, d1, index3, d3, test, iVar10);
+                                    tbarland(terrain_cell, render_context, sVar12, terrainstep_y, position_y, d1, index3, d3, test, iVar10);
                                     xwrite16(render_context - 0x25c, uVar7);
                                 }
                             }
