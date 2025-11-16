@@ -837,13 +837,12 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
     // Each grid cell (x,y) contains 4 bytes (2 x s16 values)
     // Lower byte of each s16 = altitude table index, upper byte = terrain type
     //
-    // Terrain supports overhangs/bridges when adjacent cells have height difference:
-    // If current_height < next_height, create overhang geometry
+    // NOTE: Terrain supports overhangs/bridges (3D perspective feature)
+    // tbarland() renders overhangs when height[Y] < height[Y+1] under specific 3D conditions
+    // However, in a flat mesh export (no perspective), overhangs need different handling
+    // Current approach: simple height-based mesh without overhang geometry
+    // (prevents artifacts from naive height difference detection)
     u32 vertex_count = 0;
-
-    // Store current row heights for overhang detection
-    s16 *current_heights = malloc(sizeof(s16) * grid_width);
-    s16 *next_heights = malloc(sizeof(s16) * grid_width);
 
     for (u16 y = 0; y < grid_height; y++)
     {
@@ -883,45 +882,8 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
             float pos_z2 = (float)y * world_scale_z;
             fprintf(file, "v %.6f %.6f %.6f\n", pos_x2, pos_y2, pos_z2);
             vertex_count++;
-
-            // Store height for overhang detection
-            next_heights[x] = height0;  // Store first cell height for next iteration
         }
-
-        // Detect and export overhang geometry
-        // If next Y cell is higher than current, create overhang top surface
-        if (y > 0)
-        {
-            for (u16 x = 0; x < grid_width; x++)
-            {
-                // Check if overhang exists: current < next
-                if (next_heights[x] < current_heights[x])
-                {
-                    // Create overhang top vertices
-                    // These create a horizontal surface at height of current cell
-                    s16 overhang_height = next_heights[x];
-
-                    float ov_x1 = (float)x * world_scale_x;
-                    float ov_y = (float)overhang_height * world_scale_y;
-                    float ov_z = (float)(y - 1) * world_scale_z + 0.5f;  // Midpoint
-                    fprintf(file, "v %.6f %.6f %.6f\n", ov_x1, ov_y, ov_z);
-                    vertex_count++;
-
-                    float ov_x2 = ((float)x + 0.5f) * world_scale_x;
-                    fprintf(file, "v %.6f %.6f %.6f\n", ov_x2, ov_y, ov_z);
-                    vertex_count++;
-                }
-            }
-        }
-
-        // Swap buffers for next iteration
-        s16 *tmp = current_heights;
-        current_heights = next_heights;
-        next_heights = tmp;
     }
-
-    free(current_heights);
-    free(next_heights);
 
     fprintf(file, "\n");
 
