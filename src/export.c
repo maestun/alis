@@ -918,8 +918,13 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
 // Debug export: dumps raw terrain and altitude data for analysis
 // This helps understand the exact memory layout and indexing
 // Export overhang/bridge geometry as separate 3D object
-// Identifies cells with height differences between adjacent Y positions
-// Exports overhang candidates as boxes representing bridge structures
+// IMPORTANT: This implementation is incomplete - needs to account for:
+// 1. Terrain segment offsets (render_context + 0x10 + index)
+// 2. Proper grid iteration matching doland() perspective projection
+// 3. fbottom flag conditions for valid overhang detection
+//
+// Current simple height difference detection doesn't capture the actual
+// perspective projection logic used in tbarland().
 void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *filepath)
 {
     FILE *file = fopen(filepath, "w");
@@ -940,16 +945,17 @@ void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *fi
     printf("Exporting overhang candidates: %u x %u grid to %s\n", grid_width, grid_height, filepath);
 
     // Write OBJ header
-    fprintf(file, "# Overhang/Bridge geometry exported from ALIS Robinson's Requiem\n");
+    fprintf(file, "# Overhang/Bridge geometry - EXPERIMENTAL\n");
+    fprintf(file, "# WARNING: This export uses simplified overhang detection\n");
+    fprintf(file, "# Actual overhangs in game require perspective projection calculation\n");
     fprintf(file, "# Grid dimensions: %u x %u cells\n", grid_width, grid_height);
-    fprintf(file, "# Overhangs identified where height[Y] != height[Y+1]\n");
-    fprintf(file, "# Each overhang rendered as a box (bridge/cave structure)\n");
     fprintf(file, "\n");
 
     u32 vertex_count = 0;
     u32 overhang_count = 0;
 
     // Scan for cells where height changes between Y and Y+1
+    // NOTE: This is a simplified heuristic, not the actual fbottom calculation
     for (u16 y = 0; y < grid_height - 1; y++)
     {
         for (u16 x = 0; x < grid_width; x++)
@@ -959,6 +965,8 @@ void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *fi
             u32 altitude_base = xread32(cell_ptr);
 
             // Read altitude indices at Y and Y+1
+            // WARNING: doland() uses render_context + 0x10 + index for terrain segment offset
+            // This simple approach uses direct altitude_base without segment offset
             s16 cell_y = xread16(altitude_base + (y * 2) + 0);
             s16 cell_y_next = xread16(altitude_base + ((y + 1) * 2) + 0);
 

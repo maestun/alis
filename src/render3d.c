@@ -2247,11 +2247,13 @@ void doland(s32 scene_addr, s32 render_context)
     s16 sVar3, barx, sVar12;
     u32 uVar6, d3, unkpos_x, unkpos_y, terrain_cell;
     
-    export_terrain_debug(scene_addr, render_context, "terrain_dbg.txt");
-    export_terrain_debug_endian(scene_addr, render_context, "terrain_dbg_end.txt");
-    export_terrain_column_analysis(scene_addr, render_context, "terrain_column_analysis.txt");
+//    export_terrain_debug(scene_addr, render_context, "terrain_dbg.txt");
+//    export_terrain_debug_endian(scene_addr, render_context, "terrain_dbg_end.txt");
+//    export_terrain_column_analysis(scene_addr, render_context, "terrain_column_analysis.txt");
     export_terrain_obj(scene_addr, render_context, "map.obj");
-    export_terrain_overhangs(scene_addr, render_context, "map_overhangs.obj");
+    // DISABLED: Overhang export needs proper render_context base offsets
+    // Current implementation doesn't use terrain segment offsets (render_context + 0x10 + index)
+    // export_terrain_overhangs(scene_addr, render_context, "map_overhangs.obj");
 
     do
     {
@@ -2684,7 +2686,7 @@ dolanc39:
                         
                     dotopa5:
                         
-                        terrain_cell = (xread32(render_context + 0x10 + index) + (s32)(s16)position_y + (s32)(s16)position_y + xread32(terrain_data + (s16)(position_x << 2)));
+                        terrain_cell = xread32(render_context + 0x10 + index) + (s32)(s16)position_y + (s32)(s16)position_y + xread32(terrain_data + (s16)(position_x << 2));
                         fbottom = 0;
                         position_x = xread16(terrain_cell);
                         image.toph = position_x & 0xff;
