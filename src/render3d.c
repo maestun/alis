@@ -2251,6 +2251,7 @@ void doland(s32 scene_addr, s32 render_context)
     export_terrain_debug_endian(scene_addr, render_context, "terrain_dbg_end.txt");
     export_terrain_column_analysis(scene_addr, render_context, "terrain_column_analysis.txt");
     export_terrain_obj(scene_addr, render_context, "map.obj");
+    export_terrain_overhangs(scene_addr, render_context, "map_overhangs.obj");
 
     do
     {

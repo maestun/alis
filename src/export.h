@@ -43,6 +43,8 @@ void export_audio(u32 addr, const char *name);
 
 void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath);
 
+void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *filepath);
+
 void export_terrain_debug(s32 scene_addr, s32 render_context, const char *filepath);
 
 void export_terrain_debug_endian(s32 scene_addr, s32 render_context, const char *filepath);

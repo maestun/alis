@@ -917,6 +917,122 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
 
 // Debug export: dumps raw terrain and altitude data for analysis
 // This helps understand the exact memory layout and indexing
+// Export overhang/bridge geometry as separate 3D object
+// Identifies cells with height differences between adjacent Y positions
+// Exports overhang candidates as boxes representing bridge structures
+void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *filepath)
+{
+    FILE *file = fopen(filepath, "w");
+    if (!file)
+    {
+        printf("Error: Could not open file %s for writing\n", filepath);
+        return;
+    }
+
+    // Get terrain dimensions from scene data
+    u16 grid_width = xread16(scene_addr + 0x12) + 1;
+    u16 grid_height = xread16(scene_addr + 0x14) + 1;
+
+    // Load terrain data pointers
+    s32 terrain_data = image.atlland;
+    s32 altitude_table = image.atalti;
+
+    printf("Exporting overhang candidates: %u x %u grid to %s\n", grid_width, grid_height, filepath);
+
+    // Write OBJ header
+    fprintf(file, "# Overhang/Bridge geometry exported from ALIS Robinson's Requiem\n");
+    fprintf(file, "# Grid dimensions: %u x %u cells\n", grid_width, grid_height);
+    fprintf(file, "# Overhangs identified where height[Y] != height[Y+1]\n");
+    fprintf(file, "# Each overhang rendered as a box (bridge/cave structure)\n");
+    fprintf(file, "\n");
+
+    u32 vertex_count = 0;
+    u32 overhang_count = 0;
+
+    // Scan for cells where height changes between Y and Y+1
+    for (u16 y = 0; y < grid_height - 1; y++)
+    {
+        for (u16 x = 0; x < grid_width; x++)
+        {
+            // Get altitude base pointer for this X column
+            s32 cell_ptr = terrain_data + (x * 4);
+            u32 altitude_base = xread32(cell_ptr);
+
+            // Read altitude indices at Y and Y+1
+            s16 cell_y = xread16(altitude_base + (y * 2) + 0);
+            s16 cell_y_next = xread16(altitude_base + ((y + 1) * 2) + 0);
+
+            u8 alt_index_y = (u8)(cell_y & 0xff);
+            u8 alt_index_y_next = (u8)(cell_y_next & 0xff);
+
+            // Look up heights
+            s16 height_y = xread16(altitude_table + (alt_index_y * 2));
+            s16 height_y_next = xread16(altitude_table + (alt_index_y_next * 2));
+
+            // Clamp positive heights to 0
+            if (height_y > 0) height_y = 0;
+            if (height_y_next > 0) height_y_next = 0;
+
+            // Check if there's a significant height difference (potential overhang)
+            s16 height_diff = height_y_next - height_y;
+
+            // Overhang when next cell is higher than current
+            // Minimum threshold of 1 unit to filter noise
+            if (height_diff > 1)
+            {
+                // Create box geometry for the overhang
+                // Lower surface at height_y, upper surface at height_y_next
+                float x_min = (float)x;
+                float x_max = (float)x + 1.0f;
+                float z_min = (float)y + 0.25f;
+                float z_max = (float)y + 0.75f;
+                float y_bottom = (float)height_y * 0.5f;
+                float y_top = (float)height_y_next * 0.5f;
+
+                // Create 8 vertices for the overhang box
+                fprintf(file, "v %.6f %.6f %.6f\n", x_min, y_bottom, z_min);  // v0
+                fprintf(file, "v %.6f %.6f %.6f\n", x_max, y_bottom, z_min);  // v1
+                fprintf(file, "v %.6f %.6f %.6f\n", x_max, y_bottom, z_max);  // v2
+                fprintf(file, "v %.6f %.6f %.6f\n", x_min, y_bottom, z_max);  // v3
+
+                fprintf(file, "v %.6f %.6f %.6f\n", x_min, y_top, z_min);     // v4
+                fprintf(file, "v %.6f %.6f %.6f\n", x_max, y_top, z_min);     // v5
+                fprintf(file, "v %.6f %.6f %.6f\n", x_max, y_top, z_max);     // v6
+                fprintf(file, "v %.6f %.6f %.6f\n", x_min, y_top, z_max);     // v7
+
+                vertex_count += 8;
+
+                // Create faces for the box
+                u32 base = vertex_count - 8 + 1;  // OBJ uses 1-based indexing
+
+                // Bottom face
+                fprintf(file, "f %u %u %u\n", base, base+1, base+2);
+                fprintf(file, "f %u %u %u\n", base, base+2, base+3);
+
+                // Top face
+                fprintf(file, "f %u %u %u\n", base+4, base+6, base+5);
+                fprintf(file, "f %u %u %u\n", base+4, base+7, base+6);
+
+                // Side faces
+                fprintf(file, "f %u %u %u\n", base, base+4, base+5);  // Front
+                fprintf(file, "f %u %u %u\n", base, base+5, base+1);
+                fprintf(file, "f %u %u %u\n", base+2, base+6, base+7);  // Back
+                fprintf(file, "f %u %u %u\n", base+2, base+7, base+3);
+                fprintf(file, "f %u %u %u\n", base+3, base+7, base+4);  // Left
+                fprintf(file, "f %u %u %u\n", base+3, base+4, base);
+                fprintf(file, "f %u %u %u\n", base+1, base+5, base+6);  // Right
+                fprintf(file, "f %u %u %u\n", base+1, base+6, base+2);
+
+                overhang_count++;
+            }
+        }
+    }
+
+    fclose(file);
+
+    printf("Overhang export complete: %u overhangs found, %u vertices\n", overhang_count, vertex_count);
+}
+
 void export_terrain_debug(s32 scene_addr, s32 render_context, const char *filepath)
 {
     FILE *file = fopen(filepath, "w");
