@@ -370,43 +370,70 @@ void fli_decomp(u8 *addr, u8 partial)
     }
 }
 
+
+void fli_audio(u8 *nextaddr, u8 *addr, s16 type)
+{
+    // Check if this audio track is selected by bfilm.id bitmask
+    // type 0x1000 -> bit 8 (French), 0x1001 -> bit 9 (English), 0x1002 -> bit 10 (German)
+    u16 mask = (u16)(1 << (type - 0x1000)) << 8;
+    if ((mask & (u16)bfilm.id) == 0)
+        return;
+
+    u32 length = (u32)(nextaddr - addr);
+    if (length == 0)
+        return;
+
+    // Set channel directly -- playsample() clamps freq to 1-20 kHz range
+    // which is too low for video audio at 22050 Hz
+    // Use channel 3 with high priority so subsequent chunks reuse it
+    sChannel *canal = &audio.channels[3];
+    canal->address = (s8 *)addr;
+    canal->volume = 0x7f;
+    canal->length = length;
+    canal->freq = 22050;
+    canal->loop = 0;
+    canal->played = 0;
+    canal->type = eChannelTypeSample;
+    canal->curson = 0x7f;
+}
+
 void fli_elements(u8 *addr)
 {
-    if (endframe <= addr)
+    while (addr < endframe)
     {
-        return;
+        u32 offset = read32le(addr);
+        addr+=4;
+
+        u16 type = read16le(addr);
+        addr+=2;
+        
+        u8 *nextaddr = addr + offset - 6;
+        
+        switch (type) {
+            case 0xb:
+                fli_palette(addr);
+                break;
+            case 0xc:
+                fli_decomp(addr, 1);
+                break;
+            case 0xd:
+                fli_blackdata();
+                break;
+            case 0xf:
+                fli_decomp(addr, 0);
+                break;
+            case 0x10:
+                fli_data(addr);
+                break;
+                
+            default:
+                if (type > 0 && type < 0x1008) {
+                    fli_audio(nextaddr, addr, type);
+                }
+        }
+        
+        addr = nextaddr;
     }
-
-    u32 offset = read32le(addr);
-    addr+=4;
-
-    u16 type = read16le(addr);
-    addr+=2;
-    
-    switch (type) {
-        case 0xb:
-            fli_palette(addr);
-            break;
-        case 0xc:
-            fli_decomp(addr, 1);
-            break;
-        case 0xd:
-            fli_blackdata();
-            break;
-        case 0xf:
-            fli_decomp(addr, 0);
-            break;
-        case 0x10:
-            fli_data(addr);
-            break;
-    }
-
-    fli_elements(addr + offset - 6);
-    
-#if ALIS_SDL_VER >= 2
-    memcpy(image.physic, vgalogic, alis.platform.width*alis.platform.height);
-    memcpy(image.logic, vgalogic, alis.platform.width*alis.platform.height);
-#endif
 }
 
 void fli_init(u8 *flcaddr)
@@ -423,6 +450,12 @@ void fli_next(u8 *addr)
     u32 length = read32le(addr);
     endframe = addr + length;
     fli_elements(addr + 16);
+
+#if ALIS_SDL_VER >= 2
+    memcpy(image.physic, vgalogic, alis.platform.width*alis.platform.height);
+    memcpy(image.logic, vgalogic, alis.platform.width*alis.platform.height);
+#endif
+
     bfilm.addr1 = endframe;
     bfilm.frame++;
 }

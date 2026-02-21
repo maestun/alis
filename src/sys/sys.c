@@ -444,7 +444,7 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
         double prev_counter = isr_counter;
         u32 add = 0;
         s32 s0, s1;
-        s32 accumulator;
+        s64 accumulator;
         
         for (int i = 0; i < 4; i++)
         {
