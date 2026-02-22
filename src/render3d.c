@@ -876,16 +876,16 @@ void vgatofen(void)
     image.switchgo = 1;
     u8 *src = image.wlogic + (image.clipx1 + (image.clipy1 - image.wlogy1) * image.wloglarg);
     
-    image.vgamodulo = image.wloglarg - ((image.clipx2 - image.clipx1) + 0);
-    image.bitmodulo = image.loglarg * 2 - ((image.clipx2 - image.clipx1) + 0);
-    
+    image.vgamodulo = image.wloglarg - ((image.clipx2 - image.clipx1) + 1);
+    image.bitmodulo = image.loglarg * 2 - ((image.clipx2 - image.clipx1) + 1);
+
     u8 *ptr = image.logic;
     // TODO: why?
     // u8 *ptr = alis.fswitch == 0 ? image.logic : image.physic;
     u8 *tgt = ptr + image.clipx1 + image.clipy1 * image.loglarg * 2;
-    for (int y = image.clipy1; y < image.clipy2; y++, tgt+=image.bitmodulo, src+=image.vgamodulo)
+    for (int y = image.clipy1; y <= image.clipy2; y++, tgt+=image.bitmodulo, src+=image.vgamodulo)
     {
-        for (int x = image.clipx1; x < image.clipx2; x++, tgt++, src++)
+        for (int x = image.clipx1; x <= image.clipx2; x++, tgt++, src++)
         {
             *tgt = *src & 0xf;
         }

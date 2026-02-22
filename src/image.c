@@ -1621,11 +1621,11 @@ void trsfen(u8 *src, u8 *tgt)
     src += image.fenx1 + image.feny1 * alis.platform.width;
     tgt += image.fenx1 + image.feny1 * alis.platform.width;
     
-    s16 skip = alis.platform.width - (image.fenx2 - image.fenx1);
+    s16 skip = alis.platform.width - (image.fenx2 - image.fenx1 + 1);
 
-    for (s32 y = image.feny1; y < image.feny2; y++)
+    for (s32 y = image.feny1; y <= image.feny2; y++)
     {
-        for (s32 x = image.fenx1; x < image.fenx2; x++, src++, tgt++)
+        for (s32 x = image.fenx1; x <= image.fenx2; x++, src++, tgt++)
         {
             *tgt = *src;
         }
