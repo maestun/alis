@@ -797,10 +797,25 @@ void export_audio(u32 addr, const char *name)
 // DATA FORMAT: Each grid cell stores TWO signed 16-bit height values in 4 bytes:
 //   - Offset +0: s16 height value (signed, already in world units)
 //   - Offset +2: s16 height value (signed, already in world units)
+// Helper function to convert 9-bit palette color (3-bit RGB components 0-7) to 32-bit RGBA
+static inline u32 palette_to_rgba(u16 pal_index, u16 palette[16][3])
+{
+    // Palette stores 3-bit values (0-7) for each component
+    // Convert to 8-bit (0-255) by scaling: value * 255 / 7
+    u8 r = (u8)((palette[pal_index][0] * 255) / 7);
+    u8 g = (u8)((palette[pal_index][1] * 255) / 7);
+    u8 b = (u8)((palette[pal_index][2] * 255) / 7);
+    u8 a = 255;  // Full alpha
+
+    return (a << 24) | (b << 16) | (g << 8) | r;
+}
+
 // The height values are stored DIRECTLY - no altitude table lookup needed!
 // This allows the terrain to be rendered as a simple triangulated mesh
 void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath)
 {
+    u16 palette[16][3] = {{ 0, 0, 0 }, { 0, 0, 0 }, { 3, 3, 3 }, { 4, 4, 4 }, { 4, 4, 4 }, { 5, 5, 5 }, { 2, 3, 4 }, { 5, 5, 4 }, { 2, 2, 0 }, { 2, 3, 0 }, { 3, 4, 0 }, { 2, 2, 1 }, { 3, 2, 2 }, { 4, 3, 2 }, { 5, 4, 3 }, { 6, 5, 4 }};
+    
     FILE *file = fopen(filepath, "w");
     if (!file)
     {
@@ -818,7 +833,7 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
 
     // Scale factors for world-space coordinates
     float world_scale_x = 1.0f;
-    float world_scale_y = 0.5f;  // Altitude table values already in world units
+    float world_scale_y = -0.25f;
     float world_scale_z = 1.0f;
 
     printf("Exporting terrain: %u x %u grid to %s\n", grid_width, grid_height, filepath);
@@ -844,6 +859,8 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
     // (prevents artifacts from naive height difference detection)
     u32 vertex_count = 0;
 
+    s16 vdarkw = xread8(render_context - 0x255) << 8; // 0x0600
+    
     for (u16 y = 0; y < grid_height; y++)
     {
         for (u16 x = 0; x < grid_width; x++)
@@ -851,11 +868,12 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
             // Get altitude base pointer for this X column
             s32 cell_ptr = terrain_data + (x * 4);
             u32 altitude_base = xread32(cell_ptr);
+            u32 cellbase = altitude_base + (y * 2);
 
             // Read 4 bytes at Y position as 2 x s16 values
             // s16 contains: upper byte = terrain type, lower byte = altitude index
-            s16 cell0 = xread16(altitude_base + (y * 2) + 0);
-            s16 cell1 = xread16(altitude_base + (y * 2) + 2);
+            s16 cell0 = xread16(cellbase + 0);
+            s16 cell1 = xread16(cellbase + 2);
 
             // Extract altitude indices from lower bytes
             u8 alt_index0 = (u8)(cell0 & 0xff);
@@ -864,23 +882,57 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
             // Look up heights in altitude table
             s16 height0 = xread16(altitude_table + (alt_index0 * 2));
             s16 height1 = xread16(altitude_table + (alt_index1 * 2));
+            
+            s16 index = ((cell0 & 0x3f00) >> 3) - 0xc00;
+            
+//            u16 a = xread16(render_context - 0x3c4); // 0x0100
+//            u8 b = xread8(cellbase);           // 0xc0
+//            u8 b1 = b & 0xc0;                       // 0xc0
+//            u8 c = xread8(cellbase + 2);       // 0x40
+//            u8 c1 = c & 0xc0;                       // 0x40
+//            u16 d = xread16(a + cellbase);     // 0xc000
+//            u16 d1 = d & 0xc0;                      // 0x0
+
+            u16 pixels = vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + cellbase) & 0xc0) + (xread8(cellbase + 2) & 0xc0) + (xread8(cellbase) & 0xc0) * 2) * -2;
+
+//            u16 pixels = 0x0200; // vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + altitude_base) & 0xc0) + (xread8(altitude_base + 2) & 0xc0) + (xread8(altitude_base) & 0xc0) * 2) * -2;
+            u32 color = (u32)pixels;
+            if ((s32)(color << 0x10) < 0)
+            {
+                color = 0;
+            }
+            
+            color = (u16)xread16(alis.ptrdark + (s16)((color & 0x0000ff00) | ((xread8(render_context + 8 + index) * 2) & 0x000000ff)));
+            
+//            printf("\n[%.4x][%.8x][%.4x][%.4x][%.2x][%.2x][%.2x][%.2x][%.4x][%.4x] = [%.4x] = [%.8x]", (u16)index, cellbase, (u16)vdarkw, a, b, b1, c, c1, d, d1, pixels, color);
+
+            // Extract two palette indices from color variable (first and second bits)
+            // Create dithering by averaging two palette colors
+            u16 pal_idx1 = (color & 0x0f);           // First palette index (lower 4 bits)
+            u16 pal_idx2 = ((color >> 4) & 0x0f);    // Second palette index (next 4 bits)
 
             // Clamp positive heights to 0 (terrain doesn't go above ground)
             if (height0 > 0) height0 = 0;
             if (height1 > 0) height1 = 0;
 
-            // Create first vertex at (x, height0, y)
-            float pos_x1 = (float)x * world_scale_x;
+            // Create first vertex at (x, height0, y) with averaged color
+            float pos_x1 = (float)(grid_width - (x + 1.0f)) * world_scale_x;
             float pos_y1 = (float)height0 * world_scale_y;
             float pos_z1 = (float)y * world_scale_z;
-            fprintf(file, "v %.6f %.6f %.6f\n", pos_x1, pos_y1, pos_z1);
+
+            // Convert averaged color to 0-1 range for OBJ format
+            float r_norm = ((palette[pal_idx1][0] / 7.0) + (palette[pal_idx2][0] / 7.0)) / 2.0;
+            float g_norm = ((palette[pal_idx1][1] / 7.0) + (palette[pal_idx2][1] / 7.0)) / 2.0;
+            float b_norm = ((palette[pal_idx1][2] / 7.0) + (palette[pal_idx2][2] / 7.0)) / 2.0;
+
+            fprintf(file, "v %.6f %.6f %.6f %.6f %.6f %.6f\n", pos_x1, pos_y1, pos_z1, r_norm, g_norm, b_norm);
             vertex_count++;
 
-            // Create second vertex at (x+0.5, height1, y)
-            float pos_x2 = ((float)x + 0.5f) * world_scale_x;
+            // Create second vertex at (x+0.5, height1, y) with averaged color
+            float pos_x2 = (float)(grid_width - (x + 1.5f)) * world_scale_x;
             float pos_y2 = (float)height1 * world_scale_y;
             float pos_z2 = (float)y * world_scale_z;
-            fprintf(file, "v %.6f %.6f %.6f\n", pos_x2, pos_y2, pos_z2);
+            fprintf(file, "v %.6f %.6f %.6f %.6f %.6f %.6f\n", pos_x2, pos_y2, pos_z2, r_norm, g_norm, b_norm);
             vertex_count++;
         }
     }
@@ -902,10 +954,10 @@ void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath
             u32 v3_a = ((y + 1) * grid_width + (x + 1)) * 2 + 1;  // (x+1,y+1) vertex 1
 
             // Create triangulated surface
-            fprintf(file, "f %u %u %u\n", v0_a, v1_a, v2_a);
+            fprintf(file, "f %u %u %u\n", v2_a, v1_a, v0_a);
             face_count++;
 
-            fprintf(file, "f %u %u %u\n", v1_a, v3_a, v2_a);
+            fprintf(file, "f %u %u %u\n", v2_a, v3_a, v1_a);
             face_count++;
         }
     }
@@ -954,50 +1006,171 @@ void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *fi
     u32 vertex_count = 0;
     u32 overhang_count = 0;
 
+    // Scale factors for world-space coordinates
+    float world_scale_x = 1.0f;
+    float world_scale_y = -0.25f;
+    float world_scale_z = 1.0f;
+
     // Scan for cells where height changes between Y and Y+1
     // NOTE: This is a simplified heuristic, not the actual fbottom calculation
-    for (u16 y = 0; y < grid_height - 1; y++)
+    for (s32 y = 0; y < grid_height - 1; y++)
     {
-        for (u16 x = 0; x < grid_width; x++)
+        for (s32 x = 0; x < grid_width; x++)
         {
             // Get altitude base pointer for this X column
             s32 cell_ptr = terrain_data + (x * 4);
             u32 altitude_base = xread32(cell_ptr);
-
+            u32 cellbase = altitude_base + (y * 2);
+            
             // Read altitude indices at Y and Y+1
             // WARNING: doland() uses render_context + 0x10 + index for terrain segment offset
             // This simple approach uses direct altitude_base without segment offset
-            s16 cell_y = xread16(altitude_base + (y * 2) + 0);
-            s16 cell_y_next = xread16(altitude_base + ((y + 1) * 2) + 0);
+            s16 cell0 = xread16(cellbase + 0);
+            s16 cell1 = xread16(cellbase + 2);
+            
+            u8 alt_index0 = (u8)(cell0 & 0xff);
+            u8 alt_index1 = (u8)(cell1 & 0xff);
+            
+            s16 index0 = ((cell0 & 0x3f00) >> 3) - 0xc00;
+            // s16 index1 = ((cell1 & 0x3f00) >> 3) - 0xc00;
+            
+            s32 terrain_cell = xread32(render_context + 0x10 + index0) + (2 * y) + xread32(terrain_data + (x << 2));
+            if (terrain_cell == 0x001f6c8e)
+            {
+                sleep(0);
+            }
+            
+            if (altitude_base == 0x001f6c8e)
+            {
+                sleep(0);
+            }
+            
+            if (altitude_base == terrain_cell)
+            {
+                continue;
+            }
+            
+            // contains barsprite?
+            if ((s8)xread8(render_context + index0 + 0x14) == 1)
+            {
+//                u8 zoom_lvl = xread8(render_context + 0x15 + index0);
+                u32 bitmap_ptr = xread32(render_context + 0x10 + index0);
+                u32 bitmap = xread32(bitmap_ptr) + bitmap_ptr;
+                if ((s8)xread8(bitmap) == 3)
+                {
+                    bitmap_ptr += xread16(bitmap + 2) * 4;
+                    bitmap = xread32(bitmap_ptr) + bitmap_ptr;
+                }
 
-            u8 alt_index_y = (u8)(cell_y & 0xff);
-            u8 alt_index_y_next = (u8)(cell_y_next & 0xff);
+                s32 bitmap_height = xread16(bitmap + 4) + 1;
+                s32 bitmap_width = xread16(bitmap + 2) + 1;
+                
+                u8 *bitmap_data = alis.mem + bitmap + 4;
+                
+//                s32 sprite_height = (bitmap_height >> (zoom_lvl & 0x3f)) - 1;
+//                s32 sprite_width = (bitmap_width >> (zoom_lvl & 0x3f)) - 1;
+                
+                // TODO: add bilboard object using bitmap
+
+                sleep(0);
+            }
 
             // Look up heights
-            s16 height_y = xread16(altitude_table + (alt_index_y * 2));
-            s16 height_y_next = xread16(altitude_table + (alt_index_y_next * 2));
+            s16 h0 = xread16(altitude_table + (alt_index0 * 2));
+            s16 h1 = xread16(altitude_table + (alt_index1 * 2));
 
+            s16 height0 = xread16(terrain_cell + (alt_index0 * 2));
+            s16 height1 = xread16(terrain_cell + (alt_index1 * 2));
+            
+            s16 terrain_data = xread16(terrain_cell);
+            s16 toph = terrain_data & 0xff;
+            s16 index3 = ((terrain_data & 0x3f00) >> 3) - 0xc00;
+            s16 test = toph - alt_index0;
+//            if ((test != 0 && SBORROW2(toph, alt_index_y) == (s32)((u32)test << 0x10) < 0) && ((position_y = xread16(render_context + 0x16 + index) - test) != 0 && SBORROW2(xread16(render_context + 0x16 + index), test) == (s32)((u32)position_y << 0x10) < 0))
+            if (test == 0)
+                continue;
+            
+            // -------------------
+            s16 fbottom = (s16)(alt_index0 + y) < toph;
+            if ((bool)fbottom)
+            {
+                terrain_data = (alt_index0 + y) - alt_index0;
+            }
+            
+            s32 prectopi = 100;
+            s32 precboti = -100;
+
+            s16 sVar3 = terrain_data - toph;
+            terrain_data = xread16(render_context - 0x276) + xread16(altitude_table + (s16)(toph * 2));
+            s16 screen_y = xread16(render_context - 0x246);
+            image.toppixy = terrain_data;
+//            xwrite16(render_context - 0x246, position_x);
+            s32 position_y = prectopi;
+            prectopi = terrain_data;
+            if ((s16)terrain_data < (s16)position_y)
+            {
+//                xwrite16(render_context - 0x246, prectopi);
+                //                            prectopi = altitude_index;
+                position_y = prectopi;
+                terrain_data = prectopi;
+            }
+            
+            prectopi = terrain_data;
+            if (fbottom != 0)
+            {
+                screen_y = xread16(render_context - 0x276) + xread16(altitude_table + (s16)(sVar3 * -2));
+            }
+            
+            s32 botalt = precboti;
+            s32 bothigh = screen_y;
+            if (precboti < screen_y)
+            {
+                bothigh = precboti;
+                botalt = screen_y;
+            }
+            
+            precboti = screen_y;
+//            if (fprectop != 0)
+            {
+                terrain_data = botalt - position_y;
+//                d1 = position_x;
+                if (terrain_data != 0)
+                {
+                    sleep(0);
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            
+            if (prectopi >= 20000)
+                prectopi -= 20000;
+// -------------------
+            
             // Clamp positive heights to 0
-            if (height_y > 0) height_y = 0;
-            if (height_y_next > 0) height_y_next = 0;
+            if (height0 > 0) height0 = 0;
+            if (height1 > 0) height1 = 0;
 
             // Check if there's a significant height difference (potential overhang)
-            s16 height_diff = height_y_next - height_y;
+            s16 height_diff = height1 - height0;
 
             // Overhang when next cell is higher than current
             // Minimum threshold of 1 unit to filter noise
-            if (height_diff > 1)
+//            if (height_diff > 1)
+            //if (height0 != 0)
             {
                 // Create box geometry for the overhang
                 // Lower surface at height_y, upper surface at height_y_next
-                float x_min = (float)x;
-                float x_max = (float)x + 1.0f;
-                float z_min = (float)y + 0.25f;
-                float z_max = (float)y + 0.75f;
-                float y_bottom = (float)height_y * 0.5f;
-                float y_top = (float)height_y_next * 0.5f;
+                float x_min = (float)(grid_width - (x + 0.0f)) * world_scale_x;
+                float x_max = (float)(grid_width - (x + 1.0f)) * world_scale_x;
+                float z_min = (float)(y + 0.0f) + world_scale_z;
+                float z_max = (float)(y + 1.0f) + world_scale_z;
+                float y_bottom = precboti * world_scale_y; // (float)height_y * 0.5f;
+                float y_top = prectopi * world_scale_y; //(float)height_y_next * 0.5f;
 
                 // Create 8 vertices for the overhang box
+                                
                 fprintf(file, "v %.6f %.6f %.6f\n", x_min, y_bottom, z_min);  // v0
                 fprintf(file, "v %.6f %.6f %.6f\n", x_max, y_bottom, z_min);  // v1
                 fprintf(file, "v %.6f %.6f %.6f\n", x_max, y_bottom, z_max);  // v2
@@ -1039,416 +1212,4 @@ void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *fi
     fclose(file);
 
     printf("Overhang export complete: %u overhangs found, %u vertices\n", overhang_count, vertex_count);
-}
-
-void export_terrain_debug(s32 scene_addr, s32 render_context, const char *filepath)
-{
-    FILE *file = fopen(filepath, "w");
-    if (!file)
-    {
-        printf("Error: Could not open file %s for writing\n", filepath);
-        return;
-    }
-
-    // Get terrain dimensions
-    u16 grid_width = xread16(scene_addr + 0x12) + 1;
-    u16 grid_height = xread16(scene_addr + 0x14) + 1;
-
-    // Load terrain data pointers
-    s32 altitude_table = image.atalti;
-    s32 terrain_data = image.atlland;
-
-    // Get grid dimensions from render context
-    u16 grid_dim_x = xread16(render_context - 0x294);  // Max X grid size
-    u16 grid_dim_y = xread16(render_context - 0x292);  // Max Y grid size
-
-    fprintf(file, "=== TERRAIN DATA DEBUG EXPORT ===\n\n");
-    fprintf(file, "Scene Configuration:\n");
-    fprintf(file, "  Grid dimensions (from scene_addr):\n");
-    fprintf(file, "    Width:  %u cells (scene_addr + 0x12)\n", grid_width);
-    fprintf(file, "    Height: %u cells (scene_addr + 0x14)\n", grid_height);
-    fprintf(file, "  Render context dimensions:\n");
-    fprintf(file, "    X bounds: %u (render_context - 0x294)\n", grid_dim_x);
-    fprintf(file, "    Y bounds: %u (render_context - 0x292)\n", grid_dim_y);
-    fprintf(file, "  Memory pointers:\n");
-    fprintf(file, "    altitude_table (image.atalti): 0x%x\n", (u32)altitude_table);
-    fprintf(file, "    terrain_data (image.atlland):  0x%x\n\n", (u32)terrain_data);
-
-    // Sample terrain_data at various grid positions
-    fprintf(file, "=== TERRAIN DATA GRID SAMPLES ===\n");
-    fprintf(file, "Sampling terrain_data at selected X positions (each entry is 4 bytes)\n");
-    fprintf(file, "Format: terrain_data[x*4] = 32-bit pointer value\n\n");
-
-    for (u16 x = 0; x < (grid_width < 32 ? grid_width : 32); x++)
-    {
-        s32 cell_ptr = terrain_data + (x * 4);
-        u32 altitude_ptr = xread32(cell_ptr);
-        fprintf(file, "X=%3u: offset=0x%05x value=0x%08x (altitude_ptr)\n",
-                x, (x * 4), altitude_ptr);
-    }
-    fprintf(file, "\n");
-
-    // Detailed terrain cell dump for first few columns
-    fprintf(file, "=== DETAILED TERRAIN CELL DATA ===\n");
-    fprintf(file, "For each X column, reading altitude values at different Y positions\n\n");
-
-    for (u16 x = 0; x < (grid_width < 8 ? grid_width : 8); x++)
-    {
-        fprintf(file, "Column X=%u:\n", x);
-        s32 cell_ptr = terrain_data + (x * 4);
-        u32 altitude_base = xread32(cell_ptr);
-
-        fprintf(file, "  Base altitude pointer: 0x%08x\n", altitude_base);
-
-        // Sample Y positions in this column
-        for (u16 y = 0; y < (grid_dim_y < 16 ? grid_dim_y : 16); y++)
-        {
-            // Try the calculation from doland: iVar10 + (y * 4)
-            s32 addr = altitude_base + (y * 4);
-            u32 val = xread32(addr);
-
-            fprintf(file, "    Y=%2u: addr=0x%08x -> u32=0x%08x", y, (u32)addr, val);
-
-            // Also read as s16 at offset 0 and 1
-            s16 as_s16_0 = xread16(addr + 0);
-            u8 as_u8_0 = xread8(addr + 0);
-            u8 as_u8_1 = xread8(addr + 1);
-            fprintf(file, " [u8_0=0x%02x u8_1=0x%02x s16_0=0x%04x]\n",
-                    as_u8_0, as_u8_1, (u16)as_s16_0);
-        }
-        fprintf(file, "\n");
-    }
-
-    // Dump altitude table structure
-    fprintf(file, "=== ALTITUDE TABLE SAMPLES ===\n");
-    fprintf(file, "Altitude table is organized as s16 values (2 bytes each)\n");
-    fprintf(file, "Storage: segments of 0x200 bytes (256 entries of 2 bytes = 0x100 values)\n\n");
-
-    // Sample the altitude table directly
-    fprintf(file, "Direct altitude table lookup samples (first 0x100 entries):\n");
-    for (u16 i = 0; i < (0x100 < 64 ? 0x100 : 64); i++)
-    {
-        s16 alt_val = xread16(altitude_table + (i * 2));
-        if (i % 8 == 0)
-            fprintf(file, "\n");
-        fprintf(file, "[%3u]=0x%04x ", i, (u16)alt_val);
-    }
-    fprintf(file, "\n\n");
-
-    // Sample different altitude table segments (0x200 byte stride)
-    fprintf(file, "=== ALTITUDE TABLE SEGMENT STRUCTURE ===\n");
-    fprintf(file, "Segments are at 0x200 byte intervals (0x100 s16 values per segment)\n\n");
-
-    for (u16 seg = 0; seg < 4; seg++)
-    {
-        fprintf(file, "Segment %u (offset +0x%x):\n", seg, seg * 0x200);
-        s32 seg_addr = altitude_table + (seg * 0x200);
-
-        fprintf(file, "  First 16 values:  ");
-        for (u16 i = 0; i < 16; i++)
-        {
-            s16 val = xread16(seg_addr + (i * 2));
-            fprintf(file, "[%u]=0x%04x ", i, (u16)val);
-        }
-        fprintf(file, "\n");
-
-        fprintf(file, "  Last 16 values:   ");
-        for (u16 i = 0xf0; i < 0x100; i++)
-        {
-            s16 val = xread16(seg_addr + (i * 2));
-            fprintf(file, "[%u]=0x%04x ", i, (u16)val);
-        }
-        fprintf(file, "\n\n");
-    }
-
-    // Cross-reference: sample a terrain cell and trace through altitude lookup
-    fprintf(file, "=== TRACED ALTITUDE LOOKUP EXAMPLE ===\n");
-    fprintf(file, "Following the lookup path for grid position (10, 5):\n\n");
-
-    u16 test_x = 10;
-    u16 test_y = 5;
-
-    fprintf(file, "1. Get terrain cell pointer:\n");
-    fprintf(file, "   terrain_data + (x * 4) = 0x%x + (%u * 4) = 0x%x\n",
-            (u32)terrain_data, test_x, (u32)(terrain_data + (test_x * 4)));
-
-    s32 test_cell_ptr = terrain_data + (test_x * 4);
-    u32 test_altitude_base = xread32(test_cell_ptr);
-    fprintf(file, "   altitude_base = xread32(0x%x) = 0x%08x\n",
-            (u32)test_cell_ptr, test_altitude_base);
-
-    fprintf(file, "\n2. Access Y coordinate in altitude column:\n");
-    fprintf(file, "   Option A: altitude_base + (y * 4) = 0x%x + (%u * 4) = 0x%x\n",
-            test_altitude_base, test_y, test_altitude_base + (test_y * 4));
-
-    s32 test_addr_a = test_altitude_base + (test_y * 4);
-    u32 test_val_a = xread32(test_addr_a);
-    fprintf(file, "   Result: 0x%08x\n", test_val_a);
-
-    fprintf(file, "   Option B: altitude_base + (y * 2) = 0x%x + (%u * 2) = 0x%x\n",
-            test_altitude_base, test_y, test_altitude_base + (test_y * 2));
-
-    s32 test_addr_b = test_altitude_base + (test_y * 2);
-    s16 test_val_b = xread16(test_addr_b);
-    fprintf(file, "   Result: 0x%04x (as s16)\n", (u16)test_val_b);
-
-    fprintf(file, "\n3. Read individual bytes:\n");
-    u8 byte0 = xread8(test_addr_b);
-    u8 byte1 = xread8(test_addr_b + 1);
-    fprintf(file, "   Byte 0: 0x%02x\n", byte0);
-    fprintf(file, "   Byte 1: 0x%02x\n", byte1);
-
-    fprintf(file, "\n4. Also check 4-byte alignment path:\n");
-    s32 test_addr_4 = test_altitude_base + (test_y * 4);
-    u32 test_val_4 = xread32(test_addr_4);
-    u16 test_val_4_lo = (u16)test_val_4;
-    u16 test_val_4_hi = (u16)(test_val_4 >> 16);
-    fprintf(file, "   Address: 0x%x\n", (u32)test_addr_4);
-    fprintf(file, "   Value:   0x%08x\n", test_val_4);
-    fprintf(file, "   Low word:  0x%04x\n", test_val_4_lo);
-    fprintf(file, "   High word: 0x%04x\n", test_val_4_hi);
-
-    fclose(file);
-
-    printf("Debug export complete: %s\n", filepath);
-}
-
-// Enhanced debug export focusing on endianness issues
-void export_terrain_debug_endian(s32 scene_addr, s32 render_context, const char *filepath)
-{
-    FILE *file = fopen(filepath, "w");
-    if (!file)
-    {
-        printf("Error: Could not open file %s for writing\n", filepath);
-        return;
-    }
-
-    u16 grid_width = xread16(scene_addr + 0x12) + 1;
-    u16 grid_height = xread16(scene_addr + 0x14) + 1;
-
-    s32 terrain_data = image.atlland;
-    s32 altitude_table = image.atalti;
-
-    fprintf(file, "=== ENDIANNESS DEBUG EXPORT ===\n\n");
-    fprintf(file, "Grid: %u x %u cells\n\n", grid_width, grid_height);
-
-    // Show all altitude table values with their indices
-    fprintf(file, "=== COMPLETE ALTITUDE TABLE ===\n");
-    fprintf(file, "Using xread16() with endianness conversion:\n\n");
-    for (u16 i = 0; i < 0x100; i++)
-    {
-        s16 val = xread16(altitude_table + (i * 2));
-        if (i % 8 == 0)
-            fprintf(file, "\n");
-        fprintf(file, "[%3u]=0x%04x(%6d) ", i, (u16)val, val);
-    }
-    fprintf(file, "\n\n");
-
-    // Dump complete column X=0
-    fprintf(file, "=== COMPLETE COLUMN X=0 (all 127 Y values) ===\n");
-    fprintf(file, "Format: Y idx, xread32() result, manual byte extraction, two xread16() reads\n\n");
-
-    s32 cell_ptr = terrain_data + (0 * 4);
-    u32 altitude_base = xread32(cell_ptr);
-
-    fprintf(file, "Column base pointer: 0x%08x\n\n", altitude_base);
-
-    for (u16 y = 0; y < grid_height && y < 127; y++)
-    {
-        // Method 1: Use xread32 directly
-        u32 cell_val_xread32 = xread32(altitude_base + (y * 4));
-
-        // Method 2: Extract bytes manually with xread8
-        u8 byte0 = xread8(altitude_base + (y * 4) + 0);
-        u8 byte1 = xread8(altitude_base + (y * 4) + 1);
-        u8 byte2 = xread8(altitude_base + (y * 4) + 2);
-        u8 byte3 = xread8(altitude_base + (y * 4) + 3);
-
-        // Method 3: Read as two s16 values
-        s16 val_s16_0 = xread16(altitude_base + (y * 4) + 0);
-        s16 val_s16_2 = xread16(altitude_base + (y * 4) + 2);
-
-        fprintf(file, "Y=%3u: xread32=0x%08x  bytes=[%02x %02x %02x %02x]  s16s=[0x%04x 0x%04x]\n",
-                y, cell_val_xread32, byte0, byte1, byte2, byte3,
-                (u16)val_s16_0, (u16)val_s16_2);
-
-        // Show what altitude lookups would give for the byte values
-        if (y < 16)  // Only first 16 rows
-        {
-            s16 alt0 = xread16(altitude_table + (byte0 * 2));
-            s16 alt1 = xread16(altitude_table + (byte2 * 2));
-            fprintf(file, "      Altitude lookups: byte0(%u)->0x%04x  byte2(%u)->0x%04x\n",
-                    byte0, (u16)alt0, byte2, (u16)alt1);
-        }
-    }
-
-    fclose(file);
-    printf("Endian debug export complete: %s\n", filepath);
-}
-
-// Detailed column analysis: trace exact data flow from terrain_data through altitude lookups
-void export_terrain_column_analysis(s32 scene_addr, s32 render_context, const char *filepath)
-{
-    FILE *file = fopen(filepath, "w");
-    if (!file)
-    {
-        printf("Error: Could not open file %s for writing\n", filepath);
-        return;
-    }
-
-    u16 grid_width = xread16(scene_addr + 0x12) + 1;
-    u16 grid_height = xread16(scene_addr + 0x14) + 1;
-
-    s32 terrain_data = image.atlland;
-    s32 altitude_table = image.atalti;
-
-    fprintf(file, "=== TERRAIN COLUMN DATA ANALYSIS ===\n\n");
-    fprintf(file, "Grid dimensions: %u x %u\n", grid_width, grid_height);
-    fprintf(file, "terrain_data base: 0x%08x\n", (u32)terrain_data);
-    fprintf(file, "altitude_table base: 0x%08x\n\n", (u32)altitude_table);
-
-    // Analyze multiple columns to identify patterns
-    for (u16 col_x = 0; col_x < (grid_width < 4 ? grid_width : 4); col_x++)
-    {
-        fprintf(file, "=== COLUMN X=%u ===\n", col_x);
-        fprintf(file, "terrain_data[%u*4] address: 0x%08x\n", col_x, (u32)(terrain_data + (col_x * 4)));
-
-        // Get the base pointer for this column
-        u32 altitude_base = xread32(terrain_data + (col_x * 4));
-        fprintf(file, "altitude_base pointer (from terrain_data): 0x%08x\n\n", altitude_base);
-
-        fprintf(file, "Y   addr         Raw Hex Bytes [0][1][2][3]     xread16 pairs      Byte variations\n");
-        fprintf(file, "                                              [+0] [+2]         byte0 byte1 byte2 byte3\n");
-        fprintf(file, "--- --------- -------- -------- -------- -------- -------- -------- --- --- --- ---\n");
-
-        // Dump all Y values with hex analysis
-        for (u16 y = 0; y < grid_height; y++)
-        {
-            u32 cell_addr = altitude_base + (y * 4);
-
-            // Read as individual bytes
-            u8 byte0 = xread8(cell_addr + 0);
-            u8 byte1 = xread8(cell_addr + 1);
-            u8 byte2 = xread8(cell_addr + 2);
-            u8 byte3 = xread8(cell_addr + 3);
-
-            // Read as s16 pairs
-            s16 val_s16_0 = xread16(cell_addr + 0);
-            s16 val_s16_2 = xread16(cell_addr + 2);
-
-            fprintf(file, "%3u 0x%08x %02x %02x %02x %02x  0x%04x 0x%04x  ",
-                    y, (u32)cell_addr, byte0, byte1, byte2, byte3,
-                    (u16)val_s16_0, (u16)val_s16_2);
-
-            // Show which bytes vary
-            fprintf(file, "%02x %02x %02x %02x", byte0, byte1, byte2, byte3);
-
-            // Try altitude lookups for each byte position
-            fprintf(file, "  [");
-            s16 alt0 = xread16(altitude_table + (byte0 * 2));
-            fprintf(file, "%d", alt0);
-            fprintf(file, "]");
-
-            fprintf(file, "\n");
-
-            // Every 8 rows, show summary
-            if ((y + 1) % 16 == 0)
-            {
-                fprintf(file, "--- --------- -------- -------- -------- -------- -------- -------- --- --- --- ---\n");
-            }
-        }
-
-        fprintf(file, "\n");
-    }
-
-    // Now analyze which byte is actually the varying height index
-    fprintf(file, "\n=== BYTE VARIATION ANALYSIS ===\n");
-    fprintf(file, "For each column, identify which byte(s) vary as Y changes:\n\n");
-
-    for (u16 col_x = 0; col_x < (grid_width < 4 ? grid_width : 4); col_x++)
-    {
-        fprintf(file, "Column X=%u:\n", col_x);
-
-        u32 altitude_base = xread32(terrain_data + (col_x * 4));
-
-        // Track min/max for each byte position
-        u8 byte0_min = 0xff, byte0_max = 0x00;
-        u8 byte1_min = 0xff, byte1_max = 0x00;
-        u8 byte2_min = 0xff, byte2_max = 0x00;
-        u8 byte3_min = 0xff, byte3_max = 0x00;
-
-        // Collect statistics
-        for (u16 y = 0; y < grid_height; y++)
-        {
-            u32 cell_addr = altitude_base + (y * 4);
-            u8 byte0 = xread8(cell_addr + 0);
-            u8 byte1 = xread8(cell_addr + 1);
-            u8 byte2 = xread8(cell_addr + 2);
-            u8 byte3 = xread8(cell_addr + 3);
-
-            if (byte0 < byte0_min) byte0_min = byte0;
-            if (byte0 > byte0_max) byte0_max = byte0;
-            if (byte1 < byte1_min) byte1_min = byte1;
-            if (byte1 > byte1_max) byte1_max = byte1;
-            if (byte2 < byte2_min) byte2_min = byte2;
-            if (byte2 > byte2_max) byte2_max = byte2;
-            if (byte3 < byte3_min) byte3_min = byte3;
-            if (byte3 > byte3_max) byte3_max = byte3;
-        }
-
-        fprintf(file, "  Byte 0: range 0x%02x-0x%02x (varies: %s)\n",
-                byte0_min, byte0_max, (byte0_min != byte0_max) ? "YES" : "no");
-        fprintf(file, "  Byte 1: range 0x%02x-0x%02x (varies: %s)\n",
-                byte1_min, byte1_max, (byte1_min != byte1_max) ? "YES" : "no");
-        fprintf(file, "  Byte 2: range 0x%02x-0x%02x (varies: %s)\n",
-                byte2_min, byte2_max, (byte2_min != byte2_max) ? "YES" : "no");
-        fprintf(file, "  Byte 3: range 0x%02x-0x%02x (varies: %s)\n",
-                byte3_min, byte3_max, (byte3_min != byte3_max) ? "YES" : "no");
-
-        fprintf(file, "\n");
-    }
-
-    // Test altitude lookups for promising indices
-    fprintf(file, "\n=== ALTITUDE TABLE LOOKUP TEST ===\n");
-    fprintf(file, "Testing which byte index produces sensible altitude values:\n\n");
-
-    u32 col0_base = xread32(terrain_data + (0 * 4));
-
-    fprintf(file, "Sample from Column X=0, Y=0-15:\n");
-    fprintf(file, "Y   byte0  alt[b0]   byte1  alt[b1]   byte2  alt[b2]   byte3  alt[b3]\n");
-    fprintf(file, "--- ------ ------- ------ ------- ------ ------- ------ -------\n");
-
-    for (u16 y = 0; y < 16 && y < grid_height; y++)
-    {
-        u32 cell_addr = col0_base + (y * 4);
-        u8 byte0 = xread8(cell_addr + 0);
-        u8 byte1 = xread8(cell_addr + 1);
-        u8 byte2 = xread8(cell_addr + 2);
-        u8 byte3 = xread8(cell_addr + 3);
-
-        s16 alt0 = xread16(altitude_table + (byte0 * 2));
-        s16 alt1 = xread16(altitude_table + (byte1 * 2));
-        s16 alt2 = xread16(altitude_table + (byte2 * 2));
-        s16 alt3 = xread16(altitude_table + (byte3 * 2));
-
-        fprintf(file, "%3u 0x%02x    %6d  0x%02x    %6d  0x%02x    %6d  0x%02x    %6d\n",
-                y, byte0, alt0, byte1, alt1, byte2, alt2, byte3, alt3);
-    }
-
-    // Show color/property data from barland references
-    fprintf(file, "\n=== COLOR/PROPERTY DATA (from barland) ===\n");
-    fprintf(file, "barland reads xread8(terrain_cell) and xread8(terrain_cell+1)\n");
-    fprintf(file, "These appear to be color/terrain type indices.\n");
-    fprintf(file, "Showing byte0 and byte1 from sample cells:\n\n");
-
-    u32 sample_addr = col0_base;
-    fprintf(file, "Cell at offset +0: byte0=0x%02x (color?) byte1=0x%02x (property?)\n",
-            xread8(sample_addr + 0), xread8(sample_addr + 1));
-    fprintf(file, "Cell at offset +4: byte0=0x%02x (color?) byte1=0x%02x (property?)\n",
-            xread8(sample_addr + 4), xread8(sample_addr + 5));
-    fprintf(file, "Cell at offset +8: byte0=0x%02x (color?) byte1=0x%02x (property?)\n",
-            xread8(sample_addr + 8), xread8(sample_addr + 9));
-
-    fclose(file);
-    printf("Column analysis complete: %s\n", filepath);
 }

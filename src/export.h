@@ -41,12 +41,6 @@ void save_audio_wav(const u8 *buffer, u32 length, u32 sampleRate, const char *fi
 
 void export_audio(u32 addr, const char *name);
 
+// export RRQ terrain with sprite banners
 void export_terrain_obj(s32 scene_addr, s32 render_context, const char *filepath);
-
 void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *filepath);
-
-void export_terrain_debug(s32 scene_addr, s32 render_context, const char *filepath);
-
-void export_terrain_debug_endian(s32 scene_addr, s32 render_context, const char *filepath);
-
-void export_terrain_column_analysis(s32 scene_addr, s32 render_context, const char *filepath);
