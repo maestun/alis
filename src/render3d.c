@@ -7,27 +7,32 @@
 //
 
 #include "alis.h"
+#include "export.h"
 #include "image.h"
 #include "mem.h"
 #include "render3d.h"
 
 
-u8 fprectop  = 0;
-u8 fprectopa = 0;
-u8 fbottom   = 0;
-u8 notopa    = 0;
-u16 prectopa = 0;
-u16 precbota = 0;
-u16 prectopb = 0;
-u16 precbotb = 0;
-u16 prectopc = 0;
-u16 precbotc = 0;
-u16 prectopi = 0;
-u16 precboti = 0;
-u16 botalt   = 0;
-u16 bothigh  = 0;
-u16 solha    = 0;
-u32 adresa   = 0;
+u8 fprectop  = 0;  // overhang: current column has top surface
+u8 fprectopa = 0;  // overhang: previous column had top surface
+u8 fbottom   = 0;  // overhang: has bottom surface
+u8 notopa    = 0;  // overhang: skip top clipping
+u16 prectopa = 0;  // overhang top screen Y, column A (previous)
+u16 precbota = 0;  // overhang bottom screen Y, column A (previous)
+u16 prectopb = 0;  // overhang top screen Y, column B (2 cols back)
+u16 precbotb = 0;  // overhang bottom screen Y, column B (2 cols back)
+u16 prectopc = 0;  // overhang top screen Y, column C (3 cols back)
+u16 precbotc = 0;  // overhang bottom screen Y, column C (3 cols back)
+u16 prectopi = 0;  // overhang top screen Y, interpolated
+u16 precboti = 0;  // overhang bottom screen Y, interpolated
+u16 botalt   = 0;  // overhang bottom altitude
+u16 bothigh  = 0;  // overhang bottom high bound
+u16 solha    = 0;  // previous column ground height
+u32 adresa   = 0;  // previous column terrain cell address
+
+extern u8 tabatan[];
+extern s16 *tabsin;
+extern s16 *tabcos;
 
 u32 CONCAT13(u8 a, u32 b)
 {
@@ -60,10 +65,6 @@ u8 SBORROW2(s16 x, s16 y)
     return ((((x ^ y) & (x ^ r)) & 0x8000) != 0);
 }
 
-extern u8 tabatan[];
-extern s16 *tabsin;
-extern s16 *tabcos;
-
 typedef struct {
     u32 top : 16;
     u32 bot : 16;
@@ -76,349 +77,394 @@ typedef union {
 } U32;
 
 typedef struct {
-    
-    s16 d0w;
-    s16 d1w;
-    s16 d3w;
-    s16 d4w;
-    
+
+    s16 grid_x;
+    s16 grid_y;
+    s16 scaled_x;
+    s16 scaled_y;
+
 } sLSTLResult;
 
 typedef struct {
-    
-    s32 d0;
-    s32 d1;
-    u32 d2;
-    s16 d3w;
-    s16 d4w;
-    s16 d5w;
-    s16 d6w;
-    s32 d7;
-    
+
+    s32 cam_x;
+    s32 cam_y;
+    u32 alt_proj;
+    s16 screen_x;
+    s16 screen_y;
+    s16 depth;
+    s16 zoom;
+
 } sCLTPResult;
 
-sLSTLResult lenstoland(s32 sceneadr, s32 a3, s16 d0w, s16 d1w, s16 d2w)
+sLSTLResult lenstoland(s32 scene_addr, s32 render_context, s16 screen_x, s16 screen_y, s16 alt_offset)
 {
-    s16 angle = xread16(sceneadr + 0x38);
-    s32 cosval = tabcos[angle];
-    s32 sinval = tabsin[angle];
+    // Rotate screen-space offset by yaw angle into world-space grid position
+    s16 yaw_idx = xread16(scene_addr + 0x38);
+    s32 cosval = tabcos[yaw_idx];
+    s32 sinval = tabsin[yaw_idx];
 
     sLSTLResult result;
-    result.d0w = xread16(sceneadr + 0x16) + (s16)((d0w * cosval - d1w * sinval) >> 9);
-    result.d1w = xread16(sceneadr + 0x18) + (s16)((d0w * sinval + d1w * cosval) >> 9);
-    result.d3w = result.d0w >> ((u16)xread16(a3 - 0x3c0) & 0x3f);
-    result.d4w = result.d1w >> ((u16)xread16(a3 - 0x3c0) & 0x3f);
+    result.grid_x = xread16(scene_addr + 0x16) + (s16)((screen_x * cosval - screen_y * sinval) >> 9);
+    result.grid_y = xread16(scene_addr + 0x18) + (s16)((screen_x * sinval + screen_y * cosval) >> 9);
+
+    // Scale grid coordinates by world-to-grid shift factor
+    result.scaled_x = result.grid_x >> ((u16)xread16(render_context - 0x3c0) & 0x3f);
+    result.scaled_y = result.grid_y >> ((u16)xread16(render_context - 0x3c0) & 0x3f);
 
     // TODO: why was it in original code???
-    // s16 unkn = xread16(sceneadr + 0x1a) + d2w;
+    // s16 unkn = xread16(scene_addr + 0x1a) + alt_offset;
 
     return result;
 }
 
-sCLTPResult clandtopix(s32 sceneadr, s16 d0w, s16 d1w, s16 d2w)
+sCLTPResult clandtopix(s32 scene_addr, s16 rel_x, s16 rel_y, s16 rel_z)
 {
     sCLTPResult result;
 
-    s32 value = xread16(sceneadr + 0x38);
+    // Rotate world-space deltas into camera-space
+    s16 angle = xread16(scene_addr + 0x38);
+    s32 cosval = tabcos[angle];
+    s32 sinval = tabsin[angle];
 
-    s32 d3 = tabcos[value];
-    s32 d4 = tabsin[value];
-    s32 d5 = d0w * d4;
+    s32 cam_x = ((rel_x * cosval) + (rel_y * sinval)) >> 9;
+    s32 cam_y = ((rel_y * cosval) - (rel_x * sinval)) >> 9;
 
-    s32 d0 = ((d0w * d3) + (d1w * d4)) >> 9;
-    s32 d1 = ((d1w * d3) - d5) >> 9;
-    
-    if (xread16(sceneadr + 0x94) < d1)
+    // Beyond far clip distance
+    if (xread16(scene_addr + 0x94) < cam_y)
     {
-        result.d1 = -1;
-        result.d0 = 0;
-        result.d2 = 0;
-        result.d3w = 0;
-        result.d4w = 0;
-        result.d5w = -1;
-        result.d6w = 0x100;
+        result.cam_y = -1;
+        result.cam_x = 0;
+        result.alt_proj = 0;
+        result.screen_x = 0;
+        result.screen_y = 0;
+        result.depth = -1;
+        result.zoom = 0x100;
         return result;
     }
-    
-    s32 d7 = xread16(sceneadr + 0x34);
-    d7 = -d7;
-    d7 += d7;
-    d7 = tabsin[d7];
-    d7 = (s16)d1 * d7;
-    d7 >>= 9;
-    s32 d2 = d2w;
-    d2 += d7;
-    d2 = -d2;
-    d0 *= xread16(sceneadr + 0x76);
-    d2 *= xread16(sceneadr + 0x7a);
-    s32 d6 = xread16(sceneadr + 0x7a);
-    d6 <<= 8;
-    d7 = (s16)d1;
-    d7 += xread16(sceneadr + 0x70);
-    
-    if (d7 == 0 || ((d7 > INT16_MAX || d7 < INT16_MIN) && d7 > 0) || (d7 <= INT16_MAX && d7 >= INT16_MIN && d7 < 0))
+
+    // Pitch-corrected altitude projection
+    s16 pitch = xread16(scene_addr + 0x34);
+    s32 pitch_corr = ((s16)cam_y * tabsin[-2 * pitch]) >> 9;
+    s32 alt_proj = -(rel_z + pitch_corr);
+
+    // Scale by FOV factors (modifies cam_x and alt_proj in place, stored in result)
+    cam_x *= xread16(scene_addr + 0x76);
+    alt_proj *= xread16(scene_addr + 0x7a);
+
+    // Perspective divide for screen X (uses 16-bit truncated cam_y)
+    s32 x_divisor = (s16)cam_y + xread16(scene_addr + 0x70);
+    if (x_divisor == 0 || ((x_divisor > INT16_MAX || x_divisor < INT16_MIN) && x_divisor > 0) || (x_divisor <= INT16_MAX && x_divisor >= INT16_MIN && x_divisor < 0))
     {
-        d7 = 1;
+        x_divisor = 1;
     }
 
-    d3 = d0 / d7;
-    if (d3 < INT16_MIN || d3 > INT16_MAX)
+    s32 screen_x = cam_x / x_divisor;
+    if (screen_x < INT16_MIN || screen_x > INT16_MAX)
     {
-        d3 = (d3 < 0 ? INT16_MIN : INT16_MAX) * (d7 < 0 ? -1 : 1);
+        screen_x = (screen_x < 0 ? INT16_MIN : INT16_MAX) * (x_divisor < 0 ? -1 : 1);
     }
-    
-    d7 = d1 + xread16(sceneadr + 0x74);
-    if (d7 == 0 || ((d7 > INT16_MAX || d7 < INT16_MIN) && d7 > 0) || (d7 <= INT16_MAX && d7 >= INT16_MIN && d7 < 0))
+
+    // Perspective divide for screen Y and zoom (uses full 32-bit cam_y)
+    s32 y_divisor = cam_y + xread16(scene_addr + 0x74);
+    if (y_divisor == 0 || ((y_divisor > INT16_MAX || y_divisor < INT16_MIN) && y_divisor > 0) || (y_divisor <= INT16_MAX && y_divisor >= INT16_MIN && y_divisor < 0))
     {
-        d7 = 1;
+        y_divisor = 1;
     }
-    
-    d4 = d2 / d7;
-    if (d4 < INT16_MIN || d4 > INT16_MAX)
+
+    s32 screen_y = alt_proj / y_divisor;
+    if (screen_y < INT16_MIN || screen_y > INT16_MAX)
     {
-        d4 = (d4 < 0 ? INT16_MIN : INT16_MAX) * (d7 < 0 ? -1 : 1);
+        screen_y = (screen_y < 0 ? INT16_MIN : INT16_MAX) * (y_divisor < 0 ? -1 : 1);
     }
-    
-    d6 = (xread16(sceneadr + 0x7a) << 8) / d7;
-    if (d6 < INT16_MIN || d6 > INT16_MAX)
+
+    s32 zoom = (xread16(scene_addr + 0x7a) << 8) / y_divisor;
+    if (zoom < INT16_MIN || zoom > INT16_MAX)
     {
-        d6 = (d6 < 0 ? INT16_MIN : INT16_MAX) * (d7 < 0 ? -1 : 1);
+        zoom = (zoom < 0 ? INT16_MIN : INT16_MAX) * (y_divisor < 0 ? -1 : 1);
     }
-    
-    d5 = d1;
-    
-    result.d1 = d1;
-    result.d0 = d0;
-    result.d2 = d2; // 0x80c
-    result.d3w = d3;
-    result.d4w = d4; // 0x001
-    result.d5w = d5;
-    result.d6w = d6; // 0x18
+
+    result.cam_y = cam_y;
+    result.cam_x = cam_x;
+    result.alt_proj = alt_proj;
+    result.screen_x = screen_x;
+    result.screen_y = screen_y;
+    result.depth = cam_y;
+    result.zoom = zoom;
     return result;
 }
 
-void calctoy(s32 sceneadr, s32 render_context)
+void calctoy(s32 scene_addr, s32 render_context)
 {
-    xwrite16(sceneadr + 0x94, xread16(render_context - 0x3f2) * 2 + xread16(sceneadr + 0x6c));
-    xwrite16(render_context - 0x26c, xread16(sceneadr + 0xa));
-    xwrite16(render_context - 0x26a, xread16(sceneadr + 0xc));
-    xwrite16(render_context - 0x268, xread16(sceneadr + 0x16));
-    xwrite16(render_context - 0x266, xread16(sceneadr + 0x18));
-    xwrite16(render_context - 0x264, xread16(sceneadr + 0x1a));
-    s16 idxa = xread16(sceneadr + 0x34);
-    s16 idxb = xread16(sceneadr + 0x38);
-    xwrite16(render_context - 0x28e, tabcos[idxa]);
-    xwrite16(render_context - 0x28a, tabcos[idxb]);
-    xwrite16(render_context - 0x290, tabsin[idxa]);
-    xwrite16(render_context - 0x28c, tabsin[idxb]);
-    xwrite16(render_context - 0x360, xread16(sceneadr + 0x16));
-    xwrite16(render_context - 0x35e, xread16(sceneadr + 0x18));
-    xwrite16(render_context - 0x35c, xread16(sceneadr + 0x1a));
-    
+    // Compute combined far clip distance
+    xwrite16(scene_addr + 0x94, xread16(render_context - 0x3f2) * 2 + xread16(scene_addr + 0x6c));
+
+    // Copy camera position to render context
+    xwrite16(render_context - 0x26c, xread16(scene_addr + 0xa));
+    xwrite16(render_context - 0x26a, xread16(scene_addr + 0xc));
+    xwrite16(render_context - 0x268, xread16(scene_addr + 0x16));
+    xwrite16(render_context - 0x266, xread16(scene_addr + 0x18));
+    xwrite16(render_context - 0x264, xread16(scene_addr + 0x1a));
+
+    // Precompute trig values for rotation angles
+    s16 pitch_idx = xread16(scene_addr + 0x34);
+    s16 yaw_idx = xread16(scene_addr + 0x38);
+    xwrite16(render_context - 0x28e, tabcos[pitch_idx]);
+    xwrite16(render_context - 0x28a, tabcos[yaw_idx]);
+    xwrite16(render_context - 0x290, tabsin[pitch_idx]);
+    xwrite16(render_context - 0x28c, tabsin[yaw_idx]);
+
+    // Copy camera position to secondary render context slots
+    xwrite16(render_context - 0x360, xread16(scene_addr + 0x16));
+    xwrite16(render_context - 0x35e, xread16(scene_addr + 0x18));
+    xwrite16(render_context - 0x35c, xread16(scene_addr + 0x1a));
+
+    // Project frustum corners to terrain grid (far plane)
     sLSTLResult res;
-    res = lenstoland(sceneadr, render_context, (-xread16(render_context - 0x3f4) - (xread16(sceneadr + 0x6a) >> 1)) - xread16(render_context - 0x3f4), xread16(sceneadr + 0x6c), 0);
-    xwrite16(render_context - 0x37e, res.d0w);
-    xwrite16(render_context - 0x37c, res.d1w);
-    xwrite16(render_context - 0x3a2, res.d3w);
-    xwrite16(render_context - 0x3a0, res.d4w);
+    res = lenstoland(scene_addr, render_context, (-xread16(render_context - 0x3f4) - (xread16(scene_addr + 0x6a) >> 1)) - xread16(render_context - 0x3f4), xread16(scene_addr + 0x6c), 0);
+    xwrite16(render_context - 0x37e, res.grid_x);
+    xwrite16(render_context - 0x37c, res.grid_y);
+    xwrite16(render_context - 0x3a2, res.scaled_x);
+    xwrite16(render_context - 0x3a0, res.scaled_y);
 
-    res = lenstoland(sceneadr, render_context, ((xread16(sceneadr + 0x6a) >> 1) - xread16(render_context - 0x3f4)) - xread16(render_context - 0x3f4), xread16(sceneadr + 0x6c), 0);
-    xwrite16(render_context - 0x378, res.d0w);
-    xwrite16(render_context - 0x376, res.d1w);
-    xwrite16(render_context - 0x39c, res.d3w);
-    xwrite16(render_context - 0x39a, res.d4w);
+    res = lenstoland(scene_addr, render_context, ((xread16(scene_addr + 0x6a) >> 1) - xread16(render_context - 0x3f4)) - xread16(render_context - 0x3f4), xread16(scene_addr + 0x6c), 0);
+    xwrite16(render_context - 0x378, res.grid_x);
+    xwrite16(render_context - 0x376, res.grid_y);
+    xwrite16(render_context - 0x39c, res.scaled_x);
+    xwrite16(render_context - 0x39a, res.scaled_y);
 
-    res = lenstoland(sceneadr, render_context, (-xread16(render_context - 0x3f4) - (xread16(sceneadr + 0x64) >> 1)) - xread16(render_context - 0x3f4), xread16(sceneadr + 0x66), 0);
-    xwrite16(render_context - 0x372, res.d0w);
-    xwrite16(render_context - 0x370, res.d1w);
-    xwrite16(render_context - 0x396, res.d3w);
-    xwrite16(render_context - 0x394, res.d4w);
+    // Project frustum corners to terrain grid (near plane)
+    res = lenstoland(scene_addr, render_context, (-xread16(render_context - 0x3f4) - (xread16(scene_addr + 0x64) >> 1)) - xread16(render_context - 0x3f4), xread16(scene_addr + 0x66), 0);
+    xwrite16(render_context - 0x372, res.grid_x);
+    xwrite16(render_context - 0x370, res.grid_y);
+    xwrite16(render_context - 0x396, res.scaled_x);
+    xwrite16(render_context - 0x394, res.scaled_y);
 
-    res = lenstoland(sceneadr, render_context, ((xread16(sceneadr + 0x64) >> 1) - xread16(render_context - 0x3f4)) - xread16(render_context - 0x3f4), xread16(sceneadr + 0x66), 0);
-    xwrite16(render_context - 0x36c, res.d0w);
-    xwrite16(render_context - 0x36a, res.d1w);
-    xwrite16(render_context - 0x390, res.d3w);
-    xwrite16(render_context - 0x38e, res.d4w);
+    res = lenstoland(scene_addr, render_context, ((xread16(scene_addr + 0x64) >> 1) - xread16(render_context - 0x3f4)) - xread16(render_context - 0x3f4), xread16(scene_addr + 0x66), 0);
+    xwrite16(render_context - 0x36c, res.grid_x);
+    xwrite16(render_context - 0x36a, res.grid_y);
+    xwrite16(render_context - 0x390, res.scaled_x);
+    xwrite16(render_context - 0x38e, res.scaled_y);
 
-    res = lenstoland(sceneadr, render_context, -xread16(render_context - 0x3f4), xread16(sceneadr + 0x6c), 0);
-    xwrite16(render_context - 0x366, res.d0w);
-    xwrite16(render_context - 0x364, res.d1w);
-    xwrite16(render_context - 0x38a, res.d3w);
-    xwrite16(render_context - 0x388, res.d4w);
+    // Project frustum center edges to terrain grid
+    res = lenstoland(scene_addr, render_context, -xread16(render_context - 0x3f4), xread16(scene_addr + 0x6c), 0);
+    xwrite16(render_context - 0x366, res.grid_x);
+    xwrite16(render_context - 0x364, res.grid_y);
+    xwrite16(render_context - 0x38a, res.scaled_x);
+    xwrite16(render_context - 0x388, res.scaled_y);
 
-    res = lenstoland(sceneadr, render_context, -xread16(render_context - 0x3f4), xread16(sceneadr + 0x66), 0);
-    xwrite16(render_context - 0x35a, res.d0w);
-    xwrite16(render_context - 0x358, res.d1w);
-    xwrite16(render_context - 0x384, res.d3w);
-    xwrite16(render_context - 0x382, res.d4w);
-    u32 uVar1 = (u16)xread16(render_context - 0x3c0);
+    res = lenstoland(scene_addr, render_context, -xread16(render_context - 0x3f4), xread16(scene_addr + 0x66), 0);
+    xwrite16(render_context - 0x35a, res.grid_x);
+    xwrite16(render_context - 0x358, res.grid_y);
+    xwrite16(render_context - 0x384, res.scaled_x);
+    xwrite16(render_context - 0x382, res.scaled_y);
 
+    // Grid-to-world shift factor
+    u32 grid_shift = (u16)xread16(render_context - 0x3c0);
+
+    // Project grid positions back to screen space (far corners)
     sCLTPResult res2;
-    res2 = clandtopix(sceneadr, (xread16(render_context - 0x3a2) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x16), (xread16(render_context - 0x3a0) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x18), -xread16(sceneadr + 0x1a));
-    xwrite32(render_context - 0x330, res2.d0);
-    xwrite32(render_context - 0x32c, res2.d1);
-    xwrite32(render_context - 0x328, res2.d2);
-    xwrite16(render_context - 0x354, res2.d3w);
-    xwrite16(render_context - 0x352, res2.d4w);
-    xwrite16(render_context - 0x350, res2.d5w);
+    res2 = clandtopix(scene_addr, (xread16(render_context - 0x3a2) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x16), (xread16(render_context - 0x3a0) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x18), -xread16(scene_addr + 0x1a));
+    xwrite32(render_context - 0x330, res2.cam_x);
+    xwrite32(render_context - 0x32c, res2.cam_y);
+    xwrite32(render_context - 0x328, res2.alt_proj);
+    xwrite16(render_context - 0x354, res2.screen_x);
+    xwrite16(render_context - 0x352, res2.screen_y);
+    xwrite16(render_context - 0x350, res2.depth);
 
-    res2 = clandtopix(sceneadr, (xread16(render_context - 0x39c) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x16), (xread16(render_context - 0x39a) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x18), -xread16(sceneadr + 0x1a));
-    xwrite32(render_context - 0x324, res2.d0);
-    xwrite32(render_context - 0x320, res2.d1);
-    xwrite32(render_context - 0x31c, res2.d2);
-    xwrite16(render_context - 0x34e, res2.d3w);
-    xwrite16(render_context - 0x34c, res2.d4w);
-    xwrite16(render_context - 0x34a, res2.d5w);
+    res2 = clandtopix(scene_addr, (xread16(render_context - 0x39c) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x16), (xread16(render_context - 0x39a) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x18), -xread16(scene_addr + 0x1a));
+    xwrite32(render_context - 0x324, res2.cam_x);
+    xwrite32(render_context - 0x320, res2.cam_y);
+    xwrite32(render_context - 0x31c, res2.alt_proj);
+    xwrite16(render_context - 0x34e, res2.screen_x);
+    xwrite16(render_context - 0x34c, res2.screen_y);
+    xwrite16(render_context - 0x34a, res2.depth);
 
-    res2 = clandtopix(sceneadr, (xread16(render_context - 0x396) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x16), (xread16(render_context - 0x394) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x18), -xread16(sceneadr + 0x1a));
-    xwrite32(render_context - 0x318, res2.d0);
-    xwrite32(render_context - 0x314, res2.d1);
-    xwrite32(render_context - 0x310, res2.d2);
-    xwrite16(render_context - 0x348, res2.d3w);
-    xwrite16(render_context - 0x346, res2.d4w);
-    xwrite16(render_context - 0x344, res2.d5w);
+    // Project grid positions back to screen space (near corners)
+    res2 = clandtopix(scene_addr, (xread16(render_context - 0x396) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x16), (xread16(render_context - 0x394) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x18), -xread16(scene_addr + 0x1a));
+    xwrite32(render_context - 0x318, res2.cam_x);
+    xwrite32(render_context - 0x314, res2.cam_y);
+    xwrite32(render_context - 0x310, res2.alt_proj);
+    xwrite16(render_context - 0x348, res2.screen_x);
+    xwrite16(render_context - 0x346, res2.screen_y);
+    xwrite16(render_context - 0x344, res2.depth);
 
-    res2 = clandtopix(sceneadr, (xread16(render_context - 0x390) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x16), (xread16(render_context - 0x38e) << (uVar1 & 0x3f)) - xread16(sceneadr + 0x18), -xread16(sceneadr + 0x1a));
-    xwrite32(render_context - 0x30c, res2.d0);
-    xwrite32(render_context - 0x308, res2.d1);
-    xwrite32(render_context - 0x304, res2.d2);
-    xwrite16(render_context - 0x342, res2.d3w);
-    xwrite16(render_context - 0x340, res2.d4w);
-    xwrite16(render_context - 0x33e, res2.d5w);
+    res2 = clandtopix(scene_addr, (xread16(render_context - 0x390) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x16), (xread16(render_context - 0x38e) << (grid_shift & 0x3f)) - xread16(scene_addr + 0x18), -xread16(scene_addr + 0x1a));
+    xwrite32(render_context - 0x30c, res2.cam_x);
+    xwrite32(render_context - 0x308, res2.cam_y);
+    xwrite32(render_context - 0x304, res2.alt_proj);
+    xwrite16(render_context - 0x342, res2.screen_x);
+    xwrite16(render_context - 0x340, res2.screen_y);
+    xwrite16(render_context - 0x33e, res2.depth);
 
-    res2 = clandtopix(sceneadr, xread16(render_context - 0x366) - xread16(sceneadr + 0x16), xread16(render_context - 0x364) - xread16(sceneadr + 0x18), -0x100);
-    xwrite32(render_context - 0x300, res2.d0);
-    xwrite32(render_context - 0x2fc, res2.d1);
-    xwrite32(render_context - 0x2f8, res2.d2);
-    xwrite16(render_context - 0x33c, res2.d3w);
-    xwrite16(render_context - 0x33a, res2.d4w);
-    xwrite16(render_context - 0x338, res2.d5w);
+    // Project center grid positions to screen space (fixed altitude)
+    res2 = clandtopix(scene_addr, xread16(render_context - 0x366) - xread16(scene_addr + 0x16), xread16(render_context - 0x364) - xread16(scene_addr + 0x18), -0x100);
+    xwrite32(render_context - 0x300, res2.cam_x);
+    xwrite32(render_context - 0x2fc, res2.cam_y);
+    xwrite32(render_context - 0x2f8, res2.alt_proj);
+    xwrite16(render_context - 0x33c, res2.screen_x);
+    xwrite16(render_context - 0x33a, res2.screen_y);
+    xwrite16(render_context - 0x338, res2.depth);
 
-    res2 = clandtopix(sceneadr, xread16(render_context - 0x35a) - xread16(sceneadr + 0x16), xread16(render_context - 0x358) - xread16(sceneadr + 0x18), -0x100);
-    xwrite32(render_context - 0x2f4, res2.d0);
-    xwrite32(render_context - 0x2f0, res2.d1);
-    xwrite32(render_context - 0x2ec, res2.d2);
-    xwrite16(render_context - 0x336, res2.d3w);
-    xwrite16(render_context - 0x334, res2.d4w);
-    xwrite16(render_context - 0x332, res2.d5w);
-    xwrite16(sceneadr + 0x94, xread16(sceneadr + 0x6c) - xread16(render_context - 0x3f2));
+    res2 = clandtopix(scene_addr, xread16(render_context - 0x35a) - xread16(scene_addr + 0x16), xread16(render_context - 0x358) - xread16(scene_addr + 0x18), -0x100);
+    xwrite32(render_context - 0x2f4, res2.cam_x);
+    xwrite32(render_context - 0x2f0, res2.cam_y);
+    xwrite32(render_context - 0x2ec, res2.alt_proj);
+    xwrite16(render_context - 0x336, res2.screen_x);
+    xwrite16(render_context - 0x334, res2.screen_y);
+    xwrite16(render_context - 0x332, res2.depth);
+
+    // Restore far clip distance
+    xwrite16(scene_addr + 0x94, xread16(scene_addr + 0x6c) - xread16(render_context - 0x3f2));
 }
 
-void altiland(s32 sceneadr, s32 render_context)
+void altiland(s32 scene_addr, s32 render_context)
 {
-    s16 sVar6 = xread16(render_context - 0x3f4);
-    xwrite16(sceneadr + 0x6c, sVar6 + xread16(sceneadr + 0x6c));
-    xwrite16(sceneadr + 0x66, xread16(sceneadr + 0x66) - sVar6);
-    calctoy(sceneadr, render_context);
-    sVar6 = xread16(render_context - 0x3f4);
-    xwrite16(sceneadr + 0x6c, xread16(sceneadr + 0x6c) - sVar6);
-    xwrite16(sceneadr + 0x66, sVar6 + xread16(sceneadr + 0x66));
+    // Temporarily adjust clip planes for calctoy
+    s16 clip_adjust = xread16(render_context - 0x3f4);
+    xwrite16(scene_addr + 0x6c, clip_adjust + xread16(scene_addr + 0x6c));
+    xwrite16(scene_addr + 0x66, xread16(scene_addr + 0x66) - clip_adjust);
+    calctoy(scene_addr, render_context);
+    clip_adjust = xread16(render_context - 0x3f4);
+    xwrite16(scene_addr + 0x6c, xread16(scene_addr + 0x6c) - clip_adjust);
+    xwrite16(scene_addr + 0x66, clip_adjust + xread16(scene_addr + 0x66));
     xwrite32(render_context - 0x2c8, xread32(render_context - 0x32c) << 0x10);
 
-    s32 iVar1 = xread32(render_context - 0x2ec);
-    s32 iVar2 = xread32(render_context - 0x2f8);
-    s32 iVar4 = xread32(render_context - 0x2f8);
-    s32 iVar10 = xread32(render_context - 0x32c) << 0x10;
-    s32 iVar3 = (s16)(((xread32(render_context - 0x314) - xread32(render_context - 0x32c)) * 0x100) / 0x31) - 1;
-    xwrite16(render_context - 0x262, (s16)iVar3);
-    
-    u32 d0;
-    u32 d3;
+    // Set up row interpolation parameters
+    s32 scale_end = xread32(render_context - 0x2ec);
+    s32 scale_start = xread32(render_context - 0x2f8);
+    s32 row_scale = xread32(render_context - 0x2f8);
+    s32 screen_y_fp = xread32(render_context - 0x32c) << 0x10;
+    s32 screen_y_step = (s16)(((xread32(render_context - 0x314) - xread32(render_context - 0x32c)) * 0x100) / 0x31) - 1;
+    xwrite16(render_context - 0x262, (s16)screen_y_step);
 
-    u32 ataltiptr = image.atalti;
+    u32 row_factor;
+    u32 accum;
 
+    u32 alti_ptr = image.atalti;
+
+    // Fill altitude lookup table (0x31 rows x 0xFF columns)
     for (int s = 0; s < 0x31; s++)
     {
-        d0 = (s16)(iVar4 / (s32)(s16)(xread16(render_context - 0x3a8) + (s16)((u32)iVar10 >> 0x10))) * 0x100;
-        xwrite16(ataltiptr, 20000);
-        d3 = d0;
-        ataltiptr += 2;
-        
-        for (int i = 0; i < 0xff; i++, ataltiptr += 2)
+        row_factor = (s16)(row_scale / (s32)(s16)(xread16(render_context - 0x3a8) + (s16)((u32)screen_y_fp >> 0x10))) * 0x100;
+        xwrite16(alti_ptr, 20000);
+        accum = row_factor;
+        alti_ptr += 2;
+
+        // Accumulate fixed-point altitude offsets
+        for (int i = 0; i < 0xff; i++, alti_ptr += 2)
         {
-            d3 = (d3 << 16) | ((d3 >> 16) & 0xffff);
-            s16 lower_word = -(s16)d3;
-            xwrite16(ataltiptr, lower_word);
-            d3 = (d3 & 0xffff0000) | (-lower_word & 0xffff);
-            d3 = (d3 << 16) | ((d3 >> 16) & 0xffff);
-            d3 += d0;
-//            u16 lw = (u16)(d3 >> 0x10);
-//            xwrite16(ataltiptr, -lw);
-//            d3 = d0 + ((u32)lw << 0x10 | (d3 & 0xffff));
+            accum = (accum << 16) | ((accum >> 16) & 0xffff);      // SWAP.L
+            s16 int_part = -(s16)accum;                              // NEG.W
+            xwrite16(alti_ptr, int_part);
+            accum = (accum & 0xffff0000) | (-int_part & 0xffff);    // restore low word
+            accum = (accum << 16) | ((accum >> 16) & 0xffff);      // SWAP.L
+            accum += row_factor;                                     // accumulate
+//            u16 lw = (u16)(accum >> 0x10);
+//            xwrite16(alti_ptr, -lw);
+//            accum = row_factor + ((u32)lw << 0x10 | (accum & 0xffff));
         }
-        
-        iVar10 += iVar3 * 0x100;
-        iVar4 += (s16)((iVar1 - iVar2) / 0x31);
-    }
-    
-    for (int i = 0; i < 0xff; i++, ataltiptr += 2)
-    {
-        xwrite16(ataltiptr, 20000);
+
+        screen_y_fp += screen_y_step * 0x100;
+        row_scale += (s16)((scale_end - scale_start) / 0x31);
     }
 
-    image.fhorizon = (s16)(((s16)((s16)(((s16)(xread16(sceneadr + 0x6c) * 4) * 0x168) / 0x140) + 0x80U & 0xff00) * 0x140) / 0x168);
+    // Sentinel row (beyond last visible row)
+    for (int i = 0; i < 0xff; i++, alti_ptr += 2)
+    {
+        xwrite16(alti_ptr, 20000);
+    }
+
+    // Compute horizon line position (aspect-corrected from far clip distance)
+    image.fhorizon = (s16)(((s16)((s16)(((s16)(xread16(scene_addr + 0x6c) * 4) * 0x168) / 0x140) + 0x80U & 0xff00) * 0x140) / 0x168);
 }
 
 
 void iniland(s32 sceneadr, s32 render_context)
 {
+    // Compute depth range between far and near planes
     image.purey2 = xread16(sceneadr + 0x6c) - xread16(sceneadr + 0x66);
     image.purey = image.purey2 >> 2;
     image.purey2 >>= 4;
+
+    // Initialize grid wrap/bounds
     xwrite16(render_context - 0x298, 0);
     xwrite16(render_context - 0x296, 0);
     xwrite16(render_context - 0x294, xread16(render_context - 0x3e8));
     xwrite16(render_context - 0x292, xread16(render_context - 0x3e6));
-    u16 atllnxt = ((u16)xread16(render_context - 0x3ca)) << 1;
-    s16 atlllen = xread16(render_context - 0x3cc) - 1;
-    
+
+    // Build terrain strip pointer table
+    u16 strip_stride = ((u16)xread16(render_context - 0x3ca)) << 1;
+    s16 strip_count = xread16(render_context - 0x3cc) - 1;
+
     if ((s8)xread8(render_context - 1) < 0)
     {
-        // get address of block allocated in calloctab
+        // Get address of block allocated in calloctab
         render_context = xread32(xread32(render_context));
     }
-    
-    atlllen <<= 2;
-    for (int i = 0; i <= atlllen; i+=4, render_context += atllnxt)
+
+    strip_count <<= 2;
+    for (int i = 0; i <= strip_count; i += 4, render_context += strip_stride)
     {
         xwrite32(image.atlland + i, render_context);
     }
 
-    u16 atlpnxt = xread16(sceneadr + 0x12) + 1;
+    // Build pixel row pointer table (one entry per scanline)
+    u16 row_stride = xread16(sceneadr + 0x12) + 1;
     render_context = xread32(xread32(sceneadr + 0x30));
-    for (int i = 0; i <= 800; i+=4, render_context += atlpnxt)
+    for (int i = 0; i <= 800; i += 4, render_context += row_stride)
     {
         xwrite32(image.atlpix + i, render_context);
     }
-    
-    u32 offset = image.atalias;
+
+    // Build anti-aliasing lookup table: alias[d][i] = (i * 256) / d
+    u32 alias_ptr = image.atalias;
     for (int d = 1; d <= 0x40; d++)
     {
-        for (int i = 0; i < 0x39 + 7; i++, offset+=2)
+        for (int i = 0; i < 0x39 + 7; i++, alias_ptr += 2)
         {
-            xwrite16(offset, ((i * 0x100) / d));
-//            printf("\n0x%.6x: 0x%.4x", offset, xread16(offset));
+            xwrite16(alias_ptr, ((i * 0x100) / d));
         }
     }
 }
 
 void inilens(s32 sceneadr, s32 render_context)
 {
+    // Scene frustum offsets:
+    //   0x64 = near_width_x, 0x66 = near_dist, 0x68 = near_height_y
+    //   0x6a = far_width_x,  0x6c = far_dist,  0x6e = far_height_y
+
+    // Combined far clip distance
     xwrite16(sceneadr + 0x94, (xread16(sceneadr + 0x6c) - xread16(render_context - 0x3f2)) - xread16(render_context - 0x3f2));
+
+    // Half near distance
     xwrite16(sceneadr + 0x92, xread16(sceneadr + 0x66) >> 1);
-    xwrite16(sceneadr + 0x70, (s16)((s32)((u32)(u16)xread16(sceneadr + 0x6c) * (u32)(u16)xread16(sceneadr + 100) - (u32)(u16)xread16(sceneadr + 0x66) * (u32)(u16)xread16(sceneadr + 0x6a)) / (s32)(xread16(sceneadr + 0x6a) - xread16(sceneadr + 100))));
+
+    // Focal distance X: (far_dist * near_width - near_dist * far_width) / (far_width - near_width)
+    xwrite16(sceneadr + 0x70, (s16)((s32)((u32)(u16)xread16(sceneadr + 0x6c) * (u32)(u16)xread16(sceneadr + 0x64) - (u32)(u16)xread16(sceneadr + 0x66) * (u32)(u16)xread16(sceneadr + 0x6a)) / (s32)(xread16(sceneadr + 0x6a) - xread16(sceneadr + 0x64))));
+
+    // FOV scale X: (focal_x + far_dist) * viewport_width / far_width
     xwrite16(sceneadr + 0x76, (s16)(((s32)(xread16(sceneadr + 0x70) + xread16(sceneadr + 0x6c)) * (s32)(xread16(sceneadr + 0x12) + 1)) / (s32)xread16(sceneadr + 0x6a)));
+
+    // Focal distance Y: (far_dist * near_height - near_dist * far_height) / (far_height - near_height)
     xwrite16(sceneadr + 0x74, (s16)((s32)((u32)(u16)xread16(sceneadr + 0x6c) * (u32)(u16)xread16(sceneadr + 0x68) - (u32)(u16)xread16(sceneadr + 0x66) * (u32)(u16)xread16(sceneadr + 0x6e)) / (s32)(xread16(sceneadr + 0x6e) - xread16(sceneadr + 0x68))));
+
+    // FOV scale Y: (focal_y + far_dist) * viewport_height / far_height
     xwrite16(sceneadr + 0x7a, (s16)(((s32)(xread16(sceneadr + 0x74) + xread16(sceneadr + 0x6c)) * (s32)(xread16(sceneadr + 0x14) + 1)) / (s32)xread16(sceneadr + 0x6e)));
+
+    // Copy focal/scale values to render context
     xwrite16(render_context - 0x3ac, xread16(sceneadr + 0x70));
     xwrite16(render_context - 0x3aa, xread16(sceneadr + 0x76));
     xwrite16(render_context - 0x3a8, xread16(sceneadr + 0x74));
     xwrite16(render_context - 0x3a6, xread16(sceneadr + 0x7a));
+
+    // Column step factor: far_width / half_shift
     xwrite16(render_context - 0x3a4, xread16(sceneadr + 0x6a) / xread16(render_context - 0x3f4));
 }
 
 void initltra(void)
 {
+    // NOTE: not realy needed on anything but real Atari ST
 //    for (s32 i = 0; i < 0x100; i += 4)
 //    {
 //        s32 subidx = (i >> 2) * 2;
@@ -466,16 +512,19 @@ void initltra(void)
 //    }
 }
 
-void openland(s16 scene)
+void openland(s16 scene_id)
 {
-    s32 sceneadr = alis.basemain + scene;
-    s32 render_context = xread16(sceneadr + 0x42) + xread32(alis.atent + xread16(sceneadr + 0x40));
-    if (xread32(sceneadr + 0x30) == 0)
+    s32 scene_addr = alis.basemain + scene_id;
+    s32 render_context = xread16(scene_addr + 0x42) + xread32(alis.atent + xread16(scene_addr + 0x40));
+
+    // Allocate VRAM buffer for scene (width * height + header)
+    if (xread32(scene_addr + 0x30) == 0)
     {
-        u32 addr = io_malloc((u32)(u16)(xread16(sceneadr + 0x12) + 1) * (u32)(u16)(xread16(sceneadr + 0x14) + 1) + 0x140);
-        xwrite32(sceneadr + 0x30, addr);
+        u32 buffer = io_malloc((u32)(u16)(xread16(scene_addr + 0x12) + 1) * (u32)(u16)(xread16(scene_addr + 0x14) + 1) + 0x140);
+        xwrite32(scene_addr + 0x30, buffer);
     }
-    
+
+    // Allocate shared pixel, altitude, and alias tables
     if (image.tlpix == 0)
     {
         image.tlpix = io_malloc(0x8720);
@@ -483,314 +532,319 @@ void openland(s16 scene)
         image.atalti = image.atlpix + 0x320;
         image.atalias = image.atalti + 0x6400;
     }
-    
+
+    // Allocate terrain strip table
     if (image.tlland == 0)
     {
         image.tlland = io_malloc(xread16(render_context - 0x3cc) * 4);
         image.atlland = xread32(image.tlland);
     }
-    
-    xwrite16(sceneadr + 0x1a, 0x14);
-    xwrite16(sceneadr + 0x34, 0);
-    xwrite16(sceneadr + 0x36, 0);
-    xwrite16(sceneadr + 0x38, 0);
+
+    // Initialize scene parameters: default altitude and zero rotation angles
+    xwrite16(scene_addr + 0x1a, 0x14);
+    xwrite16(scene_addr + 0x34, 0);
+    xwrite16(scene_addr + 0x36, 0);
+    xwrite16(scene_addr + 0x38, 0);
+
+    // Initialize renderer subsystems
     initltra();
-    inilens(sceneadr, render_context);
-    iniland(sceneadr, render_context);
-    altiland(sceneadr, render_context);
+    inilens(scene_addr, render_context);
+    iniland(scene_addr, render_context);
+    altiland(scene_addr, render_context);
     image.landone = 0;
 }
 
-void landtopix(s32 sceneadr, u16 d1w)
+void landtopix(s32 scene_addr, u16 sprite_id)
 {
-    sSprite *sprite = SPRITE_VAR(d1w);
+    sSprite *sprite = SPRITE_VAR(sprite_id);
     image.newad = sprite->data;
-    
+
+    // Select rotation frame based on camera-relative angle
     if (1 < (s8)sprite->creducing)
     {
-        u16 uVar4;
-        for (uVar4 = (sprite->sprite_0x28 - xread16(sceneadr + 0x38)) + 900; -1 < (int)((u32)uVar4 << 0x10); uVar4 -= 0x168) {}
-        
-        u32 uVar3 = ((u32)(u16)(s16)(char)sprite->creducing * (u32)(u16)(uVar4 + 0x168) + 0xb4) / 0x168;
-        s16 sVar5 = (s16)uVar3;
-        if ((s8)sprite->creducing <= (s8)uVar3)
+        u16 norm_angle;
+        for (norm_angle = (sprite->sprite_0x28 - xread16(scene_addr + 0x38)) + 900; -1 < (int)((u32)norm_angle << 0x10); norm_angle -= 0x168) {}
+
+        u32 frame_idx = ((u32)(u16)(s16)(char)sprite->creducing * (u32)(u16)(norm_angle + 0x168) + 0xb4) / 0x168;
+        s16 frame_offset = (s16)frame_idx;
+        if ((s8)sprite->creducing <= (s8)frame_idx)
         {
-            sVar5 = 0;
+            frame_offset = 0;
         }
-        
-        image.newad += sVar5 * 4;
+
+        image.newad += frame_offset * 4;
     }
-    
-    u32 bmp0 = xread32(image.newad) + image.newad;
-    u32 bmp1 = bmp0;
-    u32 data = image.zoombid;
-    if (xread8(bmp0) == 3)
+
+    // Resolve bitmap data and metadata pointers
+    u32 sprite_hdr = xread32(image.newad) + image.newad;
+    u32 bitmap = sprite_hdr;
+    u32 meta = image.zoombid;
+    if (xread8(sprite_hdr) == 3)
     {
-        image.newad += xread16(bmp0 + 2) * 4;
-        bmp1 = xread32(image.newad) + image.newad;
-        data = bmp0;
+        image.newad += xread16(sprite_hdr + 2) * 4;
+        bitmap = xread32(image.newad) + image.newad;
+        meta = sprite_hdr;
     }
-    
-    u16 shift;
-    image.newf = xread8(data + 1) ^ sprite->flaginvx;
+
+    // Project sprite position to screen space
+    u16 zoom_shift;
+    image.newf = xread8(meta + 1) ^ sprite->flaginvx;
     if ((s8)sprite->credon_off == -0x80)
     {
         image.newzoomy = sprite->newzoomy;
-        image.newx = xread16(sceneadr + 0xa) + sprite->depx;
-        image.newy = xread16(sceneadr + 0xc) - sprite->depz;
+        image.newx = xread16(scene_addr + 0xa) + sprite->depx;
+        image.newy = xread16(scene_addr + 0xc) - sprite->depz;
         image.newd = sprite->depy;
-        shift = 0;
+        zoom_shift = 0;
     }
     else
     {
-        sCLTPResult res = clandtopix(sceneadr, sprite->depx - xread16(sceneadr + 0x16), sprite->depy - xread16(sceneadr + 0x18), sprite->depz - xread16(sceneadr + 0x1a));
-        image.newzoomy = res.d6w;
-        image.newd = res.d5w;
-        image.newx = xread16(sceneadr + 0xa) + res.d3w;
-        image.newy = xread16(sceneadr + 0xc) + res.d4w;
-        shift = sprite->credon_off;
+        sCLTPResult res = clandtopix(scene_addr, sprite->depx - xread16(scene_addr + 0x16), sprite->depy - xread16(scene_addr + 0x18), sprite->depz - xread16(scene_addr + 0x1a));
+        image.newzoomy = res.zoom;
+        image.newd = res.depth;
+        image.newx = xread16(scene_addr + 0xa) + res.screen_x;
+        image.newy = xread16(scene_addr + 0xc) + res.screen_y;
+        zoom_shift = sprite->credon_off;
     }
-    
-    if ((xread8(bmp1 + 1) & 0x20U) != 0)
+
+    // Apply zoom adjustments
+    if ((xread8(bitmap + 1) & 0x20U) != 0)
     {
         image.newzoomy *= 2;
     }
-    
-    if (8 < (char)shift)
+
+    if (8 < (char)zoom_shift)
     {
-        image.newzoomy *= (shift - 8) >> 3;
-        shift = 3;
+        image.newzoomy *= (zoom_shift - 8) >> 3;
+        zoom_shift = 3;
     }
-    
+
     image.newzoomx = image.newzoomy;
-    if (0xdfffff < bmp1)
+
+    // Fallback for out-of-range bitmap address
+    if (0xdfffff < bitmap)
     {
         image.newad = image.landnewad;
-        bmp1 = image.landdata;
+        bitmap = image.landdata;
         image.newd = -1000;
         sprite->state = 1;
     }
-    
-    shift = (shift + 1) & 0x3f;
-    
-    s32 varh = ((((xread16(bmp1 + 4) + 1) * image.newzoomy * 2 >> shift) + 0xff) >> 8) - 1;
-    if (varh < 0)
-        varh = 0;
-    
-    s32 varl = ((((xread16(bmp1 + 2) + 1) * image.newzoomx * 2 >> shift) + 0xff) >> 8) - 1;
-    if (varl < 0)
-        varl = 0;
-    
-    image.newh = (s16)varh;
-    image.newl = (s16)varl;
-    image.newy += (s16)(((s32)(s16)(((u16)xread16(bmp1 + 4) >> 1) - xread16(data + 6)) * (s32)image.newzoomy >> 8) * -2 >> shift);
-    image.newx += (s16)(((s32)(s16)(((u16)xread16(bmp1 + 2) >> 1) - xread16(data + 4)) * (s32)image.newzoomx >> 8) * -2 >> shift);
+
+    zoom_shift = (zoom_shift + 1) & 0x3f;
+
+    // Compute scaled sprite dimensions
+    s32 scaled_h = ((((xread16(bitmap + 4) + 1) * image.newzoomy * 2 >> zoom_shift) + 0xff) >> 8) - 1;
+    if (scaled_h < 0)
+        scaled_h = 0;
+
+    s32 scaled_w = ((((xread16(bitmap + 2) + 1) * image.newzoomx * 2 >> zoom_shift) + 0xff) >> 8) - 1;
+    if (scaled_w < 0)
+        scaled_w = 0;
+
+    image.newh = (s16)scaled_h;
+    image.newl = (s16)scaled_w;
+
+    // Adjust position by hotspot offset
+    image.newy += (s16)(((s32)(s16)(((u16)xread16(bitmap + 4) >> 1) - xread16(meta + 6)) * (s32)image.newzoomy >> 8) * -2 >> zoom_shift);
+    image.newx += (s16)(((s32)(s16)(((u16)xread16(bitmap + 2) >> 1) - xread16(meta + 4)) * (s32)image.newzoomx >> 8) * -2 >> zoom_shift);
 }
 
-void spritland(s32 sceneadr, u16 d3w)
+// Walk the terrain sprite list: remove dead sprites, project live ones to screen space
+void spritland(s32 scene_addr, u16 list_head)
 {
-    u16 d1w = d3w;
-    u16 d2w;
+    u16 current = list_head;
+    u16 prev;
 
     while (true)
     {
-        d2w = d1w;
+        prev = current;
 
-        sSprite *spriteXX = SPRITE_VAR(d2w);
-        d1w = spriteXX->link;
-        if (d1w == 0)
+        sSprite *prev_sprite = SPRITE_VAR(prev);
+        current = prev_sprite->link;
+        if (current == 0)
             break;
-        
-        sSprite *sprite0 = SPRITE_VAR(d1w);
-        
-//        printf("\nspx depx: %.4x, %.4x, %.4xn", (u16)spriteXX->depx, (u16)spriteXX->depy, (u16)spriteXX->depz);
-//        printf("sp0 depx: %.4x, %.4x, %.4x\n", (u16)sprite0->depx, (u16)sprite0->depy, (u16)sprite0->depz);
 
-        if (sprite0->state != 0)
+        sSprite *sprite = SPRITE_VAR(current);
+
+        if (sprite->state != 0)
         {
-            if (sprite0->state == 1)
+            if (sprite->state == 1)
             {
-                spriteXX->link = sprite0->link;
-                sprite0->to_next = image.libsprit;
-
-//                printf("\nspritlandA: 0x%.4x", (u16)d1w);
-//                printf("      0x%.4x\n", (u16)sprite0->newd);
-
-                image.libsprit = d1w;
-                d1w = d2w;
+                // Dead sprite: unlink and return to free list
+                prev_sprite->link = sprite->link;
+                sprite->to_next = image.libsprit;
+                image.libsprit = current;
+                current = prev;
             }
             else
             {
-                landtopix(sceneadr, d1w);
-                
-//                printf("\nspritlandB: 0x%.4x", (u16)d1w);
-//                printf("      0x%.6x\n", (u32)image.newad);
-//                printf("      0x%.4x\n", (u16)image.newx);
-//                printf("      0x%.4x\n", (u16)image.newy);
-//                printf("      0x%.4x\n", (u16)image.newd);
-//                printf("      0x%.2x\n", (u8)image.newf);
-//                printf("      0x%.4x\n", (u16)image.newl);
-//                printf("      0x%.4x\n", (u16)image.newh);
-//                printf("      0x%.4x\n", (u16)image.newzoomx);
-//                printf("      0x%.4x\n", (u16)image.newzoomy);
+                // Active sprite: project to screen and depth-sort into list
+                landtopix(scene_addr, current);
 
-                sprite0->newad = image.newad;
-                sprite0->newx = image.newx;
-                sprite0->newy = image.newy;
-                sprite0->newd = image.newd;
-                sprite0->newf = image.newf;
-                sprite0->width = image.newl;
-                sprite0->height = image.newh;
-                sprite0->newzoomx = image.newzoomx;
-                sprite0->newzoomy = image.newzoomy;
+                sprite->newad = image.newad;
+                sprite->newx = image.newx;
+                sprite->newy = image.newy;
+                sprite->newd = image.newd;
+                sprite->newf = image.newf;
+                sprite->width = image.newl;
+                sprite->height = image.newh;
+                sprite->newzoomx = image.newzoomx;
+                sprite->newzoomy = image.newzoomy;
 
-                spriteXX->link = sprite0->link;
-
-                d2w = rangesprite(d1w, d2w, d3w);
-                d1w = d2w;
+                prev_sprite->link = sprite->link;
+                prev = rangesprite(current, prev, list_head);
+                current = prev;
             }
         }
     }
 }
 
-void calclan0(s32 sceneadr, s32 render_context)
+void calclan0(s32 scene_addr, s32 render_context)
 {
-    s16 sVar3;
-    s32 uVar1;
-    u16 uVar5;
-    
-    u32 uVar6 = (u32)(u16)xread16(render_context - 0x3c0);
+    u32 grid_shift = (u32)(u16)xread16(render_context - 0x3c0);
+
+    // Compute signed axis deltas and their absolute values
     image.signedx = xread16(render_context - 0x378) - xread16(render_context - 0x37e);
-    s16 sVar2 = image.signedx;
+    s16 abs_dx = image.signedx;
     if (image.signedx < 0)
     {
-        sVar2 = -image.signedx;
+        abs_dx = -image.signedx;
     }
-    
+
     image.signedy = xread16(render_context - 0x376) - xread16(render_context - 0x37c);
-    s16 sVar4 = image.signedy;
+    s16 abs_dy = image.signedy;
     if (image.signedy < 0)
     {
-        sVar4 = -image.signedy;
+        abs_dy = -image.signedy;
     }
-    
-    if (sVar2 < sVar4)
+
+    // Determine dominant axis and compute fixed-point stepping
+    if (abs_dx < abs_dy)
     {
-        xwrite16(render_context - 0x2b0, sVar4);
-        uVar5 = xread16(render_context - 0x36a) - xread16(render_context - 0x370);
-        if ((int)((u32)uVar5 << 0x10) < 0) {
-            uVar5 = -uVar5;
+        // Y-dominant: step along Y, interpolate X
+        xwrite16(render_context - 0x2b0, abs_dy);
+        u16 minor_span = xread16(render_context - 0x36a) - xread16(render_context - 0x370);
+        if ((int)((u32)minor_span << 0x10) < 0) {
+            minor_span = -minor_span;
         }
-        
-        xwrite16(render_context - 0x2ac, uVar5);
-        sVar2 = xread16(render_context - 0x378) - xread16(render_context - 0x37e);
-        sVar3 = (s16)(((int)((u32)(u16)(sVar2 % sVar4) << 0x10) >> 1) / (int)sVar4);
-        xwrite32(render_context - 0x2c4, (u32)(u16)(sVar2 / sVar4) * 0x10000 + sVar3 * 2);
-        uVar1 = 0x10000;
+
+        xwrite16(render_context - 0x2ac, minor_span);
+        s16 step_num = xread16(render_context - 0x378) - xread16(render_context - 0x37e);
+        s16 frac = (s16)(((int)((u32)(u16)(step_num % abs_dy) << 0x10) >> 1) / (int)abs_dy);
+        xwrite32(render_context - 0x2c4, (u32)(u16)(step_num / abs_dy) * 0x10000 + frac * 2);
+        s32 dir_sign = 0x10000;
         if (image.signedy < 0)
         {
-            uVar1 = 0xffff0000;
+            dir_sign = 0xffff0000;
         }
-        
-        xwrite32(render_context - 0x2c0, uVar1);
-        sVar2 = (s16)((int)(s16)(xread16(render_context - 0x37c) - xread16(render_context - 0x370)) * (int)(s16)(xread32(render_context - 0x2c4) >> 2) >> 0xe);
+
+        xwrite32(render_context - 0x2c0, dir_sign);
+        s16 cross_corr = (s16)((int)(s16)(xread16(render_context - 0x37c) - xread16(render_context - 0x370)) * (int)(s16)(xread32(render_context - 0x2c4) >> 2) >> 0xe);
         if (xread32(render_context - 0x2c0) < 0)
         {
-            sVar2 = -sVar2;
+            cross_corr = -cross_corr;
         }
-        
-        uVar5 = (xread16(render_context - 0x372) + sVar2) - xread16(render_context - 0x37e);
-        if ((int)((u32)uVar5 << 0x10) < 0)
+
+        u16 strip_span = (xread16(render_context - 0x372) + cross_corr) - xread16(render_context - 0x37e);
+        if ((int)((u32)strip_span << 0x10) < 0)
         {
-            uVar5 = -uVar5;
+            strip_span = -strip_span;
         }
-        xwrite16(render_context - 0x24e, (s16)uVar5 >> (uVar6 & 0x3f));
+        xwrite16(render_context - 0x24e, (s16)strip_span >> (grid_shift & 0x3f));
     }
     else
     {
-        xwrite16(render_context - 0x2b0, sVar2);
-        uVar5 = xread16(render_context - 0x36c) - xread16(render_context - 0x372);
-        if ((int)((u32)uVar5 << 0x10) < 0)
+        // X-dominant: step along X, interpolate Y
+        xwrite16(render_context - 0x2b0, abs_dx);
+        u16 minor_span = xread16(render_context - 0x36c) - xread16(render_context - 0x372);
+        if ((int)((u32)minor_span << 0x10) < 0)
         {
-            uVar5 = -uVar5;
+            minor_span = -minor_span;
         }
-        
-        xwrite16(render_context - 0x2ac, uVar5);
-        sVar4 = xread16(render_context - 0x376) - xread16(render_context - 0x37c);
-        sVar3 = (s16)(((int)((u32)(u16)(sVar4 % sVar2) << 0x10) >> 1) / (int)sVar2);
-        xwrite32(render_context - 0x2c0, (u32)(u16)(sVar4 / sVar2) * 0x10000 + sVar3 * 2);
-        uVar1 = 0x10000;
+
+        xwrite16(render_context - 0x2ac, minor_span);
+        s16 step_num = xread16(render_context - 0x376) - xread16(render_context - 0x37c);
+        s16 frac = (s16)(((int)((u32)(u16)(step_num % abs_dx) << 0x10) >> 1) / (int)abs_dx);
+        xwrite32(render_context - 0x2c0, (u32)(u16)(step_num / abs_dx) * 0x10000 + frac * 2);
+        s32 dir_sign = 0x10000;
         if (image.signedx < 0)
         {
-            uVar1 = 0xffff0000;
+            dir_sign = 0xffff0000;
         }
-        
-        xwrite32(render_context - 0x2c4, uVar1);
-        sVar2 = (s16)((int)(s16)(xread16(render_context - 0x37e) - xread16(render_context - 0x372)) * (int)(s16)(xread32(render_context - 0x2c0) >> 2) >> 0xe);
+
+        xwrite32(render_context - 0x2c4, dir_sign);
+        s16 cross_corr = (s16)((int)(s16)(xread16(render_context - 0x37e) - xread16(render_context - 0x372)) * (int)(s16)(xread32(render_context - 0x2c0) >> 2) >> 0xe);
         if (xread32(render_context - 0x2c4) < 0)
         {
-            sVar2 = -sVar2;
+            cross_corr = -cross_corr;
         }
-        
-        uVar5 = (xread16(render_context - 0x370) + sVar2) - xread16(render_context - 0x37c);
-        if ((int)((u32)uVar5 << 0x10) < 0)
+
+        u16 strip_span = (xread16(render_context - 0x370) + cross_corr) - xread16(render_context - 0x37c);
+        if ((int)((u32)strip_span << 0x10) < 0)
         {
-            uVar5 = -uVar5;
+            strip_span = -strip_span;
         }
-        
-        xwrite16(render_context - 0x24e, (s16)uVar5 >> (uVar6 & 0x3f));
+
+        xwrite16(render_context - 0x24e, (s16)strip_span >> (grid_shift & 0x3f));
     }
-    
-    sVar2 = xread16(render_context - 0x24e);
-    sVar4 = xread16(render_context - 0x372) - xread16(render_context - 0x37e);
-    sVar3 = (s16)(((int)((u32)(u16)(sVar4 % sVar2) << 0x10) >> 1) / (int)sVar2);
-    xwrite32(render_context - 0x2bc, (int)((u32)(u16)(sVar4 / sVar2) * 0x10000 + sVar3 * 2) >> (uVar6 & 0x3f));
-    sVar4 = xread16(render_context - 0x370) - xread16(render_context - 0x37c);
-    sVar3 = (s16)(((int)((u32)(u16)(sVar4 % sVar2) << 0x10) >> 1) / (int)sVar2);
-    xwrite32(render_context - 0x2b8, (int)((u32)(u16)(sVar4 / sVar2) * 0x10000 + sVar3 * 2) >> (uVar6 & 0x3f));
-    uVar1 = 0x10000;
-    
+
+    // Compute per-strip grid stepping (16.16 fixed-point)
+    s16 strip_count = xread16(render_context - 0x24e);
+    s16 delta_x = xread16(render_context - 0x372) - xread16(render_context - 0x37e);
+    s16 frac_x = (s16)(((int)((u32)(u16)(delta_x % strip_count) << 0x10) >> 1) / (int)strip_count);
+    xwrite32(render_context - 0x2bc, (int)((u32)(u16)(delta_x / strip_count) * 0x10000 + frac_x * 2) >> (grid_shift & 0x3f));
+    s16 delta_y = xread16(render_context - 0x370) - xread16(render_context - 0x37c);
+    s16 frac_y = (s16)(((int)((u32)(u16)(delta_y % strip_count) << 0x10) >> 1) / (int)strip_count);
+    xwrite32(render_context - 0x2b8, (int)((u32)(u16)(delta_y / strip_count) * 0x10000 + frac_y * 2) >> (grid_shift & 0x3f));
+
+    // Direction signs for grid stepping
+    s32 dir_sign_x = 0x10000;
     if (xread32(render_context - 700) < 0)
     {
-        uVar1 = 0xffff0000;
+        dir_sign_x = 0xffff0000;
     }
-    
-    xwrite32(render_context - 0x2a0, uVar1);
-    uVar1 = 0x10000;
-    
+
+    xwrite32(render_context - 0x2a0, dir_sign_x);
+
+    s32 dir_sign_y = 0x10000;
     if (xread32(render_context - 0x2b8) < 0)
     {
-        uVar1 = 0xffff0000;
+        dir_sign_y = 0xffff0000;
     }
-    
-    xwrite32(render_context - 0x29c, uVar1);
-    xwrite32(render_context - 0x2b4, ((int)(s16)(((int)(s16)(xread16(render_context - 0x2ac) - xread16(render_context - 0x2b0)) << 8) / (int)xread16(render_context - 0x24e)) << 8) >> (uVar6 & 0x3f));
+
+    xwrite32(render_context - 0x29c, dir_sign_y);
+
+    // Dimension scaling delta per strip
+    xwrite32(render_context - 0x2b4, ((int)(s16)(((int)(s16)(xread16(render_context - 0x2ac) - xread16(render_context - 0x2b0)) << 8) / (int)xread16(render_context - 0x24e)) << 8) >> (grid_shift & 0x3f));
+
+    // Fog/palette interpolation setup
     xwrite32(render_context - 0x252, 0);
-    xwrite32(render_context - 0x256, (u16)xread16(sceneadr + 0x9e) << 0x10);
-    
-    if (xread16(sceneadr + 0x98) != 0)
+    xwrite32(render_context - 0x256, (u16)xread16(scene_addr + 0x9e) << 0x10);
+
+    if (xread16(scene_addr + 0x98) != 0)
     {
         xwrite32(render_context - 0x256, 0x60000);
-        uVar5 = xread16(sceneadr + 0x9e);
-        if ((s16)uVar5 < 7)
+        u16 fog_level = xread16(scene_addr + 0x9e);
+        if ((s16)fog_level < 7)
         {
             xwrite32(render_context - 0x256, 0);
         }
-        
-        if (-1 < xread16(sceneadr + 0x98))
+
+        if (-1 < xread16(scene_addr + 0x98))
         {
-            xwrite32(render_context - 0x256, (u32)(u16)xread16(sceneadr + 0xa0) * 0x10000 - 1);
+            xwrite32(render_context - 0x256, (u32)(u16)xread16(scene_addr + 0xa0) * 0x10000 - 1);
         }
-        
-        xwrite32(render_context - 0x252, (int)(s16)(((int)((u32)uVar5 * 0x10000 - xread32(render_context - 0x256)) >> 8) / (int)(s16)(xread16(render_context - 0x24e) + 1)) << 8);
+
+        xwrite32(render_context - 0x252, (int)(s16)(((int)((u32)fog_level * 0x10000 - xread32(render_context - 0x256)) >> 8) / (int)(s16)(xread16(render_context - 0x24e) + 1)) << 8);
     }
 
-    sVar2 = xread16(render_context - 0x24e);
+    // Per-strip interpolation deltas and initial values
+    strip_count = xread16(render_context - 0x24e);
 
-    xwrite32(render_context - 0x2e4, (int)(s16)((xread32(render_context - 0x318) - xread32(render_context - 0x330)) / (int)sVar2));
-    xwrite32(render_context - 0x2dc, (int)(s16)(((xread32(render_context - 0x2f0) - xread32(render_context - 0x2fc)) * 0x100) / (int)sVar2) << 8);
-    xwrite32(render_context - 0x2d4, (int)(s16)((xread32(render_context - 0x310) - xread32(render_context - 0x328)) / (int)sVar2));
-    xwrite32(render_context - 0x2cc, (int)(s16)(((xread32(render_context - 0x2ec) - xread32(render_context - 0x2f8)) * 0x100) / (int)sVar2) << 8);
+    xwrite32(render_context - 0x2e4, (int)(s16)((xread32(render_context - 0x318) - xread32(render_context - 0x330)) / (int)strip_count));
+    xwrite32(render_context - 0x2dc, (int)(s16)(((xread32(render_context - 0x2f0) - xread32(render_context - 0x2fc)) * 0x100) / (int)strip_count) << 8);
+    xwrite32(render_context - 0x2d4, (int)(s16)((xread32(render_context - 0x310) - xread32(render_context - 0x328)) / (int)strip_count));
+    xwrite32(render_context - 0x2cc, (int)(s16)(((xread32(render_context - 0x2ec) - xread32(render_context - 0x2f8)) * 0x100) / (int)strip_count) << 8);
     xwrite32(render_context - 0x2e8, xread32(render_context - 0x330));
     xwrite32(render_context - 0x2e0, xread32(render_context - 0x32c) << 0x10);
     xwrite32(render_context - 0x2d8, xread32(render_context - 0x328));
@@ -838,9 +892,9 @@ void vgatofen(void)
     }
 }
 
-u32 skyfast(u32 tgt, u8 fill, s16 d5w, s16 height)
+u32 skyfast(u32 tgt, u8 fill, s16 stride, s16 height)
 {
-    for (int l = 0; l < height; l++, tgt += (image.clipl + d5w))
+    for (int l = 0; l < height; l++, tgt += (image.clipl + stride))
         memset(alis.mem + tgt, fill, image.clipl);
     
     return tgt;
@@ -855,259 +909,146 @@ typedef struct {
     u8 *data;
 } SkyData;
 
-void skytofen(s32 scene, s32 a3)
+void skytofen(s32 scene_addr, s32 render_context)
 {
-    s16 sVar1;
-    u16 uVar2;
-    s16 sVar4;
-    s32 iVar3;
-    s16 sVar5;
-    s16 sVar6;
-    s16 sVar7;
-    u32 pcVar8;
-    u32 pcVar9;
-    u32 puVar10;
-    u32 puVar11;
-    s32 piVar12;
-    u32 tgt;
-    u32 puVar13;
-    u32 puVar14;
-    
     if (image.ftstpix != 0)
     {
         return;
     }
-    
-    piVar12 = xread32(scene + 0xa4);
-    pcVar8 = xread32(piVar12) + piVar12;
-    
-    sVar4 = 0;
-    pcVar9 = pcVar8;
-    if (xread8(pcVar8) == 3)
+
+    // Resolve sky bitmap data (follow pointer chain, handle type 3 redirect)
+    s32 sky_res = xread32(scene_addr + 0xa4);
+    u32 sky_data = xread32(sky_res) + sky_res;
+
+    s16 hotspot_y = 0;
+    u32 bitmap = sky_data;
+    if (xread8(sky_data) == 3)
     {
-        piVar12 = ((s32)(s16)(xread16(pcVar8 + 2) * 4) + (s32)piVar12);
-        pcVar9 = xread32(piVar12) + piVar12;
-        sVar4 = xread16(pcVar8 + 6);
+        sky_res = ((s32)(s16)(xread16(sky_data + 2) * 4) + (s32)sky_res);
+        bitmap = xread32(sky_res) + sky_res;
+        hotspot_y = xread16(sky_data + 6);
     }
-    
-    if (xread8(pcVar9) == 1)
+
+    if (xread8(bitmap) == 1)
     {
-        skyfast((s32)image.clipx1 + xread32(image.atlpix + (s16)((image.clipy1 - image.wlogy1) * 4)), (xread8(pcVar9 + 1) & 0xfU) | (xread8(pcVar9 + 1) & 0xfU) << 4, image.wloglarg - image.clipl, image.cliph - 1);
+        // Solid color sky fill
+        skyfast((s32)image.clipx1 + xread32(image.atlpix + (s16)((image.clipy1 - image.wlogy1) * 4)), (xread8(bitmap + 1) & 0xfU) | (xread8(bitmap + 1) & 0xfU) << 4, image.wloglarg - image.clipl, image.cliph - 1);
     }
     else
     {
-        image.skyposy = (sVar4 + xread16(scene + 0xc) + xread16(a3 - 0x352)) - ((u16)(xread16(pcVar9 + 4) + 1U) >> 1);
-        sVar4 = xread16(pcVar9 + 2) + 1;
-        sVar1 = (s16)((s16)((u32)((s32)xread16(scene + 0x38) * (s32)xread16(scene + 0xa8)) >> 8) - image.clipx1) % sVar4;
-        uVar2 = -sVar1;
-        if (0 < sVar1) {
-            uVar2 = sVar4 + uVar2;
+        // Compute sky scroll position
+        image.skyposy = (hotspot_y + xread16(scene_addr + 0xc) + xread16(render_context - 0x352)) - ((u16)(xread16(bitmap + 4) + 1U) >> 1);
+        s16 tex_width = xread16(bitmap + 2) + 1;
+        s16 scroll_mod = (s16)((s16)((u32)((s32)xread16(scene_addr + 0x38) * (s32)xread16(scene_addr + 0xa8)) >> 8) - image.clipx1) % tex_width;
+        u16 scroll_pos = -scroll_mod;
+        if (0 < scroll_mod) {
+            scroll_pos = tex_width + scroll_pos;
         }
-        image.skyposx = uVar2 & 0xfffe;
-        image.skyleft = sVar4 - image.skyposx;
-        if ((s16)image.clipl < (s16)(sVar4 - image.skyposx)) {
+        image.skyposx = scroll_pos & 0xfffe;
+        image.skyleft = tex_width - image.skyposx;
+        if ((s16)image.clipl < (s16)(tex_width - image.skyposx)) {
             image.skyleft = image.clipl;
         }
-        
-        tgt = ((s32)image.clipx1 + xread32(image.atlpix + (s16)((image.clipy1 - image.wlogy1) * 4)));
-        sVar4 = image.wloglarg - image.clipl;
-        sVar1 = image.skyposy - image.clipy1;
-        if (sVar1 != 0 && image.clipy1 <= image.skyposy) {
-            if (image.cliph < sVar1) {
-                sVar1 = image.cliph;
+
+        u32 dst = ((s32)image.clipx1 + xread32(image.atlpix + (s16)((image.clipy1 - image.wlogy1) * 4)));
+        s16 stride_gap = image.wloglarg - image.clipl;
+
+        // Fill top gap above sky texture
+        s16 top_gap = image.skyposy - image.clipy1;
+        if (top_gap != 0 && image.clipy1 <= image.skyposy) {
+            if (image.cliph < top_gap) {
+                top_gap = image.cliph;
             }
-            
-            tgt = skyfast(tgt, xread8(pcVar9 + 6), sVar4, sVar1 - 1);
+
+            dst = skyfast(dst, xread8(bitmap + 6), stride_gap, top_gap - 1);
         }
-        
-        sVar1 = image.skyposy;
+
+        // Compute visible sky row range (clamped to clip rect)
+        s16 sky_top = image.skyposy;
         if (image.skyposy < image.clipy1) {
-            sVar1 = image.clipy1;
+            sky_top = image.clipy1;
         }
-        sVar5 = xread16(pcVar9 + 4) + image.skyposy;
-        if (image.clipy2 < (s16)(xread16(pcVar9 + 4) + image.skyposy)) {
-            sVar5 = image.clipy2;
+        s16 sky_bottom = xread16(bitmap + 4) + image.skyposy;
+        if (image.clipy2 < (s16)(xread16(bitmap + 4) + image.skyposy)) {
+            sky_bottom = image.clipy2;
         }
-        sVar7 = sVar5 - sVar1;
-        if (sVar7 != 0 && sVar1 <= sVar5) {
-            uVar2 = xread16(pcVar9 + 2) + 1;
-            iVar3 = 0;
+        s16 row_count = sky_bottom - sky_top;
+
+        // Blit sky texture rows with horizontal wrapping
+        if (row_count != 0 && sky_top <= sky_bottom) {
+            u16 tex_stride = xread16(bitmap + 2) + 1;
+            s32 src_offset = 0;
             if ((u16)(image.clipy1 - image.skyposy) != 0 && image.skyposy <= image.clipy1) {
-                iVar3 = (u32)(u16)(image.clipy1 - image.skyposy) * (u32)uVar2;
+                src_offset = (u32)(u16)(image.clipy1 - image.skyposy) * (u32)tex_stride;
             }
-            puVar14 = (pcVar9 + (s16)image.skyposx + iVar3 + 6);
-            sVar1 = (image.skyleft >> 1) - 1;
+            u32 row_src = (bitmap + (s16)image.skyposx + src_offset + 6);
+            s16 half_left = (image.skyleft >> 1) - 1;
             do {
-                puVar11 = puVar14;
-                puVar10 = puVar14;
-                puVar13 = tgt;
-                sVar5 = sVar1;
-                if (-1 < sVar1) {
+                u32 src_end = row_src;
+                u32 src_cur = row_src;
+                u32 dst_cur = dst;
+                s16 col_count = half_left;
+
+                // Copy left portion (from skyposx to texture edge)
+                if (-1 < half_left) {
                     do {
-                        puVar11 = puVar10 + 2;
-                        tgt = puVar13 + 2;
-                        xwrite16(puVar13, xread16(puVar10));
-                        sVar5 = sVar5 - 1;
-                        puVar10 = puVar11;
-                        puVar13 = tgt;
-                    } while (sVar5 != -1);
+                        src_end = src_cur + 2;
+                        dst = dst_cur + 2;
+                        xwrite16(dst_cur, xread16(src_cur));
+                        col_count = col_count - 1;
+                        src_cur = src_end;
+                        dst_cur = dst;
+                    } while (col_count != -1);
                 }
-                sVar5 = (image.clipl >> 1) - sVar1;
-                sVar6 = sVar5 - 2;
-                if (1 < sVar5) {
-                    puVar11 = ((s32)puVar11 - (s32)(s16)uVar2);
-                    puVar10 = tgt;
+
+                // Copy wrapped portion (src_end rewinds to texture start, src_cur reused as write cursor)
+                s16 wrap_total = (image.clipl >> 1) - half_left;
+                s16 wrap_count = wrap_total - 2;
+                if (1 < wrap_total) {
+                    src_end = ((s32)src_end - (s32)(s16)tex_stride);
+                    src_cur = dst;
                     do {
-                        tgt = puVar10 + 2;
-                        xwrite16(puVar10, xread16(puVar11));
-                        sVar6 = sVar6 - 1;
-                        puVar11 = puVar11 + 2;
-                        puVar10 = tgt;
-                    } while (sVar6 != -1);
+                        dst = src_cur + 2;
+                        xwrite16(src_cur, xread16(src_end));
+                        wrap_count = wrap_count - 1;
+                        src_end = src_end + 2;
+                        src_cur = dst;
+                    } while (wrap_count != -1);
                 }
-                tgt = ((s32)sVar4 + (s32)tgt);
-                puVar14 = ((s32)(s16)uVar2 + (s32)puVar14);
+                dst = ((s32)stride_gap + (s32)dst);
+                row_src = ((s32)(s16)tex_stride + (s32)row_src);
             }
-            while ((--sVar7) != -1);
+            while ((--row_count) != -1);
         }
-        
-        sVar1 = (image.clipy2 - image.skyposy) - xread16(pcVar9 + 4);
-        if (sVar1 != 0 && xread16(pcVar9 + 4) <= (s16)(image.clipy2 - image.skyposy)) {
-            if (image.cliph < sVar1) {
-                sVar1 = image.cliph;
+
+        // Fill bottom gap below sky texture
+        s16 bottom_gap = (image.clipy2 - image.skyposy) - xread16(bitmap + 4);
+        if (bottom_gap != 0 && xread16(bitmap + 4) <= (s16)(image.clipy2 - image.skyposy)) {
+            if (image.cliph < bottom_gap) {
+                bottom_gap = image.cliph;
             }
-            
-            skyfast((s32)tgt, xread8(pcVar9 + (u32)(u16)(xread16(pcVar9 + 2) + 1) * (u32)xread16(pcVar9 + 4) + 6), sVar4, sVar1 - 1);
+
+            skyfast((s32)dst, xread8(bitmap + (u32)(u16)(xread16(bitmap + 2) + 1) * (u32)xread16(bitmap + 4) + 6), stride_gap, bottom_gap - 1);
         }
     }
 }
 
-void skytofen2(s32 sceneadr, s32 a3)
+void glandtopix(s32 render_context, s16 *out_x, s16 *out_y, s16 offset_x, s16 offset_y, s16 depth)
 {
-    if (image.ftstpix != 0)
-        return;
-    
-    s32 offset = xread32(sceneadr + 0xa4);
-    s32 bitmap = xread32(offset) + offset;
-    SkyData *sky = (SkyData *)(alis.mem + bitmap);
+    // Rotate + FOV-scale two points through the same projection
+    s32 proj_num_x = (s32)(s16)(((s32)*out_y * (s32)xread16(render_context - 0x28c) + (s32)*out_x * (s32)xread16(render_context - 0x28a)) >> 9) * (s32)xread16(render_context - 0x3aa);
+    s32 proj_num_y = (s32)(s16)(((s32)offset_y * (s32)xread16(render_context - 0x28c) + (s32)offset_x * (s32)xread16(render_context - 0x28a)) >> 9) * (s32)xread16(render_context - 0x3aa);
 
-    s16 offset_y = 0;
-
-    if (sky->type == 3)
+    // Perspective divide
+    s16 divisor = xread16(render_context - 0x3ac) + depth;
+    if (divisor <= 0)
     {
-        offset_y = xread16(bitmap + 6);
-
-        offset += (xswap16(sky->width) * 4);
-        bitmap = xread32(offset) + offset;
-        sky = (SkyData *)(alis.mem + bitmap);
+        divisor = 1;
     }
 
-    s16 width_add = image.wloglarg - image.clipl;
-    if (sky->type == 1)
-    {
-        u8 color = (sky->data1 & 0x0F) << 4 | (sky->data1 & 0x0F);
-        u32 tgt = image.clipx1 + xread32(image.atlpix + ((image.clipy1 - image.wlogy1) * 4));
-        skyfast(tgt, color, width_add, image.cliph - 1);
-    }
-    else
-    {
-        s16 width = xswap16(sky->width);
-        s16 height = xswap16(sky->height);
-
-        image.skyposy = (offset_y + xread16(sceneadr + 0xc) + xread16(a3 - 0x352)) - ((height + 1) >> 1);
-        image.skyposx = -((((s32)xread16(sceneadr + 0x38) * (s32)xread16(sceneadr + 0xa8)) >> 8) - image.clipx1) % (width + 1);
-        if (image.skyposx < 0)
-            image.skyposx += width + 1;
-        
-        image.skyleft = width - image.skyposx;
-        if (image.clipl < (width - image.skyposx))
-            image.skyleft = image.clipl;
-
-        u32 tgt = image.clipx1 + xread32(image.atlpix + ((image.clipy1 - image.wlogy1) * 4));
-        s32 add_x = image.wloglarg - image.clipl;
-        s16 lines = image.skyposy - image.clipy1;
-        if (lines != 0 && image.clipy1 < image.skyposy)
-        {
-            if (image.cliph < lines)
-                lines = image.cliph;
-
-            tgt = skyfast(tgt, sky->color, add_x, lines - 1);
-        }
-        
-        s16 clip_h = image.skyposy;
-        if (image.skyposy < image.clipy1)
-            clip_h = image.clipy1;
-        
-        s16 clip_b = xread16(bitmap + 4) + image.skyposy;
-        if (image.clipy2 < (xread16(bitmap + 4) + image.skyposy))
-            clip_b = image.clipy2;
-        
-        lines = clip_b - clip_h;
-        if (lines > 0)
-        {
-            s32 offset = 0;
-            if ((image.clipy1 - image.skyposy) > 0)
-                offset = (image.clipy1 - image.skyposy) * (width + 1);
-//                offset = clip_h/*(image.clipy1 - image.skyposy)*/ * (width + 1);
-            
-            s32 bitmap2 = (bitmap + image.skyposx + offset + 6);
-            s32 prevbmp = bitmap2;
-            s16 skylh = (image.skyleft >> 1) - 1;
-            s16 bytes = 0;
-            
-            do
-            {
-                bytes = skylh + 1;
-                if (-1 < skylh)
-                {
-                    memcpy(alis.mem + tgt, alis.mem + bitmap2, bytes << 1);
-                    bitmap2 += bytes << 1;
-                    tgt += bytes << 1;
-                }
-                
-                bytes = ((image.clipl >> 1) - skylh) - 1;
-                if (0 < clip_b)
-                {
-                    bitmap2 -= (width + 1);
-                    memcpy(alis.mem + tgt, alis.mem + bitmap2, bytes << 1);
-                    bitmap2 += bytes << 1;
-                    tgt += bytes << 1;
-                }
-                
-                tgt += add_x;
-                prevbmp += (width + 1);
-                bitmap2 = prevbmp;
-            }
-            while ((--lines) != -1);
-        }
-        
-        lines = (image.clipy2 - image.skyposy) - height;
-        if (lines != 0 && xread16(bitmap + 4) < (image.clipy2 - image.skyposy))
-        {
-            if (image.cliph < lines)
-                lines = image.cliph;
-            
-            u8 color = xread8(bitmap + 6 + (width + 1) * height);
-            skyfast(tgt, color, add_x, lines);
-        }
-    }
+    *out_x = proj_num_x / divisor;
+    *out_y = proj_num_y / divisor;
 }
-
-void glandtopix(s32 render_context, s16 *d0w, s16 *d1w, s16 d2w, s16 d3w, s16 d4w)
-{
-    s32 d0 = (s32)(s16)(((s32)*d1w * (s32)xread16(render_context - 0x28c) + (s32)*d0w * (s32)xread16(render_context - 0x28a)) >> 9) * (s32)xread16(render_context - 0x3aa);
-    s32 d1 = (s32)(s16)(((s32)d3w * (s32)xread16(render_context - 0x28c) + (s32)d2w * (s32)xread16(render_context - 0x28a)) >> 9) * (s32)xread16(render_context - 0x3aa);
-    d2w = xread16(render_context - 0x3ac) + d4w;
-    if (d2w <= 0)
-    {
-        d2w = 1;
-    }
-
-    *d0w = d0 / d2w;
-    *d1w = d1 / d2w;
-}
-
-
 
 void barlands(void)
 {
@@ -1513,15 +1454,18 @@ static void hittest_bar(s32 terrain_cell, s32 render_context, u16 drawy, s16 bar
     barlands();
 }
 
-void barland(s32 terrain_cell, s32 render_context, s16 tstx, s16 tsty, s16 bary, s16 barheight, s16 index, s16 barx, s32 altitude_index, s32 d6)
+void barland(s32 terrain_cell, s32 render_context, s16 step_x, s16 step_y, s16 bary, s16 barheight, s16 index, s16 barx, s32 packed_coord, s32 d6)
 {
     s16 prev_screen_x = image.precx;
+
+    // Clip bar vertically
     u16 drawy;
     if (!clip_bar_y(bary, &barheight, &drawy))
         return;
 
     if (image.clipx1 <= barx)
     {
+        // Compute horizontal span from previous cursor to current bar edge
         image.vbarlarg = (barx - image.precx) - 1;
         image.vbarx = image.precx;
         if (image.precx < image.clipx1)
@@ -1529,6 +1473,7 @@ void barland(s32 terrain_cell, s32 render_context, s16 tstx, s16 tsty, s16 bary,
             image.precx = image.clipx1;
         }
 
+        // Clip bar width against right boundary
         s16 barwidth;
         if (image.vbarclipx2 < barx)
         {
@@ -1549,6 +1494,7 @@ void barland(s32 terrain_cell, s32 render_context, s16 tstx, s16 tsty, s16 bary,
             }
         }
 
+        // Render or hit-test the bar
         if (-1 < xread16(render_context - 0x24e))
         {
             if (image.ftstpix == 0)
@@ -1557,16 +1503,18 @@ void barland(s32 terrain_cell, s32 render_context, s16 tstx, s16 tsty, s16 bary,
             }
             else
             {
-                hittest_bar(terrain_cell, render_context, drawy, barheight, barwidth, altitude_index, tstx, tsty);
+                hittest_bar(terrain_cell, render_context, drawy, barheight, barwidth, packed_coord, step_x, step_y);
             }
         }
     }
 }
 
 
-void tbarland(s32 terrain_cell, s32 render_context, s16 terrain_step_x, s32 a5, u16 bary, s16 barheight, s16 index, s32 screen_x, s32 d4, s32 d6)
+void tbarland(s32 terrain_cell, s32 render_context, s16 step_x, s32 step_y, u16 bary, s16 barheight, s16 index, s32 screen_x, s32 packed_coord, s32 d6)
 {
     s16 prev_screen_x = image.precx;
+
+    // Clip bar vertically
     u16 drawy;
     if (!clip_bar_y((s16)bary, &barheight, &drawy))
         return;
@@ -1574,6 +1522,7 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 terrain_step_x, s32 a5, 
     s16 barx = (s16)screen_x;
     if (image.clipx1 <= barx)
     {
+        // Compute horizontal span from previous cursor to current bar edge
         image.vbarlarg = (barx - image.precx) - 1;
         image.vbarx = image.precx;
         if (image.precx < image.clipx1)
@@ -1581,6 +1530,7 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 terrain_step_x, s32 a5, 
             image.precx = image.clipx1;
         }
 
+        // Clip bar width against right boundary
         s16 barwidth;
         if (image.vbarclipx2 < barx)
         {
@@ -1603,6 +1553,7 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 terrain_step_x, s32 a5, 
 
         if (-1 < xread16(render_context - 0x24e))
         {
+            // Clamp bottom high-water mark
             if (bothigh < xread16(render_context - 0x246))
             {
                 bothigh = xread16(render_context - 0x246);
@@ -1611,23 +1562,25 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 terrain_step_x, s32 a5, 
             image.vbarbot = 0;
             if (fbottom != 0)
             {
+                // Bar entirely below bottom clip — fill with solid dark color
                 if (bothigh <= (s16)drawy)
                 {
                     barwidth --;
-                    u16 uVar1x = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + (xread8(terrain_cell + 2) & 0xc0) + (xread8(terrain_cell) & 0xc0) * 2) * -2;
-                    u32 color = (u32)uVar1x;
-                    if ((s32)((u32)uVar1x << 0x10) < 0)
+                    u16 dark_level = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + (xread8(terrain_cell + 2) & 0xc0) + (xread8(terrain_cell) & 0xc0) * 2) * -2;
+                    u32 color = (u32)dark_level;
+                    if ((s32)((u32)dark_level << 0x10) < 0)
                     {
                         color = 0;
                     }
 
-                    uVar1x = (u16)xread16(alis.ptrdark + (s16)CONCAT31((color >> 8), (s8)xread8(render_context + 8 + index) * 2));
-                    color = CONCAT22(uVar1x, uVar1x);
+                    dark_level = (u16)xread16(alis.ptrdark + (s16)CONCAT31((color >> 8), (s8)xread8(render_context + 8 + index) * 2));
+                    color = CONCAT22(dark_level, dark_level);
 
                     bartrab(render_context, barwidth, barheight, drawy, bothigh, color);
                     return;
                 }
 
+                // Clip bar height against bottom boundary
                 s16 clip_calc = (barheight + drawy) - bothigh;
                 if (clip_calc != 0 && bothigh <= (s16)(barheight + drawy))
                 {
@@ -1635,13 +1588,14 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 terrain_step_x, s32 a5, 
                 }
             }
 
+            // Render or hit-test the bar
             if (image.ftstpix == 0)
             {
                 bartra(terrain_cell, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
             }
             else
             {
-                hittest_bar(terrain_cell, render_context, drawy, barheight, barwidth, d4, terrain_step_x, (s16)a5);
+                hittest_bar(terrain_cell, render_context, drawy, barheight, barwidth, packed_coord, step_x, (s16)step_y);
             }
         }
     }
@@ -2034,102 +1988,113 @@ void zoomtofenf(sSprite *sprite)
     }
 }
 
-void barsprite(s32 render_context, s16 index, s16 world_x, s16 world_y, s16 world_z)
+// Render a billboard sprite at a terrain cell position
+void barsprite(s32 render_context, s16 type_idx, s16 world_x, s16 world_y, s16 unused)
 {
     sSprite *sprite = SPRITE_VAR(image.atexsprite);
-    u32 bitmap_ptr = xread32(render_context + 0x10 + index);
-    if (xread32(bitmap_ptr) != 0)
+    u32 tex_entry = xread32(render_context + 0x10 + type_idx);
+    if (xread32(tex_entry) != 0)
     {
+        // Project terrain position to screen space
         sCLTPResult result = clandtopix(image.mapscreen, (world_x << (xread16(render_context - 0x3c0) & 0x3f)) - xread16(render_context - 0x268), (world_y << (xread16(render_context - 0x3c0) & 0x3f)) - xread16(render_context - 0x266), image.solh - xread16(render_context - 0x264));
-        s16 sprite_depth = result.d5w;
+        s16 sprite_depth = result.depth;
         if (sprite_depth < xread16(image.mapscreen + 0x92))
         {
             sprite_depth = -1;
         }
-        
-        sprite->newx = xread16(render_context - 0x26c) + (s16)result.d3w;
-        sprite->newy = xread16(render_context - 0x26a) + (s16)result.d4w;
+
+        sprite->newx = xread16(render_context - 0x26c) + (s16)result.screen_x;
+        sprite->newy = xread16(render_context - 0x26a) + (s16)result.screen_y;
         sprite->newd = sprite_depth;
-        sprite->newzoomx = result.d6w;
-        sprite->newzoomy = result.d6w;
-        
+        sprite->newzoomx = result.zoom;
+        sprite->newzoomy = result.zoom;
+
         if (-1 < sprite_depth)
         {
-            sprite->script_ent = xread16(render_context + 0x1c + index);
-            sprite->credon_off = xread8(render_context + 0x15 + index);
-            
-            u32 bitmap_base = xread32(bitmap_ptr) + bitmap_ptr;
-            u32 zoom_data_ptr = image.zoombid;
+            sprite->script_ent = xread16(render_context + 0x1c + type_idx);
+            sprite->credon_off = xread8(render_context + 0x15 + type_idx);
+
+            // Resolve bitmap and metadata pointers
+            u32 bitmap_base = xread32(tex_entry) + tex_entry;
+            u32 meta = image.zoombid;
             u32 bitmap = bitmap_base;
             if ((s8)xread8(bitmap) == 3)
             {
-                bitmap_ptr += xread16(bitmap + 2) * 4;
-                bitmap = xread32(bitmap_ptr) + bitmap_ptr;
-                zoom_data_ptr = bitmap_base;
+                tex_entry += xread16(bitmap + 2) * 4;
+                bitmap = xread32(tex_entry) + tex_entry;
+                meta = bitmap_base;
             }
-            
-            sprite->newad = bitmap_ptr;
-            sprite->newf = xread8(zoom_data_ptr + 1);
+
+            sprite->newad = tex_entry;
+            sprite->newf = xread8(meta + 1);
+
+            // Compute zoom shift from detail level
             u8 detail_level = sprite->credon_off;
             if ((xread8(bitmap + 1) & 0x20) == 0)
             {
                 detail_level += 1;
             }
-            
+
             u32 detail_shift = (u32)detail_level;
+
+            // Compute scaled sprite dimensions
             s32 sprite_height = ((s32)(((u32)((s32)(s16)(xread16(bitmap + 4) + 1) * (s32)sprite->newzoomy) >> 8) * 2) >> (detail_shift & 0x3f)) - 1;
             if (sprite_height < 0)
             {
                 sprite_height = 0;
             }
-            
+
             s32 sprite_width_calc = ((s32)(((u32)((s32)(s16)(xread16(bitmap + 2) + 1) * (s32)sprite->newzoomx) >> 8) * 2) >> (detail_shift & 0x3f)) - 1;
             s16 sprite_width = (s16)sprite_width_calc;
             if (sprite_width_calc < 0)
             {
                 sprite_width = 0;
             }
-            
+
             sprite->width = sprite_width;
             sprite->height = sprite_height;
-            sprite->newy = (s16)(((s32)(s16)((xread16(bitmap + 4) >> 1) - xread16(zoom_data_ptr + 6)) * (s32)sprite->newzoomy >> 8) * -2 >> (detail_shift & 0x3f)) + sprite->newy;
-            sprite->newx = (s16)(((s32)(s16)((xread16(bitmap + 2) >> 1) - xread16(zoom_data_ptr + 4)) * (s32)sprite->newzoomx >> 8) * -2 >> (detail_shift & 0x3f)) + sprite->newx;
+
+            // Adjust position by hotspot offset
+            sprite->newy = (s16)(((s32)(s16)((xread16(bitmap + 4) >> 1) - xread16(meta + 6)) * (s32)sprite->newzoomy >> 8) * -2 >> (detail_shift & 0x3f)) + sprite->newy;
+            sprite->newx = (s16)(((s32)(s16)((xread16(bitmap + 2) >> 1) - xread16(meta + 4)) * (s32)sprite->newzoomx >> 8) * -2 >> (detail_shift & 0x3f)) + sprite->newx;
             zoomtofenf(sprite);
         }
     }
 }
 
-void spritaff(s16 d0w)
+// Render all sprites in the depth-sorted list that are behind the current depth layer
+void spritaff(s16 depth_layer)
 {
     u16 idx = image.spritnext;
     while (true)
     {
         if (idx == 0)
         {
+            // End of sprite list: reset depth sentinel
             image.spritnext = idx;
             image.spritprof = 0x8000;
             return;
         }
 
         sSprite *sprite = SPRITE_VAR(idx);
-        if (sprite->newd <= d0w)
+        if (sprite->newd <= depth_layer)
         {
             break;
         }
-        
+
+        // Render valid sprite
         if (-1 < sprite->state && -1 < sprite->newf && -1 < sprite->newd)
         {
             zoomtofenf(sprite);
         }
-        
+
         idx = sprite->link;
     }
 
+    // Update next-to-render pointer and depth threshold
     image.spritprof = SPRITE_VAR(idx)->newd;
     image.spritnext = idx;
 }
-
-#include "export.h"
 
 // =============================================================================
 // doland: Main 3D terrain column renderer for Robinson's Requiem
@@ -2194,7 +2159,7 @@ void doland(s32 scene_addr, s32 render_context)
 
     // --- Sprite depth sorting setup ---
     image.spritprof = 0x8000;
-    sSprite *sprite = SPRITE_VAR((u16)xread16(scene_addr + 0x2));
+    sSprite *sprite = SPRITE_VAR((u16)xread16(scene_addr +0x2));
     image.spritnext = sprite->link;
     if (image.spritnext != 0)
     {
@@ -2202,7 +2167,7 @@ void doland(s32 scene_addr, s32 render_context)
     }
 
     // --- Render sky background ---
-    if (xread16(scene_addr + 0xa2) != 0)
+    if (xread16(scene_addr +0xa2) != 0)
     {
         skytofen(scene_addr, render_context);
     }
@@ -2626,8 +2591,8 @@ void doland(s32 scene_addr, s32 render_context)
                 // --- Render ground terrain bar ---
                 if (bar_height != 0 && SBORROW2(prev_max_y, ground_clip_y) == (s32)((u32)bar_height << 0x10) < 0)
                 {
-                    u32 test = CONCAT22((trav_x), (trav_x >> 16));
-                    barland(terrain_cell, render_context, col_dir_x, (s16)(col_step_y_raw >> 0x10), ground_clip_y, bar_height, terrain_type_idx, bar_screen_x, test, scan_x);
+                    u32 packed_pos = CONCAT22((trav_x), (trav_x >> 16));
+                    barland(terrain_cell, render_context, col_dir_x, (s16)(col_step_y_raw >> 0x10), ground_clip_y, bar_height, terrain_type_idx, bar_screen_x, packed_pos, scan_x);
                 }
 
                 // =============================================================
@@ -2815,8 +2780,8 @@ void doland(s32 scene_addr, s32 render_context)
 
                                     s16 saved_clip = xread16(render_context - 0x25c);
                                     xwrite16(render_context - 0x25c, prectopi);
-                                    u32 test = CONCAT22((trav_x), (trav_x >> 16));
-                                    tbarland(terrain_cell, render_context, col_dir_x, col_step_y, prev_oh_top, oh_bar_height, oh_type_idx, col_x_pos_swp, test, oh_packed);
+                                    u32 packed_pos = CONCAT22((trav_x), (trav_x >> 16));
+                                    tbarland(terrain_cell, render_context, col_dir_x, col_step_y, prev_oh_top, oh_bar_height, oh_type_idx, col_x_pos_swp, packed_pos, oh_packed);
                                     xwrite16(render_context - 0x25c, saved_clip);
                                 }
                             }
@@ -2866,18 +2831,23 @@ void doland(s32 scene_addr, s32 render_context)
 
 void affiland(s32 scene)
 {
-    s32 scnaddr = alis.basemain + scene;
-    
-    image.mapscreen = scnaddr;
-    image.wloglarg = xread16(scnaddr + 0x12) + 1;
-    image.wlogic = (u8 *)(alis.mem + xread32(xread32(scnaddr + 0x30)));
-    image.wlogx1 = xread16(scnaddr + 0xe);
-    image.wlogy1 = xread16(scnaddr + 0x10);
-    s32 render_context = xread16(scnaddr + 0x42) + xread32(alis.atent + xread16(scnaddr + 0x40));
-    image.fenx1 = xread16(scnaddr + 0xe);
-    image.landclipy1 = xread16(scnaddr + 0x10);
-    image.landclipx2 = xread16(scnaddr + 0x12) + image.fenx1;
-    image.feny2 = xread16(scnaddr + 0x14) + image.landclipy1;
+    s32 scene_addr = alis.basemain + scene;
+
+    // Set up logic buffer and viewport from scene data
+    image.mapscreen = scene_addr;
+    image.wloglarg = xread16(scene_addr + 0x12) + 1;
+    image.wlogic = (u8 *)(alis.mem + xread32(xread32(scene_addr + 0x30)));
+    image.wlogx1 = xread16(scene_addr + 0xe);
+    image.wlogy1 = xread16(scene_addr + 0x10);
+
+    // Resolve render context from entity table
+    s32 render_context = xread16(scene_addr + 0x42) + xread32(alis.atent + xread16(scene_addr + 0x40));
+
+    // Initialize clipping rectangle from scene viewport
+    image.fenx1 = xread16(scene_addr + 0xe);
+    image.landclipy1 = xread16(scene_addr + 0x10);
+    image.landclipx2 = xread16(scene_addr + 0x12) + image.fenx1;
+    image.feny2 = xread16(scene_addr + 0x14) + image.landclipy1;
     image.clipl = (image.landclipx2 - image.fenx1) + 1;
     image.landcliph = (image.feny2 - image.landclipy1) + 1;
     image.vbarclipx2 = image.landclipx2 + 1;
@@ -2888,57 +2858,32 @@ void affiland(s32 scene)
     image.clipx2 = image.landclipx2;
     image.clipy2 = image.feny2;
     image.cliph = image.landcliph;
+
     if (image.ftstpix == 0)
     {
-        if ((xread8(scnaddr) & 0x80) == 0)
+        if ((xread8(scene_addr) & 0x80) == 0)
         {
+            // No 3D flag: copy VGA buffer to display if switching
             if ((alis.fswitch != 0) && (image.switchland != 0))
             {
-//                u8 cVar1 = fremouse;
-//                if (-1 < fmouse)
-//                {
-//                    do {
-//                    } while (fremouse2 != 0);
-//                    cVar1 = fremouse + 1;
-//                    if ((char)(fremouse + 1) != 0)
-//                    {
-//                        cVar1 = fremouse;
-//                    }
-//                }
-//
-//                fremouse = cVar1;
                 image.fenlargw = image.wloglarg >> 2;
                 image.wloglarg = image.wloglarg >> 1;
                 tvtofen();
                 image.switchland = 0;
-//                if (-1 < fmouse)
-//                {
-//                    fremouse2 = 1;
-//                    if (fmouse != '\x02')
-//                    {
-//                        mouserase();
-//                    }
-//
-//                    fremouse2 = 0;
-//                    fremouse = -1;
-//                    if (fmouse == 0)
-//                    {
-//                        fmouse = -1;
-//                    }
-//                }
             }
         }
         else
         {
-            calctoy(scnaddr, render_context);
-            spritland(scnaddr, xread16(scnaddr + 2));
-            calclan0(scnaddr, render_context);
-            if (((xread8(scnaddr + 1) & 0x40) == 0) && (xread16(scnaddr + 0xa2) == 0))
+            // Full 3D terrain render pipeline
+            calctoy(scene_addr, render_context);
+            spritland(scene_addr, xread16(scene_addr + 2));
+            calclan0(scene_addr, render_context);
+            if (((xread8(scene_addr + 1) & 0x40) == 0) && (xread16(scene_addr + 0xa2) == 0))
             {
                 clrvga();
             }
-            
-            doland(scnaddr, render_context);
+
+            doland(scene_addr, render_context);
             vgatofen();
             image.landone = 1;
             image.switchland = 1;
@@ -2946,10 +2891,12 @@ void affiland(s32 scene)
     }
     else
     {
-        calclan0(scnaddr, render_context);
-        doland(scnaddr, render_context);
+        // Hit-test mode: skip rendering, only compute terrain data
+        calclan0(scene_addr, render_context);
+        doland(scene_addr, render_context);
     }
-    
+
+    // Restore logic buffer state
     image.wlogic = image.logic;
     image.wlogx1 = image.logx1;
     image.wlogy1 = image.logy1;
@@ -2959,50 +2906,60 @@ void affiland(s32 scene)
     image.fenlargw = image.loglarg >> 2;
 }
 
-void landtofi(s16 d2w, s16 d3w)
+void landtofi(s16 unused, s16 scene_id)
 {
-    s16 oldcliph = image.cliph;
-    s16 oldclipl = image.clipl;
-    s16 oldclipy2 = image.clipy2;
-    s16 oldclipx2 = image.clipx2;
-    s16 oldclipy1 = image.clipy1;
-    s16 oldclipx1 = image.clipx1;
-    s32 sceneadr = alis.basemain + d3w;
-    image.wloglarg = xread16(sceneadr + 0x12) + 1;
-    image.wlogic = (u8 *)(alis.mem + xread32(xread32(sceneadr + 0x30)));
-    image.wlogx1 = xread16(sceneadr + 0xe);
-    image.wlogy1 = xread16(sceneadr + 0x10);
-    image.mapscreen = sceneadr;
+    // Save current clipping state
+    s16 save_cliph = image.cliph;
+    s16 save_clipl = image.clipl;
+    s16 save_clipy2 = image.clipy2;
+    s16 save_clipx2 = image.clipx2;
+    s16 save_clipy1 = image.clipy1;
+    s16 save_clipx1 = image.clipx1;
+
+    // Set up logic buffer from scene data
+    s32 scene_addr = alis.basemain + scene_id;
+    image.wloglarg = xread16(scene_addr + 0x12) + 1;
+    image.wlogic = (u8 *)(alis.mem + xread32(xread32(scene_addr + 0x30)));
+    image.wlogx1 = xread16(scene_addr + 0xe);
+    image.wlogy1 = xread16(scene_addr + 0x10);
+    image.mapscreen = scene_addr;
+
+    // Render terrain into sub-window if flagged
     if (image.fdoland != 0)
     {
-        image.landclipx2 = xread16(sceneadr + 0x12) + xread16(sceneadr + 0xe);
+        // Set up clipping from current clip rect and scene viewport
+        image.landclipx2 = xread16(scene_addr + 0x12) + xread16(scene_addr + 0xe);
         image.landcliph = (image.clipy2 - image.clipy1) + 1;
         image.clipl = (image.clipx2 - image.clipx1) + 1;
         image.vbarclipx2 = image.clipx2 + 1;
         image.landclipy1 = image.clipy1;
-        s32 render_context = xread16(sceneadr + 0x42) + xread32(alis.atent + xread16(sceneadr + 0x40));
+
+        // Resolve render context and run terrain render pipeline
+        s32 render_context = xread16(scene_addr + 0x42) + xread32(alis.atent + xread16(scene_addr + 0x40));
         image.cliph = image.landcliph;
-        calctoy(sceneadr, render_context);
-        d3w = xread16(sceneadr + 2);
-        spritland(sceneadr, d3w);
-        calclan0(sceneadr, render_context);
-        if (((xread8(sceneadr + 1) & 0x40) == 0) && (xread16(sceneadr + 0xa2) == 0))
+        calctoy(scene_addr, render_context);
+        spritland(scene_addr, xread16(scene_addr + 2));
+        calclan0(scene_addr, render_context);
+        if (((xread8(scene_addr + 1) & 0x40) == 0) && (xread16(scene_addr + 0xa2) == 0))
         {
             clrvga();
         }
-        
-        doland(sceneadr, render_context);
+
+        doland(scene_addr, render_context);
         image.fdoland = 0;
         image.landone = 1;
     }
-    
-    image.clipx1 = oldclipx1;
-    image.clipy1 = oldclipy1;
-    image.clipx2 = oldclipx2;
-    image.clipy2 = oldclipy2;
-    image.clipl = oldclipl;
-    image.cliph = oldcliph;
+
+    // Restore clipping state and copy VGA buffer to display
+    image.clipx1 = save_clipx1;
+    image.clipy1 = save_clipy1;
+    image.clipx2 = save_clipx2;
+    image.clipy2 = save_clipy2;
+    image.clipl = save_clipl;
+    image.cliph = save_cliph;
     vgatofen();
+
+    // Restore logic buffer state
     image.wlogic = image.logic;
     image.wlogx1 = image.logx1;
     image.wlogy1 = image.logy1;
@@ -3013,37 +2970,88 @@ void landtofi(s16 d2w, s16 d3w)
 
 void pixtoland(s32 render_context)
 {
-    image.cxtstpix = xread16(render_context - 0x268) + ((s16)(((s32)(s16)((s32)(s16)(image.xtstpix - xread16(render_context - 0x26c)) * (s32)xread16(render_context - 0x28a) >> 9) * (s32)(s16)(xread16(render_context - 0x3ac) + image.dtstpix)) / (s32)xread16(render_context - 0x3aa)) - (s16)((s32)image.dtstpix * (s32)xread16(render_context - 0x28c) >> 9));
-    image.cytstpix = xread16(render_context - 0x266) + (s16)((s32)image.dtstpix * (s32)xread16(render_context - 0x28a) >> 9) + (s16)(((s32)(s16)((s32)(s16)(image.xtstpix - xread16(render_context - 0x26c)) * (s32)xread16(render_context - 0x28c) >> 9) * (s32)(s16)(xread16(render_context - 0x3ac) + image.dtstpix)) / (s32)xread16(render_context - 0x3aa));
-    image.cztstpix = xread16(render_context - 0x264) + (s16)((s32)image.dtstpix * (s32)xread16(render_context - 0x290) >> 9) + (s16)(((s32)(s16)(xread16(render_context - 0x26a) - image.ytstpix) * (s32)(s16)(xread16(render_context - 0x3a8) + image.dtstpix)) / (s32)xread16(render_context - 0x3a6));
+    // Inverse perspective projection: screen (x, y) + depth → world (x, y, z)
+
+    // Read camera world position
+    s16 cam_wx = xread16(render_context - 0x268);
+    s16 cam_wy = xread16(render_context - 0x266);
+    s16 cam_wz = xread16(render_context - 0x264);
+
+    // Read camera screen center
+    s16 cam_sx = xread16(render_context - 0x26c);
+    s16 cam_sy = xread16(render_context - 0x26a);
+
+    // Read precomputed trig values
+    s32 cos_yaw = xread16(render_context - 0x28a);
+    s32 sin_yaw = xread16(render_context - 0x28c);
+    s32 sin_pitch = xread16(render_context - 0x290);
+
+    // Read FOV projection factors
+    s16 fov_num_x = xread16(render_context - 0x3ac);
+    s32 fov_den_x = xread16(render_context - 0x3aa);
+    s16 fov_num_y = xread16(render_context - 0x3a8);
+    s32 fov_den_y = xread16(render_context - 0x3a6);
+
+    s32 depth = image.dtstpix;
+
+    // Screen deltas from camera center
+    s16 dx = (s16)(image.xtstpix - cam_sx);
+    s16 dy = (s16)(cam_sy - image.ytstpix);
+    s32 depth_adj_x = (s16)(fov_num_x + depth);
+
+    // Unproject X: rotate dx by cos(yaw), scale by perspective, subtract depth*sin(yaw)
+    s16 rot_cos = (s16)((s32)dx * cos_yaw >> 9);
+    s16 unproj_x = (s16)((s32)rot_cos * depth_adj_x / fov_den_x);
+    s16 depth_sin = (s16)(depth * sin_yaw >> 9);
+    image.cxtstpix = cam_wx + (unproj_x - depth_sin);
+
+    // Unproject Y: rotate dx by sin(yaw), scale by perspective, add depth*cos(yaw)
+    s16 rot_sin = (s16)((s32)dx * sin_yaw >> 9);
+    s16 unproj_y = (s16)((s32)rot_sin * depth_adj_x / fov_den_x);
+    s16 depth_cos = (s16)(depth * cos_yaw >> 9);
+    image.cytstpix = cam_wy + depth_cos + unproj_y;
+
+    // Unproject Z: scale dy by perspective, add depth*sin(pitch)
+    s32 depth_adj_y = (s16)(fov_num_y + depth);
+    s16 unproj_z = (s16)((s32)dy * depth_adj_y / fov_den_y);
+    s16 depth_pitch = (s16)(depth * sin_pitch >> 9);
+    image.cztstpix = cam_wz + depth_pitch + unproj_z;
 }
 
 void pointpix(s16 x, s16 y)
 {
-    u32 scene = xread16(alis.script->vram_org - 0x16);
-    u32 sceneptr = alis.basemain + scene;
-    image.dtstpix = xread16(sceneptr + 0x94);
+    // Resolve scene address from current script
+    u32 scene_id = xread16(alis.script->vram_org - 0x16);
+    u32 scene_addr = alis.basemain + scene_id;
+
+    // Initialize hit-test state
+    image.dtstpix = xread16(scene_addr + 0x94);
     image.etstpix = -1;
     image.ntstpix = -1;
     image.ftstpix = 1;
     image.xtstpix = x;
     image.ytstpix = y;
-    
-    if ((xread8(sceneptr) & 0x40) == 0)
+
+    // Run terrain hit-test if scene is not disabled
+    if ((xread8(scene_addr) & 0x40) == 0)
     {
-        affiland(scene);
+        affiland(scene_id);
+
+        // Resolve hit entity sprite index from entity table
         if (-1 < image.etstpix)
         {
-            u32 piVar1 = (xread32(xread32(xread32(alis.atent + image.etstpix) - 0x14) + 0xe) + xread32(xread32(alis.atent + image.etstpix) - 0x14));
-            image.ntstpix = (s16)(((image.antstpix & 0xffffff) - (xread32(piVar1) + piVar1)) >> 2);
-            if (xread16(piVar1 + 4) <= image.ntstpix)
+            u32 entity_data = (xread32(xread32(xread32(alis.atent + image.etstpix) - 0x14) + 0xe) + xread32(xread32(alis.atent + image.etstpix) - 0x14));
+            image.ntstpix = (s16)(((image.antstpix & 0xffffff) - (xread32(entity_data) + entity_data)) >> 2);
+            if (xread16(entity_data + 4) <= image.ntstpix)
             {
+                // Sprite index out of range: fall back to base entity table
                 image.ntstpix = (s16)(((image.antstpix & 0xffffff) - (xread32(alis.basemain + xread32(alis.basemain + 0xe)) + (s32)(alis.basemain + xread32(alis.basemain + 0xe)))) >> 2);
             }
         }
     }
-    
-    s32 render_context = xread16(sceneptr + 0x42) + xread32(alis.atent + xread16(sceneptr + 0x40));
+
+    // Convert hit screen position back to world coordinates
+    s32 render_context = xread16(scene_addr + 0x42) + xread32(alis.atent + xread16(scene_addr + 0x40));
     pixtoland(render_context);
     image.ftstpix = 0;
 }

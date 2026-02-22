@@ -4929,99 +4929,110 @@ void putmap(s16 spridx, s32 bitmap)
 // Codopname no. 230 opcode 0xe5 cputmap
 // Ishar 3 Korean (IBM PC): cputmap => map_cnul
 static void cputmap(void) {
-    u32 mapram = alis.script->vram_org;
-    
+    // Resolve map base address
+    u32 map_base = alis.script->vram_org;
+
     s16 offset = script_read16();
     if (offset == 0)
     {
         offset = script_read16();
-        mapram = alis.basemain;
+        map_base = alis.basemain;
     }
-    
-    mapram += offset;
-    
+
+    map_base += offset;
+
     if (alis.platform.uid == EGameTransarctica)
     {
+        // Read map parameters
         readexec_opername();
-        xwrite16(mapram - 0x32, alis.varD7);
+        xwrite16(map_base - 0x32, alis.varD7);
         readexec_opername();
-        xwrite16(mapram - 0x30, alis.varD7);
+        xwrite16(map_base - 0x30, alis.varD7);
         readexec_opername();
-        xwrite16(mapram - 0x2e, alis.varD7);
+        xwrite16(map_base - 0x2e, alis.varD7);
         readexec_opername();
         image.numelem = (u8)alis.varD7;
-        u32 uVar3 = xread16(mapram - 0x2e);
-        u16 uVar1 = xread16(mapram - 0x40);
-        u16 uVar2 = uVar3 % uVar1;
-        xwrite16(mapram - 0x22, (s16)uVar2);
+
+        // Compute wrapped column index
+        u32 map_pos = xread16(map_base - 0x2e);
+        u16 map_width = xread16(map_base - 0x40);
+        u16 col_idx = map_pos % map_width;
+        xwrite16(map_base - 0x22, (s16)col_idx);
         alis.fmuldes = 0;
-        
+
+        // Find or create sprite element
         u16 newidx = 0;
         u16 oldidx = 0;
         if (!searchelem(&newidx, &oldidx))
         {
             createlem(&newidx, &oldidx);
         }
-        
+
         sSprite *sprite = SPRITE_VAR(newidx);
         if (-1 < sprite->state)
         {
             sprite->state = 2;
         }
-        
-        putmap(newidx, mapram - 0x2c);
-        
+
+        putmap(newidx, map_base - 0x2c);
+
+        // Set up sprite display properties
         if (searchelem(&newidx, &oldidx))
         {
             sSprite *sprite = SPRITE_VAR(newidx);
             sprite->credon_off = -1;
             sprite->flaginvx = 0;
             sprite->chsprite = 0;
-            sprite->depx = xread16(mapram - 0x3e);
-            sprite->depy = xread16(mapram - 0x3c);
-            sprite->depz = xread16(mapram - 0x3a);
+            sprite->depx = xread16(map_base - 0x3e);
+            sprite->depy = xread16(map_base - 0x3c);
+            sprite->depz = xread16(map_base - 0x3a);
         }
     }
     else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
     {
+        // Read map parameters
         readexec_opername();
-        xwrite16(mapram - 0x3e2, alis.varD7);
+        xwrite16(map_base - 0x3e2, alis.varD7);
         readexec_opername();
-        xwrite16(mapram - 0x3e0, alis.varD7);
+        xwrite16(map_base - 0x3e0, alis.varD7);
         readexec_opername();
-        xwrite16(mapram - 0x3de, alis.varD7);
+        xwrite16(map_base - 0x3de, alis.varD7);
         readexec_opername();
         image.numelem = (u8)alis.varD7;
-        u32 uVar3 = xread16(mapram - 0x3de);
-        u16 uVar1 = xread16(mapram - 0x3f0);
-        u16 uVar2 = uVar3 % uVar1;
-        xwrite16(mapram - 0x3d2, (s16)uVar2);
+
+        // Compute wrapped column index
+        u32 map_pos = xread16(map_base - 0x3de);
+        u16 map_width = xread16(map_base - 0x3f0);
+        u16 col_idx = map_pos % map_width;
+        xwrite16(map_base - 0x3d2, (s16)col_idx);
         alis.fmuldes = 0;
-        
+
+        // Find or create sprite element
         u16 newidx = 0;
         u16 oldidx = 0;
         if (!searchelem(&newidx, &oldidx))
         {
             createlem(&newidx, &oldidx);
         }
-        
+
         sSprite *sprite = SPRITE_VAR(newidx);
         if (-1 < sprite->state)
         {
             sprite->state = 2;
         }
-        
-        putmapin(newidx, mapram - 0x3dc);
-        
+
+        putmapin(newidx, map_base - 0x3dc);
+
+        // Set up sprite display properties
         if (searchelem(&newidx, &oldidx))
         {
             sSprite *sprite = SPRITE_VAR(newidx);
             sprite->credon_off = -1;
             sprite->flaginvx = 0;
             sprite->chsprite = 0;
-            sprite->depx = xread16(mapram - 0x3ee);
-            sprite->depy = xread16(mapram - 0x3ec);
-            sprite->depz = xread16(mapram - 0x3ea);
+            sprite->depx = xread16(map_base - 0x3ee);
+            sprite->depy = xread16(map_base - 0x3ec);
+            sprite->depz = xread16(map_base - 0x3ea);
         }
     }
 }
@@ -5041,44 +5052,51 @@ static void csczoom(void) {
 // Ishar 3 Korean (IBM PC): ctexmap => map_cnul
 static void ctexmap(void) {
     alis.flagmain = 0;
-    
-    u32 addr = alis.script->vram_org;
+
+    // Resolve scene base address
+    u32 scene_addr = alis.script->vram_org;
 
     s16 offset = script_read16();
     if (offset == 0)
     {
         offset = script_read16();
-        addr = alis.basemain;
+        scene_addr = alis.basemain;
     }
-    
-    addr += offset;
 
+    scene_addr += offset;
+
+    // Compute texture entry address from slot index
     readexec_opername_saveD6();
-    
-    u32 a0 = addr;
-    
-    addr += (alis.varD6 * 0x20) + (s16)0xf400;
-    
+
+    u32 entry = scene_addr + (alis.varD6 * 0x20) + (s16)0xf400;
+
+    // Read texture type flag
     readexec_opername();
-    xwrite8(addr + 1, (char)alis.varD7);
+    xwrite8(entry + 1, (char)alis.varD7);
+
+    // Resolve texture resource address if type > 0
     readexec_opername();
-    if (0 < xread8(addr + 1))
+    if (0 < xread8(entry + 1))
     {
-        xwrite32(addr + 4, adresdes(alis.varD7));
+        xwrite32(entry + 4, adresdes(alis.varD7));
     }
-    
+
+    // Read texture parameters
     readexec_opername();
-    xwrite16(addr + 10, alis.varD7);
+    xwrite16(entry + 10, alis.varD7);
     readexec_opername();
-    xwrite8(addr + 8, (char)alis.varD7);
-    xwrite8(addr + 9, (char)alis.varD7 + 1);
+    xwrite8(entry + 8, (char)alis.varD7);
+    xwrite8(entry + 9, (char)alis.varD7 + 1);
     readexec_opername();
-    xwrite16(addr + 0xe, alis.varD7);
+    xwrite16(entry + 0xe, alis.varD7);
+
+    // Read mapping type and dispatch
     readexec_opername();
     char type = (char)alis.varD7;
-    xwrite8(addr + 0x14, type);
+    xwrite8(entry + 0x14, type);
     if (type == 0)
     {
+        // Type 0: no mapping, skip 4 operands
         readexec_opername();
         readexec_opername();
         readexec_opername();
@@ -5086,43 +5104,46 @@ static void ctexmap(void) {
     }
     else if (type < 0)
     {
+        // Negative type: grid-based terrain texture mapping
         readexec_opername();
-        xwrite16(addr + 0x10, alis.varD7);
+        xwrite16(entry + 0x10, alis.varD7);
         readexec_opername();
-        xwrite16(addr + 0x12, alis.varD7);
+        xwrite16(entry + 0x12, alis.varD7);
         readexec_opername();
-        xwrite16(addr + 0x16, alis.varD7);
+        xwrite16(entry + 0x16, alis.varD7);
         readexec_opername();
-        xwrite16(addr + 0x1a, alis.varD7);
-        s32 top = calctop(a0, xread16(addr + 0x10), xread16(addr + 0x12));
-        xwrite32(addr + 0x10, top);
-        if (top < 0)
+        xwrite16(entry + 0x1a, alis.varD7);
+        s32 tex_offset = calctop(scene_addr, xread16(entry + 0x10), xread16(entry + 0x12));
+        xwrite32(entry + 0x10, tex_offset);
+        if (tex_offset < 0)
         {
-            xwrite8(addr + 0x14, 0);
+            xwrite8(entry + 0x14, 0);
         }
     }
     else if (type == 2)
     {
+        // Type 2: simple texture with scale
         readexec_opername();
-        xwrite16(addr + 0x16, alis.varD7);
+        xwrite16(entry + 0x16, alis.varD7);
         readexec_opername();
         readexec_opername();
         readexec_opername();
-        xwrite16(addr + 0x1a, alis.varD7);
+        xwrite16(entry + 0x1a, alis.varD7);
     }
     else
     {
+        // Type 1+: sprite-based texture mapping
         readexec_opername();
-        xwrite32(addr + 0x10, adresdes(alis.varD7));
-        xwrite16(addr + 0x1c, xread16(alis.script->vram_org - 0xe));
+        xwrite32(entry + 0x10, adresdes(alis.varD7));
+        xwrite16(entry + 0x1c, xread16(alis.script->vram_org - 0xe));
         readexec_opername();
-        xwrite16(addr + 0x16, alis.varD7);
+        xwrite16(entry + 0x16, alis.varD7);
         readexec_opername();
-        xwrite8(addr + 0x15, (char)alis.varD7);
+        xwrite8(entry + 0x15, (char)alis.varD7);
         readexec_opername();
-        xwrite16(addr + 0x1a, alis.varD7);
+        xwrite16(entry + 0x1a, alis.varD7);
     }
-    
+
     // TODO: more code here in Falcon CD version
 }
 
@@ -5213,30 +5234,37 @@ static void cdarkpal(void) {
 // Codopname no. 240 opcode 0xef cscdark
 static void cscdark(void) {
     alis.flagmain = 0;
-    
-    u32 mem = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
-    
-    readexec_opername();
-    xwrite16(mem + 0x98, alis.varD7);
-    
-    readexec_opername();
-    u32 sprite = adresdes(alis.varD7);
-    xwrite32(mem + 0x9a, xread32(sprite) + sprite);
 
+    u32 screen = alis.basemain + get_0x16_screen_id(alis.script->vram_org);
+
+    // Read darkness config value
     readexec_opername();
-    xwrite16(mem + 0x9e, alis.varD7);
+    xwrite16(screen + 0x98, alis.varD7);
 
-    xwrite8(mem, xread8(mem) | 0x80);
+    // Resolve darkness palette resource address
+    readexec_opername();
+    u32 dark_addr = adresdes(alis.varD7);
+    xwrite32(screen + 0x9a, xread32(dark_addr) + dark_addr);
 
-    s16 uVar1 = xread16(xread32(mem + 0x9a) + 4) + 1;
-    xwrite16(mem + 0xa0, uVar1);
-    if (xread16(mem + 0x9e) < 0)
+    // Read darkness level
+    readexec_opername();
+    xwrite16(screen + 0x9e, alis.varD7);
+
+    // Mark screen as having darkness enabled
+    xwrite8(screen, xread8(screen) | 0x80);
+
+    // Compute darkness table height from resource header
+    s16 dark_height = xread16(xread32(screen + 0x9a) + 4) + 1;
+    xwrite16(screen + 0xa0, dark_height);
+    if (xread16(screen + 0x9e) < 0)
     {
-        xwrite16(mem + 0x9e, uVar1 >> 1);
+        // Negative dark level: default to half table height
+        xwrite16(screen + 0x9e, dark_height >> 1);
     }
-    
-    alis.basedark = xread16(mem + 0x9e);
-    alis.ptrdark = xread32(mem + 0x9a) + 6;
+
+    // Set global darkness base and pointer
+    alis.basedark = xread16(screen + 0x9e);
+    alis.ptrdark = xread32(screen + 0x9a) + 6;
 }
 
 // Codopname no. 241 opcode 0xf0 caset
@@ -5363,135 +5391,152 @@ u16 walkdim;
 
 s16 walktete;
 
-void landalti(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 *r2, s16 *r3);
+void landalti(s32 addr, s32 vram, s16 world_x, s16 world_y, s16 *out_alt, s16 *out_cell);
 
-s16 walkland(s32 addr)
+s16 walkland(s32 scene_addr)
 {
+    // Set material collision mask from walktete sign
     alis.matmask = 0;
     if (walktete < 0)
     {
         alis.matmask = walktete;
     }
-    
-    s16 sinwcaz = tabsin[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
-    s16 coswcaz = tabcos[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
-    s16 wcx2 = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2);
-    s16 wcy2 = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2);
+
+    // Read azimuth trig values and walk offset from VRAM
+    s16 sin_az = tabsin[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
+    s16 cos_az = tabcos[xread16(alis.script->vram_org + ALIS_SCR_WCAZ)];
+    s16 offset_x = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCX2);
+    s16 offset_y = (s8)xread8(alis.script->vram_org + ALIS_SCR_WCY2);
+
+    // Compute forward walk direction vectors
     if (walktete != 0)
     {
-        walkdx = (s32)-xread16(addr - 0x3f4) * sinwcaz * 0x80;
-        walkdy = (s32) xread16(addr - 0x3f4) * coswcaz * 0x80;
+        walkdx = (s32)-xread16(scene_addr - 0x3f4) * sin_az * 0x80;
+        walkdy = (s32) xread16(scene_addr - 0x3f4) * cos_az * 0x80;
     }
-    
-    s32 wcx = xread32(alis.script->vram_org + ALIS_SCR_WCX);
-    s32 wcy = xread32(alis.script->vram_org + ALIS_SCR_WCY);
 
-    walkcx = wcx + ((s32)coswcaz * wcx2 - (s32)sinwcaz * (s32)wcy2) * 0x80;
-    walkcy = wcy + ((s32)coswcaz * (s32)wcy2 + (s32)sinwcaz * wcx2) * 0x80;
+    // Compute new world position by rotating walk offset by azimuth
+    s32 world_x = xread32(alis.script->vram_org + ALIS_SCR_WCX);
+    s32 world_y = xread32(alis.script->vram_org + ALIS_SCR_WCY);
+
+    walkcx = world_x + ((s32)cos_az * offset_x - (s32)sin_az * (s32)offset_y) * 0x80;
+    walkcy = world_y + ((s32)cos_az * (s32)offset_y + (s32)sin_az * offset_x) * 0x80;
     walkocz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
-    
-    s16 tmpz, d3w;
-    landalti(addr, alis.script->vram_org, walkcx >> 0x10, walkcy >> 0x10, &walkcz, &d3w);
-    s16 varwz = walkcz - walkocz;
+
+    // Query terrain altitude at new position
+    s16 probe_z, probe_cell;
+    landalti(scene_addr, alis.script->vram_org, walkcx >> 0x10, walkcy >> 0x10, &walkcz, &probe_cell);
+    s16 delta_z = walkcz - walkocz;
+
+    // Multi-point collision probes around walk path
     if (alis.matmask != 0)
     {
-        landalti(addr, alis.script->vram_org, ((u32)(wcx + walkdy + walkdx) >> 0x10), ((u32)(wcy + walkdx + walkdy) >> 0x10), &tmpz, &d3w);
-        if (0xfe < tmpz)
+        landalti(scene_addr, alis.script->vram_org, ((u32)(world_x + walkdy + walkdx) >> 0x10), ((u32)(world_y + walkdx + walkdy) >> 0x10), &probe_z, &probe_cell);
+        if (0xfe < probe_z)
         {
-            varwz = tmpz - walkocz;
-            walkcz = tmpz;
+            delta_z = probe_z - walkocz;
+            walkcz = probe_z;
         }
-        
-        landalti(addr, alis.script->vram_org, ((u32)(wcx + (walkdx - walkdy)) >> 0x10), ((u32)(wcy + (walkdy - walkdx)) >> 0x10), &tmpz, &d3w);
-        if (0xfe < tmpz)
+
+        landalti(scene_addr, alis.script->vram_org, ((u32)(world_x + (walkdx - walkdy)) >> 0x10), ((u32)(world_y + (walkdy - walkdx)) >> 0x10), &probe_z, &probe_cell);
+        if (0xfe < probe_z)
         {
-            varwz = tmpz - walkocz;
-            walkcz = tmpz;
+            delta_z = probe_z - walkocz;
+            walkcz = probe_z;
         }
-        
-        landalti(addr, alis.script->vram_org, ((u32)(wcx + walkdx * 2) >> 0x10), ((u32)(wcy + walkdy * 2) >> 0x10), &tmpz, &d3w);
-        if (0xfe < tmpz)
+
+        landalti(scene_addr, alis.script->vram_org, ((u32)(world_x + walkdx * 2) >> 0x10), ((u32)(world_y + walkdy * 2) >> 0x10), &probe_z, &probe_cell);
+        if (0xfe < probe_z)
         {
-            varwz = tmpz - walkocz;
-            walkcz = tmpz;
+            delta_z = probe_z - walkocz;
+            walkcz = probe_z;
         }
-        
-        landalti(addr, alis.script->vram_org, ((u32)(wcx + walkdy + walkdx * 2) >> 0x10), ((u32)(wcy + walkdx + walkdy * 2) >> 0x10), &tmpz, &d3w);
-        if (0xfe < tmpz)
+
+        landalti(scene_addr, alis.script->vram_org, ((u32)(world_x + walkdy + walkdx * 2) >> 0x10), ((u32)(world_y + walkdx + walkdy * 2) >> 0x10), &probe_z, &probe_cell);
+        if (0xfe < probe_z)
         {
-            varwz = tmpz - walkocz;
-            walkcz = tmpz;
+            delta_z = probe_z - walkocz;
+            walkcz = probe_z;
         }
-        
-        landalti(addr, alis.script->vram_org, ((u32)(wcx + (walkdx * 2 - walkdy)) >> 0x10), ((u32)(wcy + (walkdy * 2 - walkdx)) >> 0x10), &tmpz, &d3w);
-        if (0xfe < tmpz)
+
+        landalti(scene_addr, alis.script->vram_org, ((u32)(world_x + (walkdx * 2 - walkdy)) >> 0x10), ((u32)(world_y + (walkdy * 2 - walkdx)) >> 0x10), &probe_z, &probe_cell);
+        if (0xfe < probe_z)
         {
-            varwz = tmpz - walkocz;
-            walkcz = tmpz;
+            delta_z = probe_z - walkocz;
+            walkcz = probe_z;
         }
     }
-    
+
+    // Look-ahead slope estimation for head bobbing
     if (0 < walktete)
     {
-        s16 tmpz = varwz;
-        if (varwz < 0)
+        s16 abs_delta = delta_z;
+        if (delta_z < 0)
         {
-            tmpz = -varwz;
+            abs_delta = -delta_z;
         }
-        
-        if (tmpz <= walkhaut)
+
+        if (abs_delta <= walkhaut)
         {
-            landalti(addr, alis.script->vram_org, (s16)((u32)(wcx + walkdx) >> 0x10), (s16)((u32)(wcy + walkdy) >> 0x10), &tmpz, &d3w);
-            varwz = tmpz = (tmpz - walkocz) * 4;
-            landalti(addr, alis.script->vram_org, (s16)((u32)(wcx + walkdx * 2) >> 0x10), (s16)((u32)(wcy + walkdy * 2) >> 0x10), &tmpz, &d3w);
-            tmpz = (tmpz - walkocz) * 2;
-            landalti(addr, alis.script->vram_org, (s16)((u32)(wcx + walkdx * 4) >> 0x10), (s16)((u32)(wcy + walkdy * 4) >> 0x10), &tmpz, &d3w);
-            u16 uVar6 = ((s16)(tmpz) - walkocz) + varwz + tmpz;
-            u16 uVar3 = uVar6;
-            if ((s16)uVar6 < 0)
+            // Sample altitude at 1x, 2x, 4x walk steps with decreasing weights
+            s16 sample_z;
+            landalti(scene_addr, alis.script->vram_org, (s16)((u32)(world_x + walkdx) >> 0x10), (s16)((u32)(world_y + walkdy) >> 0x10), &sample_z, &probe_cell);
+            s16 weighted_1x = sample_z = (sample_z - walkocz) * 4;
+            landalti(scene_addr, alis.script->vram_org, (s16)((u32)(world_x + walkdx * 2) >> 0x10), (s16)((u32)(world_y + walkdy * 2) >> 0x10), &sample_z, &probe_cell);
+            sample_z = (sample_z - walkocz) * 2;
+            landalti(scene_addr, alis.script->vram_org, (s16)((u32)(world_x + walkdx * 4) >> 0x10), (s16)((u32)(world_y + walkdy * 4) >> 0x10), &sample_z, &probe_cell);
+            u16 slope_sum = ((s16)(sample_z) - walkocz) + weighted_1x + sample_z;
+            u16 abs_slope = slope_sum;
+            if ((s16)slope_sum < 0)
             {
-                uVar3 = -uVar6;
+                abs_slope = -slope_sum;
             }
-            
-            if (0x3c0 < uVar3)
+
+            // Clamp extreme slopes to zero
+            if (0x3c0 < abs_slope)
             {
-                uVar6 = 0;
+                slope_sum = 0;
             }
-            
-            tmpz = (s16)(((s32)(s16)uVar6 * (s32)(s16)walktete >> 2) / 0xc);
-            varwz = tmpz;
-            if (tmpz < 0)
+
+            // Scale slope by walktete factor
+            sample_z = (s16)(((s32)(s16)slope_sum * (s32)(s16)walktete >> 2) / 0xc);
+            s16 abs_head = sample_z;
+            if (sample_z < 0)
             {
-                varwz = -tmpz;
+                abs_head = -sample_z;
             }
-            
-            if ((u8)varwz < walkmap3)
+
+            // Apply dead zone threshold
+            if ((u8)abs_head < walkmap3)
             {
-                tmpz = 0;
+                sample_z = 0;
             }
-            
-            headland(tmpz);
+
+            headland(sample_z);
         }
     }
-    
-    u16 walklcz = walkcz - walkocz;
-    if ((s32)((u32)walklcz << 0x10) < 0)
+
+    // Final altitude check: reject move if height change exceeds walkhaut
+    u16 abs_delta_z = walkcz - walkocz;
+    if ((s32)((u32)abs_delta_z << 0x10) < 0)
     {
-        walklcz = -walklcz;
+        abs_delta_z = -abs_delta_z;
     }
-    
-    if (walkhaut < (s16)walklcz)
+
+    if (walkhaut < (s16)abs_delta_z)
     {
-        landalti(addr, alis.script->vram_org, xread16(alis.script->vram_org + ALIS_SCR_WCX), xread16(alis.script->vram_org + ALIS_SCR_WCY), &tmpz, &d3w);
-        xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, tmpz);
+        // Move rejected: keep old XY, update Z at current position
+        landalti(scene_addr, alis.script->vram_org, xread16(alis.script->vram_org + ALIS_SCR_WCX), xread16(alis.script->vram_org + ALIS_SCR_WCY), &probe_z, &probe_cell);
+        xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, probe_z);
     }
     else
     {
+        // Move accepted: update full world position
         xwrite32(alis.script->vram_org + ALIS_SCR_WCX, walkcx);
         xwrite32(alis.script->vram_org + ALIS_SCR_WCY, walkcy);
         xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, walkcz);
     }
-    
+
     return walkcz - walkocz;
 }
 
@@ -5538,43 +5583,50 @@ sVector polarmov(s16 wcx2, s16 wcy2, s16 wcz2, s16 wcax, s16 wcaz)
     return result;
 }
 
-void landalti(s32 addr, s32 vram, s16 wcx2, s16 wcy2, s16 *r2, s16 *r3)
+void landalti(s32 addr, s32 vram, s16 world_x, s16 world_y, s16 *out_alt, s16 *out_cell)
 {
-    u16 valx = wcx2 >> ((u16)xread16(addr - 0x3c0) & 0x3f);
-    u16 valy = wcy2 >> ((u16)xread16(addr - 0x3c0) & 0x3f);
-    if ((valy <= (u16)xread16(addr - 0x292)) && (valx <= (u16)xread16(addr - 0x294)))
+    // Convert world coordinates to grid coordinates
+    u16 grid_x = world_x >> ((u16)xread16(addr - 0x3c0) & 0x3f);
+    u16 grid_y = world_y >> ((u16)xread16(addr - 0x3c0) & 0x3f);
+
+    // Bounds check against grid dimensions
+    if ((grid_y <= (u16)xread16(addr - 0x292)) && (grid_x <= (u16)xread16(addr - 0x294)))
     {
-        u32 newaddr = ((s32)(s16)valy + (s32)(s16)valy + xread32(image.atlland + (s16)(valx * 4)));
-        *r3 = (u16)xread16(newaddr);
-        *r2 = *r3 & 0xff;
-        
-        s16 bmpidx = ((*r3 & 0x3f00) >> 3) - 0xc00;
-        s8 test = (s8)xread8(addr + 0x14 + bmpidx);
-        if (test != 0)
+        // Read terrain cell data
+        u32 cell_addr = ((s32)(s16)grid_y + (s32)(s16)grid_y + xread32(image.atlland + (s16)(grid_x * 4)));
+        *out_cell = (u16)xread16(cell_addr);
+        *out_alt = *out_cell & 0xff;
+
+        // Compute terrain type offset (6-bit type from cell, scaled)
+        s16 terrain_offset = ((*out_cell & 0x3f00) >> 3) - 0xc00;
+        s8 terrain_flag = (s8)xread8(addr + 0x14 + terrain_offset);
+        if (terrain_flag != 0)
         {
-            if (test < 0)
+            if (terrain_flag < 0)
             {
-                newaddr += xread32(addr + 0x10 + bmpidx);
-                s16 sVar3 = xread8(newaddr + 1) - *r2;
-                bmpidx = xread16(addr + 0x16 + bmpidx) - sVar3;
-                if ((sVar3 <= bmpidx) || ((s16)(xread8(newaddr + 1) - bmpidx) <= xread16(vram + ALIS_SCR_WCZ)))
+                // Overhang/bridge: follow redirect and test altitude
+                cell_addr += xread32(addr + 0x10 + terrain_offset);
+                s16 alt_diff = xread8(cell_addr + 1) - *out_alt;
+                terrain_offset = xread16(addr + 0x16 + terrain_offset) - alt_diff;
+                if ((alt_diff <= terrain_offset) || ((s16)(xread8(cell_addr + 1) - terrain_offset) <= xread16(vram + ALIS_SCR_WCZ)))
                 {
-                    *r3 = xread16(newaddr);
-                    *r2 = *r3 & 0xff;
+                    *out_cell = xread16(cell_addr);
+                    *out_alt = *out_cell & 0xff;
                 }
             }
-            else if ((alis.matmask != 0) && (xread16(addr + 0x1a + bmpidx) != 0))
+            else if ((alis.matmask != 0) && (xread16(addr + 0x1a + terrain_offset) != 0))
             {
-                if ((s8)xread8(addr + 0x14 + bmpidx) == 1)
+                // Material modifier
+                if ((s8)xread8(addr + 0x14 + terrain_offset) == 1)
                 {
-                    if (xread32(addr + 0x10 + bmpidx) != 0)
+                    if (xread32(addr + 0x10 + terrain_offset) != 0)
                     {
-                        r2 += 0xff;
+                        out_alt += 0xff; // NOTE: adds to pointer, not value — matches original code
                     }
                 }
                 else
                 {
-                    *r2 += xread16(addr + 0x16 + bmpidx);
+                    *out_alt += xread16(addr + 0x16 + terrain_offset);
                 }
             }
         }
@@ -5667,201 +5719,211 @@ static void cavmov(void) {
 
 void getangle(s16 *atx, s16 *aty)
 {
-    s16 uVar2;
-    s16 uVar3;
+    s16 angle;
+    s16 magnitude = *aty;
 
-    s16 natx;
-    s16 naty = *aty;
     if (atx == 0)
     {
-getangle3:
-        natx = 0;
+        // X component is zero: angle is 0° or 180° (0xb4)
+        angle = 0;
         if (*aty == 0)
-        {
-            naty = 0;
-        }
+            magnitude = 0;
         else if (*aty < 0)
-        {
-            natx = 0xb4;
-        }
+            angle = 0xb4;
     }
     else
     {
-        uVar2 = *atx;
+        s16 abs_x = *atx;
         if (*atx < 0)
-        {
-            uVar2 = -(*atx);
-        }
-        
+            abs_x = -(*atx);
+
         if (aty != 0)
         {
-            uVar3 = *aty;
+            s16 abs_y = *aty;
             if (aty < 0)
+                abs_y = -(*aty);
+
+            if (abs_y < abs_x)
             {
-                uVar3 = -(*aty);
-            }
-            
-            if (uVar3 < uVar2)
-            {
-                natx = 0x5a;
-                uVar2 = (((s32)uVar2 << 5) / uVar3);
-                if (0x73f < uVar2 || (natx = tabatan[uVar2]) != 0)
+                // |x| > |y|: compute atan(|x|/|y|), angle near 90° (0x5a)
+                angle = 0x5a;
+                abs_x = (((s32)abs_x << 5) / abs_y);  // reused as atan ratio
+                if (0x73f < abs_x || (angle = tabatan[abs_x]) != 0)
                 {
                     if (aty < 0)
-                    {
-                        natx = 0xb4 - natx;
-                    }
-                    
+                        angle = 0xb4 - angle;
+
                     if (-1 < *atx)
-                    {
-                        natx = -natx;
-                    }
+                        angle = -angle;
+
+                    // Recover magnitude via sin
+                    magnitude = (*atx * 0x200) / tabsin[angle] & 0xffff;
+                }
+                else
+                {
+                    // Degenerate atan: treat as X ≈ 0
+                    angle = 0;
+                    if (*aty == 0)
+                        magnitude = 0;
                     
-                    naty = (*atx * 0x200) / tabsin[natx] & 0xffff;
-                    goto getangle4;
+                    else if (*aty < 0)
+                        angle = 0xb4;
                 }
-                
-                goto getangle3;
             }
-            
-            natx = 0x5a;
-            uVar2 = (((s32)uVar3 << 5) / uVar2);
-            if (0x73f < uVar2 || (natx = tabatan[uVar2]) != 0)
+            else
             {
-                if (aty < 0)
+                // |y| >= |x|: compute atan(|y|/|x|), angle near 0°
+                angle = 0x5a;
+                abs_x = (((s32)abs_y << 5) / abs_x);  // reused as atan ratio
+                if (0x73f < abs_x || (angle = tabatan[abs_x]) != 0)
                 {
-                    natx = -natx;
+                    if (aty < 0)
+                        angle = -angle;
+
+                    angle -= 0x5a;
+                    if (*atx < 0)
+                        angle = -angle;
+
+                    // Recover magnitude via cos
+                    magnitude = (*aty * 0x200) / tabcos[angle] & 0xffff;
                 }
-                
-                natx -= 0x5a;
-                if (*atx < 0)
+                else
                 {
-                    natx = -natx;
+                    // Degenerate atan: treat as Y ≈ 0
+                    magnitude = *atx;
+                    angle = *atx < 0 ? 0x5a : (s16)0xffa6;
                 }
-                
-                naty = (*aty * 0x200) / tabcos[natx] & 0xffff;
-                goto getangle4;
             }
         }
-        
-        naty = *atx;
-        natx = 0xffa6;
-        if (*atx < 0)
+        else
         {
-            natx = 0x5a;
+            // Y component is zero: angle is ±90° (0x5a / 0xffa6)
+            magnitude = *atx;
+            angle = *atx < 0 ? 0x5a : (s16)0xffa6;
         }
     }
-    
-getangle4:
-    
-    if (naty < 0)
-    {
-        naty = -naty;
-    }
-    
-    *atx = natx;
-    *aty = naty;
+
+    if (magnitude < 0)
+        magnitude = -magnitude;
+
+    *atx = angle;
+    *aty = magnitude;
 }
 
-void polarang(s16 *cx, s16 *cy, s16 *cz, s16 *oldcx, s16 *oldcy, s16 *oldcz)
+void polarang(s16 *cx, s16 *cy, s16 *cz, s16 *cur_x, s16 *cur_y, s16 *cur_z)
 {
-    *cx -= *oldcx;
-    *cy -= *oldcy;
-    *cz -= *oldcz;
-    
-    getangle(cx, cy);
-    
-    s16 ncx = 0;
+    // Compute deltas from current position to target
+    *cx -= *cur_x;
+    *cy -= *cur_y;
+    *cz -= *cur_z;
 
+    // Horizontal angle: getangle returns azimuth in *cx, horizontal distance in *cy
+    getangle(cx, cy);
+
+    // Vertical angle: if there is a height difference, compute elevation
+    s16 elevation = 0;
     if (*cz != 0)
     {
-        ncx = -(*cz);
-        getangle(&ncx, cy);
+        elevation = -(*cz);
+        getangle(&elevation, cy);
     }
-    
+
+    // Output: *cx = azimuth, *cy = elevation, *cz = distance
     *cz = *cy;
-    *cy = ncx;
+    *cy = elevation;
 }
 
 // Codopname no. 252 opcode 0xfb caim
 static void caim(void) {
+    // Read target world position
     readexec_opername();
     s16 cx = alis.varD7;
     readexec_opername();
     s16 cy = alis.varD7;
     readexec_opername();
     s16 cz = alis.varD7;
-    
-    s16 oldcx = xread16(alis.script->vram_org + ALIS_SCR_WCX);
-    s16 oldcy = xread16(alis.script->vram_org + ALIS_SCR_WCY);
-    s16 oldcz = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
-    
-    polarang(&cx, &cy, &cz, &oldcx, &oldcy, &oldcz);
-    
+
+    // Read current world position
+    s16 cur_x = xread16(alis.script->vram_org + ALIS_SCR_WCX);
+    s16 cur_y = xread16(alis.script->vram_org + ALIS_SCR_WCY);
+    s16 cur_z = xread16(alis.script->vram_org + ALIS_SCR_WCZ);
+
+    // Compute polar angle from current position to target
+    // After this: cx = target azimuth, cz = elevation (0 = same plane)
+    polarang(&cx, &cy, &cz, &cur_x, &cur_y, &cur_z);
+
+    // If target is at same altitude, keep current azimuth
     if (cz == 0)
     {
         cx = xread16(alis.script->vram_org + ALIS_SCR_WCAZ);
     }
-    
+
+    // Read max turn rate per step (degrees)
     readexec_opername();
-    u16 uVar4 = alis.varD7;
-    
-    if (0xb3 >= uVar4)
+    u16 max_turn = alis.varD7;
+
+    // Clamp angular change to max_turn (0xb3 = 179°, 0x168 = 360°)
+    if (0xb3 >= max_turn)
     {
         cy = xread16(alis.script->vram_org + ALIS_SCR_WCAZ);
-        
-        u16 uVar1 = cx - cy;
-        if ((s16)uVar1 < 0)
+
+        u16 angle_diff = cx - cy;
+        if ((s16)angle_diff < 0)
         {
-            if ((s16)uVar1 < -0xb3)
+            if ((s16)angle_diff < -0xb3)
             {
-                uVar1 += 0x168;
-                if ((s16)uVar1 < 0)
+                // Wrapped past -180°, adjust by +360°
+                angle_diff += 0x168;
+                if ((s16)angle_diff < 0)
                 {
-                    if ((s16)uVar1 <= (s16)-uVar4)
-                        uVar1 = -uVar4;
-                    
-                    cx = cy + uVar1;
+                    if ((s16)angle_diff <= (s16)-max_turn)
+                        angle_diff = -max_turn;
+
+                    cx = cy + angle_diff;
                 }
-                    
-                if ((s16)uVar4 <= (s16)uVar1)
-                    uVar1 = uVar4;
-                
-                cx = cy + uVar1;
+
+                if ((s16)max_turn <= (s16)angle_diff)
+                    angle_diff = max_turn;
+
+                cx = cy + angle_diff;
             }
             else
             {
-                if ((s16)uVar1 <= (s16)-uVar4)
-                    uVar1 = -uVar4;
-                
-                cx = cy + uVar1;
+                // Negative turn within half-circle
+                if ((s16)angle_diff <= (s16)-max_turn)
+                    angle_diff = -max_turn;
+
+                cx = cy + angle_diff;
             }
         }
         else
         {
-            if (0xb3 < (s16)uVar1)
+            if (0xb3 < (s16)angle_diff)
             {
-                uVar1 -= 0x168;
-                if ((s16)uVar1 < 0)
+                // Wrapped past +180°, adjust by -360°
+                angle_diff -= 0x168;
+                if ((s16)angle_diff < 0)
                 {
-                    if ((s16)uVar1 <= (s16)-uVar4)
-                        uVar1 = -uVar4;
-                    
-                    cx = cy + uVar1;
+                    if ((s16)angle_diff <= (s16)-max_turn)
+                        angle_diff = -max_turn;
+
+                    cx = cy + angle_diff;
                 }
             }
             else
             {
-                if ((s16)uVar4 <= (s16)uVar1)
+                // Positive turn within half-circle
+                if ((s16)max_turn <= (s16)angle_diff)
                 {
-                    uVar1 = uVar4;
+                    angle_diff = max_turn;
                 }
-                
-                cx = cy + uVar1;
+
+                cx = cy + angle_diff;
             }
         }
     }
-    
+
+    // Normalize azimuth to [-359°, +359°] range
     if (cx < 0x168)
     {
         if (cx < -0x167)
@@ -5873,13 +5935,14 @@ static void caim(void) {
     {
         cx += -0x168;
     }
-    
+
+    // Store results: current azimuth, new azimuth, elevation
     alis.varD7 = cy;
     cstore_continue();
-    
+
     alis.varD7 = cx;
     cstore_continue();
-    
+
     alis.varD7 = cz;
     cstore_continue();
 }
@@ -5921,152 +5984,157 @@ static void cchartmap(void) {
     }
 
     u32 addr = vram + offset;
-    s32 iVar3;
-    
+    s32 fill_value;
+
     readexec_opername();
     s16 value = alis.varD7;
     if (value == 0)
     {
-        iVar3 = 0;
+        fill_value = 0;
     }
     else
     {
         if (value != 1)
         {
+            // Sub-command 2/3: set chart type
             if (value == 2 || value == 3)
             {
                 readexec_opername();
                 xwrite16(addr - 0x3b6, alis.varD7);
                 return;
             }
-      
+
+            // Sub-command 4: set chart color base
             if (value == 4)
             {
                 readexec_opername();
                 xwrite16(addr - 0x3b4, alis.varD7);
                 return;
             }
-      
-            s16 sVar4;
-            s16 sVar5;
-            s16 sVar9;
+
             if (value != 5)
             {
+                // Sub-command >= 6: clear rectangular area in chart bitmap
                 readexec_opername();
                 alis.varD7--;
                 if (alis.varD7 < 0)
                     alis.varD7 = 0;
 
-                iVar3 = xread32(addr - 0x3ba);
-                s32 iVar2 = (int)(s16)(xread16(vram) - value) / (int)xread16(iVar3 - 0x3f4);
-                sVar4 = (s16)iVar2;
-                if (iVar2 < 0)
-                    sVar4 = 0;
+                // Compute clipped tile bounds from extent (value encodes radius)
+                s32 entity_data = xread32(addr - 0x3ba);
 
-                if (xread16(iVar3 - 1000) <= sVar4)
-                    sVar4 = xread16(iVar3 - 1000);
+                s32 div_result = (int)(s16)(xread16(vram) - value) / (int)xread16(entity_data - 0x3f4);
+                s16 min_col = (s16)div_result;
+                if (div_result < 0)
+                    min_col = 0;
+                if (xread16(entity_data - 1000) <= min_col)
+                    min_col = xread16(entity_data - 1000);
 
-                iVar2 = (int)(s16)(xread16(vram) + value) / (int)xread16(iVar3 - 0x3f4);
-                sVar5 = (s16)iVar2;
-                if (iVar2 < 0)
-                    sVar5 = 0;
+                div_result = (int)(s16)(xread16(vram) + value) / (int)xread16(entity_data - 0x3f4);
+                s16 max_col = (s16)div_result;
+                if (div_result < 0)
+                    max_col = 0;
+                if (xread16(entity_data - 1000) <= max_col)
+                    max_col = xread16(entity_data - 1000);
 
-                if (xread16(iVar3 - 1000) <= sVar5)
-                    sVar5 = xread16(iVar3 - 1000);
+                div_result = (int)(s16)(xread16(vram + 8) - value) / (int)xread16(entity_data - 0x3f2);
+                s16 min_row = (s16)div_result;
+                if (div_result < 0)
+                    min_row = 0;
+                if (xread16(entity_data - 0x3e6) <= min_row)
+                    min_row = xread16(entity_data - 0x3e6);
 
-                iVar2 = (int)(s16)(xread16(vram + 8) - value) / (int)xread16(iVar3 - 0x3f2);
-                sVar9 = (s16)iVar2;
-                if (iVar2 < 0)
-                    sVar9 = 0;
+                div_result = (int)(s16)(xread16(vram + 8) + value) / (int)xread16(entity_data - 0x3f2);
+                s16 max_row = (s16)div_result;
+                if (div_result < 0)
+                    max_row = 0;
+                if (xread16(entity_data - 0x3e6) <= max_row)
+                    max_row = xread16(entity_data - 0x3e6);
 
-                if (xread16(iVar3 - 0x3e6) <= sVar9)
-                    sVar9 = xread16(iVar3 - 0x3e6);
+                // Shift tile bounds to bitmap coordinates
+                u16 shift_x = (xread16(addr - 0xf0) - 4) - xread16(entity_data - 0x3c0);
+                u16 min_x = min_col >> (shift_x & 0x3f);
+                u16 max_x = max_col >> (shift_x & 0x3f);
+                u16 shift_y = xread16(addr - 0x3be) - xread16(entity_data - 0x3be);
+                s16 start_row = min_row >> (shift_y & 0x3f);
+                s16 row_count = (max_row >> (shift_y & 0x3f)) - start_row;
 
-                iVar2 = (int)(s16)(xread16(vram + 8) + value) / (int)xread16(iVar3 - 0x3f2);
-                value = (s16)iVar2;
-                if (iVar2 < 0)
-                    value = 0;
-            
-                if (xread16(iVar3 - 0x3e6) <= value)
-                    value = xread16(iVar3 - 0x3e6);
-
-                u16 uVar8 = (xread16(addr - 0xf0) - 4) - xread16(iVar3 - 0x3c0);
-                u16 uVar1 = sVar4 >> (uVar8 & 0x3f);
-                u16 uVar7 = sVar5 >> (uVar8 & 0x3f);
-                uVar8 = xread16(addr - 0x3be) - xread16(iVar3 - 0x3be);
-                sVar9 = sVar9 >> (uVar8 & 0x3f);
-                value = (value >> (uVar8 & 0x3f)) - sVar9;
-                u16 uVar6 = ~(0xffffU >> (uVar1 - (uVar1 & 0xfff0) & 0x3f));
-                uVar8 = uVar7 | 0xf;
-                uVar7 = ~(-1 << (-(uVar7 - uVar8) & 0x3f));
-                uVar8 = (ushort)(uVar8 - (uVar1 & 0xfff0)) >> 4;
-                sVar4 = uVar8 - 1;
-                if (sVar4 < 0)
+                // Compute bitmasks for left and right edges of the rectangle
+                u16 left_mask = ~(0xffffU >> (min_x - (min_x & 0xfff0) & 0x3f));
+                u16 aligned_max = max_x | 0xf;
+                u16 right_mask = ~(-1 << (-(max_x - aligned_max) & 0x3f));
+                u16 word_span = (ushort)(aligned_max - (min_x & 0xfff0)) >> 4;
+                s16 mid_words = word_span - 1;
+                if (mid_words < 0)
                 {
-                    uVar6 = uVar7 | uVar6;
-                    uVar7 = 0;
+                    left_mask = right_mask | left_mask;
+                    right_mask = 0;
                 }
-                
-                if (uVar7 != 0)
+
+                if (right_mask != 0)
                 {
-                    sVar4 = uVar8 - 2;
+                    mid_words = word_span - 2;
                 }
-                
-                u32 puVar12 = addr;
+
+                // Resolve data pointer and compute starting position
+                u32 data_base = addr;
                 if ((s8)xread8(addr - 1) < 0)
-                    puVar12 = xread32(xread32(addr));
+                    data_base = xread32(xread32(addr));
 
-                u32 puVar13 = (puVar12 + sVar9 * 2 + (u32)(uVar1 >> 4) * (u16)xread16(addr - 0x3c4));
-                sVar5 = xread16(addr - 0x3c4);
-            
+                s16 stride = xread16(addr - 0x3c4);
+                u32 row_ptr = (data_base + start_row * 2 + (u32)(min_x >> 4) * (u16)stride);
+
+                // Clear rectangle row by row using bitmasks
                 do
                 {
-                    xwrite16(puVar13, uVar6 & xread16(puVar13));
-                    u32 puVar14 = puVar13 + sVar5;
-                    sVar9 = sVar4;
-                    if (-1 < sVar4)
+                    xwrite16(row_ptr, left_mask & xread16(row_ptr));
+                    u32 word_ptr = row_ptr + stride;
+                    s16 mid_count = mid_words;
+                    if (-1 < mid_words)
                     {
                         do
                         {
-                            xwrite16(puVar14, 0);
-                            puVar14 += sVar5;
-                            sVar9--;
+                            xwrite16(word_ptr, 0);
+                            word_ptr += stride;
+                            mid_count--;
                         }
-                        while (sVar9 != -1);
+                        while (mid_count != -1);
                     }
-                    
-                    if (uVar7 != 0)
-                        xwrite16(puVar14, uVar7 & xread16(puVar14));
 
-                    puVar13++;
-                    value--;
+                    if (right_mask != 0)
+                        xwrite16(word_ptr, right_mask & xread16(word_ptr));
+
+                    row_ptr++;
+                    row_count--;
                 }
-                while (value != -1);
-                
+                while (row_count != -1);
+
                 return;
             }
-            
+
+            // Sub-command 5: set chart color count
             readexec_opername();
             xwrite16(addr - 0x3b2, alis.varD7);
             return;
         }
-            
-        iVar3 = -1;
+
+        fill_value = -1;
     }
 
+    // Fill entire chart bitmap with fill_value (0 or -1), then link entity
     s16 loops = ((s16)(xread16(addr - 0x3c6) * xread16(addr - 0x3c4)) >> 1);
-    u32 addr2 = addr;
-    if ((s8)xread8(addr2 - 1) < 0)
+    u32 data_ptr = addr;
+    if ((s8)xread8(data_ptr - 1) < 0)
     {
-        addr2 = xread32(addr2);
-        addr2 = xread32(addr2);
+        data_ptr = xread32(data_ptr);
+        data_ptr = xread32(data_ptr);
     }
 
-    for (int i = 0; i < loops; i++, addr2 += 2)
+    for (int i = 0; i < loops; i++, data_ptr += 2)
     {
-        xwrite16(addr2, (s16)iVar3);
+        xwrite16(data_ptr, (s16)fill_value);
     }
-  
+
     vram = alis.script->vram_org;
     offset = script_read16();
     if (offset == 0)
@@ -6074,7 +6142,7 @@ static void cchartmap(void) {
         offset = script_read16();
         vram = alis.basemain;
     }
-    
+
     xwrite32(addr - 0x3ba, vram + offset);
 }
 

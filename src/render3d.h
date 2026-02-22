@@ -9,11 +9,11 @@
 #ifndef render3d_h
 #define render3d_h
 
-void openland(s16 d0w);
+void openland(s16 scene_id);
 void pointpix(s16 x, s16 y);
 
-void landtofi(s16 d2w, s16 d3w);
-void landtopix(s32 sceneadr, u16 d1w);
+void landtofi(s16 unused, s16 scene_id);
+void landtopix(s32 scene_addr, u16 sprite_id);
 void affiland(s32 scene);
 
 #endif /* render3d_h */

@@ -1644,64 +1644,6 @@ void phytolog(void)
     trsfen(image.physic, image.logic);
 }
 
-void mouserase(void)
-{
-    // TODO: ...
-//    u8 *paVar7 = physic;
-//    if (fremouse2 != 0)
-//    {
-//        paVar7 = logic;
-//    }
-//
-//    s16 sVar2 = 0;
-//    s16 sVar4 = 0xf;
-//    s16 sVar3 = 0x120;
-//
-//    if (-1 < savmouse[0])
-//    {
-//        u8 bVar1 = 0x12f < savmouse[0];
-//        if (bVar1)
-//        {
-//            sVar2 = 0x10;
-//            sVar3 = 0x130;
-//        }
-//
-//        u32 *puVar5 = savmouse2;
-//        if ((s16)(-savmouse[1] + 0xb8) < 0)
-//        {
-//            sVar4 = -savmouse[1] + 199;
-//        }
-//
-//        u32 *puVar8 = (u32 *)(paVar7 + savmouse[1] * 0x140 + (savmouse[0] & 0xfff0));
-//
-//        do
-//        {
-//            u32 *puVar6;
-//            u32 *puVar9;
-//            if (!bVar1)
-//            {
-//                puVar8[0] = puVar5[0];
-//                puVar8[1] = puVar5[1];
-//                puVar6 = puVar5 + 3;
-//                puVar9 = puVar8 + 3;
-//                puVar8[2] = puVar5[2];
-//                puVar5 = puVar5 + 4;
-//                puVar8 = puVar8 + 4;
-//                puVar9[0] = puVar6[0];
-//            }
-//
-//            puVar8[0] = puVar5[0];
-//            puVar8[1] = puVar5[1];
-//            puVar8[2] = puVar5[2];
-//            puVar8[3] = puVar5[3];
-//            puVar8 = (u32 *)((s32)puVar8 + sVar3 + 0x10);
-//            puVar5 = (u32 *)((s32)puVar5 + sVar2 + 0x10);
-//            sVar4 --;
-//        }
-//        while (sVar4 != -1);
-//    }
-}
-
 void tvtofen(void)
 {
     // image.fenx2 = fenlargw * 4 + image.fenx1 - 1;
@@ -2165,10 +2107,11 @@ void destofen(sSprite *sprite)
     }
 }
 
-s32 calctop(u32 a0, s16 d0w, s16 d1w)
+s32 calctop(u32 scene_addr, s16 grid_col, s16 grid_row)
 {
-    s32 topoff = ((s32)d1w + (s32)d0w * xread16(a0 - 0x3ca)) * 2;
-    return topoff;
+    // Compute byte offset into 2D terrain texture map: (row + col * stride) * 2
+    s32 tex_offset = ((s32)grid_row + (s32)grid_col * xread16(scene_addr - 0x3ca)) * 2;
+    return tex_offset;
 }
 
 void fentotv(void)
@@ -2306,25 +2249,7 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3, u16 prevspidx)
             }
         }
         
-//        // TODO: mouse
-//        cVar2 = fremouse;
-//        if (((-1 < fmouse) && (fmouse != 2)) && (alis.fswitch == 0))
-//        {
-//            do
-//            {
-//                fremouse = cVar2 + 1;
-//            }
-//            while (fremouse != 0);
-//
-//            if (tvmode == 0)
-//            {
-//                mousefen((s32)d0);
-//            }
-//            else
-//            {
-//                mouserase();
-//            }
-//        }
+        // NOTE: originaly mouse cursore erase, now handled elsewhere
         
         if ((get_scr_numelem(scene) & 0x20) == 0)
         {
@@ -2344,16 +2269,7 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3, u16 prevspidx)
             }
         }
         
-//        // TODO: mouse
-//        if (alis.fswitch == 0)
-//        {
-//            if ((tvmode != 0) && (-1 < fmouse))
-//            {
-//                mouseput();
-//            }
-//
-//            fremouse = -1;
-//        }
+        // NOTE: originaly mouse cursore draw, now handled elsewhere
     }
 }
 
@@ -3837,26 +3753,32 @@ u8 chartpdeco(u32 src)
 
 u8 chartptra(u32 src)
 {
-    s16 sVar8 = ((s8)xread8(src) & 0x3f) * 0x20 - 0xc00;
-    if ((s8)xread8(alis.script->vram_org + 0x1 + sVar8) < 0)
+    // Compute VRAM offset from terrain type (lower 6 bits, scaled)
+    s16 vram_offset = ((s8)xread8(src) & 0x3f) * 0x20 - 0xc00;
+
+    // Follow terrain indirection if redirect flag is set
+    if ((s8)xread8(alis.script->vram_org + 0x1 + vram_offset) < 0)
     {
-        src += xread16(alis.script->vram_org + 0x10 + sVar8);
-        sVar8 = ((u16)xread16(src + 1) & 0x3f) * 0x20 - 0xc00;
+        src += xread16(alis.script->vram_org + 0x10 + vram_offset);
+        vram_offset = ((u16)xread16(src + 1) & 0x3f) * 0x20 - 0xc00;
     }
-    
-    s16 sVar4 = (u16)((s8)xread8(src + 1) >> 4) + (alis.basedark - (u16)((s8)xread8(src) >> 6));
-    if (sVar4 < 0)
+
+    // Compute shade level from source data and base darkness (clamped to 0-15)
+    // NOTE: shade is computed but unused in the final lookup — matches original code
+    s16 shade = (u16)((s8)xread8(src + 1) >> 4) + (alis.basedark - (u16)((s8)xread8(src) >> 6));
+    if (shade < 0)
     {
-        sVar4 = 0;
+        shade = 0;
     }
-    else if (0xf < sVar4)
+    else if (0xf < shade)
     {
-        sVar4 = 0xf;
+        shade = 0xf;
     }
-    
-    sVar8 = (s8)xread8(alis.script->vram_org + 0x8 + sVar8) * 2;
-    
-    s8 result = ((xdeschart ^ ydeschart) & 1) == 0 ? (s8)xread8(alis.ptrdark + sVar8) : (s8)xread8(alis.ptrdark + 1 + sVar8);
+
+    // Look up color from darkness/dithering table
+    s16 dark_idx = (s8)xread8(alis.script->vram_org + 0x8 + vram_offset) * 2;
+
+    s8 result = ((xdeschart ^ ydeschart) & 1) == 0 ? (s8)xread8(alis.ptrdark + dark_idx) : (s8)xread8(alis.ptrdark + 1 + dark_idx);
     return result;
 }
 
@@ -3867,83 +3789,96 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
     {
         if ((xread8(bitmap - 0x28) != 0xa) && (xread32(alis.atent + xread16(bitmap - 0x24)) != 0))
         {
-            s32 iVar13 = xread32(xread32(alis.atent + xread16(bitmap - 0x24)) - 0x14);
-            s32 piVar12 = (xread32(iVar13 + 0xe) + iVar13);
-            iVar13 = xread32(piVar12) + piVar12;
-            u16 uVar8 = xread16(bitmap - 6) + (image.blocy1 - sprite->newy);
-            u16 mapligdep = uVar8 / (u16)xread16(bitmap - 0x18);
-            s16 sVar6 = image.blocy1 - uVar8 % (u16)xread16(bitmap - 0x18);
-            u32 pbVar15 = (mapdata + (int)(s16)(mapligdep + xread16(bitmap + 0x3d4) * ((u16)(xread16(bitmap - 0xa) + (image.blocx1 - sprite->newx)) / (u16)xread16(bitmap - 0x1c))));
-            s16 sVar11 = (u16)(xread16(bitmap - 6) + (image.blocy2 - sprite->newy)) / (u16)xread16(bitmap - 0x18) - mapligdep;
-            u32 uVar1 = (u32)(u16)(image.blocx2 - image.blocx1) / (u32)(u16)xread16(bitmap - 0x1c);
-            s16 sVar5 = xread16(bitmap + 0x3d4);
+            // Resolve tile data base address from entity's script
+            s32 script_addr = xread32(xread32(alis.atent + xread16(bitmap - 0x24)) - 0x14);
+            s32 tile_hdr = (xread32(script_addr + 0xe) + script_addr);
+            s32 tile_base = xread32(tile_hdr) + tile_hdr;
+
+            // Compute starting tile row and Y pixel offset
+            u16 vert_offset = xread16(bitmap - 6) + (image.blocy1 - sprite->newy);
+            u16 start_row = vert_offset / (u16)xread16(bitmap - 0x18);
+            s16 tile_y = image.blocy1 - vert_offset % (u16)xread16(bitmap - 0x18);
+
+            // Compute map pointer and tile grid dimensions
+            u32 map_ptr = (mapdata + (int)(s16)(start_row + xread16(bitmap + 0x3d4) * ((u16)(xread16(bitmap - 0xa) + (image.blocx1 - sprite->newx)) / (u16)xread16(bitmap - 0x1c))));
+            s16 tile_rows = (u16)(xread16(bitmap - 6) + (image.blocy2 - sprite->newy)) / (u16)xread16(bitmap - 0x18) - start_row;
+            u32 tile_cols = (u32)(u16)(image.blocx2 - image.blocx1) / (u32)(u16)xread16(bitmap - 0x1c);
+            s16 row_stride = xread16(bitmap + 0x3d4);
+
+            // Half-tile offset adjustment for staggered grids
             if (((u8)xread8(bitmap - 0x26) & 2) != 0)
             {
-                sVar6 = ((u16)(xread16(bitmap - 0x18) - 1U) >> 1) + sVar6;
-                if (mapligdep != 0)
+                tile_y = ((u16)(xread16(bitmap - 0x18) - 1U) >> 1) + tile_y;
+                if (start_row != 0)
                 {
-                    sVar11++;
-                    pbVar15--;
-                    sVar6 = sVar6 - xread16(bitmap - 0x18);
+                    tile_rows++;
+                    map_ptr--;
+                    tile_y = tile_y - xread16(bitmap - 0x18);
                 }
-                
-                sVar11++;
-            }
-          
-            u32 uVar3 = (u32)(u16)image.blocx1;
-            u32 uVar7 = uVar1;
-            s16 sVar10 = sVar11;
-            u32 uVar2 = image.blocx1;
 
+                tile_rows++;
+            }
+
+            u32 start_x = (u32)(u16)image.blocx1;
+            u32 col_counter = tile_cols;
+            s16 row_counter = tile_rows;
+            u32 cur_x = image.blocx1;
+
+            // Draw tile grid row by row, column by column
             do
             {
+                u16 col_rem;
                 do
                 {
-                    if ((u8)xread8(pbVar15) != 0 && (uVar8 = (xread16(bitmap - 0x22) + (u16)xread8(pbVar15)) - 1) <= (u16)xread16(bitmap - 0x20))
+                    u16 tile_idx;
+                    if ((u8)xread8(map_ptr) != 0 && (tile_idx = (xread16(bitmap - 0x22) + (u16)xread8(map_ptr)) - 1) <= (u16)xread16(bitmap - 0x20))
                     {
-                        piVar12 = (iVar13 + (s16)(uVar8 * 4));
-                        mapchar((int)mapdata,(char *)(alis.mem + xread32(piVar12) + piVar12), sVar11, (s16)uVar2, sVar6);
+                        s32 tile_entry = (tile_base + (s16)(tile_idx * 4));
+                        mapchar((int)mapdata,(char *)(alis.mem + xread32(tile_entry) + tile_entry), tile_rows, (s16)cur_x, tile_y);
                     }
-                  
-                    pbVar15 += xread16(bitmap + 0x3d4);
-                    uVar2 = (u32)(u16)(xread16(bitmap - 0x1c) + (s16)uVar2);
-                    uVar8 = (s16)uVar7 - 1;
-                    uVar7 = (u32)uVar8;
+
+                    map_ptr += xread16(bitmap + 0x3d4);
+                    cur_x = (u32)(u16)(xread16(bitmap - 0x1c) + (s16)cur_x);
+                    col_rem = (s16)col_counter - 1;
+                    col_counter = (u32)col_rem;
                 }
-                while (uVar8 != 0xffff);
-                
-                sVar6 = xread16(bitmap - 0x18) + sVar6;
-                uVar2 = uVar3 & 0xffff;
-                pbVar15 += (s16)(1 - ((s16)uVar1 + 1) * sVar5);
-                sVar10--;
-                uVar7 = uVar1;
+                while (col_rem != 0xffff);
+
+                tile_y = xread16(bitmap - 0x18) + tile_y;
+                cur_x = start_x & 0xffff;
+                map_ptr += (s16)(1 - ((s16)tile_cols + 1) * row_stride);
+                row_counter--;
+                col_counter = tile_cols;
             }
-            while (sVar10 != -1);
+            while (row_counter != -1);
         }
     }
     else
     {
-        u32 uVar6 = ((image.blocx1 - sprite->newx)/* >> 4*/) + (u16)xread16(mapdata - 0x3e2) / (u16)xread16(mapdata - 0x3f4);
-        s32 iVar8 = (((xread16(mapdata - 0x3d4) + sprite->newy) - image.blocy2) + (u16)xread16(mapdata - 0x3e0) / (u16)xread16(mapdata - 0x3f2));
-        
-        u32 addr = xread32(mapdata - 0x3ba);
-        if (addr == 0)
+        // Direct pixel-level map rendering (type 9)
+        u32 col_offset = ((image.blocx1 - sprite->newx)/* >> 4*/) + (u16)xread16(mapdata - 0x3e2) / (u16)xread16(mapdata - 0x3f4);
+        s32 row_offset = (((xread16(mapdata - 0x3d4) + sprite->newy) - image.blocy2) + (u16)xread16(mapdata - 0x3e0) / (u16)xread16(mapdata - 0x3f2));
+
+        u32 entity_data = xread32(mapdata - 0x3ba);
+        if (entity_data == 0)
         {
 //            SYS_PrintError();
             return;
         }
-        
-        u32 src = addr;
-        if ((s8)xread8(addr - 1) < 0)
+
+        u32 src = entity_data;
+        if ((s8)xread8(entity_data - 1) < 0)
         {
-            src = xread32(xread32(addr));
+            src = xread32(xread32(entity_data));
         }
-        
-        s16 test = xread16(addr - 0x3c4);
-        src += iVar8 * 2 + uVar6 * test;
+
+        // Compute source data pointer
+        s16 src_stride = xread16(entity_data - 0x3c4);
+        src += row_offset * 2 + col_offset * src_stride;
         s16 height = image.blocy2 - image.blocy1;
         s16 width = image.blocx2 - image.blocx1;
-       
+
+        // Select chart rendering function based on type
         s16 type = xread16(mapdata - 0x3b6);
         switch (type)
         {
@@ -3991,13 +3926,14 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
 
         xdeschart = image.blocx1 - image.wlogx1;
         ydeschart = image.blocy2 - image.wlogy1;
-        
+
         u8 *tgt = image.logic;
 
         height++;
         width++;
-        
-        for (int w = 0; w < width; w++, src += test - (height * 2))
+
+        // Render pixels column by column
+        for (int w = 0; w < width; w++, src += src_stride - (height * 2))
         {
             for (int h = 0; h < height; h++, src+=2)
             {

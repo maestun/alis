@@ -344,6 +344,6 @@ extern u8 cga_palette[16];
 extern u8 masks[4];
 extern u8 rots[4];
 
-s32 calctop(u32 a0, s16 d0w, s16 d1w);
+s32 calctop(u32 scene_addr, s16 grid_col, s16 grid_row);
 
 void tvtofen(void);

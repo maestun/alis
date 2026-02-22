@@ -935,9 +935,9 @@ void mv2_chipcanal(sChipChannel *chanel, s32 idx)
                     chipdata[idx1 + 2] = (s8)(result);
                     chipdata[idx1 + 6] = (s8)(result >> 8);
                     u16 rot = xread8(address); address ++;
-                    u16 uVar4 = rotl(rot, result);
-                    chipdata[0x2e]     = (s8)uVar4;
-                    chipdata[0x32]     = (s8)(uVar4 >> 8);
+                    u16 rotres = rotl(rot, result);
+                    chipdata[0x2e]     = (s8)rotres;
+                    chipdata[0x32]     = (s8)(rotres >> 8);
                 }
                 else
                 {
