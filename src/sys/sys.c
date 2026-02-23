@@ -689,16 +689,18 @@ u8 io_inkey(void)
         case SDLK_LEFT:         return 0xcb;
         case SDLK_RIGHT:        return 0xcd;
         
-        case SDLK_KP_0:         return 48;
-        case SDLK_KP_1:         return 49;
-        case SDLK_KP_2:         return 50;
-        case SDLK_KP_3:         return 51;
-        case SDLK_KP_4:         return 52;
-        case SDLK_KP_5:         return 53;
-        case SDLK_KP_6:         return 54;
-        case SDLK_KP_7:         return 55;
-        case SDLK_KP_8:         return 56;
-        case SDLK_KP_9:         return 57;
+        case SDLK_KP_0:         return '0';
+        case SDLK_KP_1:         return '1';
+        case SDLK_KP_2:         return '2';
+        case SDLK_KP_3:         return '3';
+        case SDLK_KP_4:         return '4';
+        case SDLK_KP_5:         return '5';
+        case SDLK_KP_6:         return '6';
+        case SDLK_KP_7:         return '7';
+        case SDLK_KP_8:         return '8';
+        case SDLK_KP_9:         return '9';
+        case SDLK_KP_PLUS:      return '+';
+        case SDLK_KP_MINUS:     return '-';
             
         case SDLK_F1:           return 0xbb;
         case SDLK_F2:           return 0xbc;
@@ -711,23 +713,71 @@ u8 io_inkey(void)
         case SDLK_F9:           return 0xc3;
         case SDLK_F10:          return 0xc4;
             
-        case SDLK_LSHIFT:       return 0;
-        case SDLK_RSHIFT:       return 0;
-
+        case SDLK_LSHIFT:
+        case SDLK_RSHIFT:
         case SDLK_LCTRL:
-        case SDLK_RCTRL:        return 0;
+        case SDLK_RCTRL:
+        case SDLK_LALT:
+        case SDLK_RALT:
+        case SDLK_LGUI:
+        case SDLK_RGUI:
+        case SDLK_CAPSLOCK:
+        case SDLK_NUMLOCKCLEAR:
+        case SDLK_MODE:         return 0;
 
-        default:               return button.sym;
+        default:
+        {
+            const u8 *keys = SDL_GetKeyboardState(NULL);
+#if ALIS_SDL_VER == 1
+            u8 shifted = (SDL_GetModState() & KMOD_SHIFT) || keys[SDLK_LSHIFT] || keys[SDLK_RSHIFT];
+#else
+            u8 shifted = (SDL_GetModState() & KMOD_SHIFT) || keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT];
+#endif
+            if (shifted)
+            {
+                switch (button.sym) {
+                    case SDLK_1:            return '!';
+                    case SDLK_2:            return '@';
+                    case SDLK_3:            return '#';
+                    case SDLK_4:            return '$';
+                    case SDLK_5:            return '%';
+                    case SDLK_6:            return '^';
+                    case SDLK_7:            return '&';
+                    case SDLK_8:            return '*';
+                    case SDLK_9:            return '(';
+                    case SDLK_0:            return ')';
+                    case SDLK_MINUS:        return '_';
+                    case SDLK_EQUALS:       return '+';
+                    default: break;
+                }
+            }
+            return button.sym;
+        }
     }
 }
 
 u8 io_shiftkey(void) {
 
-    shift = (SDL_GetModState() & KMOD_RSHIFT) ? shift |  1 : shift & 0xfe;
-    shift = (SDL_GetModState() & KMOD_LSHIFT) ? shift |  2 : shift & 0xfd;
-    shift = (SDL_GetModState() & KMOD_CTRL)   ? shift |  4 : shift & 0xfb;
-    shift = (SDL_GetModState() & KMOD_ALT)    ? shift |  8 : shift & 0xf7;
-    shift = (SDL_GetModState() & KMOD_CAPS)   ? shift | 16 : shift & 0xef;
+    const u8 *keys = SDL_GetKeyboardState(NULL);
+    u16 mod = SDL_GetModState();
+
+#if ALIS_SDL_VER == 1
+    if (keys[SDLK_RSHIFT])  mod |= KMOD_RSHIFT;
+    if (keys[SDLK_LSHIFT])  mod |= KMOD_LSHIFT;
+    if (keys[SDLK_RCTRL] || keys[SDLK_LCTRL])  mod |= KMOD_CTRL;
+    if (keys[SDLK_RALT]  || keys[SDLK_LALT])   mod |= KMOD_ALT;
+#else
+    if (keys[SDL_SCANCODE_RSHIFT])  mod |= KMOD_RSHIFT;
+    if (keys[SDL_SCANCODE_LSHIFT])  mod |= KMOD_LSHIFT;
+    if (keys[SDL_SCANCODE_RCTRL] || keys[SDL_SCANCODE_LCTRL])  mod |= KMOD_CTRL;
+    if (keys[SDL_SCANCODE_RALT]  || keys[SDL_SCANCODE_LALT])   mod |= KMOD_ALT;
+#endif
+
+    shift = (mod & KMOD_RSHIFT) ? shift |  1 : shift & 0xfe;
+    shift = (mod & KMOD_LSHIFT) ? shift |  2 : shift & 0xfd;
+    shift = (mod & KMOD_CTRL)   ? shift |  4 : shift & 0xfb;
+    shift = (mod & KMOD_ALT)    ? shift |  8 : shift & 0xf7;
+    shift = (mod & KMOD_CAPS)   ? shift | 16 : shift & 0xef;
     return shift;
 }
 

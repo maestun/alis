@@ -316,19 +316,29 @@ void sys_poll_event(void) {
     
     SDL_PollEvent(&event);
 
-    // update mouse
-    u32 bt = SDL_GetMouseState(&mouse.x, &mouse.y);
-    
+    // update mouse position
+    SDL_GetMouseState(&mouse.x, &mouse.y);
+
     float newx, newy;
     SDL_RenderWindowToLogical(renderer, mouse.x, mouse.y, &newx, &newy);
-    
+
     mouse.x = newx;
     mouse.y = newy / aspect_ratio;
-    mouse.lb = SDL_BUTTON(bt) == SDL_BUTTON_LEFT;
-    mouse.rb = SDL_BUTTON(bt) == SDL_BUTTON_RIGHT;
-    
+
     switch (event.type) {
-            
+
+        case SDL_MOUSEBUTTONDOWN:
+        {
+            if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 1;
+            if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 1;
+            break;
+        }
+        case SDL_MOUSEBUTTONUP:
+        {
+            if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 0;
+            if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 0;
+            break;
+        }
         case SDL_QUIT:
         {
             printf("\n");
@@ -362,11 +372,6 @@ void sys_poll_event(void) {
         }
         case SDL_KEYDOWN:
         {
-            if (event.key.keysym.mod == KMOD_RSHIFT || event.key.keysym.mod == KMOD_LSHIFT)
-            {
-                shift = 1;
-            }
-
             if (event.key.keysym.sym == SDLK_F11 || event.key.keysym.sym == SDLK_F12)
             {
                 break;
@@ -383,7 +388,7 @@ void sys_poll_event(void) {
             {
                 button = event.key.keysym;
             }
-            
+
             break;
         }
         case SDL_WINDOWEVENT:
