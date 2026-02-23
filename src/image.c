@@ -2899,30 +2899,9 @@ void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
 
 void draw_rect(sRect *pos, sRect *bmp, u8 color)
 {
-    if (image.flinepal) {
-        s16 *palentry = image.firstpal;
-        
-        for (int i = 0; i < 3; i++) {
-            s16 unk1 = palentry[0];
-            if (unk1 == 0xff)
-                break;
-
-            s16 y1 = max(pos->y1 + bmp->y1, palentry[1]);
-            u8 linecolor = color + palentry[2];
-            palentry += 2 + (sizeof(u8 *) >> 1);
-            s16 y2 = min(pos->y1 + bmp->y2, palentry[0] == 0xff ? host.pixelbuf.h : min(palentry[1], host.pixelbuf.h));
-            
-            u8 *tgt = image.logic + pos->x1 + (y1 * host.pixelbuf.w);
-            for (s32 h = y1; h < y2; h++, tgt+=host.pixelbuf.w) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = linecolor;
-            }
-        }
-    }
-    else {
-        u8 *tgt = image.logic + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
-        for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = color;
-        }
+    u8 *tgt = image.logic + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
+    for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w) {
+        for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = color;
     }
 }
 
@@ -3035,105 +3014,78 @@ void draw_dos_cga_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 
 void draw_st_4bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 {
-    if (image.flinepal)
-    {
-        s16 *palentry = image.firstpal;
+    u8 color;
+    u16 swadd = width >> 1;
+    u8 *src = at + bmp->y1 * swadd;
+    u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-        for (int i = 0; i < 3; i++)
-        {
-            s16 state = palentry[0];
-            if (state == 0xff)
-                break;
+    if (flip) {
+        if (bmp->x1 % 2 == 1) {
+            u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
+            u8 *tptr = bmp->x1 + pos->x1 + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                if ((color = *sptr >> 4)) *tptr = color;
+            }
 
-            sRect nbmp = *bmp;
-            if (palentry[1] > pos->y1 + bmp->y1)
-                nbmp.y1 += palentry[1] - (pos->y1 + bmp->y1);
-
-            u16 paloff = palentry[2];
-
-            palentry += 2 + (sizeof(u8 *) >> 1);
-            if (palentry[0] != 0xff && palentry[1] < pos->y1 + bmp->y2)
-                nbmp.y2 -= (pos->y1 + bmp->y2) - palentry[1];
-
-            if (nbmp.y1 < nbmp.y2)
-                draw_4to8bit_0(at, pos, &nbmp, width, flip, paloff);
+            bmp->x1++;
         }
-    }
-    else
-    {
-        u8 color;
-        u16 swadd = width >> 1;
-        u8 *src = at + bmp->y1 * swadd;
-        u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-        if (flip) {
-            if (bmp->x1 % 2 == 1) {
-                u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
-                u8 *tptr = bmp->x1 + pos->x1 + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    if ((color = *sptr >> 4)) *tptr = color;
-                }
-
-                bmp->x1++;
-            }
-            
-            if ((bmp->x2 - 1) % 2 == 0) {
-                u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
-                u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    if ((color = *sptr & 0b00001111)) *tptr = color;
-                }
-
-                bmp->x2--;
+        if ((bmp->x2 - 1) % 2 == 0) {
+            u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
+            u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                if ((color = *sptr & 0b00001111)) *tptr = color;
             }
 
-            if (bmp->x1 != bmp->x2) {
-                u8 *sptr = swadd - 1 + src;
-                u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-                u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+            bmp->x2--;
+        }
 
-                bmp->x1>>=1;
-                bmp->x2>>=1;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                    for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                        if ((color = sptr[-w] & 0b00001111)) tptr[0] = color;
-                        if ((color = sptr[-w] >> 4)) tptr[1] = color;
-                    }
+        if (bmp->x1 != bmp->x2) {
+            u8 *sptr = swadd - 1 + src;
+            u8 *tptr = (bmp->x1 + pos->x1) + tgt;
+            u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+
+            bmp->x1>>=1;
+            bmp->x2>>=1;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+                    if ((color = sptr[-w] & 0b00001111)) tptr[0] = color;
+                    if ((color = sptr[-w] >> 4)) tptr[1] = color;
                 }
             }
         }
-        else {
-            if (bmp->x1 % 2 == 1) {
-                u8 *sptr = (bmp->x1 >> 1) + src;
-                u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    if ((color = *sptr & 0b00001111)) *tptr = color;
-                }
-                
-                bmp->x1++;
+    }
+    else {
+        if (bmp->x1 % 2 == 1) {
+            u8 *sptr = (bmp->x1 >> 1) + src;
+            u8 *tptr = (bmp->x1 + pos->x1) + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                if ((color = *sptr & 0b00001111)) *tptr = color;
             }
 
-            if ((bmp->x2 - 1) % 2 == 0) {
-                bmp->x2--;
-                u8 *sptr = (bmp->x2 >> 1) + src;
-                u8 *tptr = (bmp->x2 + pos->x1) + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    if ((color = *sptr >> 4)) *tptr = color;
-                }
-            }
-            
-            if (bmp->x1 != bmp->x2) {
-                u8 *sptr = src;
-                u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-                u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+            bmp->x1++;
+        }
 
-                bmp->x1>>=1;
-                bmp->x2>>=1;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                    for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                        if ((color = sptr[w] >> 4)) tptr[0] = color;
-                        if ((color = sptr[w] & 0b00001111)) tptr[1] = color;
-                    }
+        if ((bmp->x2 - 1) % 2 == 0) {
+            bmp->x2--;
+            u8 *sptr = (bmp->x2 >> 1) + src;
+            u8 *tptr = (bmp->x2 + pos->x1) + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                if ((color = *sptr >> 4)) *tptr = color;
+            }
+        }
+
+        if (bmp->x1 != bmp->x2) {
+            u8 *sptr = src;
+            u8 *tptr = (bmp->x1 + pos->x1) + tgt;
+            u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+
+            bmp->x1>>=1;
+            bmp->x2>>=1;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+                    if ((color = sptr[w] >> 4)) tptr[0] = color;
+                    if ((color = sptr[w] & 0b00001111)) tptr[1] = color;
                 }
             }
         }
@@ -3142,104 +3094,77 @@ void draw_st_4bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 
 void draw_st_4bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 {
-    if (image.flinepal)
-    {
-        s16 *palentry = image.firstpal;
+    u16 swadd = width >> 1;
+    u8 *src = at + bmp->y1 * swadd;
+    u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-        for (int i = 0; i < 3; i++)
-        {
-            s16 state = palentry[0];
-            if (state == 0xff)
-                break;
+    if (flip) {
+        if (bmp->x1 % 2 == 1) {
+            u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
+            u8 *tptr = bmp->x1 + pos->x1 + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                *tptr = *sptr >> 4;
+            }
 
-            sRect nbmp = *bmp;
-            if (palentry[1] > pos->y1 + bmp->y1)
-                nbmp.y1 += palentry[1] - (pos->y1 + bmp->y1);
-
-            u16 paloff = palentry[2];
-
-            palentry += 2 + (sizeof(u8 *) >> 1);
-            if (palentry[0] != 0xff && palentry[1] < pos->y1 + bmp->y2)
-                nbmp.y2 -= (pos->y1 + bmp->y2) - palentry[1];
-
-            if (nbmp.y1 < nbmp.y2)
-                draw_4to8bit_2(at, pos, &nbmp, width, flip, paloff);
+            bmp->x1++;
         }
-    }
-    else
-    {
-        u16 swadd = width >> 1;
-        u8 *src = at + bmp->y1 * swadd;
-        u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-        if (flip) {
-            if (bmp->x1 % 2 == 1) {
-                u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
-                u8 *tptr = bmp->x1 + pos->x1 + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    *tptr = *sptr >> 4;
-                }
-
-                bmp->x1++;
-            }
-            
-            if ((bmp->x2 - 1) % 2 == 0) {
-                u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
-                u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    *tptr = *sptr & 0b00001111;
-                }
-
-                bmp->x2--;
+        if ((bmp->x2 - 1) % 2 == 0) {
+            u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
+            u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                *tptr = *sptr & 0b00001111;
             }
 
-            if (bmp->x1 != bmp->x2) {
-                u8 *sptr = swadd - 1 + src;
-                u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-                u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+            bmp->x2--;
+        }
 
-                bmp->x1>>=1;
-                bmp->x2>>=1;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                    for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                        tptr[0] = sptr[-w] & 0b00001111;
-                        tptr[1] = sptr[-w] >> 4;
-                    }
+        if (bmp->x1 != bmp->x2) {
+            u8 *sptr = swadd - 1 + src;
+            u8 *tptr = (bmp->x1 + pos->x1) + tgt;
+            u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+
+            bmp->x1>>=1;
+            bmp->x2>>=1;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+                    tptr[0] = sptr[-w] & 0b00001111;
+                    tptr[1] = sptr[-w] >> 4;
                 }
             }
         }
-        else {
-            if (bmp->x1 % 2 == 1) {
-                u8 *sptr = (bmp->x1 >> 1) + src;
-                u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    *tptr = *sptr & 0b00001111;
-                }
-                
-                bmp->x1++;
+    }
+    else {
+        if (bmp->x1 % 2 == 1) {
+            u8 *sptr = (bmp->x1 >> 1) + src;
+            u8 *tptr = (bmp->x1 + pos->x1) + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                *tptr = *sptr & 0b00001111;
             }
 
-            if ((bmp->x2 - 1) % 2 == 0) {
-                bmp->x2--;
-                u8 *sptr = (bmp->x2 >> 1) + src;
-                u8 *tptr = (bmp->x2 + pos->x1) + tgt;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                    *tptr = *sptr >> 4;
-                }
-            }
-            
-            if (bmp->x1 != bmp->x2) {
-                u8 *sptr = src;
-                u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-                u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+            bmp->x1++;
+        }
 
-                bmp->x1>>=1;
-                bmp->x2>>=1;
-                for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                    for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                        tptr[0] = sptr[w] >> 4;
-                        tptr[1] = sptr[w] & 0b00001111;
-                    }
+        if ((bmp->x2 - 1) % 2 == 0) {
+            bmp->x2--;
+            u8 *sptr = (bmp->x2 >> 1) + src;
+            u8 *tptr = (bmp->x2 + pos->x1) + tgt;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+                *tptr = *sptr >> 4;
+            }
+        }
+
+        if (bmp->x1 != bmp->x2) {
+            u8 *sptr = src;
+            u8 *tptr = (bmp->x1 + pos->x1) + tgt;
+            u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
+
+            bmp->x1>>=1;
+            bmp->x2>>=1;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+                    tptr[0] = sptr[w] >> 4;
+                    tptr[1] = sptr[w] & 0b00001111;
                 }
             }
         }

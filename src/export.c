@@ -1086,7 +1086,7 @@ void export_terrain_overhangs(s32 scene_addr, s32 render_context, const char *fi
             s16 toph = terrain_data & 0xff;
             s16 index3 = ((terrain_data & 0x3f00) >> 3) - 0xc00;
             s16 test = toph - alt_index0;
-//            if ((test != 0 && SBORROW2(toph, alt_index_y) == (s32)((u32)test << 0x10) < 0) && ((position_y = xread16(render_context + 0x16 + index) - test) != 0 && SBORROW2(xread16(render_context + 0x16 + index), test) == (s32)((u32)position_y << 0x10) < 0))
+//            if ((test != 0 && sborrow2(toph, alt_index_y) == (s32)((u32)test << 0x10) < 0) && ((position_y = xread16(render_context + 0x16 + index) - test) != 0 && sborrow2(xread16(render_context + 0x16 + index), test) == (s32)((u32)position_y << 0x10) < 0))
             if (test == 0)
                 continue;
             

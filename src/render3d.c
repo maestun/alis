@@ -34,32 +34,32 @@ extern u8 tabatan[];
 extern s16 *tabsin;
 extern s16 *tabcos;
 
-u32 CONCAT13(u8 a, u32 b)
+u32 concat13(u8 a, u32 b)
 {
     return ((u32)a << 24) | (b & 0x00ffffff);
 }
 
-u32 CONCAT31(u8 a, u32 b)
-{
-    return ((u32)a << 8) | (b & 0x000000ff);
-}
-
-u32 CONCAT22(u16 a, u16 b)
+u32 concat22(u16 a, u16 b)
 {
     return ((u32)a << 16) | b;
 }
 
-u32 CARRY4(u32 p1, u32 p2)
+u32 concat31(u8 a, u32 b)
+{
+    return ((u32)a << 8) | (b & 0x000000ff);
+}
+
+u32 carry4(u32 p1, u32 p2)
 {
     return (p1 + p2) < p1;
 }
 
-s16 SCARRY2(s32 p1, s32 p2)
+u8 scarry2(s32 p1, s32 p2)
 {
-    return (p1 + p2) >= INT16_MAX & (p1 + p2) <= INT16_MIN;
+    return (p1 + p2) > INT16_MAX || (p1 + p2) < INT16_MIN;
 }
 
-u8 SBORROW2(s16 x, s16 y)
+u8 sborrow2(s16 x, s16 y)
 {
     s16 r = (s16)((s32)x - (s32)y);
     return ((((x ^ y) & (x ^ r)) & 0x8000) != 0);
@@ -1193,8 +1193,8 @@ void bartra(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barw
         color = 0;
     }
     
-    color = (u16)xread16(alis.ptrdark + (s16)CONCAT31(((u16)color >> 8), (s8)xread8(render_context + 8 + index) * 2));
-    color = CONCAT22(color, color);
+    color = (u16)xread16(alis.ptrdark + (s16)concat31(((u16)color >> 8), (s8)xread8(render_context + 8 + index) * 2));
+    color = concat22(color, color);
     s16 lines = xread16(render_context - 0x246) - drawy;
     s16 midlines = barheight;
     
@@ -1574,8 +1574,8 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 step_x, s32 step_y, u16 
                         color = 0;
                     }
 
-                    dark_level = (u16)xread16(alis.ptrdark + (s16)CONCAT31((color >> 8), (s8)xread8(render_context + 8 + index) * 2));
-                    color = CONCAT22(dark_level, dark_level);
+                    dark_level = (u16)xread16(alis.ptrdark + (s16)concat31((color >> 8), (s8)xread8(render_context + 8 + index) * 2));
+                    color = concat22(dark_level, dark_level);
 
                     bartrab(render_context, barwidth, barheight, drawy, bothigh, color);
                     return;
@@ -1677,7 +1677,7 @@ void zoomtofen(sSprite *sprite)
 
         // Calculate zoom X scale (bitmap width in pixels)
         s16 bitmap_width = read16(bitmap + 2) + 1;
-        u32 zoom_x_step = CONCAT22((s16)((zoom_y_int << 0x18) >> 0x10), bitmap_width * (char)(zoom_y_scale >> 8));
+        u32 zoom_x_step = concat22((s16)((zoom_y_int << 0x18) >> 0x10), bitmap_width * (char)(zoom_y_scale >> 8));
 
         // Standard rendering path (not collision test mode)
         if (image.ftstpix == 0)
@@ -1693,7 +1693,7 @@ void zoomtofen(sSprite *sprite)
             {
                 // Accumulate Y texture coordinate with zoom factor
                 texture_y = (u32)y_offset * ((zoom_y_frac & 0xff) << 8 | (zoom_y_int & 0xff));
-                image.ztflowy = CONCAT13((char)texture_y, image.ztflowy >> 0x8);
+                image.ztflowy = concat13((char)texture_y, image.ztflowy >> 0x8);
                 texture_y = (texture_y >> 8 & 0xffff) * (u32)(u16)(read16(bitmap + 2) + 1);
             }
 
@@ -1704,13 +1704,13 @@ void zoomtofen(sSprite *sprite)
             {
                 // Start from right edge of bitmap for flipped rendering
                 s32 bitmap_row_offset = (u16)read16(bitmap + 2) + texture_y;
-                image.ztflowx = CONCAT22(0xffff, image.ztflowx >> 0x10);
+                image.ztflowx = concat22(0xffff, image.ztflowx >> 0x10);
 
                 // Calculate X texture offset accounting for clipping on left edge
                 if ((u16)(screen_x - x_orig) != 0)
                 {
                     zoom_y_frac = (u32)(u16)(screen_x - x_orig) * ((zoom_y_frac & 0xff) << 8 | (zoom_y_int & 0xff));
-                    image.ztflowx = CONCAT13(-1 - (char)zoom_y_frac, image.ztflowx >> 0x8);
+                    image.ztflowx = concat13(-1 - (char)zoom_y_frac, image.ztflowx >> 0x8);
                     bitmap_row_offset -= (zoom_y_frac >> 8);
                 }
 
@@ -1720,10 +1720,10 @@ void zoomtofen(sSprite *sprite)
                 // Render pixels row by row
                 for (int y = 0; y < clipped_height; y++, framebuffer += line_skip)
                 {
-                    zoom_y_int = CONCAT22((s16)(image.ztflowx >> 0x10), (s16)zoom_y_frac);
+                    zoom_y_int = concat22((s16)(image.ztflowx >> 0x10), (s16)zoom_y_frac);
 
                     // Render individual pixels in row, stepping backward through texture (flipped)
-                    for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = CONCAT22((s16)((zoom_y_int - zoom_y_step) >> 0x10), (s16)(zoom_y_int - zoom_y_step) - (u16)(zoom_y_int < zoom_y_step)))
+                    for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_int - zoom_y_step) >> 0x10), (s16)(zoom_y_int - zoom_y_step) - (u16)(zoom_y_int < zoom_y_step)))
                     {
                         u8 pixel = bitmap[(s16)zoom_y_int + bitmap_row_offset + 8];
                         if (pixel != 0)  // Skip transparent pixels
@@ -1731,11 +1731,11 @@ void zoomtofen(sSprite *sprite)
                     }
 
                     // Step to next texture row with fixed-point arithmetic
-                    carry_flag = CARRY4(zoom_x_step, zoom_y_frac);
+                    carry_flag = carry4(zoom_x_step, zoom_y_frac);
                     zoom_y_frac = zoom_x_step + zoom_y_frac;
                     if (carry_flag)  // Handle fractional overflow to next line
                     {
-                        zoom_y_frac = CONCAT22((s16)(zoom_y_frac >> 0x10), bitmap_width + (s16)zoom_y_frac);
+                        zoom_y_frac = concat22((s16)(zoom_y_frac >> 0x10), bitmap_width + (s16)zoom_y_frac);
                     }
                 }
             }
@@ -1748,7 +1748,7 @@ void zoomtofen(sSprite *sprite)
                 if ((u16)(screen_x - x_orig) != 0)
                 {
                     zoom_y_frac = (u32)(u16)(screen_x - x_orig) * ((zoom_y_frac & 0xff) << 8 | (zoom_y_int & 0xff));
-                    image.ztflowx = CONCAT13((char)zoom_y_frac, image.ztflowx >> 0x8);
+                    image.ztflowx = concat13((char)zoom_y_frac, image.ztflowx >> 0x8);
                     texture_y += (zoom_y_frac >> 8);
                 }
 
@@ -1758,10 +1758,10 @@ void zoomtofen(sSprite *sprite)
                 // Render pixels row by row
                 for (int y = 0; y < clipped_height; y++, framebuffer += line_skip)
                 {
-                    zoom_y_int = CONCAT22((s16)(image.ztflowx >> 0x10), (s16)zoom_y_frac);
+                    zoom_y_int = concat22((s16)(image.ztflowx >> 0x10), (s16)zoom_y_frac);
 
                     // Render individual pixels in row, stepping forward through texture (normal)
-                    for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = CONCAT22((s16)((zoom_y_step + zoom_y_int) >> 0x10), (s16)(zoom_y_step + zoom_y_int) + (u16)CARRY4(zoom_y_step, zoom_y_int)))
+                    for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_step + zoom_y_int) >> 0x10), (s16)(zoom_y_step + zoom_y_int) + (u16)carry4(zoom_y_step, zoom_y_int)))
                     {
                         u8 pixel = bitmap[(s16)zoom_y_int + texture_y + 8];
                         if (pixel != 0)  // Skip transparent pixels
@@ -1769,11 +1769,11 @@ void zoomtofen(sSprite *sprite)
                     }
 
                     // Step to next texture row with fixed-point arithmetic
-                    carry_flag = CARRY4(zoom_x_step, zoom_y_frac);
+                    carry_flag = carry4(zoom_x_step, zoom_y_frac);
                     zoom_y_frac += zoom_x_step;
                     if (carry_flag)  // Handle fractional overflow to next line
                     {
-                        zoom_y_frac = CONCAT22((s16)(zoom_y_frac >> 0x10), bitmap_width + (s16)zoom_y_frac);
+                        zoom_y_frac = concat22((s16)(zoom_y_frac >> 0x10), bitmap_width + (s16)zoom_y_frac);
                     }
                 }
             }
@@ -2058,7 +2058,7 @@ void barsprite(s32 render_context, s16 type_idx, s16 world_x, s16 world_y, s16 u
             // Adjust position by hotspot offset
             sprite->newy = (s16)(((s32)(s16)((xread16(bitmap + 4) >> 1) - xread16(meta + 6)) * (s32)sprite->newzoomy >> 8) * -2 >> (detail_shift & 0x3f)) + sprite->newy;
             sprite->newx = (s16)(((s32)(s16)((xread16(bitmap + 2) >> 1) - xread16(meta + 4)) * (s32)sprite->newzoomx >> 8) * -2 >> (detail_shift & 0x3f)) + sprite->newx;
-            zoomtofenf(sprite);
+            zoomtofen(sprite);
         }
     }
 }
@@ -2086,7 +2086,7 @@ void spritaff(s16 depth_layer)
         // Render valid sprite
         if (-1 < sprite->state && -1 < sprite->newf && -1 < sprite->newd)
         {
-            zoomtofenf(sprite);
+            zoomtofen(sprite);
         }
 
         idx = sprite->link;
@@ -2359,7 +2359,7 @@ void doland(s32 scene_addr, s32 render_context)
             xwrite32(render_context - 0x27c, (s32)(s16)(((s32)(s16)(proj_y - proj_x) << 6) / (s32)xread16(render_context - 0x3a4)) << 10);
 
             u16 proj_denom = (u16)(xread16(render_context - 0x3a8) + xread16(render_context - 0x2e0));
-            if (proj_denom == 0 || SCARRY2(xread16(render_context - 0x3a8), xread16(render_context - 0x2e0)) != (s32)((u32)proj_denom << 0x10) < 0)
+            if (proj_denom == 0 || scarry2(xread16(render_context - 0x3a8), xread16(render_context - 0x2e0)) != (s32)((u32)proj_denom << 0x10) < 0)
             {
                 proj_denom = 1;
             }
@@ -2415,8 +2415,8 @@ void doland(s32 scene_addr, s32 render_context)
         // INNER LOOP: Process columns left-to-right within this row
         // =====================================================================
         s32 saved_col_x = xread32(render_context - 0x280);
-        u32 scan_x = CONCAT22(row_start_x, row_start_x >> 16);
-        u32 scan_y = CONCAT22(row_start_y, row_start_y >> 16);
+        u32 scan_x = concat22(row_start_x, row_start_x >> 16);
+        u32 scan_y = concat22(row_start_y, row_start_y >> 16);
 
         do
         {
@@ -2437,11 +2437,11 @@ void doland(s32 scene_addr, s32 render_context)
                 u16 prescan_height = 0;
 
                 // Advance scan position by one column step (with carry)
-                u16 next_scan_x = (s16)(col_step_x + scan_x) + (u16)CARRY4(col_step_x, scan_x);
-                scan_x = CONCAT22((s16)((col_step_x + scan_x) >> 0x10), next_scan_x);
+                u16 next_scan_x = (s16)(col_step_x + scan_x) + (u16)carry4(col_step_x, scan_x);
+                scan_x = concat22((s16)((col_step_x + scan_x) >> 0x10), next_scan_x);
 
-                u16 next_scan_y = (s16)(col_step_y + scan_y) + (u16)CARRY4(col_step_y, scan_y);
-                scan_y = CONCAT22((s16)((col_step_y + scan_y) >> 0x10), next_scan_y);
+                u16 next_scan_y = (s16)(col_step_y + scan_y) + (u16)carry4(col_step_y, scan_y);
+                scan_y = concat22((s16)((col_step_y + scan_y) >> 0x10), next_scan_y);
 
                 xwrite32(render_context - 0x280, xread32(render_context - 0x27c) + xread32(render_context - 0x280));
 
@@ -2590,9 +2590,9 @@ void doland(s32 scene_addr, s32 render_context)
                 s16 terrain_type_idx = ((cell_data & 0x3f00) >> 3) - 0xc00;
 
                 // --- Render ground terrain bar ---
-                if (bar_height != 0 && SBORROW2(prev_max_y, ground_clip_y) == (s32)((u32)bar_height << 0x10) < 0)
+                if (bar_height != 0 && sborrow2(prev_max_y, ground_clip_y) == (s32)((u32)bar_height << 0x10) < 0)
                 {
-                    u32 packed_pos = CONCAT22((trav_x), (trav_x >> 16));
+                    u32 packed_pos = concat22((trav_x), (trav_x >> 16));
                     barland(terrain_cell, render_context, col_dir_x, (s16)(col_step_y_raw >> 0x10), ground_clip_y, bar_height, terrain_type_idx, bar_screen_x, packed_pos, scan_x);
                 }
 
@@ -2612,7 +2612,7 @@ void doland(s32 scene_addr, s32 render_context)
                         // =====================================================
                         notopa = 1;
                         s16 prev_col_grid_x = (s16)(scan_x >> 0x10);
-                        s32 oh_packed = CONCAT22(prev_col_grid_x, prectopa);
+                        s32 oh_packed = concat22(prev_col_grid_x, prectopa);
                         u16 oh_prev_bot = precbota;
 
                         // --- Check previous column for overhang continuity ---
@@ -2628,7 +2628,7 @@ void doland(s32 scene_addr, s32 render_context)
                                 u16 oh_ceil_h = (u16)xread8((s32)adresa + xread32(render_context + 0x10 + prev_type_idx) + 1);
                                 u16 oh_delta_h = oh_ceil_h - solha;
 
-                                if ((oh_delta_h != 0 && SBORROW2(oh_ceil_h, solha) == (s32)((u32)oh_delta_h << 0x10) < 0) && ((u16)(oh_thickness - oh_delta_h) != 0 && SBORROW2(oh_thickness, oh_delta_h) == (s32)((u32)(u16)(oh_thickness - oh_delta_h) << 0x10) < 0))
+                                if ((oh_delta_h != 0 && sborrow2(oh_ceil_h, solha) == (s32)((u32)oh_delta_h << 0x10) < 0) && ((u16)(oh_thickness - oh_delta_h) != 0 && sborrow2(oh_thickness, oh_delta_h) == (s32)((u32)(u16)(oh_thickness - oh_delta_h) << 0x10) < 0))
                                 {
                                     u16 oh_bottom_h = oh_ceil_h;
                                     if ((s16)(solha + (u16)(oh_thickness - oh_delta_h)) < (s16)oh_ceil_h)
@@ -2657,13 +2657,13 @@ void doland(s32 scene_addr, s32 render_context)
                                         precbotb = precbotc;
                                         if (prectopa < oh_top_scr)
                                         {
-                                            oh_packed = CONCAT22(prev_col_grid_x, oh_top_scr);
+                                            oh_packed = concat22(prev_col_grid_x, oh_top_scr);
                                         }
 
                                         s16 oh_interp_top = (s16)oh_packed;
                                         if (oh_interp_top < prectopc)
                                         {
-                                            oh_packed = CONCAT22((s16)((u32)oh_packed >> 0x10), prectopc);
+                                            oh_packed = concat22((s16)((u32)oh_packed >> 0x10), prectopc);
                                         }
 
                                         u16 oh_min_bot = precbota;
@@ -2713,7 +2713,7 @@ void doland(s32 scene_addr, s32 render_context)
                         u16 oh_rel_height = image.toph - image.solh;
                         u16 oh_thickness_avail = xread16(render_context + 0x16 + terrain_type_idx);
 
-                        if ((oh_rel_height != 0 && SBORROW2(image.toph, image.solh) == (s32)((u32)oh_rel_height << 0x10) < 0) && ((u16)(oh_thickness_avail - oh_rel_height) != 0 && SBORROW2(oh_thickness_avail, oh_rel_height) == (s32)((u32)(u16)(oh_thickness_avail - oh_rel_height) << 0x10) < 0))
+                        if ((oh_rel_height != 0 && sborrow2(image.toph, image.solh) == (s32)((u32)oh_rel_height << 0x10) < 0) && ((u16)(oh_thickness_avail - oh_rel_height) != 0 && sborrow2(oh_thickness_avail, oh_rel_height) == (s32)((u32)(u16)(oh_thickness_avail - oh_rel_height) << 0x10) < 0))
                         {
                             u16 oh_thickness_rem = oh_thickness_avail - oh_rel_height;
                             fbottom = (s16)(image.solh + oh_thickness_rem) < image.toph;
@@ -2758,21 +2758,21 @@ void doland(s32 scene_addr, s32 render_context)
                             {
                                 u16 oh_bar_h = botalt - prev_oh_top;
                                 s32 oh_bar_height = oh_bar_h;
-                                if (oh_bar_h != 0 && SBORROW2(botalt, prev_oh_top) == (s32)((u32)oh_bar_h << 0x10) < 0)
+                                if (oh_bar_h != 0 && sborrow2(botalt, prev_oh_top) == (s32)((u32)oh_bar_h << 0x10) < 0)
                                 {
                                     if (notopa == 0)
                                     {
                                         // Clip overhang against previous column's bounds
                                         s16 oh_check_top = (s16)oh_packed;
                                         u16 oh_delta = oh_check_top - prev_oh_top;
-                                        oh_packed = CONCAT22((s16)((u32)oh_packed >> 0x10), oh_delta);
-                                        if (oh_delta == 0 || SBORROW2(oh_check_top, prev_oh_top) != (s32)((u32)oh_delta << 0x10) < 0)
+                                        oh_packed = concat22((s16)((u32)oh_packed >> 0x10), oh_delta);
+                                        if (oh_delta == 0 || sborrow2(oh_check_top, prev_oh_top) != (s32)((u32)oh_delta << 0x10) < 0)
                                         {
                                             s16 oh_new_top = prev_oh_top + oh_bar_h;
                                             u16 oh_adj = oh_new_top - oh_prev_bot;
                                             oh_bar_height = oh_adj;
                                             prev_oh_top = oh_prev_bot;
-                                            if (oh_adj == 0 || SBORROW2(oh_new_top, oh_prev_bot) != (s32)((u32)oh_adj << 0x10) < 0)
+                                            if (oh_adj == 0 || sborrow2(oh_new_top, oh_prev_bot) != (s32)((u32)oh_adj << 0x10) < 0)
                                                 goto overhang_done;
                                         }
                                         else if ((s16)oh_bar_h <= (s16)(oh_prev_bot - prev_oh_top))
@@ -2784,7 +2784,7 @@ void doland(s32 scene_addr, s32 render_context)
 
                                     s16 saved_clip = xread16(render_context - 0x25c);
                                     xwrite16(render_context - 0x25c, prectopi);
-                                    u32 packed_pos = CONCAT22((trav_x), (trav_x >> 16));
+                                    u32 packed_pos = concat22((trav_x), (trav_x >> 16));
                                     tbarland(terrain_cell, render_context, col_dir_x, col_step_y, prev_oh_top, oh_bar_height, oh_type_idx, col_x_pos_swp, packed_pos, oh_packed);
                                     xwrite16(render_context - 0x25c, saved_clip);
                                 }
@@ -2821,7 +2821,7 @@ void doland(s32 scene_addr, s32 render_context)
 
             // Advance screen column X (fixed-point with carry emulation)
             s32 col_x_sum = col_x_step_swp + col_x_pos_swp;
-            col_x_pos_swp = CONCAT22((s16)((u32)col_x_sum >> 0x10), (s16)col_x_sum + (u16)CARRY4(col_x_step_swp, col_x_pos_swp));
+            col_x_pos_swp = concat22((s16)((u32)col_x_sum >> 0x10), (s16)col_x_sum + (u16)carry4(col_x_step_swp, col_x_pos_swp));
         }
         while (true);
 

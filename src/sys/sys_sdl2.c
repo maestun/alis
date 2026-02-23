@@ -528,6 +528,29 @@ void sys_render(pixelbuf_t buffer) {
             memcpy(curpal, palette, 32);
         }
     }
+    else if (image.flinepal)
+    {
+        int stride = 2 + (sizeof(u8 *) >> 1);
+        s16 *cur = image.firstpal;
+        s16 *nxt = cur + stride;
+
+        for (int y = 0; y < buffer.h; y++)
+        {
+            while (nxt[0] != 0xff && y >= nxt[1])
+            {
+                cur = nxt;
+                nxt = cur + stride;
+            }
+
+            u16 paloff = cur[2];
+            int base = y * buffer.w;
+            for (int x = 0; x < buffer.w; x++)
+            {
+                int index = buffer.data[base + x] + paloff;
+                pixels[base + x] = (u32)(0xff000000 + (buffer.palette[index * 4 + 0] << 16) + (buffer.palette[index * 4 + 1] << 8) + (buffer.palette[index * 4 + 2] << 0));
+            }
+        }
+    }
     else
     {
         int index;

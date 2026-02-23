@@ -655,17 +655,26 @@ void sys_render(pixelbuf_t buffer) {
                     case 32:
                     {
                         u32 *pixels = surface->pixels;
-                        
+
                         int px = r.x + r.y * buffer.w;
                         int po = buffer.w - r.w;
+                        int stride = 2 + (sizeof(u8 *) >> 1);
                         for (int y = r.y; y < r.y + r.h; y++, px += po)
                         {
+                            u16 paloff = 0;
+                            if (image.flinepal) {
+                                s16 *cur = image.firstpal;
+                                s16 *nxt = cur + stride;
+                                while (nxt[0] != 0xff && y >= nxt[1]) { cur = nxt; nxt = cur + stride; }
+                                paloff = cur[2];
+                            }
                             for (int x = 0; x < r.w; x++, px++)
                             {
-                                pixels[px] = tmp_pal[buffer.data[px]];
+                                int index = buffer.data[px] + paloff;
+                                pixels[px] = tmp_pal[index];
                             }
                         }
-                        
+
                         break;
                     }
                     case 16:
@@ -675,11 +684,20 @@ void sys_render(pixelbuf_t buffer) {
 
                         int px = r.x + r.y * buffer.w;
                         int po = buffer.w - r.w;
+                        int stride = 2 + (sizeof(u8 *) >> 1);
                         for (int y = r.y; y < r.y + r.h; y++, px += po)
                         {
+                            u16 paloff = 0;
+                            if (image.flinepal) {
+                                s16 *cur = image.firstpal;
+                                s16 *nxt = cur + stride;
+                                while (nxt[0] != 0xff && y >= nxt[1]) { cur = nxt; nxt = cur + stride; }
+                                paloff = cur[2];
+                            }
                             for (int x = 0; x < r.w; x++, px++)
                             {
-                                pixels[px] = tmppal16[buffer.data[px]];
+                                int index = buffer.data[px] + paloff;
+                                pixels[px] = tmppal16[index];
                             }
                         }
                         break;
