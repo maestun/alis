@@ -366,6 +366,7 @@ void altiland(s32 scene_addr, s32 render_context)
         }
 
         screen_y_fp += screen_y_step * 0x100;
+
         row_scale += (s16)((scale_end - scale_start) / 0x31);
     }
 
@@ -2679,8 +2680,11 @@ void doland(s32 scene_addr, s32 render_context)
 
                                         prectopa = oh_top_scr;
                                         precbota = oh_bot_scr;
-                                        prectopc = oh_interp_top;
-                                        precbotc = oh_min_bot;
+                                        // Running max/min (asm: D6 = max(D6, D0), D7 = min(D7, D1))
+                                        if ((s16)oh_top_scr > (s16)prectopc)
+                                            prectopc = oh_top_scr;
+                                        if ((s16)oh_bot_scr < (s16)precbotc)
+                                            precbotc = oh_bot_scr;
 
                                         if ((s16)oh_packed < (s16)oh_prev_bot)
                                         {
