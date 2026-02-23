@@ -750,9 +750,6 @@ void inisprit(void)
     image.libsprit = 0xa8;
     cursprit += 0xa8;
     
-//    image.libsprit = 0x78; // 0x8078;
-//    cursprit += 0x78;
-    
     sSprite *sprite = SPRITE_VAR(cursprit);
     for (; cursprit < image.finsprit; sprite = SPRITE_VAR(cursprit), cursprit += 0x30)
     {
@@ -982,6 +979,41 @@ void put(u16 idx)
     putin(idx);
 }
 
+void putfin(void)
+{
+    // kill leftover sprite elements after composite processing
+    if (alis.fmuldes == 0)
+    {
+        u16 newidx = 0;
+        u16 oldidx = 0;
+
+        if (searchelem(&newidx, &oldidx) != 0)
+        {
+            do
+            {
+                while (SPRITE_VAR(newidx)->state == 0)
+                {
+                    killelem(&newidx, &oldidx);
+                    if (newidx == 0)
+                    {
+                        alis.fadddes = 0;
+                        return;
+                    }
+
+                    if (!testnum(&newidx))
+                    {
+                        alis.fadddes = 0;
+                        return;
+                    }
+                }
+            }
+            while (nextnum(&newidx, &oldidx));
+        }
+    }
+    
+    alis.fadddes = 0;
+}
+
 void putin(u16 idx)
 {
     // if there is no scene opened, there is nowhere to add sprite
@@ -1004,13 +1036,13 @@ void putin(u16 idx)
         }
         
         // handle composit images
-     
+        
         s16 rsrccount = resourcedata[1];
         u8 *currsrc = resourcedata + 2;
         
         u8 invx;
         u8 muldes;
-
+        
         for (s32 i = 0; i < rsrccount; i++)
         {
             invx = image.invert_x;
@@ -1020,12 +1052,12 @@ void putin(u16 idx)
             s16 curdepx = read16(currsrc + 2);
             if (image.invert_x != 0)
                 curdepx = -curdepx;
-
+            
             image.depx += curdepx;
-
+            
             s16 curdepy = read16(currsrc + 4);
             image.depy = curdepy + y;
-
+            
             s16 curdepz = read16(currsrc + 6);
             image.depz = curdepz + z;
             
@@ -1036,16 +1068,16 @@ void putin(u16 idx)
             }
             
             alis.fmuldes = 1;
-
+            
             putin(curelem);
-
+            
             image.depx = x;
             image.depy = y;
             image.depz = z;
             
             image.invert_x = invx;
             alis.fmuldes = muldes;
-
+            
             currsrc += 8;
         }
         
@@ -1075,16 +1107,20 @@ void putin(u16 idx)
         {
             getelem(&newidx, &oldidx);
         }
-
+        
         addr = adresdes(idx);
         putmapin(newidx, addr);
+        return;
     }
+    
+    putfin();
 }
 
 void putmapin(s16 spridx, s32 bitmap)
 {
     sSprite *sprite = SPRITE_VAR(spridx);
     sprite->data = bitmap;
+    sprite->newad = 0;
     sprite->flaginvx = image.invert_x;
     sprite->sprite_0x28 = get_0x28_unknown(alis.script->vram_org);
     sprite->script_ent = get_0x0e_script_ent(alis.script->vram_org);
@@ -1092,76 +1128,36 @@ void putmapin(s16 spridx, s32 bitmap)
     sprite->cordspr = get_0x2b_cordspr(alis.script->vram_org);
     sprite->creducing = get_0x27_creducing(alis.script->vram_org);
     sprite->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
-    
-    // TODO: ...
-//-
-//    s32 contextsize = get_context_size();
-//    if (contextsize > 0x2e)
-//    {
-//        sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
-//
-//        if ((s8)sprite->credon_off == -0x80)
-//        {
-//            sprite->newzoomx = get_0x38_unknown(alis.script->vram_org);
-//            sprite->newzoomy = get_0x36_unknown(alis.script->vram_org);
-//            sprite->creducing = 0;
-//        }
-//    }
-//    
-//    if ((s8)sprite->credon_off >= 0)
-//    {
-//        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
-//        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
-//    }
-//-
-    sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
-    if ((s8)get_0x25_credon_credoff(alis.script->vram_org) == -0x80)
+
+    s32 contextsize = get_context_size();
+    if (contextsize > 0x2e)
     {
-        sprite->newzoomx = get_0x36_unknown(alis.script->vram_org);
-        sprite->newzoomy = get_0x38_unknown(alis.script->vram_org);
-        sprite->creducing = 0;
+        sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
+
+        if ((s8)sprite->credon_off == -0x80)
+        {
+            sprite->newzoomx = get_0x38_unknown(alis.script->vram_org);
+            sprite->newzoomy = get_0x36_unknown(alis.script->vram_org);
+            sprite->creducing = 0;
+        }
     }
-    else
+
+    if ((s8)sprite->credon_off >= 0)
     {
         sprite->creducing = get_0x27_creducing(alis.script->vram_org);
         sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
+        if ((s8)sprite->credon_off < 0)
+        {
+            sprite->creducing = 0;
+            sprite->credon_off = xread8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 0x1f);
+        }
     }
-//-
     
     sprite->depx = image.oldcx + image.depx;
     sprite->depy = image.oldcy + image.depy;
     sprite->depz = image.oldcz + image.depz;
     
-    if (alis.fmuldes == 0)
-    {
-        u16 newidx = 0;
-        u16 oldidx = 0;
-
-        if (searchelem(&newidx, &oldidx) == 0)
-            return;
-
-        do
-        {
-            while (SPRITE_VAR(newidx)->state == 0)
-            {
-                killelem(&newidx, &oldidx);
-                if (newidx == 0)
-                {
-                    alis.fadddes = 0;
-                    return;
-                }
-
-                if (!testnum(&newidx))
-                {
-                    alis.fadddes = 0;
-                    return;
-                }
-            }
-        }
-        while (nextnum(&newidx, &oldidx));
-    }
-    
-    alis.fadddes = 0;
+    putfin();
 }
 
 void put_char(s8 character)
@@ -1538,7 +1534,9 @@ void deptopix(u16 scene, u16 elemidx)
             }
             else
             {
-                s16 clink = (s16)get_scr_clinking(scene);
+                // NOTE: must be byte read - 16-bit read includes next field, gives wrong
+                // values on big-endian. May need s16 for v3.0+ games in the future.
+                int clink = (s8)xread8(alis.basemain + scene + 0x1e);
                 if (clink < offset)
                 {
                     offset = clink;
@@ -1706,21 +1704,21 @@ void folscreen(s32 scene)
                 if (val != xread16(alis.basemain + scene + 0x16))
                 {
                     xwrite16(alis.basemain + scene + 0x16, val);
-                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                    xwrite8(alis.basemain + scene, xread8(alis.basemain + scene) | 0x80);
                 }
                 
                 val = xread16(alis.basemain + scene + 0x88) + xread16(addr + ALIS_SCR_WCY);
                 if (val != xread16(alis.basemain + scene + 0x18))
                 {
                     xwrite16(alis.basemain + scene + 0x18, val);
-                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                    xwrite8(alis.basemain + scene, xread8(alis.basemain + scene) | 0x80);
                 }
                 
                 val = xread16(alis.basemain + scene + 0x8a) + xread16(addr + ALIS_SCR_WCZ);
                 if (val != xread16(alis.basemain + scene + 0x1a))
                 {
                     xwrite16(alis.basemain + scene + 0x1a, val);
-                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                    xwrite8(alis.basemain + scene, xread8(alis.basemain + scene) | 0x80);
                 }
             }
             
@@ -1730,21 +1728,21 @@ void folscreen(s32 scene)
                 if (val != xread16(alis.basemain + scene + 0x34))
                 {
                     xwrite16(alis.basemain + scene + 0x34, val);
-                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                    xwrite8(alis.basemain + scene, xread8(alis.basemain + scene) | 0x80);
                 }
                 
                 val = xread16(alis.basemain + scene + 0x8e) + xread16(addr + 0x44) + xread16(addr + ALIS_SCR_WCAY);
                 if (val != xread16(alis.basemain + scene + 0x36))
                 {
                     xwrite16(alis.basemain + scene + 0x36, val);
-                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                    xwrite8(alis.basemain + scene, xread8(alis.basemain + scene) | 0x80);
                 }
                 
                 val = xread16(alis.basemain + scene + 0x90) + xread16(addr + 0x48) + xread16(addr + ALIS_SCR_WCAZ);
                 if (val != xread16(alis.basemain + scene + 0x38))
                 {
                     xwrite16(alis.basemain + scene + 0x38, val);
-                    xwrite8(alis.basemain + scene, xread8(scene) | 0x80);
+                    xwrite8(alis.basemain + scene, xread8(alis.basemain + scene) | 0x80);
                 }
             }
         }
@@ -2383,7 +2381,7 @@ void affiscr(u16 scene, u16 screenidx)
     u16 prevspidx;
     u16 linkidx;
     
-    if (xread8(alis.basemain + scene + 0x84) != 0)
+    if (alis.platform.version >= 30 && xread8(alis.basemain + scene + 0x84) != 0)
     {
         folscreen(scene);
     }
