@@ -268,7 +268,7 @@ void topalette(u8 *paldata, s32 duration)
     else
     {
         selpalet();
-        
+
         s16 colors = paldata[1];
         if (colors == 0) // 4 bit palette
         {

@@ -2382,7 +2382,7 @@ static void cdefcolor(void) {
         b = (rawcolor[0] & 0b00000111) << 5;
     }
     
-    s16 index = alis.varD7 * 3;
+    s16 index = alis.varD7 * 4;
     image.mpalet[index + 0] = r;
     image.mpalet[index + 1] = g;
     image.mpalet[index + 2] = b;
@@ -3826,14 +3826,14 @@ static void cmovcolor(void) {
             change = -change;
  
             image.mpalet[index * 4 + 0] = subcol(change       , image.mpalet[index * 4 + 0] >> 5) << 5;
-            image.mpalet[index * 4 + 0] = subcol(change >> 4  , image.mpalet[index * 4 + 0] >> 5) << 5;
-            image.mpalet[index * 4 + 0] = subcol(change >> 8  , image.mpalet[index * 4 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 1] = subcol(change >> 4  , image.mpalet[index * 4 + 1] >> 5) << 5;
+            image.mpalet[index * 4 + 2] = subcol(change >> 8  , image.mpalet[index * 4 + 2] >> 5) << 5;
         }
         else
         {
             image.mpalet[index * 4 + 0] = addcol(change       , image.mpalet[index * 4 + 0] >> 5) << 5;
-            image.mpalet[index * 4 + 0] = addcol(change >> 4  , image.mpalet[index * 4 + 0] >> 5) << 5;
-            image.mpalet[index * 4 + 0] = addcol(change >> 8  , image.mpalet[index * 4 + 0] >> 5) << 5;
+            image.mpalet[index * 4 + 1] = addcol(change >> 4  , image.mpalet[index * 4 + 1] >> 5) << 5;
+            image.mpalet[index * 4 + 2] = addcol(change >> 8  , image.mpalet[index * 4 + 2] >> 5) << 5;
         }
         
         image.ftopal = 0xff;
