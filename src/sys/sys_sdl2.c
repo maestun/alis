@@ -356,6 +356,23 @@ void sys_poll_event(void) {
                     ALIS_DEBUG(EDebugSystem, "INTERRUPT: User debug label.\n");
                     break;
 
+//                case SDLK_F10:
+//                {
+//                    FILE *f = fopen("/tmp/palette.act", "wb");
+//                    if (f)
+//                    {
+//                        for (int i = 0; i < 256; i++)
+//                        {
+//                            fputc(image.ampalet[i * 4 + 0], f);
+//                            fputc(image.ampalet[i * 4 + 1], f);
+//                            fputc(image.ampalet[i * 4 + 2], f);
+//                        }
+//                        fclose(f);
+//                        printf("Palette dumped to /tmp/palette.act\n");
+//                    }
+//                    break;
+//                }
+
                 case SDLK_F11:
                     alis.state = eAlisStateSave;
                     break;

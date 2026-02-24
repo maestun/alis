@@ -587,10 +587,10 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                 {
                     u16 width = read16(bitmap + 2) + 1;
                     u16 height = read16(bitmap + 4) + 1;
-                    u16 hwidth = width >> 1;
+                    s32 nbytes = (width * height) >> 1;
 
                     u16 *ptr = (u16 *)(bitmap + 6);
-                    for (int h = 0; h < height * hwidth; h++, ptr++)
+                    for (int h = 0; h < nbytes; h++, ptr++)
                     {
                         *ptr = (*ptr | *ptr << 4);
                     }
@@ -603,13 +603,13 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
             
             for (s32 i = 0; i < sprites; i++)
             {
-                if ((script->type & 1) == 0)
+                s32 a = read32(data + l) + l + i * 4;
+                u32 at = read32(data + a) + a;
+                u8 *bitmap = data + at;
+                
+                if (bitmap[0] == 0 || bitmap[0] == 2)
                 {
-                    s32 a = read32(data + l) + l + i * 4;
-                    u32 at = read32(data + a) + a;
-                    u8 *bitmap = data + at;
-                    
-                    if (bitmap[0] == 0 || bitmap[0] == 2)
+                    if ((script->type & 1) == 0)
                     {
                         if (alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya || alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1)
                         {
@@ -648,7 +648,65 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                             free(temp);
                         }
                     }
-                    // TODO: else if (bitmap[0] == 0x18 || bitmap[0] == 0x1a)
+                }
+                else if (bitmap[0] == 0x18 || bitmap[0] == 0x1a)
+                {
+                    u16 width = read16(bitmap + 2) + 1;
+                    u16 height = read16(bitmap + 4) + 1;
+                    s32 nbytes = (width * height) >> 1;
+
+                    u16 *ptr = (u16 *)(bitmap + 6);
+                    for (int h = 0; h < nbytes; h++, ptr++)
+                    {
+                        *ptr = (*ptr | *ptr << 4);
+                    }
+                }
+            }
+        }
+        else if (alis.platform.kind == EPlatformAmigaAGA)
+        {
+            s32 sprites = read16(data + l + 4);
+
+            for (s32 i = 0; i < sprites; i++)
+            {
+                s32 a = read32(data + l) + l + i * 4;
+                u32 at = read32(data + a) + a;
+                u8 *bitmap = data + at;
+
+                if (bitmap[0] == 0x10 || bitmap[0] == 0x12)
+                {
+                    // Bake palette offset low nibble into pixel data
+                    // (matches Amiga io_pixel behavior)
+                    u8 pal_offset = bitmap[6] & 0x0f;
+                    bitmap[6] -= pal_offset;
+
+                    if (pal_offset != 0)
+                    {
+                        u16 width = read16(bitmap + 2) + 1;
+                        u16 height = read16(bitmap + 4) + 1;
+                        u8 *pixels = bitmap + 8;
+                        s32 nbytes = (width * height) >> 1;
+
+                        for (s32 p = 0; p < nbytes; p++)
+                        {
+                            u8 byte = pixels[p];
+                            u8 hi = (byte >> 4) & 0x0f;
+                            u8 lo = byte & 0x0f;
+
+                            if (bitmap[0] == 0x10)
+                            {
+                                if (hi != 0) hi += pal_offset;
+                                if (lo != 0) lo += pal_offset;
+                            }
+                            else
+                            {
+                                hi += pal_offset;
+                                lo += pal_offset;
+                            }
+
+                            pixels[p] = (hi << 4) | (lo & 0x0f);
+                        }
+                    }
                 }
             }
         }

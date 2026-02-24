@@ -34,6 +34,11 @@ extern u8 tabatan[];
 extern s16 *tabsin;
 extern s16 *tabcos;
 
+u16 concat11(u8 a, u8 b)
+{
+    return ((u16)a << 8) | b;
+}
+
 u32 concat13(u8 a, u32 b)
 {
     return ((u32)a << 24) | (b & 0x00ffffff);
@@ -879,6 +884,8 @@ void vgatofen(void)
     
     image.vgamodulo = image.wloglarg - ((image.clipx2 - image.clipx1) + 1);
     image.bitmodulo = image.loglarg * 2 - ((image.clipx2 - image.clipx1) + 1);
+    
+    u8 limit = alis.platform.bpp == 4 ? 0xf : 0xff;
 
     u8 *ptr = image.logic;
     // TODO: why?
@@ -888,7 +895,7 @@ void vgatofen(void)
     {
         for (int x = image.clipx1; x <= image.clipx2; x++, tgt++, src++)
         {
-            *tgt = *src & 0xf;
+            *tgt = *src & limit;
         }
     }
 }
@@ -1153,7 +1160,7 @@ void bartrab(u32 render_context, s16 maxpixels, s16 vbarbot, s16 botval, s16 vbo
                 tgt = (s32)image.wloglarg + prevtgt;
                 prevtgt = tgt;
             }
-            while ((s32)pixfraction >= 0 && (--lines) != -1);
+            while ((s32)pixfraction >= 0 && (--lines) <= -1);
         }
     }
 }
@@ -1184,231 +1191,245 @@ void bartramin(s32 render_context, u32 tgt, s16 lines, s32 maxpixels, u32 color)
 // draw bar top
 void bartra(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
 {
-    s16 maxpixels = barwidth - 1;
-    
-    u16 pixels = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + (xread8(terrain_cell + 2) & 0xc0) + (xread8(terrain_cell) & 0xc0) * 2) * -2;
-    u32 color = (u32)pixels;
+    s16 max_cols = barwidth - 1;
+
+    // Compute dark level from terrain cell data and distance fog
+    u16 dark_level = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + (xread8(terrain_cell + 2) & 0xc0) + (xread8(terrain_cell) & 0xc0) * 2) * -2;
+    u32 color = (u32)dark_level;
     if ((s32)(color << 0x10) < 0)
     {
         color = 0;
     }
-    
-    color = (u16)xread16(alis.ptrdark + (s16)concat31(((u16)color >> 8), (s8)xread8(render_context + 8 + index) * 2));
-    color = concat22(color, color);
-    s16 lines = xread16(render_context - 0x246) - drawy;
-    s16 midlines = barheight;
-    
-    if (lines > 1)
+
+    // Look up dithered color pattern from darkness table
+    u16 dark_row = (color >> 8);
+    if (alis.platform.bpp == 4)
     {
-        midlines -= lines;
-        if (barheight < lines)
+        color = (u16)xread16(alis.ptrdark + (s16)concat31(dark_row, (s8)xread8(render_context + 8 + index) * 2));
+    }
+    else
+    {
+        color = concat11(xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 8 + index))),
+                         xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 9 + index))));
+    }
+
+    color = concat22(color, color);
+    s16 top_lines = xread16(render_context - 0x246) - drawy;
+    s16 mid_height = barheight;
+
+    if (top_lines > 1)
+    {
+        mid_height -= top_lines;
+        if (barheight < top_lines)
         {
-            lines += midlines;
+            top_lines += mid_height;
         }
-        
-        if (lines > 0)
+
+        if (top_lines > 0)
         {
-            u32 tgt;
-            u32 prevtgt;
-            u8 *tgtptr;
+            u32 dst;
+            u32 prev_dst;
+            u8 *dst_ptr;
 
-            u32 tempcolor;
-            u32 prevcolor;
+            u32 saved_color;
+            u32 alt_color;
 
-            u32 pixfraction;
-            u16 pixmult = xread16(render_context - 0x246) - bary;
-            image.vbarmid = midlines;
-            
-            if (1 < (s16)pixmult)
+            u32 tex_frac;
+            u16 tex_step = xread16(render_context - 0x246) - bary;
+            image.vbarmid = mid_height;
+
+            if (1 < (s16)tex_step)
             {
-                if ((pixmult < 0x41) && (image.vbarlarg < 0x40))
+                if ((tex_step < 0x41) && (image.vbarlarg < 0x40))
                 {
-                    pixmult = (u16)xread16(image.atalias + (s16)((image.vbarlarg + (pixmult - 1) * 0x40) * 2));
+                    tex_step = (u16)xread16(image.atalias + (s16)((image.vbarlarg + (tex_step - 1) * 0x40) * 2));
                 }
                 else
                 {
-                    pixmult >>= 2;
-                    if (0x40 < pixmult)
+                    tex_step >>= 2;
+                    if (0x40 < tex_step)
                     {
-                        pixmult = 0x40;
+                        tex_step = 0x40;
                     }
-                    
-                    pixmult = xread16(image.atalias + (s16)(image.vbarlarg + (pixmult - 1) * 0x80 & 0xfffe)) >> 1;
+
+                    tex_step = xread16(image.atalias + (s16)(image.vbarlarg + (tex_step - 1) * 0x80 & 0xfffe)) >> 1;
                 }
-                
+
+                // Left-to-right rendering path
                 if (xread16(render_context - 0x246) == xread16(render_context - 0x25c))
                 {
-                    pixfraction = 0;
+                    tex_frac = 0;
                     if (bary < (s16)drawy)
                     {
-                        pixfraction = ((u16)(drawy - bary) & 0xff) * 0x100 * (u32)pixmult;
+                        tex_frac = ((u16)(drawy - bary) & 0xff) * 0x100 * (u32)tex_step;
                     }
-                    
-                    if ((s16)maxpixels < (s16)image.vbarlarg)
+
+                    if ((s16)max_cols < (s16)image.vbarlarg)
                     {
-                        pixfraction = (u32)(u16)((image.vbarx + (s16)(pixfraction >> 0x10)) - image.precx) << 0x10 | (pixfraction & 0xffff);
+                        tex_frac = (u32)(u16)((image.vbarx + (s16)(tex_frac >> 0x10)) - image.precx) << 0x10 | (tex_frac & 0xffff);
                     }
-                    
+
                     if ((drawy & 1) != 0)
                     {
                         color = rot8(color);
                     }
-                    
+
                     if ((xread8(render_context - 0x24d) & 1) != 0)
                     {
                         color = rot8(color);
                     }
-                    
-                    tgt = ((s32)image.precx + xread32(image.atlpix + (s16)((drawy - image.wlogy1) * 4)));
-                    
-                    pixels = pixfraction >> 0x10;
-                    prevcolor = rot8(color);
-                    prevtgt = (u32)tgt;
-                    
+
+                    dst = ((s32)image.precx + xread32(image.atlpix + (s16)((drawy - image.wlogy1) * 4)));
+
+                    u16 col_count = tex_frac >> 0x10;
+                    alt_color = rot8(color);
+                    prev_dst = (u32)dst;
+
                     do
                     {
-                        tgtptr = alis.mem + tgt;
-                        tempcolor = prevcolor;
+                        dst_ptr = alis.mem + dst;
+                        saved_color = alt_color;
 
-                        if ((s16)maxpixels < (s16)pixels || (--lines) == -1)
+                        if ((s16)max_cols < (s16)col_count || (--top_lines) == -1)
                         {
-                            if (lines < 0)
+                            if (top_lines < 0)
                             {
                                 if ((s16)(image.vbarmid - 1) >= 0)
                                 {
-                                    bartramin(render_context, tgt, image.vbarmid, maxpixels, color);
+                                    bartramin(render_context, dst, image.vbarmid, max_cols, color);
                                 }
                                 return;
                             }
-                            
-                            if (-1 < (s16)pixels)
+
+                            if (-1 < (s16)col_count)
                             {
-                                pixels = maxpixels;
-                                prevcolor = tempcolor;
+                                col_count = max_cols;
+                                alt_color = saved_color;
                                 continue;
                             }
-                            
-                            if ((--lines) < 0)
+
+                            if ((--top_lines) < 0)
                             {
                                 if ((s16)(image.vbarmid - 1) >= 0)
                                 {
-                                    bartramin(render_context, tgt, image.vbarmid, maxpixels, color);
+                                    bartramin(render_context, dst, image.vbarmid, max_cols, color);
                                 }
                                 return;
                             }
                         }
                         else
                         {
-                            for (int i = 0; i < (s16)pixels + 1; i++, color = rot8(color))
-                                tgtptr[i] = (tgt & 1) == 0 ? rot8(color) : color;
+                            for (int i = 0; i < (s16)col_count + 1; i++, color = rot8(color))
+                                dst_ptr[i] = (dst & 1) == 0 ? rot8(color) : color;
                         }
-                        
-                        pixfraction += (s16)pixmult * 0x100;
-                        tgt = ((s32)image.wloglarg + prevtgt);
-                        pixels = pixfraction >> 0x10;
-                        prevcolor = color;
-                        color = tempcolor;
-                        prevtgt = (u32)tgt;
+
+                        tex_frac += (s16)tex_step * 0x100;
+                        dst = ((s32)image.wloglarg + prev_dst);
+                        col_count = tex_frac >> 0x10;
+                        alt_color = color;
+                        color = saved_color;
+                        prev_dst = (u32)dst;
                     }
                     while (true);
                 }
+                // Right-to-left rendering path
                 else
                 {
-                    pixfraction = 0;
+                    tex_frac = 0;
                     if (bary < (s16)drawy)
                     {
-                        pixfraction = ((u16)(drawy - bary) & 0xff) * 0x100 * (u32)pixmult;
+                        tex_frac = ((u16)(drawy - bary) & 0xff) * 0x100 * (u32)tex_step;
                     }
-                    
-                    if ((s16)maxpixels < (s16)image.vbarlarg)
+
+                    if ((s16)max_cols < (s16)image.vbarlarg)
                     {
-                        pixfraction = (u32)(u16)(((maxpixels + image.precx + (s16)(pixfraction >> 0x10)) - image.vbarx) - image.vbarlarg) << 0x10 | (pixfraction & 0xffff);
+                        tex_frac = (u32)(u16)(((max_cols + image.precx + (s16)(tex_frac >> 0x10)) - image.vbarx) - image.vbarlarg) << 0x10 | (tex_frac & 0xffff);
                     }
-                    
+
                     if ((drawy & 1) != 0)
                     {
                         color = rot8(color);
                     }
-                    
+
                     if ((xread8(render_context - 0x24d) & 1) != 0)
                     {
                         color = rot8(color);
                     }
-                    
-                    prevcolor = rot8(color);
-                    pixels = pixfraction >> 0x10;
-                    
-                    tgt = (s32)(s16)maxpixels + (s32)image.precx + xread32(image.atlpix + (s16)((drawy - image.wlogy1) * 4)) + 1;
-                    prevtgt = tgt;
-                    
+
+                    alt_color = rot8(color);
+                    u16 col_count = tex_frac >> 0x10;
+
+                    dst = (s32)(s16)max_cols + (s32)image.precx + xread32(image.atlpix + (s16)((drawy - image.wlogy1) * 4)) + 1;
+                    prev_dst = dst;
+
                     do
                     {
-                        tgtptr = alis.mem + tgt;
-                        tempcolor = prevcolor;
-                        
-                        if ((s16)maxpixels < (s16)pixels || (--lines) == -1)
+                        dst_ptr = alis.mem + dst;
+                        saved_color = alt_color;
+
+                        if ((s16)max_cols < (s16)col_count || (--top_lines) == -1)
                         {
-                            if (lines < 0)
+                            if (top_lines < 0)
                             {
                                 if ((s16)(image.vbarmid - 1) >= 0)
                                 {
-                                    bartramin(render_context, (tgt - 1) - maxpixels, image.vbarmid, maxpixels, color);
+                                    bartramin(render_context, (dst - 1) - max_cols, image.vbarmid, max_cols, color);
                                 }
                                 return;
                             }
-                            
-                            if (-1 < (s16)pixels)
+
+                            if (-1 < (s16)col_count)
                             {
-                                pixels = maxpixels;
-                                prevcolor = tempcolor;
+                                col_count = max_cols;
+                                alt_color = saved_color;
                                 continue;
                             }
-                            
-                            if ((--lines) < 0)
+
+                            if ((--top_lines) < 0)
                             {
                                 if ((s16)(image.vbarmid - 1) >= 0)
                                 {
-                                    bartramin(render_context, (tgt - 1) - maxpixels, image.vbarmid, maxpixels, color);
+                                    bartramin(render_context, (dst - 1) - max_cols, image.vbarmid, max_cols, color);
                                 }
                                 return;
                             }
                         }
                         else
                         {
-                            xwrite8(tgt - 1, (char)color);
-                            for (int i = 0; i < (s16)pixels; i++, color = rot8(color))
-                                tgtptr[-i] = (tgt & 1) == 0 ? rot8(color) : color;
-                            
-                            tempcolor = color;
+                            xwrite8(dst - 1, (char)color);
+                            for (int i = 0; i < (s16)col_count; i++, color = rot8(color))
+                                dst_ptr[-i] = (dst & 1) == 0 ? rot8(color) : color;
+
+                            saved_color = color;
                         }
-                        
-                        pixfraction += (s16)pixmult * 0x100;
-                        tgt = (s32)image.wloglarg + prevtgt;
-                        pixels = pixfraction >> 0x10;
-                        prevcolor = color;
-                        color = tempcolor;
-                        prevtgt = tgt;
+
+                        tex_frac += (s16)tex_step * 0x100;
+                        dst = (s32)image.wloglarg + prev_dst;
+                        col_count = tex_frac >> 0x10;
+                        alt_color = color;
+                        color = saved_color;
+                        prev_dst = dst;
                     }
                     while (true);
                 }
             }
         }
     }
-    
-    if (-1 < (s16)(midlines - 1))
+
+    if (-1 < (s16)(mid_height - 1))
     {
         if ((drawy & 1) != 0)
         {
             color = rot8(color);
         }
-        
+
         if ((xread8(render_context - 0x24d) & 1) != 0)
         {
             color = rot8(color);
         }
-        
-        u32 tgt = (s32)image.precx + xread32(image.atlpix + (s16)((drawy - image.wlogy1) * 4));
-        bartramin(render_context, tgt, midlines, maxpixels, color);
+
+        u32 dst = (s32)image.precx + xread32(image.atlpix + (s16)((drawy - image.wlogy1) * 4));
+        bartramin(render_context, dst, mid_height, max_cols, color);
     }
 }
 
@@ -1574,7 +1595,16 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 step_x, s32 step_y, u16 
                         color = 0;
                     }
 
-                    dark_level = (u16)xread16(alis.ptrdark + (s16)concat31((color >> 8), (s8)xread8(render_context + 8 + index) * 2));
+                    u16 dark_row = (color >> 8);
+                    if (alis.platform.bpp == 4)
+                    {
+                        dark_level = (u16)xread16(alis.ptrdark + (s16)concat31(dark_row, (s8)xread8(render_context + 8 + index) * 2));
+                    }
+                    else
+                    {
+                        dark_level = concat11(xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 8 + index))),
+                                              xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 9 + index))));
+                    }
                     color = concat22(dark_level, dark_level);
 
                     bartrab(render_context, barwidth, barheight, drawy, bothigh, color);
@@ -1608,6 +1638,8 @@ void zoomtofen(sSprite *sprite)
     // Get sprite bitmap data with offset stored in header
     u8 *bitmap = alis.mem + sprite->newad + xread32(sprite->newad);
 
+    u8 data_offset = (*bitmap == 0x18 || *bitmap == 0x1a) ? 6 : 8;
+    
     // Only process valid sprite formats (0x18, 0x1a, 0x1c, 0x1e)
     if (*bitmap == 0x18 || *bitmap == 0x1a || *bitmap == 0x1c || *bitmap == 0x1e)
     {
@@ -1725,7 +1757,7 @@ void zoomtofen(sSprite *sprite)
                     // Render individual pixels in row, stepping backward through texture (flipped)
                     for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_int - zoom_y_step) >> 0x10), (s16)(zoom_y_int - zoom_y_step) - (u16)(zoom_y_int < zoom_y_step)))
                     {
-                        u8 pixel = bitmap[(s16)zoom_y_int + bitmap_row_offset + 8];
+                        u8 pixel = bitmap[(s16)zoom_y_int + bitmap_row_offset + data_offset];
                         if (pixel != 0)  // Skip transparent pixels
                             *framebuffer = pixel;
                     }
@@ -1763,7 +1795,7 @@ void zoomtofen(sSprite *sprite)
                     // Render individual pixels in row, stepping forward through texture (normal)
                     for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_step + zoom_y_int) >> 0x10), (s16)(zoom_y_step + zoom_y_int) + (u16)carry4(zoom_y_step, zoom_y_int)))
                     {
-                        u8 pixel = bitmap[(s16)zoom_y_int + texture_y + 8];
+                        u8 pixel = bitmap[(s16)zoom_y_int + texture_y + data_offset];
                         if (pixel != 0)  // Skip transparent pixels
                             *framebuffer = pixel;
                     }
