@@ -960,6 +960,7 @@ void skytofen(s32 scene_addr, s32 render_context)
 
         u32 dst = ((s32)image.clipx1 + xread32(image.atlpix + (s16)((image.clipy1 - image.wlogy1) * 4)));
         s16 stride_gap = image.wloglarg - image.clipl;
+        s16 data_offset = alis.platform.bpp == 4 ? 6 : 8;
 
         // Fill top gap above sky texture
         s16 top_gap = image.skyposy - image.clipy1;
@@ -968,7 +969,7 @@ void skytofen(s32 scene_addr, s32 render_context)
                 top_gap = image.cliph;
             }
 
-            dst = skyfast(dst, xread8(bitmap + 6), stride_gap, top_gap - 1);
+            dst = skyfast(dst, xread8(bitmap + data_offset), stride_gap, top_gap - 1);
         }
 
         // Compute visible sky row range (clamped to clip rect)
@@ -989,7 +990,7 @@ void skytofen(s32 scene_addr, s32 render_context)
             if ((u16)(image.clipy1 - image.skyposy) != 0 && image.skyposy <= image.clipy1) {
                 src_offset = (u32)(u16)(image.clipy1 - image.skyposy) * (u32)tex_stride;
             }
-            u32 row_src = (bitmap + (s16)image.skyposx + src_offset + 6);
+            u32 row_src = (bitmap + (s16)image.skyposx + src_offset + data_offset);
             s16 half_left = (image.skyleft >> 1) - 1;
             do {
                 u32 src_end = row_src;
@@ -1036,7 +1037,7 @@ void skytofen(s32 scene_addr, s32 render_context)
                 bottom_gap = image.cliph;
             }
 
-            skyfast((s32)dst, xread8(bitmap + (u32)(u16)(xread16(bitmap + 2) + 1) * (u32)xread16(bitmap + 4) + 6), stride_gap, bottom_gap - 1);
+            skyfast((s32)dst, xread8(bitmap + (u32)(u16)(xread16(bitmap + 2) + 1) * (u32)xread16(bitmap + 4) + data_offset), stride_gap, bottom_gap - 1);
         }
     }
 }

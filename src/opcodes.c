@@ -5144,7 +5144,60 @@ static void ctexmap(void) {
         xwrite16(entry + 0x1a, alis.varD7);
     }
 
-    // TODO: more code here in Falcon CD version
+    if (alis.platform.bpp == 8)
+    {
+        // Histogram analysis for 8-bit textures (types 0x1c/0x1e)
+        // Computes the two most frequent pixel colors for terrain dithering (entry[8], entry[9])
+        if ((s8)xread8(entry + 8) <= 0 && (s8)xread8(entry + 1) > 0)
+        {
+            u32 res_addr = xread32(entry + 4);
+            u32 bitmap_addr = res_addr + xread32(res_addr);
+            u8 bmp_type = xread8(bitmap_addr);
+            
+            if (bmp_type == 0x1c || bmp_type == 0x1e)
+            {
+                u16 histogram[256] = {0};
+                
+                u16 width = xread16(bitmap_addr + 2) + 1;
+                u16 height = xread16(bitmap_addr + 4) + 1;
+                u16 total_pixels = width * height;
+                
+                // Count pixel occurrences
+                u32 pixel_addr = bitmap_addr + 8;
+                for (u32 i = 0; i < total_pixels; i++)
+                {
+                    u8 color = xread8(pixel_addr + i);
+                    histogram[color]++;
+                }
+                
+                // Pass 1: find most frequent non-zero color
+                u16 max_count = 0;
+                u8 winner1 = 0;
+                for (int i = 1; i < 256; i++)
+                {
+                    if (histogram[i] >= max_count)
+                    {
+                        max_count = histogram[i];
+                        winner1 = (u8)i;
+                    }
+                }
+                xwrite8(entry + 8, winner1);
+                
+                // Pass 2: find second most frequent, excluding first winner
+                max_count = 0;
+                u8 winner2 = 0;
+                for (int i = 1; i < 256; i++)
+                {
+                    if (histogram[i] >= max_count && i != winner1)
+                    {
+                        max_count = histogram[i];
+                        winner2 = (u8)i;
+                    }
+                }
+                xwrite8(entry + 9, winner2);
+            }
+        }
+    }
 }
 
 // Codopname no. 234 opcode 0xe9 calloctab
@@ -5264,7 +5317,7 @@ static void cscdark(void) {
 
     // Set global darkness base and pointer
     alis.basedark = xread16(screen + 0x9e);
-    alis.ptrdark = xread32(screen + 0x9a) + 6;
+    alis.ptrdark = xread32(screen + 0x9a) + (alis.platform.bpp == 4 ? 6 : 8);
 }
 
 // Codopname no. 241 opcode 0xf0 caset

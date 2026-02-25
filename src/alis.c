@@ -58,48 +58,60 @@ extern u32 testData[];
 
 void readexec(sAlisOpcode * table, char * name, u8 identation) {
 #ifndef NDEBUG
-    if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize) {
+    if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize)
+    {
         // pc overflow !
         printf("\n");
         ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: %s" : "%s", "PC OVERFLOW !\n");
         ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
         alis.state = eAlisStateStopped;
     }
-    else {
-        
+    else
+    {
         // fetch code
         u8 code = *(alis.mem + alis.script->pc++);
         sAlisOpcode opcode = table[code];
         
-        if (!disalis) {
+        if (!disalis)
+        {
             ALIS_DEBUG(EDebugInfo, " %s", opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
         }
-        else {
-            u32 prg_offset = alis.script->pc/*(alis.script->pc - alis.script->pc_org)-1*/;                        // -1 -> start with 0 not with 1
-            u32 file_offset = prg_offset + alis.script->data->header.code_loc_offset + 2 + 6;  //  2 -> size of code_loc_offset
-                                                                                               //  6 -> kPackedHeaderSize = 6
-            if (alis.script->name == alis.main->name) { file_offset += 16; }                   // 16 -> kVMSpecsSize = 16
+        else
+        {
+            u32 prg_offset = alis.script->pc;
+            u32 file_offset = prg_offset + alis.script->data->header.code_loc_offset + 2 + 6; //  2 -> size of code_loc_offset, 6 -> kPackedHeaderSize = 6
+            if (alis.script->name == alis.main->name)
+            {
+                file_offset += 16; // 16 -> kVMSpecsSize = 16
+            }
 
-            if (!strcmp(name, "opcode")) {
+            if (!strcmp(name, "opcode"))
+            {
                 ALIS_DEBUG(EDebugInfo, "\n%s [%.6x]%.6x: %.2x: %s ### ", alis.script->name, file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
             }
-            else {
+            else
+            {
                 ALIS_DEBUG(EDebugInfo, "\n      --> [%.6x]%.6x: %.2x: %s ### ", file_offset, prg_offset, opcode.name[0] == 0 ? code : opcode.code, opcode.name[0] == 0 ? "UNKNOWN" : opcode.name);
             }
         }
-        if (opcode.name[0] == 0) {  // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
-                                    // It is necessary to add it to the appropriate name table
-                                    // (codop, codesc1, codesc2, codesc3, oper, store, or add)
-              printf("\n");
-              ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
-              if (!VM_IGNORE_ERRORS) {
-                  ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-                  alis.state = eAlisStateStopped;
-              }
+        
+        if (opcode.fptr == 0)
+        {
+            // The opcode (new?) is missing in the name tables, VM behaviour will be inadequate.
+            // It is necessary to add it to the appropriate name table
+            // (codop, codesc1, codesc2, codesc3, oper, store, or add)
+            printf("\n");
+            ALIS_DEBUG(EDebugFatal, disalis ? "ERROR: Opcode 0x%.2x is missing in %ss table.\n" : "Opcode 0x%.2x is missing in %ss table.\n", code, name);
+            if (!VM_IGNORE_ERRORS)
+            {
+                ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+                alis.state = eAlisStateStopped;
             }
-            else {
-                opcode.fptr();
-            }
+        }
+        else
+        {
+            opcode.fptr();
+        }
     }
 #else
     sAlisOpcode opcode = table[*(alis.mem + alis.script->pc++)];
