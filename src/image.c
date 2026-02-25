@@ -3779,8 +3779,10 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
     else
     {
         // Direct pixel-level map rendering (type 9)
-        u32 col_offset = ((image.blocx1 - sprite->newx)/* >> 4*/) + (u16)xread16(mapdata - 0x3e2) / (u16)xread16(mapdata - 0x3f4);
-        s32 row_offset = (((xread16(mapdata - 0x3d4) + sprite->newy) - image.blocy2) + (u16)xread16(mapdata - 0x3e0) / (u16)xread16(mapdata - 0x3f2));
+        s32 base_col = (u16)xread16(mapdata - 0x3e2) / (u16)xread16(mapdata - 0x3f4);
+        s32 pixel_x = image.blocx1 - sprite->newx;
+        s32 base_row = (u16)xread16(mapdata - 0x3e0) / (u16)xread16(mapdata - 0x3f2);
+        s32 pixel_y = (xread16(mapdata - 0x3d4) + sprite->newy) - image.blocy2;
 
         u32 entity_data = xread32(mapdata - 0x3ba);
         if (entity_data == 0)
@@ -3795,9 +3797,29 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             src = xread32(xread32(entity_data));
         }
 
-        // Compute source data pointer
+        // Compute shift differences between map and entity data
+        s16 x_log_diff = xread16(mapdata - 0x3c0) - xread16(entity_data - 0x3c0);
+        s16 y_log_diff = xread16(mapdata - 0x3be) - xread16(entity_data - 0x3be);
+
+        // Compute source data stride and per-pixel rendering strides
         s16 src_stride = xread16(entity_data - 0x3c4);
-        src += row_offset * 2 + col_offset * src_stride;
+        s16 x_stride_diff = x_log_diff - 4;
+        s32 pixel_stride = x_stride_diff > 0 ? (s32)src_stride << x_stride_diff : (s32)src_stride;
+        s32 row_advance = y_log_diff > 0 ? 2 << y_log_diff : 2;
+
+        // Column: asm aligns pixel_x to 16-pixel groups before shifting.
+        // Split into aligned part (shifted with base_col) + sub-pixel remainder.
+        s32 col_groups = base_col + (pixel_x >> 4);
+        if (x_log_diff > 0) col_groups <<= x_log_diff;
+        s32 sub_x = pixel_x & 0xf;
+
+        // Row: asm shifts the SUM (base_row + pixel_y), not just base_row
+        s32 adj_row = base_row + pixel_y;
+        if (y_log_diff > 0) adj_row <<= y_log_diff;
+
+        // Compute source data pointer
+        src += adj_row * 2 + col_groups * src_stride + sub_x * pixel_stride;
+
         s16 height = image.blocy2 - image.blocy1;
         s16 width = image.blocx2 - image.blocx1;
 
@@ -3856,9 +3878,9 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
         width++;
 
         // Render pixels column by column
-        for (int w = 0; w < width; w++, src += src_stride - (height * 2))
+        for (int w = 0; w < width; w++, src += pixel_stride - (height * row_advance))
         {
-            for (int h = 0; h < height; h++, src+=2)
+            for (int h = 0; h < height; h++, src += row_advance)
             {
                 tgt = image.logic + (xdeschart + w) + (ydeschart - h) * host.pixelbuf.w;
                 *tgt = (*chartproc)(src);

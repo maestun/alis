@@ -712,28 +712,24 @@ void osdiff(void) {
 
 // Opername no. 72 opcode 0x8e osinfeg
 void osinfeg(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) <= 0 ? -1 : 0;
 }
 
 // Opername no. 73 opcode 0x90 ossupeg
 void ossupeg(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) >= 0 ? -1 : 0;
 }
 
 // Opername no. 74 opcode 0x92 osinf
 void osinf(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) < 0 ? -1 : 0;
 }
 
 // Opername no. 75 opcode 0x94 ossup
 void ossup(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) > 0 ? -1 : 0;
 }
@@ -848,7 +844,6 @@ void ochange(void) {
 
 // Opername no. 82 opcode 0xa2 ocountry
 void ocountry(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.varD7 = alis.pays;
     if(disalis) {
        ALIS_DEBUG(EDebugInfo, " [=> d7 = {0x%02x}]", alis.pays);

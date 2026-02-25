@@ -429,7 +429,7 @@ static void cesc1(void)     {
 // The function is not yet found in ALIS interpreters (no confirmation that the codesc1 table
 // has been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc2(void)     {
-    ALIS_DEBUG(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: ", __FUNCTION__);
     readexec_codesc2name();
 }
 
@@ -437,7 +437,7 @@ static void cesc2(void)     {
 // The function is not yet found in ALIS interpreters (no confirmation that tables codesc1 and codesc2
 // have been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc3(void)     {
-    ALIS_DEBUG(EDebugWarning, "[N/I] CHECK: ", __FUNCTION__);
+    ALIS_DEBUG(EDebugWarning, "[N/I]: ", __FUNCTION__);
     readexec_codesc3name();
 }
 
@@ -765,7 +765,6 @@ static void cswitch2(void) {
 
 // Codopname no. 052 opcode 0x33 cleave
 static void cleave(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     if (alis.fseq == 0)
     {
         s16 vacc_offset = get_0x0c_vacc_offset(alis.script->vram_org);
@@ -2004,8 +2003,6 @@ s16 clipmat(s32 src_vram, s32 tgt_vram)
 
 void sviewmat(void)
 {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
     s16 bufidx = 0;
     if (alis.fallent == 0)
     {
@@ -2070,8 +2067,6 @@ LAB_00015c8a:
 
 void sviewent(void)
 {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
     if (alis.platform.version >= 30)
     {
         if (alis.fallent != 0)
@@ -3091,9 +3086,8 @@ static void cvmov(void) {
 
 // Codopname no. 146 opcode 0x91 cdefworld
 static void cdefworld(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     s16 offset = script_read16();
-    u8 counter = 5;
+    u8 counter = 6;
     while(counter--) {
         xwrite8(alis.script->vram_org + offset, script_read8());
     }
@@ -3729,7 +3723,6 @@ void putval(s16 d7w)
 
 // Codopname no. 183 opcode 0xb6 cvpicprint
 static void cvpicprint(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     alis.charmode = 1;
     readexec_opername_saveD7();
     putval(alis.varD7);
@@ -4145,25 +4138,23 @@ static void cordspr(void) {
 
 // Codopname no. 209 opcode 0xd0 calign
 static void calign(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     u8 bit;
 
     readexec_opername();
 
-    if (((u8)alis.varD7 & 0x10) == 0)
+    if ((u8)alis.varD7 & 0x10)
     {
         bit = 4;
     }
-    else if (((u8)alis.varD7 & 0x8) == 0)
+    else if ((u8)alis.varD7 & 0x8)
     {
         bit = 3;
     }
-    else if (((u8)alis.varD7 & 0x4) == 0)
+    else if ((u8)alis.varD7 & 0x4)
     {
         bit = 2;
     }
-    else if (((u8)alis.varD7 & 0x2) == 0)
+    else if ((u8)alis.varD7 & 0x2)
     {
         bit = 1;
     }
@@ -4569,7 +4560,6 @@ void cscback(void)
 
 // Codopname no. 225 opcode 0xe0 cscrolpage
 static void cscrolpage(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
     readexec_opername();
     image.spag = (s8)alis.varD7;
     readexec_opername();
@@ -4703,8 +4693,6 @@ static void cdefmap(void) {
     }
     else if (alis.platform.uid == EGameRobinsonsRequiem0 || alis.platform.uid == EGameRobinsonsRequiem1)
     {
-        ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
         u32 mapram = alis.script->vram_org;
         s16 offset = script_read16();
         if (offset == 0)
@@ -4744,7 +4732,7 @@ static void cdefmap(void) {
         xwrite32(mapram - 0x3dc, 4);
         xwrite8(mapram - 0x3d8, 0x7f);
         
-        s32 vala, valb;
+        u32 vala, valb;
         if ((s8)xread8(mapram - 1) < 0)
         {
             valb = xread32(mapram - 6);
@@ -4752,11 +4740,11 @@ static void cdefmap(void) {
         }
         else
         {
-            valb = xread32(mapram - 4);
-            vala = xread32(mapram - 6);
+            valb = (u16)xread16(mapram - 4);
+            vala = (u16)xread16(mapram - 6);
         }
-        
-        s32 ratio = (s16)(vala / (valb & 0xffff));
+
+        u16 ratio = vala / (u16)valb;
         xwrite16(mapram - 0x3c6, ratio);
         xwrite16(mapram - 0x3cc, ratio);
         xwrite16(mapram - 0x3c4, (u16)valb);
@@ -4797,8 +4785,6 @@ static void cdefmap(void) {
 // Codopname no. 229 opcode 0xe4 csetmap
 // Ishar 3 Korean (IBM PC): csetmap => map_cnul
 static void csetmap(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-    
     u32 mapram = alis.script->vram_org;
     
     s16 offset = script_read16();
@@ -6025,10 +6011,7 @@ static void cpointpix(void) {
 // Ishar 3 Korean (IBM PC): cchartmap => map_cnul
 
 static void cchartmap(void) {
-    ALIS_DEBUG(EDebugWarning, "CHECK: %s", __FUNCTION__);
-
     u32 vram = alis.script->vram_org;
-
     s16 offset = script_read16();
     if (offset == 0)
     {
@@ -6069,35 +6052,35 @@ static void cchartmap(void) {
             {
                 // Sub-command >= 6: clear rectangular area in chart bitmap
                 readexec_opername();
-                alis.varD7--;
-                if (alis.varD7 < 0)
-                    alis.varD7 = 0;
+                s16 radius = (s16)alis.varD7 - 1;
+                if (radius < 0)
+                    radius = 0;
 
-                // Compute clipped tile bounds from extent (value encodes radius)
+                // Compute clipped tile bounds from extent
                 s32 entity_data = xread32(addr - 0x3ba);
 
-                s32 div_result = (int)(s16)(xread16(vram) - value) / (int)xread16(entity_data - 0x3f4);
+                s32 div_result = (int)(s16)(xread16(vram) - radius) / (int)(s16)xread16(entity_data - 0x3f4);
                 s16 min_col = (s16)div_result;
                 if (div_result < 0)
                     min_col = 0;
-                if (xread16(entity_data - 1000) <= min_col)
-                    min_col = xread16(entity_data - 1000);
+                if (xread16(entity_data - 0x3e8) <= min_col)
+                    min_col = xread16(entity_data - 0x3e8);
 
-                div_result = (int)(s16)(xread16(vram) + value) / (int)xread16(entity_data - 0x3f4);
+                div_result = (int)(s16)(xread16(vram) + radius) / (int)(s16)xread16(entity_data - 0x3f4);
                 s16 max_col = (s16)div_result;
                 if (div_result < 0)
                     max_col = 0;
-                if (xread16(entity_data - 1000) <= max_col)
-                    max_col = xread16(entity_data - 1000);
+                if (xread16(entity_data - 0x3e8) <= max_col)
+                    max_col = xread16(entity_data - 0x3e8);
 
-                div_result = (int)(s16)(xread16(vram + 8) - value) / (int)xread16(entity_data - 0x3f2);
+                div_result = (int)(s16)(xread16(vram + 8) - radius) / (int)(s16)xread16(entity_data - 0x3f2);
                 s16 min_row = (s16)div_result;
                 if (div_result < 0)
                     min_row = 0;
                 if (xread16(entity_data - 0x3e6) <= min_row)
                     min_row = xread16(entity_data - 0x3e6);
 
-                div_result = (int)(s16)(xread16(vram + 8) + value) / (int)xread16(entity_data - 0x3f2);
+                div_result = (int)(s16)(xread16(vram + 8) + radius) / (int)(s16)xread16(entity_data - 0x3f2);
                 s16 max_row = (s16)div_result;
                 if (div_result < 0)
                     max_row = 0;
@@ -6105,7 +6088,7 @@ static void cchartmap(void) {
                     max_row = xread16(entity_data - 0x3e6);
 
                 // Shift tile bounds to bitmap coordinates
-                u16 shift_x = (xread16(addr - 0xf0) - 4) - xread16(entity_data - 0x3c0);
+                u16 shift_x = (xread16(addr - 0x3c0) - 4) - xread16(entity_data - 0x3c0);
                 u16 min_x = min_col >> (shift_x & 0x3f);
                 u16 max_x = max_col >> (shift_x & 0x3f);
                 u16 shift_y = xread16(addr - 0x3be) - xread16(entity_data - 0x3be);
@@ -6157,7 +6140,7 @@ static void cchartmap(void) {
                     if (right_mask != 0)
                         xwrite16(word_ptr, right_mask & xread16(word_ptr));
 
-                    row_ptr++;
+                    row_ptr += 2;
                     row_count--;
                 }
                 while (row_count != -1);
