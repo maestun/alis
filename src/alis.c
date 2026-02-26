@@ -43,7 +43,7 @@ sAlisError errors[] = {
 };
 
 
-const u32 kHostRAMSize          = 1024 * 1024 * 2;
+const u32 kHostRAMSize          = 1024 * 1024 * 4;
 const u32 kVirtualRAMSize       = 0xffff * sizeof(u8);
 
 
@@ -254,8 +254,7 @@ void alis_load_main(void) {
         alis.dernprog = alis.atprog;
         alis.maxprog = alis.specs.script_data_tab_len;
 
-        // TODO: ...
-        alis.finmem = 0x1f7c00 - 0xd68; // kHostRAMSize; // 0x1f6e98;
+        alis.finmem = kHostRAMSize - 0x9168;
 
         inisprit();
 
@@ -333,8 +332,8 @@ u8 alis_init(sPlatform platform) {
     switch (alis.platform.kind) {
         case EPlatformAtari:
         case EPlatformFalcon:
-            memset(image.tpalet, 0xff, 768 * 4);
-            memset(image.mpalet, 0xff, 768 * 4);
+            memset(image.tpalet, 0xff, sizeof(image.tpalet));
+            memset(image.mpalet, 0xff, sizeof(image.mpalet));
             break;
             
         case EPlatformPC:
@@ -343,8 +342,8 @@ u8 alis_init(sPlatform platform) {
             break;
             
         default:
-            memset(image.tpalet, 0, 768 * 4);
-            memset(image.mpalet, 0, 768 * 4);
+            memset(image.tpalet, 0, sizeof(image.tpalet));
+            memset(image.mpalet, 0, sizeof(image.mpalet));
             break;
     }
     
@@ -955,13 +954,33 @@ void alis_load_state(void)
 }
 
 void alis_loop(void) {
-    
+
     alis.script->running = 1;
     while (alis.state && alis.script->running) {
-        
+
+//#ifndef NDEBUG
+        u32 pc_before = alis.script->pc;
+//#endif
         readexec_opcode();
+//#ifndef NDEBUG
+        if (alis.script->running && alis.state &&
+            (alis.script->pc < alis.script->pc_org ||
+             alis.script->pc >= alis.script->pc_org + alis.script->data->sz))
+        {
+            printf("\n*** PC CORRUPTION DETECTED ***\n");
+            printf("  Script: %s\n", alis.script->name);
+            printf("  PC before opcode: 0x%06x\n", pc_before);
+            printf("  PC after opcode:  0x%06x\n", alis.script->pc);
+            printf("  PC range: 0x%06x - 0x%06x\n", alis.script->pc_org, alis.script->pc_org + alis.script->data->sz);
+            printf("  Opcode byte was: 0x%02x\n", *(alis.mem + pc_before));
+            printf("  vram_org: 0x%06x, vacc_off: 0x%04x\n", alis.script->vram_org, (u16)alis.script->vacc_off);
+            printf("  Bytes at pc_before: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+                   alis.mem[pc_before], alis.mem[pc_before+1], alis.mem[pc_before+2], alis.mem[pc_before+3],
+                   alis.mem[pc_before+4], alis.mem[pc_before+5], alis.mem[pc_before+6], alis.mem[pc_before+7]);
+        }
+//#endif
     }
-    
+
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
 
@@ -1304,8 +1323,16 @@ s32 adresform(s16 idx)
 {
     u32 addr = get_0x14_script_org_offset(alis.script->vram_org);
     addr += xread32(addr + 0xe);
-    addr += xread32(addr + 0x6);
-    return addr + xread16(addr + (idx * 2));
+    
+    s32 len = xread16(addr + 0xa);
+    if (len > idx)
+    {
+        addr += xread32(addr + 0x6);
+        return addr + xread16(addr + (idx * 2));
+    }
+    
+    ALIS_DEBUG(EDebugFatal, "ERROR: Failed to get form %s\n", idx, alis.flagmain ? alis.main->name : alis.script->name);
+    return 0;
 }
 
 s32 adresmus(s32 idx)

@@ -25,8 +25,10 @@
 #include "sys/sys.h"
 
 #if ALIS_SDL_VER >= 2
-# ifdef _MSC_VER
+# if defined(_MSC_VER)
 #  include "SDL.h"
+# elif __has_include(<SDL.h>)
+#  include <SDL.h>
 # else
 #  include <SDL2/SDL.h>
 # endif

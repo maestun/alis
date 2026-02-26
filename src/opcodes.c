@@ -5257,7 +5257,7 @@ static void cdarkpal(void) {
         image.dkpalet[1] = 0;
         image.dkpalet[2] = 0;
         
-        for (int i = 3; i < 0xb6; i++)
+        for (int i = 3; i < (alis.platform.bpp <= 4 ? 0xb6 : 0x300); i++)
         {
             if (image.dkpalet[i] != 0x100)
             {
@@ -5787,7 +5787,7 @@ void getangle(s16 *atx, s16 *aty)
                 // |x| > |y|: compute atan(|x|/|y|), angle near 90° (0x5a)
                 angle = 0x5a;
                 abs_x = (((s32)abs_x << 5) / abs_y);  // reused as atan ratio
-                if (0x73f < abs_x || (angle = tabatan[abs_x]) != 0)
+                if ((u16)abs_x >= sizeof(tabatan) || (angle = tabatan[abs_x]) != 0)
                 {
                     if (aty < 0)
                         angle = 0xb4 - angle;
@@ -5814,7 +5814,7 @@ void getangle(s16 *atx, s16 *aty)
                 // |y| >= |x|: compute atan(|y|/|x|), angle near 0°
                 angle = 0x5a;
                 abs_x = (((s32)abs_y << 5) / abs_x);  // reused as atan ratio
-                if (0x73f < abs_x || (angle = tabatan[abs_x]) != 0)
+                if ((u16)abs_x >= sizeof(tabatan) || (angle = tabatan[abs_x]) != 0)
                 {
                     if (aty < 0)
                         angle = -angle;

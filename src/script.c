@@ -466,6 +466,12 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     script->header.vram_alloc_sz = swap16((data + 20));
     script->header.w_unknown7 = swap16((data + 22));
     script->data_org = alis.finprog;
+    if (script->data_org + data_sz > kHostRAMSize)
+    {
+        ALIS_DEBUG(EDebugError, "Out of VM memory loading '%s': need 0x%x, have 0x%x\n", name, script->data_org + data_sz, kHostRAMSize);
+        free(script);
+        return NULL;
+    }
     memcpy(alis.mem + script->data_org, data, data_sz);
 
     // get insert point
@@ -1163,7 +1169,6 @@ bool is_delay_script(char *name) {
 // MARK: - Script data access
 // =============================================================================
 
-u32 g_val;
 u8 script_read8(void) {
 #ifndef NDEBUG
     u8 ret = (alis.mem[alis.script->pc++]);
@@ -1180,26 +1185,26 @@ u8 script_read8(void) {
  * @return u16 
  */
 u16 script_read16(void) {
-    
-    g_val = read16(alis.mem + alis.script->pc);
+
+    u32 val = read16(alis.mem + alis.script->pc);
     alis.script->pc += 2;
-    ALIS_DEBUG(EDebugInfo, " 0x%04x", g_val & 0xffff);
-    return g_val;
+    ALIS_DEBUG(EDebugInfo, " 0x%04x", val & 0xffff);
+    return val;
 }
 
 u32 script_read24(void) {
-    g_val = read24(alis.mem + alis.script->pc);
+    u32 val = read24(alis.mem + alis.script->pc);
     alis.script->pc += 3;
-    ALIS_DEBUG(EDebugInfo, " 0x%06x", g_val & 0xffffff);
-    return g_val;
+    ALIS_DEBUG(EDebugInfo, " 0x%06x", val & 0xffffff);
+    return val;
 }
 
 u32 script_read32(void) {
-    
-    g_val = read32(alis.mem + alis.script->pc);
+
+    u32 val = read32(alis.mem + alis.script->pc);
     alis.script->pc += 4;
-    ALIS_DEBUG(EDebugInfo, " 0x%x", g_val);
-    return g_val;
+    ALIS_DEBUG(EDebugInfo, " 0x%x", val);
+    return val;
 }
 
 void script_read_bytes(u32 len, u8 * dest) {

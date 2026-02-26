@@ -34,6 +34,12 @@
 extern u8 dirty_pal;
 extern SDL_Rect dirty_rects[4096];
 extern int dirty_len;
+#elif defined(_MSC_VER)
+# include "SDL.h"
+#elif __has_include(<SDL.h>)
+# include <SDL.h>
+#else
+# include <SDL2/SDL.h>
 #endif
 
 u8 *endframe = NULL;
@@ -302,29 +308,29 @@ void fli_palette(u8 *addr)
 
 void fli_blackdata(void)
 {
-    memset(vgalogic, 0, 64000);
+    memset(vgalogic, 0, bfilm.width * bfilm.height);
 }
 
 void fli_data(u8 *addr)
 {
     u8 *ptr = vgalogic;
-    for (int i = 0; i < alis.platform.height; i++, ptr += alis.platform.width, addr += alis.platform.width)
+    for (int i = 0; i < bfilm.height; i++, ptr += bfilm.width, addr += bfilm.width)
     {
-        memcpy(ptr, addr, alis.platform.width);
+        memcpy(ptr, addr, bfilm.width);
     }
 }
 
 void fli_decomp(u8 *addr, u8 partial)
 {
     u32 index = 0;
-    u16 len = alis.platform.height;
-    
+    u16 len = bfilm.height;
+
     if (partial)
     {
-        index = read16le(addr) * alis.platform.width; addr+=2;
+        index = read16le(addr) * bfilm.width; addr+=2;
         len = read16le(addr); addr+=2;
     }
-    
+
     while (len--)
     {
         u8 packets = *addr; addr++;
@@ -335,38 +341,38 @@ void fli_decomp(u8 *addr, u8 partial)
             {
                 col += *(addr); addr++;
             }
-            
+
             short int count = (signed char) *(addr); addr++;
             if (partial) count = -count;
             if (count >= 0)
             {
                 if (count == 0)
                     count = 256;
-                
-                if (col + count > alis.platform.width)
+
+                if (col + count > bfilm.width)
                 {
-                    count = alis.platform.width - col;
+                    count = bfilm.width - col;
                     len = packets = 0;
                 }
-                
+
                 memset(vgalogic + index + col, *(addr), count); addr++;
             }
             else
             {
                 count = -count;
-                if (col + count > alis.platform.width)
+                if (col + count > bfilm.width)
                 {
-                    count = alis.platform.width - col;
+                    count = bfilm.width - col;
                     len = packets = 0;
                 }
-                
+
                 memcpy(vgalogic + index + col, addr, count); addr+= count;
             }
-            
+
             col += count;
         }
-        
-        index += alis.platform.width;
+
+        index += bfilm.width;
     }
 }
 
@@ -442,6 +448,8 @@ void fli_init(u8 *flcaddr)
     bfilm.endptr = flcaddr + length;
     bfilm.addr1 = flcaddr + 0x80;
     bfilm.frames = read16le(flcaddr + 6);
+    bfilm.width = read16le(flcaddr + 8);
+    bfilm.height = read16le(flcaddr + 10);
     bfilm.frame = 0;
 }
 
@@ -452,8 +460,19 @@ void fli_next(u8 *addr)
     fli_elements(addr + 16);
 
 #if ALIS_SDL_VER >= 2
-    memcpy(image.physic, vgalogic, alis.platform.width*alis.platform.height);
-    memcpy(image.logic, vgalogic, alis.platform.width*alis.platform.height);
+    u16 fw = bfilm.width;
+    u16 fh = bfilm.height;
+    s16 dx = image.fenx1;
+    s16 dy = image.feny1;
+    u16 dw = alis.platform.width;
+
+    for (int y = 0; y < fh; y++)
+    {
+        u8 *src = vgalogic + y * fw;
+        u8 *dst = image.physic + (dy + y) * dw + dx;
+        memcpy(dst, src, fw);
+    }
+    memcpy(image.logic, image.physic, dw * alis.platform.height);
 #endif
 
     bfilm.addr1 = endframe;
@@ -540,6 +559,8 @@ void runfilm(void)
 #if ALIS_SDL_VER == 1
                 sys_delay_frame();
                 itroutine(20, NULL);
+#else
+                SDL_Delay(1);
 #endif
             } while (alis.timeclock < (u32)(index + prevclock));
         }

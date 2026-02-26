@@ -69,9 +69,12 @@ SDL_Rect        dirty_mouse_rect;
 
 #elif ALIS_SDL_VER == 2
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 # include "SDL.h"
 # include "SDL_thread.h"
+#elif __has_include(<SDL.h>)
+# include <SDL.h>
+# include <SDL_thread.h>
 #else
 # include <SDL2/SDL.h>
 # include <SDL2/SDL_thread.h>

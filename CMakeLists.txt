@@ -69,6 +69,7 @@ include_directories(src/audio)
 list(APPEND alis_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/emu2149/emu2149.c
     ${CMAKE_CURRENT_LIST_DIR}/src/sys/sys.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/sys/sys_sdl2.c
     ${CMAKE_CURRENT_LIST_DIR}/src/audio/audio.c
     ${CMAKE_CURRENT_LIST_DIR}/src/audio/music_v1.c
     ${CMAKE_CURRENT_LIST_DIR}/src/audio/music_v2.c
@@ -80,6 +81,7 @@ list(APPEND alis_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/escnames.c
     ${CMAKE_CURRENT_LIST_DIR}/src/mem.c
     ${CMAKE_CURRENT_LIST_DIR}/src/image.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render3d.c
     ${CMAKE_CURRENT_LIST_DIR}/src/opcodes.c
     ${CMAKE_CURRENT_LIST_DIR}/src/opernames.c
     ${CMAKE_CURRENT_LIST_DIR}/src/platform.c

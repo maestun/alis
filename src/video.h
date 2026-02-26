@@ -38,6 +38,8 @@ typedef struct {
     u8 *delptr;
     s16 frame;
     s16 frames;
+    u16 width;
+    u16 height;
     s16 result;
     s16 batchframes;
     s16 waitclock;

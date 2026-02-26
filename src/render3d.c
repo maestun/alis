@@ -1161,7 +1161,7 @@ void bartrab(u32 render_context, s16 maxpixels, s16 vbarbot, s16 botval, s16 vbo
                 tgt = (s32)image.wloglarg + prevtgt;
                 prevtgt = tgt;
             }
-            while ((s32)pixfraction >= 0 && (--lines) <= -1);
+            while ((s32)pixfraction >= 0 && (--lines) != -1);
         }
     }
 }

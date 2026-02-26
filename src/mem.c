@@ -134,18 +134,16 @@ u8 xread8(u32 offset) {
     return *(alis.mem + offset);
 }
 
-extern u32 g_val;
-
 s16 xread16(u32 offset) {
-    g_val = _convert16(*(u16*)(alis.mem + offset));
-    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
-    return (s16)g_val;
+    s16 val = _convert16(*(u16*)(alis.mem + offset));
+    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u16)val, offset);
+    return val;
 }
 
 s32 xread32(u32 offset) {
-    g_val = _convert32(*(u32*)(alis.mem + offset));
-    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
-    return (s32)g_val;
+    s32 val = _convert32(*(u32*)(alis.mem + offset));
+    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u32)val, offset);
+    return val;
 }
 
 u8 * get_vram(s16 offset) {
@@ -187,15 +185,15 @@ void xadd8(s32 offset, s8 value) {
 }
 
 void xadd16(s32 offset, s16 addition) {
-    g_val = xread16(offset);
-    ALIS_DEBUG(EDebugVerbose, " [%d + %d => %.6x]", g_val, addition, offset);
-    xwrite16(offset, g_val + addition);
+    s16 val = xread16(offset);
+    ALIS_DEBUG(EDebugVerbose, " [%d + %d => %.6x]", val, addition, offset);
+    xwrite16(offset, val + addition);
 }
 
 void xadd32(s32 offset, s32 addition) {
-    g_val = xread32(offset);
-    ALIS_DEBUG(EDebugVerbose, " [%d + %d => %.6x]", g_val, addition, offset);
-    xwrite32(offset, g_val + addition);
+    s32 val = xread32(offset);
+    ALIS_DEBUG(EDebugVerbose, " [%d + %d => %.6x]", val, addition, offset);
+    xwrite32(offset, val + addition);
 }
 
 void xsub8(s32 offset, s8 value) {
@@ -204,15 +202,15 @@ void xsub8(s32 offset, s8 value) {
 }
 
 void xsub16(s32 offset, s16 sub) {
-    g_val = xread16(offset);
-    ALIS_DEBUG(EDebugVerbose, " [%d - %d => %.6x]", g_val, sub, offset);
-    xwrite16(offset, g_val - sub);
+    s16 val = xread16(offset);
+    ALIS_DEBUG(EDebugVerbose, " [%d - %d => %.6x]", val, sub, offset);
+    xwrite16(offset, val - sub);
 }
 
 void xsub32(s32 offset, s32 sub) {
-    g_val = xread32(offset);
-    ALIS_DEBUG(EDebugVerbose, " [%d - %d => %.6x]", g_val, sub, offset);
-    xwrite32(offset, g_val - sub);
+    s32 val = xread32(offset);
+    ALIS_DEBUG(EDebugVerbose, " [%d - %d => %.6x]", val, sub, offset);
+    xwrite32(offset, val - sub);
 }
 
 void xpush32(s32 value) {
@@ -226,21 +224,23 @@ s32 xpeek32(void) {
 }
 
 s32 xpop32(void) {
-    g_val = xpeek32();
-    ALIS_DEBUG(EDebugVerbose, " [%.8x <= va %.4x + %.6x (%.6x)]", g_val, (s16)alis.script->vacc_off, alis.script->vram_org, alis.script->vacc_off + alis.script->vram_org);
+    s32 val = xpeek32();
+    ALIS_DEBUG(EDebugVerbose, " [%.8x <= va %.4x + %.6x (%.6x)]", val, (s16)alis.script->vacc_off, alis.script->vram_org, alis.script->vacc_off + alis.script->vram_org);
     alis.script->vacc_off += sizeof(s32);
-    return g_val;
+    return val;
 }
 
 u16 fread16(FILE* fp) {
-    fread(&g_val, sizeof(u16), 1, fp);
-    return swap16((u8 *)&g_val);
+    u32 tmp = 0;
+    fread(&tmp, sizeof(u16), 1, fp);
+    return swap16((u8 *)&tmp);
 }
 
 
 u32 fread32(FILE* fp) {
-    fread(&g_val, sizeof(u32), 1, fp);
-    return swap32((u8 *)&g_val);
+    u32 tmp = 0;
+    fread(&tmp, sizeof(u32), 1, fp);
+    return swap32((u8 *)&tmp);
 }
 
 s16 xswap16be(u16 value) {
@@ -253,16 +253,16 @@ s32 xswap32be(u32 value) {
 
 s16 xread16be(u32 offset) {
     u16* ptr = (u16*)(alis.mem + offset);
-    g_val = _convert16be(*ptr);
-    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
-    return (s16)g_val;
+    s16 val = _convert16be(*ptr);
+    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u16)val, offset);
+    return val;
 }
 
 s32 xread32be(u32 offset) {
     u32* ptr = (u32*)(alis.mem + offset);
-    g_val = _convert32be(*ptr);
-    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", g_val, offset);
-    return (s32)g_val;
+    s32 val = _convert32be(*ptr);
+    ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u32)val, offset);
+    return val;
 }
 
 s32 io_malloc(s32 rawsize)

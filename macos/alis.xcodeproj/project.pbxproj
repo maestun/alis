@@ -583,12 +583,12 @@
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = ECS3E5Z2W9;
+				DEVELOPMENT_TEAM = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
 				);
-				HEADER_SEARCH_PATHS = "";
+				HEADER_SEARCH_PATHS = "$(LOCAL_LIBRARY_DIR)/Frameworks/SDL2.framework/Headers";
 				LD_RUNPATH_SEARCH_PATHS = (
 					/Library/Frameworks,
 					.,
@@ -604,12 +604,12 @@
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = ECS3E5Z2W9;
+				DEVELOPMENT_TEAM = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
 				);
-				HEADER_SEARCH_PATHS = "";
+				HEADER_SEARCH_PATHS = "$(LOCAL_LIBRARY_DIR)/Frameworks/SDL2.framework/Headers";
 				LD_RUNPATH_SEARCH_PATHS = (
 					/Library/Frameworks,
 					.,

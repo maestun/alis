@@ -1611,23 +1611,32 @@ void waitphysic(void)
 
 void trsfen(u8 *src, u8 *tgt)
 {
-    if (image.fenx2 > alis.platform.width && image.feny2 > alis.platform.height)
-    {
-        return;
-    }
-    
-    src += image.fenx1 + image.feny1 * alis.platform.width;
-    tgt += image.fenx1 + image.feny1 * alis.platform.width;
-    
-    s16 skip = alis.platform.width - (image.fenx2 - image.fenx1 + 1);
+    s16 fx1 = image.fenx1;
+    s16 fy1 = image.feny1;
+    s16 fx2 = image.fenx2;
+    s16 fy2 = image.feny2;
 
-    for (s32 y = image.feny1; y <= image.feny2; y++)
+    // Clamp to screen bounds
+    if (fx1 < 0) fx1 = 0;
+    if (fy1 < 0) fy1 = 0;
+    if (fx2 >= alis.platform.width)  fx2 = alis.platform.width - 1;
+    if (fy2 >= alis.platform.height) fy2 = alis.platform.height - 1;
+
+    if (fx2 < fx1 || fy2 < fy1)
+        return;
+
+    src += fx1 + fy1 * alis.platform.width;
+    tgt += fx1 + fy1 * alis.platform.width;
+
+    s16 skip = alis.platform.width - (fx2 - fx1 + 1);
+
+    for (s32 y = fy1; y <= fy2; y++)
     {
-        for (s32 x = image.fenx1; x <= image.fenx2; x++, src++, tgt++)
+        for (s32 x = fx1; x <= fx2; x++, src++, tgt++)
         {
             *tgt = *src;
         }
-        
+
         tgt += skip;
         src += skip;
     }
@@ -1844,10 +1853,16 @@ u16 iefflink(u16 elemidx1, u16 elemidx2)
 
 void clrfen(void)
 {
-    s16 tmpx = image.fenx2 - image.fenx1;
-    for (s16 y = image.feny1; y < image.feny2; y++)
+    s16 fx1 = image.fenx1 < 0 ? 0 : image.fenx1;
+    s16 fy1 = image.feny1 < 0 ? 0 : image.feny1;
+    s16 fx2 = image.fenx2 >= alis.platform.width ? alis.platform.width - 1 : image.fenx2;
+    s16 fy2 = image.feny2 >= alis.platform.height ? alis.platform.height - 1 : image.feny2;
+    s16 tmpx = fx2 - fx1;
+    if (tmpx <= 0 || fy2 <= fy1)
+        return;
+    for (s16 y = fy1; y < fy2; y++)
     {
-        memset(image.physic + image.fenx1 + y * alis.platform.width, 0, tmpx);
+        memset(image.physic + fx1 + y * alis.platform.width, 0, tmpx);
     }
 }
 
@@ -3939,7 +3954,7 @@ void draw_transarctica_map(sSprite *sprite, u32 mapaddr, sRect lim)
             
             for (s32 h = lim.y1; h < lim.y2; h++)
             {
-                u8 *tgt = image.logic + lim.x1 + ((lim.y1 + h) * host.pixelbuf.w);
+                u8 *tgt = image.logic + lim.x1 + (h * host.pixelbuf.w);
                 for (s32 w = lim.x1; w < lim.x2; w++, tgt++)
                 {
                     *tgt = color;
