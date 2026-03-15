@@ -238,7 +238,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-m /Users/gildor/Work/alis/data/requiem/atari/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/amiga/"
@@ -254,7 +254,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/dos/"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/3DO/"

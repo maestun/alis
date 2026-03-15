@@ -5243,10 +5243,8 @@ static void cdarkpal(void) {
         {
             length = val2;
         }
-        
-        length -= darkpac;
 
-        for (int i = darkpac; i <= length; i++)
+        for (int i = darkpac; i < length; i++)
         {
             image.dkpalet[i * 3 + 0] = darkpar;
             image.dkpalet[i * 3 + 1] = darkpav;
@@ -5257,7 +5255,7 @@ static void cdarkpal(void) {
         image.dkpalet[1] = 0;
         image.dkpalet[2] = 0;
         
-        for (int i = 3; i < (alis.platform.bpp <= 4 ? 0xb6 : 0x300); i++)
+        for (int i = 3; i < 0xb6; i++)
         {
             if (image.dkpalet[i] != 0x100)
             {
