@@ -285,6 +285,9 @@ void sys_calc_psg_music(void)
 void sys_init_opl(void)
 {
 #if !defined(__TOS__) && !defined(__atarist__)
+    if (audio_opl)
+        return; // already initialized
+
     audio_opl = OPL_new(3579545, audio_spec->freq);
     OPL_setChipType(audio_opl, 2); // YM3812
     OPL_reset(audio_opl);
@@ -452,6 +455,107 @@ void io_canal(sChannel *channel, s16 index)
     }
 
     giaccess(0x87, mixer, index);
+}
+
+// OPL2 sound effect support: use OPL2 channels 4-5 for effects (0-3 reserved for music)
+static u8 opl_sfx_initialized[2] = {0, 0};
+static u8 opl_sfx_type[2] = {0, 0};
+
+static void io_canal_opl_init(u8 opl_ch, u8 chan_type)
+{
+    static const u8 mod_off[] = {0x09, 0x0A};
+    static const u8 car_off[] = {0x0C, 0x0D};
+    u8 idx = opl_ch - 4;
+    u8 mod = mod_off[idx];
+    u8 car = car_off[idx];
+
+    if (chan_type == eChannelTypeNoise || chan_type == eChannelTypeExplode)
+    {
+        // Noise/explosion: FM mode with high feedback + high multipliers
+        // Creates inharmonic, noise-like timbre
+        OPL_writeReg(audio_opl, 0x20 + mod, 0x20 | 0x07); // Sustain=1, Mul=7
+        OPL_writeReg(audio_opl, 0x40 + mod, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + mod, 0xF0);         // AR=max, DR=0
+        OPL_writeReg(audio_opl, 0x80 + mod, 0xF0);         // SL=max, RR=0
+        OPL_writeReg(audio_opl, 0xE0 + mod, 0x00);         // Sine
+
+        OPL_writeReg(audio_opl, 0x20 + car, 0x20 | 0x0E);  // Sustain=1, Mul=14
+        OPL_writeReg(audio_opl, 0x40 + car, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0x80 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0xE0 + car, 0x00);
+
+        // FM mode (connection=0) with max feedback (7) → noisy output
+        OPL_writeReg(audio_opl, 0xC0 + opl_ch, 0x0E);      // FB=7, CNT=0
+    }
+    else
+    {
+        // Tone (czap, cding): additive sine, from Ishar 2 DOS
+        OPL_writeReg(audio_opl, 0x20 + mod, 0x21);  // Sustain=1, Mul=1
+        OPL_writeReg(audio_opl, 0x40 + mod, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + mod, 0xF0);
+        OPL_writeReg(audio_opl, 0x80 + mod, 0xF0);
+        OPL_writeReg(audio_opl, 0xE0 + mod, 0x00);
+
+        OPL_writeReg(audio_opl, 0x20 + car, 0x21);
+        OPL_writeReg(audio_opl, 0x40 + car, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0x80 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0xE0 + car, 0x00);
+
+        OPL_writeReg(audio_opl, 0xC0 + opl_ch, 0x01); // FB=0, CNT=1 (additive)
+    }
+
+    opl_sfx_initialized[idx] = 1;
+    opl_sfx_type[idx] = chan_type;
+}
+
+static void io_canal_opl(sChannel *channel, s16 index)
+{
+    if (!audio_opl)
+        sys_init_opl();
+
+    u8 opl_ch = 4 + (index % 2);
+    u8 idx = opl_ch - 4;
+
+    // Re-init if channel type changed
+    if (!opl_sfx_initialized[idx] || opl_sfx_type[idx] != channel->type)
+        io_canal_opl_init(opl_ch, channel->type);
+
+    // Volume: channel volume 0-0x7FFF → OPL2 TL 0x3F(silent)-0x00(max)
+    u8 vol_4bit = (channel->volume >> 11) & 0xf;
+    u8 tl = 0x3f - ((vol_4bit * 0x3f) / 0xf);
+
+    static const u8 mod_off_v[] = {0x09, 0x0A};
+    static const u8 car_off_v[] = {0x0C, 0x0D};
+
+    if (opl_sfx_type[idx] == eChannelTypeNoise || opl_sfx_type[idx] == eChannelTypeExplode)
+    {
+        // FM mode: only carrier TL controls output volume
+        OPL_writeReg(audio_opl, 0x40 + car_off_v[idx], tl);
+    }
+    else
+    {
+        // Additive mode: both operators output, update both
+        OPL_writeReg(audio_opl, 0x40 + mod_off_v[idx], tl);
+        OPL_writeReg(audio_opl, 0x40 + car_off_v[idx], tl);
+    }
+
+    if (channel->type == eChannelTypeNone || channel->volume == 0)
+    {
+        OPL_writeReg(audio_opl, 0xB0 + opl_ch, 0x00);
+        opl_sfx_initialized[idx] = 0;
+        return;
+    }
+
+    // Frequency: from Ishar 2 DOS FUN_1000_0af5
+    s32 freq_idx = (channel->freq >> 3) + 0x140;
+    if (freq_idx < 1) freq_idx = 1;
+    u16 fnum = 0xD6D8 / freq_idx;
+    if (fnum > 0x3FF) fnum = 0x3FF;
+
+    OPL_writeReg(audio_opl, 0xA0 + opl_ch, fnum & 0xFF);
+    OPL_writeReg(audio_opl, 0xB0 + opl_ch, 0x20 | 0x1C | ((fnum >> 8) & 0x03));
 }
 
 u8 giaccess(s8 cmd, u8 data, u8 ch)
@@ -654,13 +758,13 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                             if (isr_counter >= 1)
                             {
                                 isr_counter--;
-                                
+
                                 do
                                 {
                                     if (ch->played < ch->length)
                                     {
                                         ch->played ++;
-                                        
+
                                         s32 vol = (s32)ch->delta_volume + (s32)ch->volume;
                                         if (-1 < vol)
                                         {
@@ -668,33 +772,52 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                                             {
                                                 vol = 0x7fff;
                                             }
-                                            
+
                                             ch->volume = (s16)vol;
                                             u32 freq = ch->delta_freq + ch->freq;
                                             if (-1 < (s32)(freq << 0x10))
                                             {
                                                 ch->freq = freq;
-                                                io_canal(ch, i);
+#if !defined(__TOS__) && !defined(__atarist__)
+                                                if (alis.platform.kind == EPlatformPC)
+                                                    io_canal_opl(ch, i);
+                                                else
+#endif
+                                                    io_canal(ch, i);
                                                 break;
                                             }
                                         }
                                     }
-                                    
+
                                     ch->type = eChannelTypeNone;
                                     ch->volume = 0;
                                     ch->freq = 0;
                                     ch->curson = 0x80;
                                     ch->state = 0;
                                     ch->played = 0;
-                                    io_canal(ch, i);
+#if !defined(__TOS__) && !defined(__atarist__)
+                                    if (alis.platform.kind == EPlatformPC)
+                                        io_canal_opl(ch, i);
+                                    else
+#endif
+                                        io_canal(ch, i);
                                 }
                                 while (false);
                             }
-                            
+
 #if !defined(__TOS__) && !defined(__atarist__)
-                            s0 = PSG_calc(audio_psg);
-                            s1 = audio_buffer[p] - 0x8000;
-                            audio_buffer[p] = (s0 + s1) + 0x8000;
+                            if (alis.platform.kind == EPlatformPC && audio_opl)
+                            {
+                                s0 = OPL_calc(audio_opl);
+                                s1 = audio_buffer[p] - 0x8000;
+                                audio_buffer[p] = (s0 + s1) + 0x8000;
+                            }
+                            else
+                            {
+                                s0 = PSG_calc(audio_psg);
+                                s1 = audio_buffer[p] - 0x8000;
+                                audio_buffer[p] = (s0 + s1) + 0x8000;
+                            }
 #endif
                         }
                     }
