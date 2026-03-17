@@ -31,6 +31,7 @@
 #include "utils.h"
 
 #include "emu2149.h"
+#include "emu8950.h"
 #include "math.h"
 
 // 0 No interpolation
@@ -112,6 +113,7 @@ int             audio_id;
 SDL_AudioSpec   *audio_spec;
 #if !defined(__TOS__) && !defined(__atarist__)
 PSG             *audio_psg;
+OPL             *audio_opl;
 #endif
 
 extern u8       *vgalogic_df;
@@ -277,6 +279,101 @@ void sys_calc_psg_music(void)
     {
         audio.muadresse[index] = PSG_calc(audio_psg) * 4;
     }
+#endif
+}
+
+void sys_init_opl(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    audio_opl = OPL_new(3579545, audio_spec->freq);
+    OPL_setChipType(audio_opl, 2); // YM3812
+    OPL_reset(audio_opl);
+#endif
+}
+
+void sys_deinit_opl(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    if (audio_opl)
+    {
+        OPL_delete(audio_opl);
+        audio_opl = NULL;
+    }
+#endif
+}
+
+void sys_write_opl(u32 reg, u8 val)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    if (audio_opl)
+        OPL_writeReg(audio_opl, reg, val);
+#endif
+}
+
+// WAV export for music debugging - accumulates float samples, writes on stop
+extern s32 save_wave_file(const char *name, float *data, s32 sample_rate, s32 channel_count, s32 sample_count);
+
+static float *wav_export_buf = NULL;
+static u32 wav_export_samples = 0;
+static u32 wav_export_capacity = 0;
+static char wav_export_path[256] = {0};
+static u8 wav_export_active = 0;
+
+void sys_wav_export_start(const char *path)
+{
+    if (wav_export_active)
+        return;
+
+    // Pre-allocate for ~60 seconds at host sample rate
+    u32 rate = audio_spec ? audio_spec->freq : 44100;
+    wav_export_capacity = rate * 60;
+    wav_export_buf = (float *)malloc(wav_export_capacity * sizeof(float));
+    if (!wav_export_buf)
+        return;
+
+    wav_export_samples = 0;
+    strncpy(wav_export_path, path, sizeof(wav_export_path) - 1);
+    wav_export_active = 1;
+
+    debug(EDebugWarning, "WAV export started: %s\n", path);
+}
+
+void sys_wav_export_stop(void)
+{
+    if (!wav_export_active || !wav_export_buf)
+        return;
+
+    u32 rate = audio_spec ? audio_spec->freq : 44100;
+    save_wave_file(wav_export_path, wav_export_buf, rate, 1, wav_export_samples);
+
+    free(wav_export_buf);
+    wav_export_buf = NULL;
+    wav_export_active = 0;
+
+    debug(EDebugWarning, "WAV export stopped: %u samples written to %s\n", wav_export_samples, wav_export_path);
+}
+
+static void sys_wav_export_write(s16 *samples, int count)
+{
+    if (!wav_export_active || !wav_export_buf)
+        return;
+
+    for (int i = 0; i < count && wav_export_samples < wav_export_capacity; i++)
+    {
+        wav_export_buf[wav_export_samples++] = (float)samples[i] / 32768.0f;
+    }
+}
+
+void sys_calc_opl_music(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    memset(audio.muadresse, 0, audio.mutaloop * 2);
+    for (int index = 0; index < audio.mutaloop; index ++)
+    {
+        audio.muadresse[index] = OPL_calc(audio_opl);
+    }
+
+    sys_wav_export_write(audio.muadresse, audio.mutaloop);
 #endif
 }
 

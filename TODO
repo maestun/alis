@@ -240,15 +240,15 @@ x 2024-01-25: Game bug: giving money to officer to get city pass don't work
 
 Robinson's Requiem
 
-- 2024-01-25: cavtstmov. [In work by Skruug].
-- 2024-01-25: caim. [In work by Skruug].
-- 2024-01-25: catstmap. [In work by Skruug].
-- 2024-01-25: cchartmap. [In work by Skruug].
-- 2024-01-25: cviewmat. [In work by Skruug].
++ 2024-01-25: cavtstmov. [In work by Skruug].
++ 2024-01-25: caim. [In work by Skruug].
++ 2024-01-25: catstmap. [In work by Skruug].
++ 2024-01-25: cchartmap. [In work by Skruug].
++ 2024-01-25: cviewmat. [In work by Skruug].
 + 2024-09-24: 2024-10-01: Atari ST missing chip music in intro
 - 2024-09-27: DOS: text output in Chinese (Big5) for Taiwanese version of the game not yet implemented
 - 2024-10-04: DOS CD version: Menu music is broken.
-- 2024-10-04: DOS CD version: No voice over the video.
++ 2024-10-04: DOS CD version: No voice over the video.
 - 2024-10-04: CD version: (Improvement) Enabling subtitles for voice video-mode in game (as in Spanish EU multilanguage version).
 - 2024-11-01: DOS: From time to time. Broken palette on opening (first video), restores itself on the second video. It seems that this problem can appear on any video if the intros are skipped. Same thing in DOSBox.
 - 2024-11-01: DOS: If skipping the opening clips (by spacebar or escape) and not going to the credits screen with music, sometimes the video sound continues to play until the start menu, or even continues to play there (e.g. bird sound).

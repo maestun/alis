@@ -376,6 +376,22 @@ void sys_poll_event(void) {
 //                    break;
 //                }
 
+                case SDLK_F9:
+                {
+                    static int wav_recording = 0;
+                    if (!wav_recording)
+                    {
+                        sys_wav_export_start("alis_music.wav");
+                        wav_recording = 1;
+                    }
+                    else
+                    {
+                        sys_wav_export_stop();
+                        wav_recording = 0;
+                    }
+                    break;
+                }
+
                 case SDLK_F11:
                     alis.state = eAlisStateSave;
                     break;

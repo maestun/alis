@@ -56,6 +56,14 @@ void    sys_write_psg(u32 reg, u32 val);
 u8      sys_read_psg(u32 reg);
 void    sys_calc_psg_music(void);
 
+void    sys_init_opl(void);
+void    sys_deinit_opl(void);
+void    sys_write_opl(u32 reg, u8 val);
+void    sys_calc_opl_music(void);
+
+void    sys_wav_export_start(const char *path);
+void    sys_wav_export_stop(void);
+
 // =============================================================================
 #pragma mark - I/O
 // =============================================================================
