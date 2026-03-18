@@ -735,7 +735,9 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
             u8 *sample = data + at;
             if (sample[0] == 1 || sample[0] == 2)
             {
-                if (sample[6] == 1 && script->type & 1)
+                if (alis.platform.kind == EPlatformPC
+                    ? (((sample[0] == 1 && sample[6] == 1) || sample[0] == 2) && script->type != 0)
+                    : sample[6] == 1 && script->type & 1)
                 {
                     u32 fulllen = read32(sample + 2);
                     s32 length = ((fulllen - 0x10) >> 1);
@@ -756,7 +758,9 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
             u8 *sample = data + at;
             if (sample[0] == 1 || sample[0] == 2)
             {
-                if (sample[6] == 1 && script->type & 1)
+                if (alis.platform.kind == EPlatformPC
+                    ? (((sample[0] == 1 && sample[6] == 1) || sample[0] == 2) && script->type != 0)
+                    : sample[6] == 1 && script->type & 1)
                 {
                     u32 fulllen = read32(sample + 2);
                     s8 *smpdata = (s8 *)(sample + 0x10);
@@ -1008,6 +1012,10 @@ sAlisScriptData * script_load(const char * script_path) {
         
         // decrunch if needed
         alis.typepack = magic >> 24;
+        if (alis.platform.kind == EPlatformPC) {
+            alis.typepack &= 0xfe;
+        }
+        
         if (alis.typepack < 0)
         {
             ALIS_DEBUG(EDebugInfo, "Unpacking...\n");

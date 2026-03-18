@@ -703,10 +703,11 @@ void mv2_soundcal(sAudioVoice *voice)
             if (longsam2 == 0)
                 break;
         }
-        
-        s32 test3 = smpendX - (startsam1 + longsam1);
-        s8 sam = xread8(startsam1 + test3 - 0x10);
-//        s8 sam = xread8(startsam1 + longsam1);
+
+        // NOTE: longsam1 counts DOWN, so startsam1+longsam1 reads backward.
+        // samoffset converts to forward position within the sample data.
+        s32 samoffset = smpendX - (startsam1 + longsam1);
+        s8 sam = xread8(startsam1 + samoffset - 0x10);
 
         int total = audio.muadresse[index] + (sam * volsamf);
         if (total < -32768)
