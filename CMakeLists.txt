@@ -68,6 +68,8 @@ include_directories(src/audio)
 
 list(APPEND alis_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/emu2149/emu2149.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/emu8950/emu8950.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/emu8950/emuadpcm.c
     ${CMAKE_CURRENT_LIST_DIR}/src/sys/sys.c
     ${CMAKE_CURRENT_LIST_DIR}/src/sys/sys_sdl2.c
     ${CMAKE_CURRENT_LIST_DIR}/src/audio/audio.c

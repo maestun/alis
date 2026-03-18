@@ -151,10 +151,13 @@
     <ClInclude Include="..\src\config.h" />
     <ClInclude Include="..\src\debug.h" />
     <ClInclude Include="..\src\emu2149\emu2149.h" />
+    <ClInclude Include="..\src\emu8950\emu8950.h" />
+    <ClInclude Include="..\src\emu8950\emuadpcm.h" />
     <ClInclude Include="..\src\export.h" />
     <ClInclude Include="..\src\image.h" />
     <ClInclude Include="..\src\mem.h" />
     <ClInclude Include="..\src\platform.h" />
+    <ClInclude Include="..\src\render3d.h" />
     <ClInclude Include="..\src\screen.h" />
     <ClInclude Include="..\src\script.h" />
     <ClInclude Include="..\src\sys\sys.h" />
@@ -182,6 +185,8 @@
     <ClCompile Include="..\src\channel.c" />
     <ClCompile Include="..\src\debug.c" />
     <ClCompile Include="..\src\emu2149\emu2149.c" />
+    <ClInclude Include="..\src\emu8950\emu8950.c" />
+    <ClInclude Include="..\src\emu8950\emuadpcm.c" />
     <ClCompile Include="..\src\escnames.c" />
     <ClCompile Include="..\src\export.c" />
     <ClCompile Include="..\src\image.c" />
@@ -190,6 +195,7 @@
     <ClCompile Include="..\src\opcodes.c" />
     <ClCompile Include="..\src\opernames.c" />
     <ClCompile Include="..\src\platform.c" />
+    <ClCompile Include="..\src\render3d.c" />
     <ClCompile Include="..\src\screen.c" />
     <ClCompile Include="..\src\script.c" />
     <ClCompile Include="..\src\storenames.c" />

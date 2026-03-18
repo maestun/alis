@@ -25,6 +25,7 @@
 #include "mem.h"
 
 #include "emu2149.h"
+#include "emu8950.h"
 
 void mv2_soundrout(void);
 void mv2_calculfrq(void);
@@ -42,6 +43,10 @@ void mv2_chiprout(void);
 s16 mv2_chipinstr(sChipChannel *chanel, s16 idx);
 void mv2_chipcanal(sChipChannel *chanel, s32 idx);
 u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel);
+
+void mv2_opl2rout(void);
+void mv2_opl2_setinst(u32 sample, u8 channel);
+u32 mv2_opl2voix(u32 noteat, sAudioVoice *voice, u8 voiceidx);
 
 sAudioTrkfrq mv2_trkfrq[7] = {
     { 0xB, 0xA3, 0x1B989B4 },
@@ -103,10 +108,10 @@ void mv2_gomusic(void)
     {
         if (instrument->address != 0)
         {
-            if (xread8(instrument->address - 0x10) == 5)
+            u8 itype = xread8(instrument->address - 0x10);
+            if (itype == 5)
                 chipinst++;
-            
-            else if (xread8(instrument->address - 0x10) == 6)
+            else if (itype == 6)
                 opl2inst++;
         }
         
@@ -122,7 +127,32 @@ void mv2_gomusic(void)
     audio.mutemp = (u8)(((u32)audio.mutempo * 6) / 0x20);
 
     // init
-    if (mv2a.mutype != 0)
+    if (mv2a.muopl2)
+    {
+        sys_init_opl();
+
+        for (s32 i = 0; i < 4; i++)
+        {
+            mv2a.voices[i].freqsam = 0;
+            mv2a.voices[i].startsam1 = 0;
+            mv2a.voices[i].longsam1 = 0;
+            mv2a.voices[i].volsam = 0;
+            mv2a.voices[i].startsam2 = 0;
+            mv2a.voices[i].longsam2 = 0;
+            mv2a.voices[i].value = 0;
+            mv2a.voices[i].type = 0;
+            mv2a.voices[i].delta = 0;
+        }
+
+        mv2a.prevmuvol = 0;
+        mv2a.prevmufreq = 0;
+        mv2_calculfrq();
+        mv2_calculvol();
+
+        audio.mutaloop = (audio.mutaloop * 5) / 7; // ~70Hz instead of ~50Hz
+        audio.soundrout = mv2_opl2rout;
+    }
+    else if (mv2a.mutype != 0)
     {
         for (s32 i = 0; i < 4; i++)
         {
@@ -413,10 +443,10 @@ void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx)
         voice->startsam2 = ((xread32(sample - 0xe) - 0x10) - xread32(sample - 4)) + sample;
         voice->longsam2 = xread32(sample - 4) - xread32(sample - 8);
     }
-//    else if (type == 5) // YM3812
-//    {
-//
-//    }
+    else if (type == 5 || type == 6)
+    {
+        // OPL2: NOP
+    }
     else
     {
         voice->startsam1 = 0;
@@ -673,10 +703,11 @@ void mv2_soundcal(sAudioVoice *voice)
             if (longsam2 == 0)
                 break;
         }
-        
-        s32 test3 = smpendX - (startsam1 + longsam1);
-        s8 sam = xread8(startsam1 + test3 - 0x10);
-//        s8 sam = xread8(startsam1 + longsam1);
+
+        // NOTE: longsam1 counts DOWN, so startsam1+longsam1 reads backward.
+        // samoffset converts to forward position within the sample data.
+        s32 samoffset = smpendX - (startsam1 + longsam1);
+        s8 sam = xread8(startsam1 + samoffset - 0x10);
 
         int total = audio.muadresse[index] + (sam * volsamf);
         if (total < -32768)
@@ -1015,4 +1046,299 @@ u32 mv2_chipvoix(u32 noteat, sChipChannel *chanel)
     }
     
     return noteat + 2;
+}
+
+#pragma mark - OPL2 music
+
+// OPL2 operator register offsets per channel (modulator, carrier)
+static const u8 opl2_op_offset[9][2] = {
+    { 0x00, 0x03 }, // ch 0
+    { 0x01, 0x04 }, // ch 1
+    { 0x02, 0x05 }, // ch 2
+    { 0x08, 0x0B }, // ch 3
+    { 0x09, 0x0C }, // ch 4
+    { 0x0A, 0x0D }, // ch 5
+    { 0x10, 0x13 }, // ch 6
+    { 0x11, 0x14 }, // ch 7
+    { 0x12, 0x15 }, // ch 8
+};
+
+static void mv2_opl2_write_op(u8 op_offset, const u8 *data, u8 global_vol, u8 scale_vol)
+{
+    // 13-byte operator parameter block
+    u8 ksl   = data[0];
+    u8 mul   = data[1];
+    u8 ar    = data[3];
+    u8 sl    = data[4];
+    u8 eg    = data[5];
+    u8 dr    = data[6];
+    u8 rr    = data[7];
+    u8 tl    = data[8];
+    u8 am    = data[9];
+    u8 vib   = data[10];
+    u8 ksr   = data[11];
+
+    // scale TL by global volume
+    u8 adjusted_tl = tl;
+    if (scale_vol)
+    {
+        adjusted_tl = 0x3f - (u8)(((u16)global_vol * (u16)(0x3f - tl)) >> 6);
+    }
+
+    // Register 0x40: KSL(2) + TL(6) - KSL shifted left 6
+    u8 reg40 = ((ksl & 0x03) << 6) | (adjusted_tl & 0x3f);
+    // Register 0x20: AM(1) VIB(1) EG(1) KSR(1) MUL(4)
+    u8 reg20 = (mul & 0x0f) | ((eg & 1) << 5) | ((am & 1) << 7) | ((vib & 1) << 6) | ((ksr & 1) << 4);
+    // Register 0x60: AR(4) + DR(4)
+    u8 reg60 = ((ar & 0x0f) << 4) | (dr & 0x0f);
+    // Register 0x80: SL(4) + RR(4)
+    u8 reg80 = ((sl & 0x0f) << 4) | (rr & 0x0f);
+
+    sys_write_opl(0x40 + op_offset, reg40);
+    sys_write_opl(0x20 + op_offset, reg20);
+    sys_write_opl(0x60 + op_offset, reg60);
+    sys_write_opl(0x80 + op_offset, reg80);
+    // NOTE: Waveform (0xE0) is written separately in mv2_opl2_setinst
+}
+
+void mv2_opl2_setinst(u32 sample, u8 channel)
+{
+    if (channel >= 9)
+        return;
+
+    const u8 *instdata = (const u8 *)(alis.mem + sample);
+
+    // Instrument layout
+    //   Bytes 0-1:   Header (channel override)
+    //   Bytes 2-14:  Modulator operator (13 bytes)
+    //   Bytes 15-27: Carrier operator (13 bytes)
+    //   Byte 28:     Modulator waveform (reg 0xE0)
+    //   Byte 29:     Carrier waveform (reg 0xE0)
+    const u8 *mod_data = instdata + 2;
+    const u8 *car_data = instdata + 15;
+
+    u8 mod_offset = opl2_op_offset[channel][0];
+    u8 car_offset = opl2_op_offset[channel][1];
+
+    u8 global_vol = mv2a.muvolgen;
+
+    // Connection/algorithm from modulator block byte 12
+    u8 cnt = mod_data[12];
+    u8 connection = cnt ^ 1;
+
+    // Key-off first
+    if (channel < 6)
+        sys_write_opl(0xB0 + channel, 0);
+
+    // Write modulator operator registers
+    // Volume scaling: in FM mode (connection=0), only carrier is scaled
+    // In additive mode (connection=1), both are scaled
+    mv2_opl2_write_op(mod_offset, mod_data, global_vol, connection);
+
+    // Write carrier operator registers (always volume-scaled)
+    if (car_offset != 0xFF)
+        mv2_opl2_write_op(car_offset, car_data, global_vol, 1);
+
+    // Waveform select registers (0xE0) - from bytes 28-29 after both operator blocks
+    sys_write_opl(0xE0 + mod_offset, instdata[28] & 0x03);
+    if (car_offset != 0xFF)
+        sys_write_opl(0xE0 + car_offset, instdata[29] & 0x03);
+
+    // Feedback/Connection register (0xC0) - only for melody channels (< 7)
+    if (channel < 7)
+    {
+        u8 feedback = mod_data[2]; // FB field from modulator block
+        u8 regC0 = connection | ((feedback & 0x07) << 1);
+        sys_write_opl(0xC0 + channel, regC0);
+    }
+}
+
+static void mv2_opl2_noteon(u8 channel, s16 freqsam)
+{
+    if (channel >= 9 || freqsam <= 0)
+        return;
+
+    // Convert freqsam (Atari ST YM2149 period) to OPL2 F-Number + Block
+    // YM2149 freq = 2MHz / (16 * period) = 125000 / period
+    // OPL2 freq = 49716 * F-Number / 2^(20-Block)
+    // So: F-Number * 2^Block = 125000 * 2^20 / (49716 * period) = 0x283986 / period
+    // NOTE: The DOS original used 0xF041A0 with its own period table, but
+    // our VM uses Atari ST periods which are ~6x smaller, so we need 0x283986.
+    u32 raw = 0x283986 / (u32)freqsam;
+
+    // Decompose into F-Number (10 bits, 0-1023) and Block (3 bits, 0-7)
+    // Shift right until F-Number fits in 10 bits, counting Block
+    s32 block = 0;
+    while (raw >= 1024 && block < 7)
+    {
+        raw >>= 1;
+        block++;
+    }
+
+    u16 fnum = raw & 0x3FF;
+
+    // Write F-Number low byte to register 0xA0+channel
+    sys_write_opl(0xA0 + channel, fnum & 0xFF);
+
+    // Write F-Number high 2 bits + Block + Key-On to register 0xB0+channel
+    u8 regB0 = ((fnum >> 8) & 0x03) | ((block & 0x07) << 2) | 0x20;
+    sys_write_opl(0xB0 + channel, regB0);
+}
+
+static void mv2_opl2_noteoff(u8 channel)
+{
+    if (channel >= 9)
+        return;
+
+    // Key-off: clear the key-on bit in 0xB0 register
+    sys_write_opl(0xB0 + channel, 0);
+}
+
+u32 mv2_opl2voix(u32 noteat, sAudioVoice *voice, u8 voiceidx)
+{
+    u32 notedata = xread32be(noteat);
+    if (notedata != 0)
+    {
+        voice->value = (s16)(notedata >> 0x10);
+        voice->type = (s8)(notedata >> 8);
+        voice->delta = (s8)notedata;
+    }
+
+    u32 nextat = (noteat + 2);
+    s16 newfreq = xread16be(noteat);
+    if (newfreq != 0)
+    {
+        u16 instidx = xread8(nextat);
+        instidx &= 0xf0;
+
+        if (BIT_CHK(newfreq, 0xc))
+        {
+            newfreq &= 0xfff;
+            instidx |= 0x100;
+        }
+
+        instidx >>= 1;
+        instidx -= 8;
+        instidx >>= 3;
+
+        u32 sample = audio.tabinst[instidx].address;
+        if (sample != 0 && xread8(sample - 0x10) == 6)
+        {
+            // Determine OPL2 channel
+            u8 channel = voiceidx; // default: voice index = channel
+            u8 *instdata = alis.mem + sample;
+            if (instdata[0] == 1)
+            {
+                channel = instdata[1]; // override channel
+            }
+
+            // Clamp frequency
+            if ((s16)(newfreq - 0x71U) < 0)
+                newfreq = 0x71;
+            if (0x357 < newfreq)
+                newfreq = 0x357;
+
+            voice->freqsam = newfreq;
+
+            // Program instrument on OPL2 channel
+            mv2_opl2_setinst(sample, channel);
+
+            // Play note
+            mv2_opl2_noteon(channel, newfreq);
+
+            voice->volsam = 0x40;
+            voice->loopsam = channel; // store OPL2 channel for later use
+        }
+        else
+        {
+            // Note with no valid instrument: note off
+            if ((newfreq & 0xfff) == 0)
+            {
+                mv2_opl2_noteoff(voice->loopsam);
+            }
+        }
+    }
+    else if ((newfreq & 0xfff) == 0 && notedata == 0)
+    {
+        // Silent: nothing to do
+    }
+
+    mv2_checkcom(nextat, &voice->volsam);
+    return nextat + 2;
+}
+
+void mv2_opl2rout(void)
+{
+    u16 prevmuspeed = mv2a.muspeed;
+
+    if (audio.muflag == 0)
+        return;
+
+    u16 newvolgen = (u16)audio.muvol;
+    if (mv2a.mubreak == 0)
+    {
+        if (audio.muattac == 0)
+        {
+            if (audio.muduree == 0)
+                goto f_opl2routc;
+
+            if (audio.muduree > 0)
+                audio.muduree--;
+        }
+        else
+        {
+            audio.muattac--;
+            u16 tmpvol = ((u32)audio.muvol * (u32)audio.muattac) / (u32)mv2a.mubufa;
+            newvolgen = (tmpvol & 0xff00) | -((s8)tmpvol - audio.muvol);
+        }
+    }
+    else
+    {
+
+f_opl2routc:
+
+        if (audio.muchute != 0)
+        {
+            audio.muchute--;
+            newvolgen = (u16)(((u32)audio.muvol * (u32)audio.muchute) / (u32)mv2a.mubufc);
+        }
+        else
+        {
+            mv2_stopmusic();
+            return;
+        }
+    }
+
+    mv2a.muvolgen = newvolgen;
+    if (mv2a.muspeed != 0)
+    {
+        mv2a.muspeed--;
+        if (mv2a.muspeed == 0 || (s16)prevmuspeed < 1)
+        {
+            mv2a.muspeed = audio.mutemp;
+
+            s16 prevmucnt = mv2a.mucnt;
+            if (-1 < (s16)(mv2a.mucnt - 0x40))
+            {
+                mv2a.mucnt = 0;
+                mv2a.muptr++;
+            }
+
+            if (-1 < (s16)(mv2a.muptr - mv2a.mumax))
+            {
+                mv2a.muptr = 0;
+            }
+
+            u32 noteat = ((mv2a.mucnt * 0x10 + xread8(audio.mupnote + mv2a.muptr) * 0x400) + audio.mupnote + 0x84);
+            noteat = mv2_opl2voix(noteat, &mv2a.voices[0], 0);
+            noteat = mv2_opl2voix(noteat, &mv2a.voices[1], 1);
+            noteat = mv2_opl2voix(noteat, &mv2a.voices[2], 2);
+            noteat = mv2_opl2voix(noteat, &mv2a.voices[3], 3);
+
+            mv2a.mucnt++;
+        }
+
+        // Generate OPL2 audio samples into the music buffer
+        sys_calc_opl_music();
+    }
 }

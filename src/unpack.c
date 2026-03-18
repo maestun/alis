@@ -319,18 +319,8 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         }
         else 
         {
-            if (alis.platform.kind == EPlatformPC)
-            {
-                alis.typepack &= 0xfe;
-                
-                s8 modpack = ((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8;
-                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
-            }
-            else
-            {
-                s8 modpack = (((u8)alis.typepack & 0x40) == 0) ? 1 : 8;
-                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
-            }
+            s8 modpack = alis.platform.kind == EPlatformPC ? (((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8) : ((((u8)alis.typepack & 0x40) == 0) ? 1 : 8);
+            unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
         }
         
         ALIS_DEBUG(EDebugInfo, "Unpacked %s: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_file_path, packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");
@@ -374,18 +364,8 @@ int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_size) {
         {
             fread(packed_buffer, sizeof(u8), packed_size, fp);
 
-            if (alis.platform.kind == EPlatformPC)
-            {
-                alis.typepack &= 0xfe;
-                
-                s8 modpack = ((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8;
-                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
-            }
-            else
-            {
-                s8 modpack = (((u8)alis.typepack & 0x40) == 0) ? 1 : 8;
-                unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
-            }
+            s8 modpack = alis.platform.kind == EPlatformPC ? (((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8) : ((((u8)alis.typepack & 0x40) == 0) ? 1 : 8);
+            unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
         }
         
         ALIS_DEBUG(EDebugInfo, "Unpacked FP: %d bytes into %d bytes (~%d%% packing ratio) using %s packer.\n", packed_size, unpacked_size, 100 - (int)((packed_size * 100) / unpacked_size), (alis.platform.version >= 20 && (alis.typepack & 0xf0) == 0xa0) ? "new" : "old");

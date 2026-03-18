@@ -31,6 +31,7 @@
 #include "utils.h"
 
 #include "emu2149.h"
+#include "emu8950.h"
 #include "math.h"
 
 // 0 No interpolation
@@ -112,6 +113,7 @@ int             audio_id;
 SDL_AudioSpec   *audio_spec;
 #if !defined(__TOS__) && !defined(__atarist__)
 PSG             *audio_psg;
+OPL             *audio_opl;
 #endif
 
 extern u8       *vgalogic_df;
@@ -280,6 +282,104 @@ void sys_calc_psg_music(void)
 #endif
 }
 
+void sys_init_opl(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    if (audio_opl)
+        return; // already initialized
+
+    audio_opl = OPL_new(3579545, audio_spec->freq);
+    OPL_setChipType(audio_opl, 2); // YM3812
+    OPL_reset(audio_opl);
+#endif
+}
+
+void sys_deinit_opl(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    if (audio_opl)
+    {
+        OPL_delete(audio_opl);
+        audio_opl = NULL;
+    }
+#endif
+}
+
+void sys_write_opl(u32 reg, u8 val)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    if (audio_opl)
+        OPL_writeReg(audio_opl, reg, val);
+#endif
+}
+
+// WAV export for music debugging - accumulates float samples, writes on stop
+extern s32 save_wave_file(const char *name, float *data, s32 sample_rate, s32 channel_count, s32 sample_count);
+
+static float *wav_export_buf = NULL;
+static u32 wav_export_samples = 0;
+static u32 wav_export_capacity = 0;
+static char wav_export_path[256] = {0};
+static u8 wav_export_active = 0;
+
+void sys_wav_export_start(const char *path)
+{
+    if (wav_export_active)
+        return;
+
+    // Pre-allocate for ~60 seconds at host sample rate
+    u32 rate = audio_spec ? audio_spec->freq : 44100;
+    wav_export_capacity = rate * 60;
+    wav_export_buf = (float *)malloc(wav_export_capacity * sizeof(float));
+    if (!wav_export_buf)
+        return;
+
+    wav_export_samples = 0;
+    strncpy(wav_export_path, path, sizeof(wav_export_path) - 1);
+    wav_export_active = 1;
+
+    debug(EDebugWarning, "WAV export started: %s\n", path);
+}
+
+void sys_wav_export_stop(void)
+{
+    if (!wav_export_active || !wav_export_buf)
+        return;
+
+    u32 rate = audio_spec ? audio_spec->freq : 44100;
+    save_wave_file(wav_export_path, wav_export_buf, rate, 1, wav_export_samples);
+
+    free(wav_export_buf);
+    wav_export_buf = NULL;
+    wav_export_active = 0;
+
+    debug(EDebugWarning, "WAV export stopped: %u samples written to %s\n", wav_export_samples, wav_export_path);
+}
+
+static void sys_wav_export_write(s16 *samples, int count)
+{
+    if (!wav_export_active || !wav_export_buf)
+        return;
+
+    for (int i = 0; i < count && wav_export_samples < wav_export_capacity; i++)
+    {
+        wav_export_buf[wav_export_samples++] = (float)samples[i] / 32768.0f;
+    }
+}
+
+void sys_calc_opl_music(void)
+{
+#if !defined(__TOS__) && !defined(__atarist__)
+    memset(audio.muadresse, 0, audio.mutaloop * 2);
+    for (int index = 0; index < audio.mutaloop; index ++)
+    {
+        audio.muadresse[index] = OPL_calc(audio_opl);
+    }
+
+    sys_wav_export_write(audio.muadresse, audio.mutaloop);
+#endif
+}
+
 float interpolate_cubic(float x0, float x1, float x2, float x3, float t)
 {
     float a0, a1, a2, a3;
@@ -355,6 +455,107 @@ void io_canal(sChannel *channel, s16 index)
     }
 
     giaccess(0x87, mixer, index);
+}
+
+// OPL2 sound effect support: use OPL2 channels 4-5 for effects (0-3 reserved for music)
+static u8 opl_sfx_initialized[2] = {0, 0};
+static u8 opl_sfx_type[2] = {0, 0};
+
+static void io_canal_opl_init(u8 opl_ch, u8 chan_type)
+{
+    static const u8 mod_off[] = {0x09, 0x0A};
+    static const u8 car_off[] = {0x0C, 0x0D};
+    u8 idx = opl_ch - 4;
+    u8 mod = mod_off[idx];
+    u8 car = car_off[idx];
+
+    if (chan_type == eChannelTypeNoise || chan_type == eChannelTypeExplode)
+    {
+        // Noise/explosion: FM mode with high feedback + high multipliers
+        // Creates inharmonic, noise-like timbre
+        OPL_writeReg(audio_opl, 0x20 + mod, 0x20 | 0x07); // Sustain=1, Mul=7
+        OPL_writeReg(audio_opl, 0x40 + mod, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + mod, 0xF0);         // AR=max, DR=0
+        OPL_writeReg(audio_opl, 0x80 + mod, 0xF0);         // SL=max, RR=0
+        OPL_writeReg(audio_opl, 0xE0 + mod, 0x00);         // Sine
+
+        OPL_writeReg(audio_opl, 0x20 + car, 0x20 | 0x0E);  // Sustain=1, Mul=14
+        OPL_writeReg(audio_opl, 0x40 + car, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0x80 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0xE0 + car, 0x00);
+
+        // FM mode (connection=0) with max feedback (7) → noisy output
+        OPL_writeReg(audio_opl, 0xC0 + opl_ch, 0x0E);      // FB=7, CNT=0
+    }
+    else
+    {
+        // Tone (czap, cding): additive sine, from Ishar 2 DOS
+        OPL_writeReg(audio_opl, 0x20 + mod, 0x21);  // Sustain=1, Mul=1
+        OPL_writeReg(audio_opl, 0x40 + mod, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + mod, 0xF0);
+        OPL_writeReg(audio_opl, 0x80 + mod, 0xF0);
+        OPL_writeReg(audio_opl, 0xE0 + mod, 0x00);
+
+        OPL_writeReg(audio_opl, 0x20 + car, 0x21);
+        OPL_writeReg(audio_opl, 0x40 + car, 0x00);
+        OPL_writeReg(audio_opl, 0x60 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0x80 + car, 0xF0);
+        OPL_writeReg(audio_opl, 0xE0 + car, 0x00);
+
+        OPL_writeReg(audio_opl, 0xC0 + opl_ch, 0x01); // FB=0, CNT=1 (additive)
+    }
+
+    opl_sfx_initialized[idx] = 1;
+    opl_sfx_type[idx] = chan_type;
+}
+
+static void io_canal_opl(sChannel *channel, s16 index)
+{
+    if (!audio_opl)
+        sys_init_opl();
+
+    u8 opl_ch = 4 + (index % 2);
+    u8 idx = opl_ch - 4;
+
+    // Re-init if channel type changed
+    if (!opl_sfx_initialized[idx] || opl_sfx_type[idx] != channel->type)
+        io_canal_opl_init(opl_ch, channel->type);
+
+    // Volume: channel volume 0-0x7FFF → OPL2 TL 0x3F(silent)-0x00(max)
+    u8 vol_4bit = (channel->volume >> 11) & 0xf;
+    u8 tl = 0x3f - ((vol_4bit * 0x3f) / 0xf);
+
+    static const u8 mod_off_v[] = {0x09, 0x0A};
+    static const u8 car_off_v[] = {0x0C, 0x0D};
+
+    if (opl_sfx_type[idx] == eChannelTypeNoise || opl_sfx_type[idx] == eChannelTypeExplode)
+    {
+        // FM mode: only carrier TL controls output volume
+        OPL_writeReg(audio_opl, 0x40 + car_off_v[idx], tl);
+    }
+    else
+    {
+        // Additive mode: both operators output, update both
+        OPL_writeReg(audio_opl, 0x40 + mod_off_v[idx], tl);
+        OPL_writeReg(audio_opl, 0x40 + car_off_v[idx], tl);
+    }
+
+    if (channel->type == eChannelTypeNone || channel->volume == 0)
+    {
+        OPL_writeReg(audio_opl, 0xB0 + opl_ch, 0x00);
+        opl_sfx_initialized[idx] = 0;
+        return;
+    }
+
+    // Frequency: from Ishar 2 DOS FUN_1000_0af5
+    s32 freq_idx = (channel->freq >> 3) + 0x140;
+    if (freq_idx < 1) freq_idx = 1;
+    u16 fnum = 0xD6D8 / freq_idx;
+    if (fnum > 0x3FF) fnum = 0x3FF;
+
+    OPL_writeReg(audio_opl, 0xA0 + opl_ch, fnum & 0xFF);
+    OPL_writeReg(audio_opl, 0xB0 + opl_ch, 0x20 | 0x1C | ((fnum >> 8) & 0x03));
 }
 
 u8 giaccess(s8 cmd, u8 data, u8 ch)
@@ -557,13 +758,13 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                             if (isr_counter >= 1)
                             {
                                 isr_counter--;
-                                
+
                                 do
                                 {
                                     if (ch->played < ch->length)
                                     {
                                         ch->played ++;
-                                        
+
                                         s32 vol = (s32)ch->delta_volume + (s32)ch->volume;
                                         if (-1 < vol)
                                         {
@@ -571,33 +772,52 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                                             {
                                                 vol = 0x7fff;
                                             }
-                                            
+
                                             ch->volume = (s16)vol;
                                             u32 freq = ch->delta_freq + ch->freq;
                                             if (-1 < (s32)(freq << 0x10))
                                             {
                                                 ch->freq = freq;
-                                                io_canal(ch, i);
+#if !defined(__TOS__) && !defined(__atarist__)
+                                                if (alis.platform.kind == EPlatformPC)
+                                                    io_canal_opl(ch, i);
+                                                else
+#endif
+                                                    io_canal(ch, i);
                                                 break;
                                             }
                                         }
                                     }
-                                    
+
                                     ch->type = eChannelTypeNone;
                                     ch->volume = 0;
                                     ch->freq = 0;
                                     ch->curson = 0x80;
                                     ch->state = 0;
                                     ch->played = 0;
-                                    io_canal(ch, i);
+#if !defined(__TOS__) && !defined(__atarist__)
+                                    if (alis.platform.kind == EPlatformPC)
+                                        io_canal_opl(ch, i);
+                                    else
+#endif
+                                        io_canal(ch, i);
                                 }
                                 while (false);
                             }
-                            
+
 #if !defined(__TOS__) && !defined(__atarist__)
-                            s0 = PSG_calc(audio_psg);
-                            s1 = audio_buffer[p] - 0x8000;
-                            audio_buffer[p] = (s0 + s1) + 0x8000;
+                            if (alis.platform.kind == EPlatformPC && audio_opl)
+                            {
+                                s0 = OPL_calc(audio_opl);
+                                s1 = audio_buffer[p] - 0x8000;
+                                audio_buffer[p] = (s0 + s1) + 0x8000;
+                            }
+                            else
+                            {
+                                s0 = PSG_calc(audio_psg);
+                                s1 = audio_buffer[p] - 0x8000;
+                                audio_buffer[p] = (s0 + s1) + 0x8000;
+                            }
 #endif
                         }
                     }
