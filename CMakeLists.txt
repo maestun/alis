@@ -61,6 +61,7 @@ endif(SDL2_MANUAL_SET)
 find_package(SDL2 REQUIRED)
 
 include_directories(src/emu2149)
+include_directories(src/emu8950)
 include_directories(${SDL2_INCLUDE_DIRS})
 include_directories(src)
 include_directories(src/audio)
