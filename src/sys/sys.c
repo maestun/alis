@@ -942,10 +942,7 @@ u8 io_inkey(void)
         case SDLK_RCTRL:
         case SDLK_LALT:
         case SDLK_RALT:
-        case SDLK_LGUI:
-        case SDLK_RGUI:
         case SDLK_CAPSLOCK:
-        case SDLK_NUMLOCKCLEAR:
         case SDLK_MODE:         return 0;
 
         default:

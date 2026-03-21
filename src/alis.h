@@ -23,6 +23,7 @@
 
 #include "config.h"
 #include "debug.h"
+#include "mem.h"
 #include "platform.h"
 #include "script.h"
 #include "sys/sys.h"

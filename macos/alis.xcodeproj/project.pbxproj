@@ -47,6 +47,10 @@
 		687A344D2CCF11EC00334C81 /* newalis.c in Sources */ = {isa = PBXBuildFile; fileRef = 687A344C2CCF11EC00334C81 /* newalis.c */; };
 		689A3B8D2F66335500006594 /* render3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 689A3B8C2F66335500006594 /* render3d.c */; };
 		689A3B8E2F66335500006594 /* render3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 689A3B8C2F66335500006594 /* render3d.c */; };
+		BB000005000000000000BB05 /* render3d_dos.c in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000BB01 /* render3d_dos.c */; };
+		BB000006000000000000BB06 /* render3d_dos.c in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000BB01 /* render3d_dos.c */; };
+		BB000007000000000000BB07 /* render3d_68k.c in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000BB03 /* render3d_68k.c */; };
+		BB000008000000000000BB08 /* render3d_68k.c in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000BB03 /* render3d_68k.c */; };
 		68A502C62B23F16100635EEC /* emu2149.c in Sources */ = {isa = PBXBuildFile; fileRef = 68A502C42B23F0E300635EEC /* emu2149.c */; };
 		AA000006000000000000AA06 /* emu8950.c in Sources */ = {isa = PBXBuildFile; fileRef = AA000003000000000000AA03 /* emu8950.c */; };
 		AA000007000000000000AA07 /* emuadpcm.c in Sources */ = {isa = PBXBuildFile; fileRef = AA000005000000000000AA05 /* emuadpcm.c */; };
@@ -141,6 +145,10 @@
 		68B507132CF3E8930061E1FB /* sys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys.c; sourceTree = "<group>"; };
 		68B507162CF409ED0061E1FB /* sys_sdl2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys_sdl2.c; sourceTree = "<group>"; };
 		68E1856D2E909A0000C4F075 /* render3d.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = render3d.h; sourceTree = "<group>"; };
+		BB000001000000000000BB01 /* render3d_dos.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = render3d_dos.c; sourceTree = "<group>"; };
+		BB000002000000000000BB02 /* render3d_dos.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = render3d_dos.h; sourceTree = "<group>"; };
+		BB000003000000000000BB03 /* render3d_68k.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = render3d_68k.c; sourceTree = "<group>"; };
+		BB000004000000000000BB04 /* render3d_68k.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = render3d_68k.h; sourceTree = "<group>"; };
 		68E591932CE55D89007595EB /* SDL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL.framework; path = ../../../../../Library/Frameworks/SDL.framework; sourceTree = "<group>"; };
 		68F07E662EC55547008CEF63 /* export.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = export.h; sourceTree = "<group>"; };
 		68F07E672EC55547008CEF63 /* export.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = export.c; sourceTree = "<group>"; };
@@ -290,6 +298,10 @@
 				6808EE04297069760045BA8A /* image.c */,
 				68E1856D2E909A0000C4F075 /* render3d.h */,
 				689A3B8C2F66335500006594 /* render3d.c */,
+				BB000001000000000000BB01 /* render3d_dos.c */,
+				BB000002000000000000BB02 /* render3d_dos.h */,
+				BB000003000000000000BB03 /* render3d_68k.c */,
+				BB000004000000000000BB04 /* render3d_68k.h */,
 				68F3BDE42A7F2F64008E516A /* mem.h */,
 				68B507102CF3E86D0061E1FB /* mem.c */,
 				8B9C402B250A2A8F00C947F9 /* main.c */,
@@ -409,6 +421,8 @@
 				6840F4A12CF29BBC00421CAF /* music_v1.c in Sources */,
 				6840F4A22CF29BBC00421CAF /* debug.c in Sources */,
 				689A3B8E2F66335500006594 /* render3d.c in Sources */,
+				BB000006000000000000BB06 /* render3d_dos.c in Sources */,
+				BB000008000000000000BB08 /* render3d_68k.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -445,6 +459,8 @@
 				6816E8042B15217600F0D314 /* music_v1.c in Sources */,
 				8B9C4044250A6AC200C947F9 /* debug.c in Sources */,
 				689A3B8D2F66335500006594 /* render3d.c in Sources */,
+				BB000005000000000000BB05 /* render3d_dos.c in Sources */,
+				BB000007000000000000BB07 /* render3d_68k.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -74,5 +74,8 @@ s32             xswap32be(u32 value);
 s16             xread16be(u32 offset);
 s32             xread32be(u32 offset);
 
+s32             xread32_wc(s32 base, s32 wc_offset);
+void            xwrite32_wc(s32 base, s32 wc_offset, s32 val);
+
 s32             io_malloc(s32 rawsize);
 void            io_mfree(s32 addr);

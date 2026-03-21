@@ -272,7 +272,10 @@ typedef struct {
     s16 fhorizon;
    
     s16 vdarkw;
-    
+
+    u16 tex_hstep;   // per-row horizontal texture step (DOS)
+    s16 tex_hbase;   // per-row base horizontal texture coord (DOS)
+
     u32 mapscreen;
     
     u32 zoombid;

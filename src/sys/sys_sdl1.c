@@ -165,7 +165,9 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     audio.host_freq = audio_spec->freq;
     audio.host_format = audio_spec->format;
 
-//    sys_init_psg();
+#if !defined(__TOS__) && !defined(__atarist__)
+    sys_init_psg();
+#endif
     
     isr_step = (double)50.0 / (double)(audio_spec->freq);
     isr_counter = 1;
@@ -188,7 +190,7 @@ void sys_sleep_until(u32 *start, s32 len)
 {
     u32 now = SDL_GetTicks();
     s32 wait = len - (now - *start);
-    if (wait > 0 && wait < 100)
+    if (wait > 0)
         SDL_Delay(wait);
     *start = now;
 }
@@ -258,7 +260,7 @@ void sys_poll_event(void) {
 
     sys_sleep_until(&poll_ticks, k_frame_ticks);
     
-    itroutine(20, NULL);
+    itroutine(alis.platform.is_little_endian ? 17 : 20, NULL);
     
     SDL_PollEvent(&event);
     switch (event.type) {

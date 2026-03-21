@@ -2678,7 +2678,7 @@ u32 itroutine(u32 interval, void *param)
 #if ALIS_SDL_VER < 2
     prevtick = tick;
 #endif
-    return 20;
+    return alis.platform.is_little_endian ? 17 : 20;
 }
 
 void draw(void)
@@ -3689,6 +3689,51 @@ u8 chartpdeco(u32 src)
     return xread8(src);
 }
 
+// DOS chart pixel function - writes directly to tgt (matching original asm behavior:
+// pixel is written inside function, skipped entirely for missing textures)
+static void chartpixel(u8 *tgt, u32 src, u32 type_table_base, u16 xdc, u16 ydc)
+{
+    // Read terrain type from high byte of 16-bit cell
+    u16 cell = (u16)xread16(src);
+    u8 type = (cell >> 8) & 0x3F;
+
+    // Index into type table (32 bytes per entry)
+    u32 type_entry = type_table_base + type * 32;
+
+    // Follow redirect if flag set
+    if ((s8)xread8(type_entry + 0x14) < 0)
+    {
+        src += xread32(type_entry + 0x10);
+        cell = (u16)xread16(src);
+        type = (cell >> 8) & 0x3F;
+        type_entry = type_table_base + type * 32;
+    }
+
+    // Check texture exists - skip pixel entirely if not (asm: JZ to exit without MOV [EDI])
+    if (xread8(type_entry + 0x08) == 0 || xread32(type_entry + 0x04) == 0)
+        return;
+
+    // Resolve texture pointer
+    u32 tex_ptr = xread32(type_entry + 0x04);
+    u32 texture = tex_ptr + xread32(tex_ptr);
+
+    // Compute texture coordinates
+    u16 y_wrapped = (ydc & ((u16)xread16(texture + 4) - (u16)xread16(type_entry + 2))) + (u16)xread16(type_entry + 2);
+    u16 y_scaled = y_wrapped * ((u16)xread16(texture + 2) + 1);
+    u16 x_wrapped = xdc & (u16)xread16(texture + 2);
+    u8 tex_pixel = xread8(texture + 8 + y_scaled + x_wrapped);
+
+    // Compute shade from terrain cell data
+    u8 height_nibble = (cell & 0xFF) >> 4;
+    u8 normal_x2 = ((cell >> 14) & 3) << 1;
+    s16 shade = ((-(s8)normal_x2 + (s8)alis.basedark) >> 1) + height_nibble;
+    if (shade < 0) shade = 0;
+    else if (shade > 15) shade = 15;
+
+    // 2D palette lookup via darkness table, write directly to framebuffer
+    *tgt = xread8(alis.ptrdark + ((u16)shade << 8) + tex_pixel);
+}
+
 u8 chartptra(u32 src)
 {
     // Compute VRAM offset from terrain type (lower 6 bits, scaled)
@@ -3802,103 +3847,198 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
         u32 entity_data = xread32(mapdata - 0x3ba);
         if (entity_data == 0)
         {
-//            SYS_PrintError();
             return;
         }
 
-        u32 src = entity_data;
-        if ((s8)xread8(entity_data - 1) < 0)
+        if (alis.platform.is_little_endian)
         {
-            src = xread32(xread32(entity_data));
-        }
+            // DOS path: bitmap mask-based rendering with textured terrain
 
-        // Compute shift differences between map and entity data
-        s16 x_log_diff = xread16(mapdata - 0x3c0) - xread16(entity_data - 0x3c0);
-        s16 y_log_diff = xread16(mapdata - 0x3be) - xread16(entity_data - 0x3be);
+            // Bitmap pointer (mask data from mapdata)
+            s32 col_groups_bm = base_col + (pixel_x >> 4);
+            s32 adj_row_bm = base_row + pixel_y;
 
-        // Compute source data stride and per-pixel rendering strides
-        s16 src_stride = xread16(entity_data - 0x3c4);
-        s16 x_stride_diff = x_log_diff - 4;
-        s32 pixel_stride = x_stride_diff > 0 ? (s32)src_stride << x_stride_diff : (s32)src_stride;
-        s32 row_advance = y_log_diff > 0 ? 2 << y_log_diff : 2;
-
-        // Column: asm aligns pixel_x to 16-pixel groups before shifting.
-        // Split into aligned part (shifted with base_col) + sub-pixel remainder.
-        s32 col_groups = base_col + (pixel_x >> 4);
-        if (x_log_diff > 0) col_groups <<= x_log_diff;
-        s32 sub_x = pixel_x & 0xf;
-
-        // Row: asm shifts the SUM (base_row + pixel_y), not just base_row
-        s32 adj_row = base_row + pixel_y;
-        if (y_log_diff > 0) adj_row <<= y_log_diff;
-
-        // Compute source data pointer
-        src += adj_row * 2 + col_groups * src_stride + sub_x * pixel_stride;
-
-        s16 height = image.blocy2 - image.blocy1;
-        s16 width = image.blocx2 - image.blocx1;
-
-        // Select chart rendering function based on type
-        s16 type = xread16(mapdata - 0x3b6);
-        switch (type)
-        {
-            case 1:
+            u32 bitmap_stride = (u32)(u16)xread16(mapdata - 0x3c4);
+            u32 bitmap_base = mapdata;
+            if ((s8)xread8(mapdata - 1) < 0)
             {
-                chartvcol0 = (u8)xread16(mapdata - 0x3b4);
-                chartvncol = xread16(mapdata - 0x3b2);
-                switch (chartvncol)
+                bitmap_base = xread32(xread32(mapdata));
+            }
+            u32 bitmap_src = bitmap_base + col_groups_bm * bitmap_stride + adj_row_bm * 2;
+
+            // Entity source pointer (terrain cell data from entity_data)
+            s16 x_log_diff = xread16(mapdata - 0x3c0) - xread16(entity_data - 0x3c0);
+            s16 y_log_diff = xread16(mapdata - 0x3be) - xread16(entity_data - 0x3be);
+
+            s32 col_groups_ent = col_groups_bm;
+            if (x_log_diff > 0) col_groups_ent <<= x_log_diff;
+            s32 adj_row_ent = adj_row_bm;
+            if (y_log_diff > 0) adj_row_ent <<= y_log_diff;
+
+            u32 entity_stride = (u32)(u16)xread16(entity_data - 0x3c4);
+            u32 entity_base = entity_data;
+            if ((s8)xread8(entity_data - 1) < 0)
+            {
+                entity_base = xread32(xread32(entity_data));
+            }
+            u32 entity_src = entity_base + col_groups_ent * entity_stride + adj_row_ent * 2;
+
+            // Per-pixel and per-group strides
+            s16 x_stride_diff = xread16(mapdata - 0x3c0) - 4 - xread16(entity_data - 0x3c0);
+            u32 pixel_stride = x_stride_diff > 0 ? entity_stride << x_stride_diff : entity_stride;
+            u32 group_stride = pixel_stride << 4;
+            u32 row_advance = y_log_diff > 0 ? 2 << y_log_diff : 2;
+
+            // Type table base for terrain lookups
+            u32 type_table_base = entity_data - 0xC00;
+
+            // Dimensions and screen setup
+            // Align X to column group boundary (bitmap mask handles edge clipping)
+            s16 sub_pixel_x = pixel_x & 0xf;
+            s16 last_cg = base_col + ((image.blocx2 - sprite->newx) >> 4);
+            s16 col_groups_count = last_cg - col_groups_bm + 1;
+            s16 height = image.blocy2 - image.blocy1 + 1;
+
+            xdeschart = image.blocx1 - image.wlogx1 - sub_pixel_x;
+            ydeschart = image.blocy2 - image.wlogy1;
+
+            u8 *tgt = image.logic + ydeschart * host.pixelbuf.w + xdeschart;
+
+            // Render row-major, bottom-to-top
+            while (height > 0)
+            {
+                u8 *tgt_save = tgt;
+                u32 entity_src_save = entity_src;
+                u32 bitmap_src_save = bitmap_src;
+                u16 xdeschart_save = xdeschart;
+
+                for (s16 cg = 0; cg < col_groups_count; cg++)
                 {
-                    case 0x10:
-                        chartproc = &chartpalti16;
-                        break;
-                    case 0x8:
-                        chartproc = &chartpalti8;
-                        break;
-                    case 0x6:
-                        chartproc = &chartpalti6;
-                        break;
-                    case 0x4:
-                        chartproc = &chartpalti4;
-                        break;
-                    default:
-                        chartproc = &chartpalti;
-                        break;
+                    // NOTE: set 0xffff to draw whole map
+                    u16 mask = ~(u16)xread16(bitmap_src);
+                    bitmap_src += bitmap_stride;
+
+                    if (mask == 0)
+                    {
+                        tgt += 16;
+                        entity_src += group_stride;
+                    }
+                    else
+                    {
+                        for (int bit = 15; bit >= 0; bit--)
+                        {
+                            if (mask & (1 << bit))
+                            {
+                                chartpixel(tgt, entity_src, type_table_base, xdeschart, ydeschart);
+                            }
+                            tgt++;
+                            xdeschart++;
+                            entity_src += pixel_stride;
+                        }
+                    }
                 }
-                break;
-            }
 
-            case 2:
-            {
-                chartproc = &chartpdeco;
-                break;
-            }
+                tgt = tgt_save;
+                entity_src = entity_src_save;
+                bitmap_src = bitmap_src_save;
+                xdeschart = xdeschart_save;
 
-            case 3:
-            {
-                chartproc = &chartpbyte;
-                break;
+                ydeschart--;
+                bitmap_src += 2;
+                entity_src += row_advance;
+                tgt -= host.pixelbuf.w;
+                height--;
             }
-
-            default:
-                chartproc = &chartptra;
-                break;
         }
-
-        xdeschart = image.blocx1 - image.wlogx1;
-        ydeschart = image.blocy2 - image.wlogy1;
-
-        u8 *tgt = image.logic;
-
-        height++;
-        width++;
-
-        // Render pixels column by column
-        for (int w = 0; w < width; w++, src += pixel_stride - (height * row_advance))
+        else
         {
-            for (int h = 0; h < height; h++, src += row_advance)
+            // m68k path: column-major rendering with chartproc function pointers
+            u32 src = entity_data;
+            if ((s8)xread8(entity_data - 1) < 0)
             {
-                tgt = image.logic + (xdeschart + w) + (ydeschart - h) * host.pixelbuf.w;
-                *tgt = (*chartproc)(src);
+                src = xread32(xread32(entity_data));
+            }
+
+            s16 x_log_diff = xread16(mapdata - 0x3c0) - xread16(entity_data - 0x3c0);
+            s16 y_log_diff = xread16(mapdata - 0x3be) - xread16(entity_data - 0x3be);
+
+            s16 src_stride = xread16(entity_data - 0x3c4);
+            s16 x_stride_diff = x_log_diff - 4;
+            s32 pixel_stride = x_stride_diff > 0 ? (s32)src_stride << x_stride_diff : (s32)src_stride;
+            s32 row_advance = y_log_diff > 0 ? 2 << y_log_diff : 2;
+
+            s32 col_groups = base_col + (pixel_x >> 4);
+            if (x_log_diff > 0) col_groups <<= x_log_diff;
+            s32 sub_x = pixel_x & 0xf;
+
+            s32 adj_row = base_row + pixel_y;
+            if (y_log_diff > 0) adj_row <<= y_log_diff;
+
+            src += adj_row * 2 + col_groups * src_stride + sub_x * pixel_stride;
+
+            s16 height = image.blocy2 - image.blocy1;
+            s16 width = image.blocx2 - image.blocx1;
+
+            s16 type = xread16(mapdata - 0x3b6);
+            switch (type)
+            {
+                case 1:
+                {
+                    chartvcol0 = (u8)xread16(mapdata - 0x3b4);
+                    chartvncol = 0x10;
+                    switch (chartvncol)
+                    {
+                        case 0x10:
+                            chartproc = &chartpalti16;
+                            break;
+                        case 0x8:
+                            chartproc = &chartpalti8;
+                            break;
+                        case 0x6:
+                            chartproc = &chartpalti6;
+                            break;
+                        case 0x4:
+                            chartproc = &chartpalti4;
+                            break;
+                        default:
+                            chartproc = &chartpalti;
+                            break;
+                    }
+                    break;
+                }
+
+                case 2:
+                {
+                    chartproc = &chartpdeco;
+                    break;
+                }
+
+                case 3:
+                {
+                    chartproc = &chartpbyte;
+                    break;
+                }
+
+                default:
+                    chartproc = &chartptra;
+                    break;
+            }
+
+            xdeschart = image.blocx1 - image.wlogx1;
+            ydeschart = image.blocy2 - image.wlogy1;
+
+            u8 *tgt = image.logic;
+
+            height++;
+            width++;
+
+            for (int w = 0; w < width; w++, src += pixel_stride - (height * row_advance))
+            {
+                for (int h = 0; h < height; h++, src += row_advance)
+                {
+                    tgt = image.logic + (xdeschart + w) + (ydeschart - h) * host.pixelbuf.w;
+                    *tgt = (*chartproc)(src);
+                }
             }
         }
     }

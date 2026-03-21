@@ -865,9 +865,7 @@ void ojoykey(void) {
 
 // Opername no. 85 opcode 0xa8 oconfig
 void oconfig(void) {
-    alis.varD7 = 0;
-//
-//    alis.varD7 = alis.theconfig;
+    alis.varD7 = alis.theconfig;
 }
 
 // Opername no. 31 opcode 0x3c pnul

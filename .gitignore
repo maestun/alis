@@ -7,3 +7,7 @@ data/
 /windows/alis
 /windows/.vs
 /windows/x64
+/.claude
+/Docs
+/build-asan
+/CMakeFiles

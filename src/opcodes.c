@@ -5056,23 +5056,104 @@ static void ctexmap(void) {
 
     u32 entry = scene_addr + (alis.varD6 * 0x20) + (s16)0xf400;
 
-    // Read texture type flag
+    // Read exists flag (param 1) - stored at entry[8] on DOS, entry[1] on ST
     readexec_opername();
-    xwrite8(entry + 1, (char)alis.varD7);
+    if (alis.platform.is_little_endian)
+        xwrite8(entry + 8, (char)alis.varD7);
+    else
+        xwrite8(entry + 1, (char)alis.varD7);
 
-    // Resolve texture resource address if type > 0
+    // Resolve texture resource address if exists flag > 0
     readexec_opername();
-    if (0 < xread8(entry + 1))
+    s8 exists_flag = alis.platform.is_little_endian ? (s8)xread8(entry + 8) : (s8)xread8(entry + 1);
+    if (exists_flag > 0)
     {
         xwrite32(entry + 4, adresdes(alis.varD7));
+
+        if (alis.platform.is_little_endian)
+        {
+            u32 res_addr = xread32(entry + 4);
+            if (res_addr != 0)
+            {
+                u32 bitmap_addr = res_addr + xread32(res_addr);
+
+                // Compute yshift = bit count of x_mask (matches DOS: INC CL; SHR AX,1; JNZ)
+                u16 x_mask = (u16)xread16(bitmap_addr + 2);
+                u8 yshift = 0;
+                { u16 tmp = x_mask; do { yshift++; tmp >>= 1; } while (tmp); }
+                xwrite8(entry, yshift);
+
+                // Initialize yorigin to 0
+                xwrite16(entry + 2, 0);
+
+                // Scan texture rows for first fully opaque row (no zero pixels).
+                // DOS stores yorigin at entry[2] to skip transparent top rows.
+                s16 y_mask = (s16)xread16(bitmap_addr + 4);
+                u32 pixel_ptr = bitmap_addr + 8;
+                s16 rows_rem = y_mask;
+                u8 found_opaque = 0;
+
+                while (rows_rem >= 0) {
+                    s16 cols = (s16)x_mask;
+                    u8 has_zero = 0;
+                    while (cols >= 0) {
+                        if (xread8(pixel_ptr) == 0)
+                            has_zero = 1;
+                        pixel_ptr++;
+                        cols--;
+                    }
+                    if (!has_zero) {
+                        found_opaque = 1;
+                        break;
+                    }
+                    rows_rem--;
+                }
+
+                if (found_opaque) {
+                    s16 yorigin = y_mask - rows_rem;
+                    xwrite16(entry + 2, yorigin);
+
+                    if (yorigin != 0) {
+                        // Adjust bitmap y_mask to snap to power-of-2 within opaque region
+                        u16 available = y_mask - yorigin;
+                        static const u16 pow2m1[] = {1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767};
+                        for (int i = 0; i < 15; i++) {
+                            if (pow2m1[i] == available)
+                                break;  // exact match, keep original y_mask
+                            if (pow2m1[i] > available) {
+                                if (i > 0)
+                                    xwrite16(bitmap_addr + 4, pow2m1[i - 1] + yorigin);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else if (alis.platform.is_little_endian && exists_flag == 0)
+    {
+        // DOS: explicitly clear texture fields for no-texture types
+        xwrite32(entry + 4, 0);
+        xwrite8(entry, 0);
+        xwrite16(entry + 2, 0);
     }
 
     // Read texture parameters
     readexec_opername();
     xwrite16(entry + 10, alis.varD7);
     readexec_opername();
-    xwrite8(entry + 8, (char)alis.varD7);
-    xwrite8(entry + 9, (char)alis.varD7 + 1);
+    if (alis.platform.is_little_endian)
+    {
+        // DOS: param 4 stores only at entry[9]
+        xwrite8(entry + 9, (char)alis.varD7);
+    }
+    else
+    {
+        // ST/Amiga: param 4 stores at entry[8] and entry[9]=param+1
+        xwrite8(entry + 8, (char)alis.varD7);
+        xwrite8(entry + 9, (char)alis.varD7 + 1);
+    }
     readexec_opername();
     xwrite16(entry + 0xe, alis.varD7);
 
@@ -5134,7 +5215,7 @@ static void ctexmap(void) {
     {
         // Histogram analysis for 8-bit textures (types 0x1c/0x1e)
         // Computes the two most frequent pixel colors for terrain dithering (entry[8], entry[9])
-        if ((s8)xread8(entry + 8) <= 0 && (s8)xread8(entry + 1) > 0)
+        if (!alis.platform.is_little_endian && (s8)xread8(entry + 8) <= 0 && (s8)xread8(entry + 1) > 0)
         {
             u32 res_addr = xread32(entry + 4);
             u32 bitmap_addr = res_addr + xread32(res_addr);
@@ -5144,9 +5225,9 @@ static void ctexmap(void) {
             {
                 u16 histogram[256] = {0};
                 
-                u16 width = xread16(bitmap_addr + 2) + 1;
-                u16 height = xread16(bitmap_addr + 4) + 1;
-                u16 total_pixels = width * height;
+                u32 width = xread16(bitmap_addr + 2) + 1;
+                u32 height = xread16(bitmap_addr + 4) + 1;
+                u32 total_pixels = width * height;
                 
                 // Count pixel occurrences
                 u32 pixel_addr = bitmap_addr + 8;
@@ -5453,8 +5534,8 @@ s16 walkland(s32 scene_addr)
     }
 
     // Compute new world position by rotating walk offset by azimuth
-    s32 world_x = xread32(alis.script->vram_org + ALIS_SCR_WCX);
-    s32 world_y = xread32(alis.script->vram_org + ALIS_SCR_WCY);
+    s32 world_x = xread32_wc(alis.script->vram_org, ALIS_SCR_WCX);
+    s32 world_y = xread32_wc(alis.script->vram_org, ALIS_SCR_WCY);
 
     walkcx = world_x + ((s32)cos_az * offset_x - (s32)sin_az * (s32)offset_y) * 0x80;
     walkcy = world_y + ((s32)cos_az * (s32)offset_y + (s32)sin_az * offset_x) * 0x80;
@@ -5536,7 +5617,16 @@ s16 walkland(s32 scene_addr)
             }
 
             // Scale slope by walktete factor
-            sample_z = (s16)(((s32)(s16)slope_sum * (s32)(s16)walktete >> 2) / 0xc);
+            if (alis.platform.is_little_endian)
+            {
+                // DOS: uses high byte of walktete (typically 0 for values < 256, disabling head-bob)
+                s16 wt = (s16)((u16)walktete >> 8);
+                sample_z = (s16)(((s32)(s16)slope_sum * (s32)wt >> 2) / 0xc);
+            }
+            else
+            {
+                sample_z = (s16)(((s32)(s16)slope_sum * (s32)(s16)walktete >> 2) / 0xc);
+            }
             s16 abs_head = sample_z;
             if (sample_z < 0)
             {
@@ -5569,8 +5659,8 @@ s16 walkland(s32 scene_addr)
     else
     {
         // Move accepted: update full world position
-        xwrite32(alis.script->vram_org + ALIS_SCR_WCX, walkcx);
-        xwrite32(alis.script->vram_org + ALIS_SCR_WCY, walkcy);
+        xwrite32_wc(alis.script->vram_org, ALIS_SCR_WCX, walkcx);
+        xwrite32_wc(alis.script->vram_org, ALIS_SCR_WCY, walkcy);
         xwrite16(alis.script->vram_org + ALIS_SCR_WCZ, walkcz);
     }
 
@@ -5608,8 +5698,18 @@ sVector polarmov(s16 wcx2, s16 wcy2, s16 wcz2, s16 wcax, s16 wcaz)
     s32 cosaz = tabcos[wcaz];
     
     sVector result;
-    result.x = (cosaz * (int)wcx2 - (int)(s16)(sinaz * cosax >> 9) * (int)wcy2) * 0x80;
-    result.y = ((int)(s16)((int)cosaz * cosax >> 9) * (int)wcy2 + sinaz * (int)wcx2) * 0x80;
+    if (alis.platform.is_little_endian)
+    {
+        // DOS: only wcy2 terms get *0x80
+        result.x = cosaz * (int)wcx2 - (int)(s16)(sinaz * cosax >> 9) * (int)wcy2 * 0x80;
+        result.y = (int)(s16)((int)cosaz * cosax >> 9) * (int)wcy2 * 0x80 + sinaz * (int)wcx2;
+    }
+    else
+    {
+        // m68k: everything * 0x80
+        result.x = (cosaz * (int)wcx2 - (int)(s16)(sinaz * cosax >> 9) * (int)wcy2) * 0x80;
+        result.y = ((int)(s16)((int)cosaz * cosax >> 9) * (int)wcy2 + sinaz * (int)wcx2) * 0x80;
+    }
     result.z = ((int)wcy2 * sinax + (int)wcz2 * cosax) * 0x80;
     
 //    wcz2 = (wcy2 * sinax + wcz2 * cosax) * 0x80;
@@ -5643,9 +5743,9 @@ void landalti(s32 addr, s32 vram, s16 world_x, s16 world_y, s16 *out_alt, s16 *o
             {
                 // Overhang/bridge: follow redirect and test altitude
                 cell_addr += xread32(addr + 0x10 + terrain_offset);
-                s16 alt_diff = xread8(cell_addr + 1) - *out_alt;
+                s16 alt_diff = (xread16(cell_addr) & 0xff) - *out_alt;
                 terrain_offset = xread16(addr + 0x16 + terrain_offset) - alt_diff;
-                if ((alt_diff <= terrain_offset) || ((s16)(xread8(cell_addr + 1) - terrain_offset) <= xread16(vram + ALIS_SCR_WCZ)))
+                if ((alt_diff <= terrain_offset) || ((s16)((xread16(cell_addr) & 0xff) - terrain_offset) <= xread16(vram + ALIS_SCR_WCZ)))
                 {
                     *out_cell = xread16(cell_addr);
                     *out_alt = *out_cell & 0xff;
@@ -5699,7 +5799,7 @@ static void catstmap(void) {
     alis.matmask = 0;
     
     s16 d2w;
-    landalti(addr, vram, (s16)((u32)(xread32(vram + ALIS_SCR_WCX) + vec.x) >> 0x10), (s16)((u32)(xread32(vram + ALIS_SCR_WCY) + vec.y) >> 0x10), &d2w, &alis.varD7);
+    landalti(addr, vram, (s16)((u32)(xread32_wc(vram, ALIS_SCR_WCX) + vec.x) >> 0x10), (s16)((u32)(xread32_wc(vram, ALIS_SCR_WCY) + vec.y) >> 0x10), &d2w, &alis.varD7);
     cstore_continue();
 }
 
@@ -5717,15 +5817,15 @@ static void cavtstmov(void) {
         s16 wcaz = xread16(vram + ALIS_SCR_WCAZ);
         
         sVector vec = polarmov(wcx2, wcy2, wcz2, wcax, wcaz);
-        alis.wcx = (xread32(vram + ALIS_SCR_WCX) + vec.x) >> 0x10;
-        alis.wcy = (xread32(vram + ALIS_SCR_WCY) + vec.y) >> 0x10;
-        alis.wcz = (xread32(vram + ALIS_SCR_WCZ) + vec.z) >> 0x10;
+        alis.wcx = (xread32_wc(vram, ALIS_SCR_WCX) + vec.x) >> 0x10;
+        alis.wcy = (xread32_wc(vram, ALIS_SCR_WCY) + vec.y) >> 0x10;
+        alis.wcz = (xread32_wc(vram, ALIS_SCR_WCZ) + vec.z) >> 0x10;
     }
     else
     {
-        alis.wcx = xread32(vram + ALIS_SCR_WCX) + wcx2;
-        alis.wcy = xread32(vram + ALIS_SCR_WCY) + wcy2;
-        alis.wcz = xread32(vram + ALIS_SCR_WCZ) + wcz2;
+        alis.wcx = xread32_wc(vram, ALIS_SCR_WCX) + wcx2;
+        alis.wcy = xread32_wc(vram, ALIS_SCR_WCY) + wcy2;
+        alis.wcz = xread32_wc(vram, ALIS_SCR_WCZ) + wcz2;
     }
 
     readexec_opername();
@@ -5748,9 +5848,20 @@ static void cavmov(void) {
         
         sVector vec = polarmov(wcx2, wcy2, wcz2, wcax, wcaz);
 
-        xadd16(alis.script->vram_org + ALIS_SCR_WCX, vec.x);
-        xadd16(alis.script->vram_org + ALIS_SCR_WCY, vec.y);
-        xadd16(alis.script->vram_org + ALIS_SCR_WCZ, vec.z);
+        if (alis.platform.is_little_endian)
+        {
+            // DOS: add only integer part (high 16 bits of polarmov result)
+            xadd16(vram + ALIS_SCR_WCX, (s16)(vec.x >> 16));
+            xadd16(vram + ALIS_SCR_WCY, (s16)(vec.y >> 16));
+            xadd16(vram + ALIS_SCR_WCZ, (s16)(vec.z >> 16));
+        }
+        else
+        {
+            // m68k: full 32-bit add to position
+            xadd32(vram + ALIS_SCR_WCX, vec.x);
+            xadd32(vram + ALIS_SCR_WCY, vec.y);
+            xadd32(vram + ALIS_SCR_WCZ, vec.z);
+        }
     }
 }
 
@@ -6022,6 +6133,7 @@ static void cchartmap(void) {
 
     readexec_opername();
     s16 value = alis.varD7;
+
     if (value == 0)
     {
         fill_value = 0;
@@ -6042,7 +6154,7 @@ static void cchartmap(void) {
             if (value == 4)
             {
                 readexec_opername();
-                xwrite16(addr - 0x3b4, alis.varD7);
+                xwrite16(addr - (alis.platform.is_little_endian ? 0x3ae : 0x3b4), alis.varD7);
                 return;
             }
 
@@ -6057,33 +6169,40 @@ static void cchartmap(void) {
                 // Compute clipped tile bounds from extent
                 s32 entity_data = xread32(addr - 0x3ba);
 
-                s32 div_result = (int)(s16)(xread16(vram) - radius) / (int)(s16)xread16(entity_data - 0x3f4);
+                s16 pos_x = alis.wcx;
+                s16 pos_y = alis.wcy;
+                s16 cell_w = xread16(entity_data - 0x3f4);
+                s16 cell_h = xread16(entity_data - 0x3f2);
+                s16 max_cols = xread16(entity_data - 0x3e8);
+                s16 max_rows = xread16(entity_data - 0x3e6);
+
+                s32 div_result = (int)(s16)(pos_x - radius) / (int)(s16)cell_w;
                 s16 min_col = (s16)div_result;
                 if (div_result < 0)
                     min_col = 0;
-                if (xread16(entity_data - 0x3e8) <= min_col)
-                    min_col = xread16(entity_data - 0x3e8);
+                if (max_cols <= min_col)
+                    min_col = max_cols;
 
-                div_result = (int)(s16)(xread16(vram) + radius) / (int)(s16)xread16(entity_data - 0x3f4);
+                div_result = (int)(s16)(pos_x + radius) / (int)(s16)cell_w;
                 s16 max_col = (s16)div_result;
                 if (div_result < 0)
                     max_col = 0;
-                if (xread16(entity_data - 0x3e8) <= max_col)
-                    max_col = xread16(entity_data - 0x3e8);
+                if (max_cols <= max_col)
+                    max_col = max_cols;
 
-                div_result = (int)(s16)(xread16(vram + 8) - radius) / (int)(s16)xread16(entity_data - 0x3f2);
+                div_result = (int)(s16)(pos_y - radius) / (int)(s16)cell_h;
                 s16 min_row = (s16)div_result;
                 if (div_result < 0)
                     min_row = 0;
-                if (xread16(entity_data - 0x3e6) <= min_row)
-                    min_row = xread16(entity_data - 0x3e6);
+                if (max_rows <= min_row)
+                    min_row = max_rows;
 
-                div_result = (int)(s16)(xread16(vram + 8) + radius) / (int)(s16)xread16(entity_data - 0x3f2);
+                div_result = (int)(s16)(pos_y + radius) / (int)(s16)cell_h;
                 s16 max_row = (s16)div_result;
                 if (div_result < 0)
                     max_row = 0;
-                if (xread16(entity_data - 0x3e6) <= max_row)
-                    max_row = xread16(entity_data - 0x3e6);
+                if (max_rows <= max_row)
+                    max_row = max_rows;
 
                 // Shift tile bounds to bitmap coordinates
                 u16 shift_x = (xread16(addr - 0x3c0) - 4) - xread16(entity_data - 0x3c0);
@@ -6148,7 +6267,7 @@ static void cchartmap(void) {
 
             // Sub-command 5: set chart color count
             readexec_opername();
-            xwrite16(addr - 0x3b2, alis.varD7);
+            xwrite16(addr - (alis.platform.is_little_endian ? 0x3b0 : 0x3b2), alis.varD7);
             return;
         }
 
@@ -6209,15 +6328,11 @@ static void cscsky(void) {
 
 // Codopname no. 256 opcode 0xff czoom
 static void czoom(void) {
-    ALIS_DEBUG(EDebugWarning, "I3 SPECIFIC ?: %s", __FUNCTION__);
+    readexec_opername();
+    xwrite16(alis.script->vram_org - 0x36, alis.varD7);
     
-//    readexec_opername();
-//    s16 tmp0 = alis.varD7;
-//    alis.script->context->_0x36 = tmp0;
-    
-//    readexec_opername();
-//    s16 tmp1 = alis.varD7;
-//    alis.script->context->_0x38 = tmp1;
+    readexec_opername();
+    xwrite16(alis.script->vram_org - 0x38, alis.varD7);
 }
 
 // Codopname no. 055 opcode 0x36 cclock

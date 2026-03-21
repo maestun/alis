@@ -53,7 +53,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/ishar/atari/"
+            argument = "-m /Users/gildor/Work/alis/data/ishar/atari/"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

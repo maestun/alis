@@ -158,6 +158,8 @@
     <ClInclude Include="..\src\mem.h" />
     <ClInclude Include="..\src\platform.h" />
     <ClInclude Include="..\src\render3d.h" />
+    <ClInclude Include="..\src\render3d_68k.h" />
+    <ClInclude Include="..\src\render3d_dos.h" />
     <ClInclude Include="..\src\screen.h" />
     <ClInclude Include="..\src\script.h" />
     <ClInclude Include="..\src\sys\sys.h" />
@@ -196,6 +198,8 @@
     <ClCompile Include="..\src\opernames.c" />
     <ClCompile Include="..\src\platform.c" />
     <ClCompile Include="..\src\render3d.c" />
+    <ClCompile Include="..\src\render3d_68k.c" />
+    <ClCompile Include="..\src\render3d_dos.c" />
     <ClCompile Include="..\src\screen.c" />
     <ClCompile Include="..\src\script.c" />
     <ClCompile Include="..\src\storenames.c" />

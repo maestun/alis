@@ -25,6 +25,7 @@
 #include "image.h"
 #include "mem.h"
 #include "sys/sys.h"
+#include "render3d.h"
 #include "utils.h"
 #include "video.h"
 
@@ -308,6 +309,7 @@ u8 alis_init(sPlatform platform) {
     alis.pays = 0;         // pays: keymode=Q=>0; keymode=A=>1 (France); keymode=Z=>2 (Germany)
                            // cf. Z=QWERTZU=2, Q=QWERTY=1, A=AZERTY=0 -> keyboard_current
     vram_init();
+    render3d_init();
 
     script_guess_game(platform.main);
     if (alis.platform.uid <= 0) return 1;
@@ -326,6 +328,15 @@ u8 alis_init(sPlatform platform) {
 
     alis.restart_loop = 0;
     alis.automode = 0;
+
+    // DOS platform config: bits encode detected hardware capabilities.
+    // Bit 0: sound module 1, Bit 1: sound module 2, Bit 2: video,
+    // Bit 6: 200KB+ RAM, Bit 7: 400KB+ RAM (replaces bit 6).
+    // Scripts use oconfig / 0x40 to detect film replay capability.
+    if (alis.platform.kind == EPlatformPC)
+    {
+        alis.theconfig = 0x87; // sound + video + high memory
+    }
     
     memset(&image, 0, sizeof(image));
     

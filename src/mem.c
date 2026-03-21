@@ -265,6 +265,34 @@ s32 xread32be(u32 offset) {
     return val;
 }
 
+// 32-bit world coordinate accessors for cwalkmap.
+// On v3.0+ LE, cwalkmap stores 16.16 fixed-point WCX/WCY/WCZ with xwrite32,
+// but other code (generic slocw, cset) writes 16-bit integers with xwrite16.
+// On BE, xread16(addr) naturally gets the high word (integer part) of either format.
+// On LE, xread16(addr) gets the low word — wrong after xwrite32.
+//
+// Fix: on v3.0+ LE, store the 32-bit value in word-swapped format so that
+// bytes 0-1 always hold the integer part (compatible with xread16), and
+// bytes 2-3 hold the fractional part. cwalkmap uses these helpers to
+// read/write the full 16.16 value in this layout.
+s32 xread32_wc(s32 base, s32 wc_offset) {
+    if (alis.platform.version >= 30 && alis.platform.is_little_endian) {
+        u16 hi = (u16)xread16(base + wc_offset);       // integer (bytes 0-1 on LE)
+        u16 lo = (u16)xread16(base + wc_offset + 2);   // fraction (bytes 2-3 on LE)
+        return ((s32)hi << 16) | lo;
+    }
+    return xread32(base + wc_offset);
+}
+
+void xwrite32_wc(s32 base, s32 wc_offset, s32 val) {
+    if (alis.platform.version >= 30 && alis.platform.is_little_endian) {
+        xwrite16(base + wc_offset, (s16)(val >> 16));         // integer to bytes 0-1
+        xwrite16(base + wc_offset + 2, (s16)(val & 0xffff));  // fraction to bytes 2-3
+    } else {
+        xwrite32(base + wc_offset, val);
+    }
+}
+
 s32 io_malloc(s32 rawsize)
 {
     s32 size = (rawsize - 1U | 3) + 9;
@@ -279,7 +307,7 @@ s32 io_malloc(s32 rawsize)
             return blockloc;
         }
         
-        for (int i = 0; i < 0xf; i++)
+        for (int i = 0; i < 0x10; i++)
         {
             if (xread32(alis.tabptr + i * 8) == 0)
             {

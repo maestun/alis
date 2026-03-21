@@ -85,6 +85,8 @@ list(APPEND alis_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/mem.c
     ${CMAKE_CURRENT_LIST_DIR}/src/image.c
     ${CMAKE_CURRENT_LIST_DIR}/src/render3d.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render3d_68k.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render3d_dos.c
     ${CMAKE_CURRENT_LIST_DIR}/src/opcodes.c
     ${CMAKE_CURRENT_LIST_DIR}/src/opernames.c
     ${CMAKE_CURRENT_LIST_DIR}/src/platform.c

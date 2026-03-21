@@ -116,7 +116,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         exit(-1);
     }
     
-    timer_id = SDL_AddTimer(20, itroutine, NULL);
+    timer_id = SDL_AddTimer(alis.platform.is_little_endian ? 17 : 20, itroutine, NULL);
     if (!timer_id) {
         fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
         exit(-1);
