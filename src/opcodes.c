@@ -2712,11 +2712,11 @@ static void cfreadb(void) {
     }
 }
 
-void writeswap(u32 addr, u32 length)
+void writeswap(u32 addr, u32 length, u32 bytes_addr)
 {
     if (alis.platform.kind == EPlatformPC)
     {
-        u8 bytes = *(alis.mem + addr - 2);
+        u8 bytes = *(alis.mem + bytes_addr - 2);
         if (bytes == 2)
         {
             u8 *data = malloc(length);
@@ -2756,7 +2756,7 @@ static void cfwriteb(void) {
 
         if (-1 < (s8)xread8(addr - 1))
         {
-            writeswap(addr, length);
+            writeswap(addr, length, addr);
         }
         else
         {
@@ -2764,14 +2764,14 @@ static void cfwriteb(void) {
             u32 addr2 = xread32(addr1);
             if (0 < addr2)
             {
-                writeswap(addr2, length);
+                writeswap(addr2, length, addr);
             }
         }
     }
     else
     {
         u16 length = script_read16();
-        writeswap(addr, length);
+        writeswap(addr, length, addr);
     }
 }
 
