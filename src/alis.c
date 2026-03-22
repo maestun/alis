@@ -1084,7 +1084,12 @@ void updtcoord(u32 addr)
                 sprite->depx += addx;
                 sprite->depy += addy;
                 sprite->depz += addz;
-                sprite->sprite_0x28 = wcaz;
+                // Angle stored at memory offset 0x26 within u32 at 0x24:
+                // on LE that's the HIGH word, on BE it's the LOW word
+                if (alis.platform.is_little_endian)
+                    sprite->sprite_0x28 = (sprite->sprite_0x28 & 0xFFFF) | ((u32)wcaz << 16);
+                else
+                    sprite->sprite_0x28 = (sprite->sprite_0x28 & 0xFFFF0000) | (wcaz & 0xFFFF);
             }
         }
     }
@@ -1233,7 +1238,7 @@ void alis_main_V3(void) {
                 set_0x04_cstart_csleep(alis.script->vram_org, 1);
             }
             
-            if (get_0x3e_wait_time(alis.script->vram_org) < alis.timeclock) {
+            if (get_0x3e_wait_time(alis.script->vram_org) <= alis.timeclock) {
                 set_0x3e_wait_time(alis.script->vram_org, get_0x3a_wait_cycles(alis.script->vram_org) + alis.timeclock);
                 savecoord(alis.script->vram_org);
                 

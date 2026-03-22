@@ -5278,9 +5278,14 @@ static void calloctab(void) {
     s8 index = xread8(alis.basemain + offset - 1);
     if (index < 0)
     {
-        index = (index & 0xf) * -4;
-        s32 size = xread32(alis.basemain + offset - 6 + index);
-        xwrite32(alis.basemain + offset, io_malloc(size));
+        // Skip if already allocated (idempotent for scheduler PC-restore behavior:
+        // the original restores PC after main fseq, so init code re-runs every frame)
+        if (xread32(alis.basemain + offset) == 0)
+        {
+            index = (index & 0xf) * -4;
+            s32 size = xread32(alis.basemain + offset - 6 + index);
+            xwrite32(alis.basemain + offset, io_malloc(size));
+        }
     }
 }
 
@@ -5870,7 +5875,7 @@ void getangle(s16 *atx, s16 *aty)
     s16 angle;
     s16 magnitude = *aty;
 
-    if (atx == 0)
+    if (*atx == 0)
     {
         // X component is zero: angle is 0° or 180° (0xb4)
         angle = 0;
@@ -5885,10 +5890,10 @@ void getangle(s16 *atx, s16 *aty)
         if (*atx < 0)
             abs_x = -(*atx);
 
-        if (aty != 0)
+        if (*aty != 0)
         {
             s16 abs_y = *aty;
-            if (aty < 0)
+            if (*aty < 0)
                 abs_y = -(*aty);
 
             if (abs_y < abs_x)
@@ -5898,7 +5903,7 @@ void getangle(s16 *atx, s16 *aty)
                 abs_x = (((s32)abs_x << 5) / abs_y);  // reused as atan ratio
                 if ((u16)abs_x >= sizeof(tabatan) || (angle = tabatan[abs_x]) != 0)
                 {
-                    if (aty < 0)
+                    if (*aty < 0)
                         angle = 0xb4 - angle;
 
                     if (-1 < *atx)
@@ -5925,7 +5930,7 @@ void getangle(s16 *atx, s16 *aty)
                 abs_x = (((s32)abs_y << 5) / abs_x);  // reused as atan ratio
                 if ((u16)abs_x >= sizeof(tabatan) || (angle = tabatan[abs_x]) != 0)
                 {
-                    if (aty < 0)
+                    if (*aty < 0)
                         angle = -angle;
 
                     angle -= 0x5a;
