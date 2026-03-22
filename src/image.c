@@ -3952,7 +3952,19 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
         }
         else
         {
-            // m68k path: column-major rendering with chartproc function pointers
+            // Bitmap mask pointer setup
+            s32 col_groups_bm = base_col + (pixel_x >> 4);
+            s32 adj_row_bm = base_row + pixel_y;
+
+            u32 bitmap_stride = (u32)(u16)xread16(mapdata - 0x3c4);
+            u32 bitmap_base = mapdata;
+            if ((s8)xread8(mapdata - 1) < 0)
+            {
+                bitmap_base = xread32(xread32(mapdata));
+            }
+            u32 bitmap_src = bitmap_base + col_groups_bm * bitmap_stride + adj_row_bm * 2;
+
+            // Entity source setup
             u32 src = entity_data;
             if ((s8)xread8(entity_data - 1) < 0)
             {
@@ -3965,80 +3977,99 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             s16 src_stride = xread16(entity_data - 0x3c4);
             s16 x_stride_diff = x_log_diff - 4;
             s32 pixel_stride = x_stride_diff > 0 ? (s32)src_stride << x_stride_diff : (s32)src_stride;
+            s32 group_stride = pixel_stride << 4;
             s32 row_advance = y_log_diff > 0 ? 2 << y_log_diff : 2;
 
-            s32 col_groups = base_col + (pixel_x >> 4);
-            if (x_log_diff > 0) col_groups <<= x_log_diff;
-            s32 sub_x = pixel_x & 0xf;
+            s32 col_groups_ent = col_groups_bm;
+            if (x_log_diff > 0) col_groups_ent <<= x_log_diff;
+            s32 adj_row_ent = adj_row_bm;
+            if (y_log_diff > 0) adj_row_ent <<= y_log_diff;
 
-            s32 adj_row = base_row + pixel_y;
-            if (y_log_diff > 0) adj_row <<= y_log_diff;
+            u32 entity_src = src + col_groups_ent * src_stride + adj_row_ent * 2;
 
-            src += adj_row * 2 + col_groups * src_stride + sub_x * pixel_stride;
+            // Dimensions
+            s16 sub_pixel_x = pixel_x & 0xf;
+            s16 last_cg = base_col + ((image.blocx2 - sprite->newx) >> 4);
+            s16 col_groups_count = last_cg - col_groups_bm + 1;
+            s16 height = image.blocy2 - image.blocy1 + 1;
 
-            s16 height = image.blocy2 - image.blocy1;
-            s16 width = image.blocx2 - image.blocx1;
-
+            // chartproc selection (matching Falcon destomap)
             s16 type = xread16(mapdata - 0x3b6);
             switch (type)
             {
                 case 1:
                 {
                     chartvcol0 = (u8)xread16(mapdata - 0x3b4);
-                    chartvncol = 0x10;
+                    chartvncol = xread16(mapdata - 0x3b2);
                     switch (chartvncol)
                     {
-                        case 0x10:
-                            chartproc = &chartpalti16;
-                            break;
-                        case 0x8:
-                            chartproc = &chartpalti8;
-                            break;
-                        case 0x6:
-                            chartproc = &chartpalti6;
-                            break;
-                        case 0x4:
-                            chartproc = &chartpalti4;
-                            break;
-                        default:
-                            chartproc = &chartpalti;
-                            break;
+                        case 0x10: chartproc = &chartpalti16; break;
+                        case 0x8:  chartproc = &chartpalti8; break;
+                        case 0x6:  chartproc = &chartpalti6; break;
+                        case 0x4:  chartproc = &chartpalti4; break;
+                        default:   chartproc = &chartpalti; break;
                     }
                     break;
                 }
-
                 case 2:
-                {
                     chartproc = &chartpdeco;
                     break;
-                }
-
-                case 3:
-                {
-                    chartproc = &chartpbyte;
-                    break;
-                }
-
                 default:
-                    chartproc = &chartptra;
+                    chartproc = &chartpbyte;
                     break;
             }
 
-            xdeschart = image.blocx1 - image.wlogx1;
+            xdeschart = image.blocx1 - image.wlogx1 - sub_pixel_x;
             ydeschart = image.blocy2 - image.wlogy1;
 
-            u8 *tgt = image.logic;
+            u8 *tgt = image.logic + ydeschart * host.pixelbuf.w + xdeschart;
 
-            height++;
-            width++;
-
-            for (int w = 0; w < width; w++, src += pixel_stride - (height * row_advance))
+            // Render row-major, bottom-to-top (matching Falcon destomap)
+            while (height > 0)
             {
-                for (int h = 0; h < height; h++, src += row_advance)
+                u8 *tgt_save = tgt;
+                u32 entity_src_save = entity_src;
+                u32 bitmap_src_save = bitmap_src;
+                u16 xdeschart_save = xdeschart;
+
+                for (s16 cg = 0; cg < col_groups_count; cg++)
                 {
-                    tgt = image.logic + (xdeschart + w) + (ydeschart - h) * host.pixelbuf.w;
-                    *tgt = (*chartproc)(src);
+                    // Mask bit=1 → hidden, bit=0 → revealed; invert so 1=draw
+                    u16 mask = ~(u16)xread16(bitmap_src);
+                    bitmap_src += bitmap_stride;
+
+                    if (mask == 0)
+                    {
+                        // Fully masked — skip 16 pixels
+                        tgt += 16;
+                        xdeschart += 16;
+                        entity_src += group_stride;
+                    }
+                    else
+                    {
+                        for (int bit = 15; bit >= 0; bit--)
+                        {
+                            if (mask & (1 << bit))
+                            {
+                                *tgt = (*chartproc)(entity_src);
+                            }
+                            tgt++;
+                            xdeschart++;
+                            entity_src += pixel_stride;
+                        }
+                    }
                 }
+
+                tgt = tgt_save;
+                entity_src = entity_src_save;
+                bitmap_src = bitmap_src_save;
+                xdeschart = xdeschart_save;
+
+                ydeschart--;
+                bitmap_src += 2;
+                entity_src += row_advance;
+                tgt -= host.pixelbuf.w;
+                height--;
             }
         }
     }
