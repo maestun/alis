@@ -594,6 +594,366 @@ void bartra(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barw
 }
 
 
+// =========================================================================
+// Falcon CD textured bottom narrowing renderer
+// Ghidra barland CD lines 23774-23901, tbarland CD lines 24249-24389
+// =========================================================================
+static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
+    s16 bot_lines, u32 dark, u32 persp, u32 v_step, u32 h_step_per_line,
+    u32 V, u16 width_mask, s16 height_mask, s32 tex_base)
+{
+    // Atalias lookup for bottom slope
+    u16 bot_dist = botalt - bothigh;
+    u16 slope_step;
+    if ((bot_dist < 0x41) && (image.vbarlarg < 0x40))
+    {
+        slope_step = (u16)xread16(image.atalias + (s16)((image.vbarlarg + (bot_dist - 1) * 0x40) * 2));
+    }
+    else
+    {
+        bot_dist >>= 2;
+        if (0x40 < bot_dist)
+            bot_dist = 0x40;
+        slope_step = xread16(image.atalias + (s16)(image.vbarlarg + (bot_dist - 1) * 0x80 & 0xfffe)) >> 1;
+    }
+
+    u16 clip_cols = (u16)(image.vbarlarg - max_cols);
+
+    if (botalt == precboti)
+    {
+        // RTL bottom narrowing (Ghidra lines 23789-23844)
+        s32 botf = 0;
+        if (bothigh < (s16)bothigh) // NOTE: Ghidra uses sVar7 = drawy for bottom-only, bothigh for after-main
+            botf = 0; // simplified: bothigh < bothigh is always false
+        // The initial offset is always 0 for the standard after-main-body path
+
+        u16 col_start = image.vbarlarg;
+        if (clip_cols != 0 && (s16)max_cols <= (s16)image.vbarlarg)
+            col_start = ((max_cols + image.precx + col_start) - image.vbarx) - image.vbarlarg;
+
+        u32 pix_frac = (u32)col_start << 0x10;
+        u32 fb = (s32)(s16)max_cols + (s32)image.precx + xread32(image.atlpix + (s16)((bothigh - image.wlogy1) * 4)) + 1;
+        u32 row_fb = fb;
+
+        do
+        {
+            u16 col_count = pix_frac >> 0x10;
+            if ((s16)max_cols < (s16)col_count)
+                col_count = max_cols;
+
+            u32 H_init = concat22((s16)(h_step_per_line >> 16), width_mask & (u16)h_step_per_line);
+            u16 v_lo = height_mask & (u16)V;
+            u32 Vsaved = concat22((s16)(V >> 16), v_lo);
+
+            s16 cnt = (s16)col_count;
+            if (cnt >= 0)
+            {
+                do {
+                    u16 uv = v_lo | (u16)H_init;
+                    u8 texel = xread8(tex_base + (s16)uv);
+                    u32 H_recov = concat22((s16)(H_init >> 16), v_lo ^ uv);
+                    fb--;
+                    xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
+                    u32 H_sum = persp + H_recov;
+                    H_init = concat22((s16)(H_sum >> 16),
+                                      width_mask & ((s16)H_sum + (u16)carry4(persp, H_recov)));
+                    cnt--;
+                } while (cnt >= 0);
+            }
+
+            V = v_step + Vsaved;
+            if (carry4(v_step, Vsaved))
+                V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
+
+            pix_frac += (s16)slope_step * -0x100;
+            fb = row_fb + image.wloglarg;
+            row_fb = fb;
+        }
+        while ((s32)pix_frac >= 0 && (--bot_lines) != -1);
+    }
+    else
+    {
+        // LTR bottom narrowing (Ghidra lines 23846-23900)
+        u16 col_start = image.vbarlarg;
+        if (clip_cols != 0 && (s16)max_cols <= (s16)image.vbarlarg)
+            col_start = (image.vbarx + col_start) - image.precx;
+
+        u32 pix_frac = (u32)col_start << 0x10;
+        u32 fb = (s32)image.precx + xread32(image.atlpix + (s16)((bothigh - image.wlogy1) * 4));
+        u32 row_fb = fb;
+
+        do
+        {
+            u16 col_count = pix_frac >> 0x10;
+            if ((s16)max_cols < (s16)col_count)
+                col_count = max_cols;
+
+            u32 H_init = concat22((s16)(h_step_per_line >> 16), width_mask & (u16)h_step_per_line);
+            u16 v_lo = height_mask & (u16)V;
+            u32 Vsaved = concat22((s16)(V >> 16), v_lo);
+
+            s16 cnt = (s16)col_count;
+            if (cnt >= 0)
+            {
+                do {
+                    u16 uv = v_lo | (u16)H_init;
+                    u8 texel = xread8(tex_base + (s16)uv);
+                    u32 H_recov = concat22((s16)(H_init >> 16), v_lo ^ uv);
+                    xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
+                    u32 H_sum = persp + H_recov;
+                    H_init = concat22((s16)(H_sum >> 16),
+                                      width_mask & ((s16)H_sum + (u16)carry4(persp, H_recov)));
+                    fb++;
+                    cnt--;
+                } while (cnt >= 0);
+            }
+
+            V = v_step + Vsaved;
+            if (carry4(v_step, Vsaved))
+                V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
+
+            pix_frac += (s16)slope_step * -0x100;
+            fb = row_fb + image.wloglarg;
+            row_fb = fb;
+        }
+        while ((s32)pix_frac >= 0 && (--bot_lines) != -1);
+    }
+}
+
+// =========================================================================
+// Falcon CD textured bar renderer — slope + main body + bottom dispatch
+// Ghidra barland CD lines 23575-23907
+// =========================================================================
+static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
+{
+    s16 max_cols = barwidth - 1;
+    s16 row_offset = (s16)drawy - bary;
+
+    // Darkness: same formula as flat bartra
+    u16 dark_val = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0)
+                 + ((xread16(terrain_cell + 2) >> 8) & 0xc0)
+                 + ((xread16(terrain_cell) >> 8) & 0xc0) * 2) * -2;
+    u32 dark = (u32)dark_val;
+    if ((s32)(dark << 0x10) < 0)
+        dark = 0;
+
+    // Resolve texture from type entry (need width_mask before shift derivation)
+    u32 tex_table_ptr = xread32(render_context + index + 4);
+    s32 tex_offset = (s32)xread32(tex_table_ptr);
+    u16 width_mask = xread16(tex_table_ptr + tex_offset + 2);
+
+    // Shift: read from type entry; if 0, derive from width_mask (Falcon CD
+    // game scripts don't initialise this field — floppy never needed it)
+    u8 shift = xread8(render_context + index) & 0x3f;
+    if (shift == 0 && width_mask != 0) {
+        u16 w = width_mask + 1;
+        while (w > 1) { shift++; w >>= 1; }
+    }
+
+    u32 persp = image.tex_persp_step;
+    u32 persp_unrolled = (persp << 8) | (persp >> 24);
+
+    // V step per scanline
+    u32 v_step = concat22((s16)(persp >> 16), (s16)persp << shift);
+
+    // H step per scanline (accounts for left-clipped columns)
+    u16 clip_cols = (u16)(image.vbarlarg - max_cols);
+    u32 h_step_raw = persp_unrolled * (u32)clip_cols * 0x10000;
+    u32 h_step_per_line = (h_step_raw << 8) | (h_step_raw >> 24);
+
+    // V initial from row offset
+    u32 v_init_raw = persp_unrolled * (u32)(u16)row_offset * 0x10000;
+    u32 V = concat22((s16)((v_init_raw << 8) >> 16),
+                     (u16)(u8)(v_init_raw >> 24) << shift);
+
+    // Height mask and texture base
+    s16 type_v_base = xread16(render_context + index + 2);
+    s16 hmask_raw = xread16(tex_table_ptr + tex_offset + 4) - type_v_base;
+    // Snap to nearest power-of-2 minus 1 (required for AND masking).
+    // Original Falcon CD resources may have non-power-of-2 heights (e.g. 36);
+    // DOS init code snaps these in opcodes.c but the 68k path doesn't.
+    if (hmask_raw > 0 && (hmask_raw & (hmask_raw + 1)) != 0) {
+        u16 h = (u16)hmask_raw;
+        h |= h >> 1; h |= h >> 2; h |= h >> 4; h |= h >> 8;
+        hmask_raw = (s16)(h >> 1);
+    }
+    s16 height_mask = hmask_raw << shift;
+    // Image header: +0 format, +2 width_mask, +4 height, +6 extra, +8 pixel data
+    // Original Falcon CD asm uses +6 (native resource format), but loaded resources
+    // use the platform image format which has an 8-byte header (format 0x1C/0x1E)
+    s32 tex_base = tex_table_ptr + ((s32)type_v_base << shift) + tex_offset + 8;
+
+    // Framebuffer pointer — flows through slope into main body
+    u32 fb = (s32)image.precx + xread32(image.atlpix + (s16)(((s16)drawy - image.wlogy1) * 4));
+
+    // Slope section
+    s16 top_lines = xread16(render_context - 0x246) - (s16)drawy;
+    s16 mid_height = barheight;
+
+    if (top_lines != 0 && (s16)drawy < xread16(render_context - 0x246)
+        && (s16)(xread16(render_context - 0x246) - bary) >= 2)
+    {
+        mid_height = barheight - top_lines;
+        if (barheight < top_lines)
+            top_lines = mid_height + top_lines; // clamp to barheight
+
+        if (top_lines >= 1)
+        {
+            u16 tex_step_dist = xread16(render_context - 0x246) - bary;
+            image.vbarmid = mid_height;
+
+            if ((s16)tex_step_dist >= 2)
+            {
+                u16 slope_step;
+                if ((tex_step_dist < 0x41) && (image.vbarlarg < 0x40))
+                    slope_step = (u16)xread16(image.atalias + (s16)((image.vbarlarg + (tex_step_dist - 1) * 0x40) * 2));
+                else
+                {
+                    tex_step_dist >>= 2;
+                    if (0x40 < tex_step_dist)
+                        tex_step_dist = 0x40;
+                    slope_step = xread16(image.atalias + (s16)(image.vbarlarg + (tex_step_dist - 1) * 0x80 & 0xfffe)) >> 1;
+                }
+
+                // LTR slope (rc[-0x246] == rc[-0x25c])
+                if (xread16(render_context - 0x246) == xread16(render_context - 0x25c))
+                {
+                    u32 tex_frac = 0;
+                    if (bary < (s16)drawy)
+                        tex_frac = ((u16)((s16)drawy - bary) & 0xff) * 0x100 * (u32)slope_step;
+                    if (clip_cols != 0 && (s16)max_cols <= (s16)image.vbarlarg)
+                        tex_frac = (u32)(u16)((image.vbarx + (s16)(tex_frac >> 0x10)) - image.precx) << 0x10 | (tex_frac & 0xffff);
+
+                    u16 col_count = tex_frac >> 0x10;
+                    u32 row_start = fb;
+
+                    while (true)
+                    {
+                        while ((s16)col_count <= (s16)max_cols && (--top_lines) != -1)
+                        {
+                            u32 H = concat22((s16)(h_step_per_line >> 16), width_mask & (u16)h_step_per_line);
+                            u32 Vm = concat22((s16)(V >> 16), height_mask & (u16)V);
+                            s16 cnt = (s16)col_count;
+                            while (cnt >= 0)
+                            {
+                                u16 uv = (u16)H | (u16)Vm;
+                                u8 texel = xread8(tex_base + (s16)uv);
+                                Vm = concat22((s16)(Vm >> 16), (u16)H ^ uv);
+                                xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
+                                u32 old_H = H;
+                                H = concat22((s16)((persp + old_H) >> 16),
+                                             width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
+                                fb++;
+                                cnt--;
+                            }
+                            V = v_step + Vm;
+                            if (carry4(v_step, Vm))
+                                V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
+                            tex_frac += (s16)slope_step * 0x100;
+                            fb = row_start + image.wloglarg;
+                            col_count = tex_frac >> 0x10;
+                            row_start = fb;
+                        }
+                        if (top_lines < 0) break;
+                        col_count = max_cols;
+                    }
+                }
+                // RTL slope
+                else
+                {
+                    u32 tex_frac = 0;
+                    if (bary < (s16)drawy)
+                        tex_frac = ((u16)((s16)drawy - bary) & 0xff) * 0x100 * (u32)slope_step;
+                    if (clip_cols != 0 && (s16)max_cols <= (s16)image.vbarlarg)
+                        tex_frac = (u32)(u16)(((max_cols + image.precx + (s16)(tex_frac >> 0x10)) - image.vbarx) - image.vbarlarg) << 0x10 | (tex_frac & 0xffff);
+
+                    fb = (s32)(s16)max_cols + (s32)image.precx + xread32(image.atlpix + (s16)(((s16)drawy - image.wlogy1) * 4)) + 1;
+                    u16 col_count = tex_frac >> 0x10;
+                    u32 row_start = fb;
+
+                    while (true)
+                    {
+                        while ((s16)col_count <= (s16)max_cols && (--top_lines) != -1)
+                        {
+                            u32 H = 0; // RTL: H starts at 0 each row
+                            u32 Vm = concat22((s16)(V >> 16), height_mask & (u16)V);
+                            s16 cnt = (s16)col_count;
+                            while (cnt >= 0)
+                            {
+                                u16 uv = (u16)H | (u16)Vm;
+                                u8 texel = xread8(tex_base + (s16)uv);
+                                Vm = concat22((s16)(Vm >> 16), (u16)H ^ uv);
+                                fb--;
+                                xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
+                                u32 old_H = H;
+                                H = concat22((s16)((persp + old_H) >> 16),
+                                             width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
+                                cnt--;
+                            }
+                            V = v_step + Vm;
+                            if (carry4(v_step, Vm))
+                                V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
+                            tex_frac += (s16)slope_step * 0x100;
+                            fb = row_start + image.wloglarg;
+                            col_count = tex_frac >> 0x10;
+                            row_start = fb;
+                        }
+                        if (top_lines < 0) break;
+                        col_count = max_cols;
+                    }
+                    fb += (-1 - (s16)max_cols); // adjust back to left edge for main body
+                }
+
+                mid_height = image.vbarmid;
+            }
+        }
+    }
+
+    // Main body: full-width LTR textured scanlines
+    s16 mid_lines = mid_height - 1;
+    if (mid_lines >= 0)
+    {
+        s16 stride_advance = image.wloglarg - max_cols;
+        do
+        {
+            u32 H = concat22((s16)(h_step_per_line >> 16), width_mask & (u16)h_step_per_line);
+            u32 Vm = concat22((s16)(V >> 16), height_mask & (u16)V);
+            s16 cnt = max_cols;
+            while (cnt >= 0)
+            {
+                u16 uv = (u16)H | (u16)Vm;
+                u8 texel = xread8(tex_base + (s16)uv);
+                Vm = concat22((s16)(Vm >> 16), (u16)H ^ uv);
+                xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
+                fb++;
+                u32 old_H = H;
+                H = concat22((s16)((persp + old_H) >> 16),
+                             width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
+                cnt--;
+            }
+            V = v_step + Vm;
+            if (carry4(v_step, Vm))
+                V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
+            fb += (s16)(stride_advance - 1);
+            mid_lines--;
+        }
+        while (mid_lines != -1);
+    }
+
+    // Bottom section: textured narrowing (from tbarland with vbarbot > 0)
+    s16 saved_vbarbot = image.vbarbot;
+    if (saved_vbarbot != 0)
+    {
+        image.vbarbot = 0;
+        s16 bot_lines = saved_vbarbot - 1;
+        if (bot_lines >= 0)
+        {
+            bartrab_textured_68k(render_context, index, max_cols, bot_lines + 1,
+                dark, persp, v_step, h_step_per_line, V, width_mask, height_mask, tex_base);
+        }
+    }
+}
+
 static bool clip_bar_y(s16 bary, s16 *barheight, u16 *drawy)
 {
     s16 barclipy = (bary - image.landclipy1) - image.landcliph;
@@ -628,8 +988,8 @@ static void hittest_bar(s32 terrain_cell, s32 render_context, u16 drawy, s16 bar
         u16 shift = (u16)xread16(render_context - 0x3c0) & 0x3f;
         image.ntstpix = (u16)(xread16(terrain_cell) >> 8);
         image.cztstpix = (u16)(xread16(terrain_cell) & 0xff);
-        image.cxtstpix = (u16)((s16)((u32)packed_coord >> 0x10) * 2 - step_x << shift) >> 1;
-        image.cytstpix = (u16)((s16)packed_coord * 2 - step_y << shift) >> 1;
+        image.cxtstpix = (u16)(((s16)((u32)packed_coord >> 0x10) * 2 - step_x) << shift) >> 1;
+        image.cytstpix = (u16)(((s16)packed_coord * 2 - step_y) << shift) >> 1;
         image.etstpix = 0xfffe;
         image.dtstpix = xread32hi16(render_context - 0x2e0);
     }
@@ -681,7 +1041,10 @@ void barland(s32 terrain_cell, s32 render_context, s16 step_x, s16 step_y, s16 b
         {
             if (image.ftstpix == 0)
             {
-                bartra(terrain_cell, render_context, drawy, index, barwidth, barheight, bary);
+                if ((s8)xread8(render_context - 0x400) == 0x0B)
+                    bartra_textured_68k(terrain_cell, render_context, drawy, index, barwidth, barheight, bary);
+                else
+                    bartra(terrain_cell, render_context, drawy, index, barwidth, barheight, bary);
             }
             else
             {
@@ -744,30 +1107,61 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 step_x, s32 step_y, u16 
             image.vbarbot = 0;
             if (fbottom != 0)
             {
-                // Bar entirely below bottom clip — fill with solid dark color
+                // Bar entirely below bottom clip — bottom-only rendering
                 if (bothigh <= (s16)drawy)
                 {
-                    barwidth --;
-                    u16 dark_level = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + ((xread16(terrain_cell + 2) >> 8) & 0xc0) + ((xread16(terrain_cell) >> 8) & 0xc0) * 2) * -2;
-                    u32 color = (u32)dark_level;
-                    if ((s32)((u32)dark_level << 0x10) < 0)
+                    if ((s8)xread8(render_context - 0x400) == 0x0B)
                     {
-                        color = 0;
-                    }
-
-                    u16 dark_row = (color >> 8);
-                    if (alis.platform.bpp == 4)
-                    {
-                        dark_level = (u16)xread16(alis.ptrdark + (s16)concat31(dark_row, (s8)xread8(render_context + 8 + index) * 2));
+                        // Textured bottom-only path (Ghidra tbarland CD lines 24014-24027)
+                        barwidth--;
+                        u16 dark_val = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + ((xread16(terrain_cell + 2) >> 8) & 0xc0) + ((xread16(terrain_cell) >> 8) & 0xc0) * 2) * -2;
+                        u32 dark = (u32)dark_val;
+                        if ((s32)(dark << 0x10) < 0)
+                            dark = 0;
+                        u32 persp = image.tex_persp_step;
+                        u32 persp_unrolled = (persp << 8) | (persp >> 24);
+                        u32 ttp = xread32(render_context + index + 4);
+                        s32 toff = (s32)xread32(ttp);
+                        u16 wmask = xread16(ttp + toff + 2);
+                        u8 shift = xread8(render_context + index) & 0x3f;
+                        if (shift == 0 && wmask != 0) {
+                            u16 w = wmask + 1;
+                            while (w > 1) { shift++; w >>= 1; }
+                        }
+                        u32 v_step = concat22((s16)(persp >> 16), (s16)persp << shift);
+                        u16 clip_cols = (u16)(image.vbarlarg - barwidth);
+                        u32 h_raw = persp_unrolled * (u32)clip_cols * 0x10000;
+                        u32 h_step = (h_raw << 8) | (h_raw >> 24);
+                        s16 row_offset = (s16)drawy - (s16)bary;
+                        u32 v_raw = persp_unrolled * (u32)(u16)row_offset * 0x10000;
+                        u32 V = concat22((s16)((v_raw << 8) >> 16), (u16)(u8)(v_raw >> 24) << shift);
+                        s16 vbase = xread16(render_context + index + 2);
+                        s16 hmask_raw = xread16(ttp + toff + 4) - vbase;
+                        if (hmask_raw > 0 && (hmask_raw & (hmask_raw + 1)) != 0) {
+                            u16 h = (u16)hmask_raw;
+                            h |= h >> 1; h |= h >> 2; h |= h >> 4; h |= h >> 8;
+                            hmask_raw = (s16)(h >> 1);
+                        }
+                        s16 hmask = hmask_raw << shift;
+                        s32 tbase = ttp + ((s32)vbase << shift) + toff + 8;
+                        bartrab_textured_68k(render_context, index, barwidth, barheight, dark, persp, v_step, h_step, V, wmask, hmask, tbase);
                     }
                     else
                     {
-                        dark_level = concat11(xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 8 + index))),
-                                              xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 9 + index))));
+                        barwidth--;
+                        u16 dark_level = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + ((xread16(terrain_cell + 2) >> 8) & 0xc0) + ((xread16(terrain_cell) >> 8) & 0xc0) * 2) * -2;
+                        u32 color = (u32)dark_level;
+                        if ((s32)((u32)dark_level << 0x10) < 0)
+                            color = 0;
+                        u16 dark_row = (color >> 8);
+                        if (alis.platform.bpp == 4)
+                            dark_level = (u16)xread16(alis.ptrdark + (s16)concat31(dark_row, (s8)xread8(render_context + 8 + index) * 2));
+                        else
+                            dark_level = concat11(xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 8 + index))),
+                                                  xread8(alis.ptrdark + (s16)concat31(dark_row, xread8(render_context + 9 + index))));
+                        color = concat22(dark_level, dark_level);
+                        bartrab(render_context, barwidth, barheight, drawy, bothigh, color);
                     }
-                    color = concat22(dark_level, dark_level);
-
-                    bartrab(render_context, barwidth, barheight, drawy, bothigh, color);
                     return;
                 }
 
@@ -782,7 +1176,10 @@ void tbarland(s32 terrain_cell, s32 render_context, s16 step_x, s32 step_y, u16 
             // Render or hit-test the bar
             if (image.ftstpix == 0)
             {
-                bartra(terrain_cell, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
+                if ((s8)xread8(render_context - 0x400) == 0x0B)
+                    bartra_textured_68k(terrain_cell, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
+                else
+                    bartra(terrain_cell, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
             }
             else
             {
@@ -873,6 +1270,10 @@ void doland_68k(s32 scene_addr, s32 render_context)
     // =========================================================================
     do
     {
+        // Falcon CD: compute horizontal texture base from current traversal position
+        // Ghidra line 25063: DAT_0001fe82 = (trav_y_frac + trav_x_frac + carry) * 0x10
+        image.tex_hbase = (s16)(((s16)trav_y + (s16)trav_x + (u16)carry4(trav_y, trav_x)) * 0x10);
+
         // ----- Advance row position accumulators -----
         xwrite32(render_context - 0x2a8, xread32(render_context - 0x2bc) + xread32(render_context - 0x2a8));
         xwrite32(render_context - 0x2a4, xread32(render_context - 0x2b8) + xread32(render_context - 0x2a4));
@@ -984,7 +1385,10 @@ void doland_68k(s32 scene_addr, s32 render_context)
         xwrite32(render_context - 0x2d8, xread32(render_context - 0x2d4) + xread32(render_context - 0x2d8));
 
         // Prepare column rendering: word-swap for 68k fixed-point carry emulation
-        u32 col_x_step_swp = (u32)xread32(render_context - 0x27c) << 0x10 | (u32)xread32(render_context - 0x27c) >> 0x10;
+        // Save pre-glandtopix perspective value for Falcon CD texture step computation
+        // (glandtopix at line ~1374 overwrites rc-0x27c; Ghidra line 25156 saves before call)
+        u32 saved_persp_27c = (u32)xread32(render_context - 0x27c);
+        u32 col_x_step_swp = saved_persp_27c << 0x10 | saved_persp_27c >> 0x10;
         u32 col_x_pos_swp = (u32)xread32(render_context - 0x280) << 0x10 | (u32)xread32(render_context - 0x280) >> 0x10;
 
         xwrite32(render_context - 0x278, xread32(render_context - 0x270));
@@ -1017,7 +1421,6 @@ void doland_68k(s32 scene_addr, s32 render_context)
         }
 
         // ----- Select altitude table segment for current distance -----
-        s32 prev_alt_table = alt_table;
         alt_table += xread16(render_context - 0x25a);
         u16 alt_seg_idx = (u16)(((xread32(render_context - 0x2e0) - xread32(render_context - 0x2c8)) >> 8) / (s32)xread16(render_context - 0x262));
 
@@ -1042,6 +1445,25 @@ void doland_68k(s32 scene_addr, s32 render_context)
             }
 
             xwrite16(render_context - 0x25a, ((s16)image.atalti + alt_seg_idx * 0x200) - (s16)alt_table);
+        }
+
+        // Falcon CD: compute texture perspective step per altitude segment
+        // Ghidra lines 25199-25207: DAT_0001fe7a = 0x200000 / perspective, ROL-encoded
+        // Uses saved_persp_27c (pre-glandtopix value), NOT current rc-0x27c which was overwritten
+        {
+            u32 persp_val = saved_persp_27c;
+            u32 divisor = (persp_val >> 8) & 0xFFFF;
+            if (divisor > 0)
+            {
+                u16 quot = (u16)(0x200000 / divisor);
+                image.tex_persp_step = ((u32)(u8)(quot) << 24) | (u8)(quot >> 8);
+                if (0x200000 % divisor != 0)
+                    image.tex_persp_step = ((u32)(u8)(quot) << 24) | (u16)((u8)(quot >> 8) + 1);
+            }
+            else
+            {
+                image.tex_persp_step = 0;
+            }
         }
 
         // ----- Reset per-row rendering state -----
@@ -1463,6 +1885,9 @@ void doland_68k(s32 scene_addr, s32 render_context)
             }
 
         advance_column:
+
+            // Falcon CD: accumulate horizontal texture base per column (Ghidra line 25460)
+            image.tex_hbase += 0x20;
 
             image.precx = bar_screen_x;
             if (image.landclipx2 < bar_screen_x)

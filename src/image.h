@@ -273,8 +273,8 @@ typedef struct {
    
     s16 vdarkw;
 
-    u16 tex_hstep;   // per-row horizontal texture step (DOS)
-    s16 tex_hbase;   // per-row base horizontal texture coord (DOS)
+    u32 tex_persp_step;  // per-pixel perspective step (DOS: u16 quotient, Falcon CD: ROL-encoded u32)
+    s16 tex_hbase;       // horizontal texture base (DOS: per-row, Falcon CD: per-col +0x20)
 
     u32 mapscreen;
     

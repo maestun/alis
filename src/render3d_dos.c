@@ -261,7 +261,7 @@ void bartra_dos_line(u32 dst, s16 start_col, s16 end_col,
             {
                 xwrite8(dst + col, xread8(alis.ptrdark + ((u16)dark_page << 8) + texel));
             }
-            h_coord -= image.tex_hstep;
+            h_coord -= image.tex_persp_step;
         }
     }
     else
@@ -277,7 +277,7 @@ void bartra_dos_line(u32 dst, s16 start_col, s16 end_col,
             {
                 xwrite8(dst + col, xread8(alis.ptrdark + ((u16)dark_page << 8) + texel));
             }
-            h_coord += image.tex_hstep;
+            h_coord += image.tex_persp_step;
         }
     }
 }
@@ -300,10 +300,9 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
     // --- Prologue ---
     s32 _precx = (s32)(s16)image.precx;
     u32 stride = (u32)(u16)image.wloglarg;
-    u32 stride_gap = stride - (u32)(u16)barwidth;
     u8 width_byte = (u8)barwidth;
 
-    u16 tex_hstep = image.tex_hstep;
+    u16 tex_hstep = image.tex_persp_step;
 
     u8 shift = xread8(render_context + index);
     u16 tex_vstep = (u16)((u16)(tex_hstep >> ((8 - shift) & 0x1f)) + 1);
@@ -746,561 +745,6 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
     #undef TEXEL_INDEX
 }
 
-// New bartra_dos: rewritten from Ghidra decompiled rrq-dos.c bartra() function.
-// Register-to-parameter mapping:
-//   in_EAX low = drawy, in_ECX = barwidth, in_DX = barheight
-//   unaff_BP = xread16(render_context - 0x246) (slope clip Y)
-//   unaff_SI = bary (pre-clip bar Y)
-//   unaff_DI = index (type entry offset into render_context via GS)
-//   GS segment = render_context, FS segment = alis.mem base
-// DAT variable mapping:
-//   _DAT_0001ab38 = stride (wloglarg)
-//   _DAT_0001ab3c = stride_gap (stride - barwidth)
-//   _DAT_0001ab46 byte = width_byte (barwidth as byte, inner column counter)
-//   DAT_0001ab4a = tex_hstep (image.tex_hstep)
-//   DAT_0001ab4e = tex_vstep
-//   DAT_0001ab50 = image.tex_hbase (horizontal texture base)
-//   DAT_0001ab52 = tex_width (byte from texture header +2)
-//   _DAT_0001ab54 = v_mask ((tex_height - subtile) << shift)
-//   _DAT_0001ab5a = subtile_offset (subtile << shift)
-//   DAT_0001ab58 = terrain cell type byte (for darkness calc)
-//   DAT_0001ab44 = slope_step (from atalias lookup)
-//   _DAT_0001ab40 = scanline_delta (for perspective subtile)
-//   DAT_0001ab66 = image.vbarbot
-//   DAT_0001ab64 = bottom_type_index
-//   DAT_0001aad2 = precboti (bottom direction reference)
-//   _DAT_0001ab5e = bartra_saved_si
-//   _wlogx2 = image.wlogy1
-//   GS:[0x99e] = xread16(render_context - 0x25c) (direction ref)
-
-static void bartra_dosx(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
-{
-    if (barheight <= 0 || barwidth <= 0)
-        return;
-
-    // === Prologue (Ghidra lines 17896-17908) ===
-    s32 _precx = (s32)(s16)image.precx;
-    u32 stride = (u32)(u16)image.wloglarg;
-    u32 stride_gap = stride - (u32)(u16)barwidth;
-    u8 width_byte = (u8)barwidth;
-    u16 tex_hstep = image.tex_hstep;
-    u8 shift = xread8(render_context + index);
-    u16 tex_vstep = (tex_hstep >> ((8 - shift) & 0x1f)) + 1;
-
-    s16 slope_clip = xread16(render_context - 0x246);  // unaff_BP
-    s16 sVar9 = (s16)drawy;
-    u16 slope_height = (u16)(slope_clip - sVar9);
-    u8 slope_rows = (u8)slope_height;
-
-    // === Load texture from type entry ===
-    u32 tex_ptr_addr = xread32(render_context + index + 4);
-    if (tex_ptr_addr == 0)
-        return;
-    s32 tex_offset = xread32(tex_ptr_addr);
-    u8 tex_width = xread8(tex_ptr_addr + tex_offset + 2);
-    s16 tex_height_raw = xread16(tex_ptr_addr + tex_offset + 4);
-    u16 subtile = xread16(render_context + index + 2);
-    u32 tex_base = tex_ptr_addr + tex_offset;  // piVar8 + iVar25 in Ghidra
-
-    // === Compute darkness (Ghidra: DAT_0001ab58 derived) ===
-    u16 cell = xread16(terrain_cell);
-    s16 dark_page = (u8)(image.vdarkw >> 8) - (s16)((u8)(cell >> 8) >> 6) * 2;
-    if ((s16)((u16)dark_page << 8) < 0) {
-        dark_page = 0;
-    }
-    u32 dark_base = (u32)(u8)dark_page << 8;
-
-    // Working variables (set by each path before mid section)
-    u16 v_coord = 0;
-    u32 tex_data = 0;  // iVar25 equivalent (includes +8 data offset)
-    u16 v_mask = 0;
-    u32 screen_ptr = 0;
-    s16 remaining = barheight;
-
-    if (slope_height == 0 || slope_clip < sVar9) {
-        // === No slope path (Ghidra lines 17909-17928) ===
-        // Load texture with subtile adjustment
-        v_mask = (u16)(tex_height_raw - (s16)subtile) << (shift & 0x1f);
-        u32 subtile_off = (u32)subtile << (shift & 0x1f);
-        tex_data = tex_base + subtile_off + 8;
-
-        screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx;
-        v_coord = 0;
-        remaining = barheight;
-    }
-    else {
-        // === Slope exists ===
-        if (subtile == 0) {
-            // === No-subtile slope (Ghidra lines 17931-18050) ===
-            remaining = barheight - (s16)slope_height;
-            if (barheight < (s16)slope_height) {
-                slope_rows += (u8)(s8)remaining;  // cVar21 += (char)sVar17
-            }
-
-            // atalias lookup for perspective step (Ghidra lines 17936-17949)
-            // Use image.vbarlarg (full unclipped width) for correct slope geometry
-            // (matches m68k bartra which uses image.vbarlarg, not barwidth)
-            u16 slope_dist = (u16)(slope_clip - bary);  // unaff_BP - unaff_SI
-            u16 slope_width = (image.vbarlarg > 0) ? image.vbarlarg : (u16)barwidth;
-            s16 slope_step;
-            if (slope_dist < 0x41) {
-                slope_step = xread16(image.atalias + (u16)(((slope_dist - 1) * 0x40 + slope_width) - 1) * 2);
-            }
-            else {
-                slope_dist >>= 2;
-                if (0x40 < slope_dist)
-                    slope_dist = 0x40;
-                slope_step = xread16(image.atalias + (u16)(((slope_dist - 1) * 0x40 + (slope_width >> 1)) - 1) * 2) >> 1;
-            }
-
-            // v_coord offset and initial column width (Ghidra lines 17950-17955)
-            u8 col_width = 1;
-            v_coord = 0;
-            if (bary < sVar9) {
-                v_coord = (u16)(sVar9 - bary) * tex_vstep;
-                col_width = (u8)((u16)((sVar9 - bary) * slope_step) >> 8) + 1;
-            }
-
-            // Texture setup (no subtile)
-            v_mask = (u16)tex_height_raw << (shift & 0x1f);
-            tex_data = tex_base + 8;
-
-            // Direction check (Ghidra line 17956)
-            if (slope_clip == xread16(render_context - 0x25c)) {
-                // === LEFT-TO-RIGHT slope (Ghidra lines 17957-17999) ===
-                screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx;
-                u16 col_frac = (u16)col_width << 8;  // uVar18 = bVar20 << 8
-
-                u8 rows = slope_rows;
-                do {
-                    u8 cols = (u8)(col_frac >> 8);
-                    if (cols > width_byte) cols = width_byte;
-                    u16 h_coord = ((image.tex_hbase >> 8) & tex_width) << 8 | (image.tex_hbase & 0xFF);
-                    u32 v_masked = (u32)(v_coord & v_mask);
-                    u32 dst = screen_ptr;
-
-                    u8 c = cols;
-                    do {
-                        u8 h_hi = (u8)(h_coord >> 8);
-                        u16 texel_idx = (u16)(v_masked & 0xFF00) | ((u8)v_masked | h_hi);
-                        u8 texel = xread8(tex_data + texel_idx);
-                        u8 pixel = xread8(alis.ptrdark + dark_base + texel);
-                        xwrite8(dst, pixel);
-                        dst++;
-                        h_coord += tex_hstep;
-                        h_coord = ((h_coord >> 8) & tex_width) << 8 | (h_coord & 0xFF);
-                        c--;
-                    } while (c != 0);
-
-                    v_coord += tex_vstep;
-                    col_frac += (u16)slope_step;
-                    screen_ptr += stride;
-                    rows--;
-                } while (rows != 0);
-            }
-            else {
-                // === RIGHT-TO-LEFT slope (Ghidra lines 18000-18046) ===
-                screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx
-                             + (u32)(u8)width_byte;
-                image.tex_hbase += 0x2000;
-                u16 col_frac = (u16)col_width << 8;
-
-                u8 rows = slope_rows;
-                do {
-                    u8 cols = (u8)(col_frac >> 8);
-                    if (cols > width_byte) cols = width_byte;
-                    u16 h_coord = ((image.tex_hbase >> 8) & tex_width) << 8 | (image.tex_hbase & 0xFF);
-                    u32 v_masked = (u32)(v_coord & v_mask);
-                    u32 dst = screen_ptr;
-
-                    u8 c = cols;
-                    do {
-                        u8 h_hi = (u8)(h_coord >> 8);
-                        u16 texel_idx = (u16)(v_masked & 0xFF00) | ((u8)v_masked | h_hi);
-                        u8 texel = xread8(tex_data + texel_idx);
-                        u8 pixel = xread8(alis.ptrdark + dark_base + texel);
-                        dst--;
-                        xwrite8(dst, pixel);
-                        h_coord -= tex_hstep;
-                        h_coord = ((h_coord >> 8) & tex_width) << 8 | (h_coord & 0xFF);
-                        c--;
-                    } while (c != 0);
-
-                    v_coord += tex_vstep;
-                    col_frac += (u16)slope_step;
-                    screen_ptr += stride;
-                    rows--;
-                } while (rows != 0);
-
-                screen_ptr -= (u32)(u8)width_byte;
-                image.tex_hbase += (s16)0xe000;  // -= 0x2000, restore
-            }
-
-            if (remaining < 1) {
-                return;
-            }
-        }
-        else {
-            // === Subtile slope (Ghidra lines 18051-18251) ===
-            remaining = barheight - (s16)slope_height;
-            if (barheight < (s16)slope_height) {
-                slope_height += (u16)remaining;
-            }
-            u16 slope_h = slope_height;
-
-            if (slope_clip == (s16)(bary - bartra_saved_si)) {
-                // === PATH A: Flat subtile (Ghidra lines 18057-18112) ===
-                v_coord = 0;
-                if (bary < sVar9) {
-                    v_coord = (u16)(sVar9 - bary) * tex_vstep;
-                }
-
-                // Texture with subtile reduction
-                v_mask = (u16)(tex_height_raw - (s16)subtile) << (shift & 0x1f);
-                u32 subtile_off = (u32)subtile << (shift & 0x1f);
-                tex_data = tex_base + 8;  // without subtile offset initially
-
-                screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx;
-
-                // Render subtile slope rows (LTR with transparency)
-                u16 sub_rows = slope_h & 0xFF;
-                do {
-                    u16 h_coord = ((image.tex_hbase >> 8) & tex_width) << 8 | (image.tex_hbase & 0xFF);
-                    u32 v_masked = (u32)(v_coord & v_mask);
-                    u32 dst = screen_ptr;
-                    u8 c = width_byte;
-
-                    do {
-                        u8 h_hi = (u8)(h_coord >> 8);
-                        u16 texel_idx = (u16)(v_masked & 0xFF00) | ((u8)v_masked | h_hi);
-                        u8 texel = xread8(tex_data + texel_idx);
-                        if (texel != 0) {
-                            xwrite8(dst, xread8(alis.ptrdark + dark_base + texel));
-                        }
-                        dst++;
-                        h_coord += tex_hstep;
-                        h_coord = ((h_coord >> 8) & tex_width) << 8 | (h_coord & 0xFF);
-                        c--;
-                    } while (c != 0);
-
-                    v_coord += tex_vstep;
-                    screen_ptr += stride_gap + (u32)width_byte;  // = stride
-                    sub_rows--;
-                } while (sub_rows != 0);
-
-                if (remaining < 1) {
-                    return;
-                }
-
-                // Advance tex_data past subtile section
-                tex_data += subtile_off;
-                v_coord = 0;
-            }
-            else {
-                // === PATH B: Perspective subtile slope (Ghidra lines 18113-18250) ===
-                // atalias lookup
-                u16 slope_dist = (u16)(slope_clip - bary) + (u16)bartra_saved_si;
-                s16 slope_step;
-                if (slope_dist < 0x41) {
-                    slope_step = xread16(image.atalias + (u16)((slope_dist + ((u16)barwidth - 1) * 0x40) - 1) * 2);
-                }
-                else {
-                    slope_dist >>= 2;
-                    if (0x40 < slope_dist)
-                        slope_dist = 0x40;
-                    slope_step = xread16(image.atalias + (u16)((slope_dist + (((u16)(barwidth - 1) * 0x40) >> 1)) - 1) * 2) >> 1;
-                }
-
-                // Scanline delta (Ghidra lines 18129-18132)
-                u8 slope_step_rows = (u8)((u16)slope_step >> 8);
-                s32 scanline_delta = (s32)slope_step_rows * (s32)(s16)image.wloglarg;
-
-                // v_coord offset
-                u16 v_start = 0;
-                if (bary < sVar9) {
-                    v_start = (u16)(sVar9 - bary) * tex_vstep;
-                }
-
-                // Texture with subtile reduction
-                v_mask = (u16)(tex_height_raw - (s16)subtile) << (shift & 0x1f);
-                u32 subtile_off = (u32)subtile << (shift & 0x1f);
-                tex_data = tex_base + 8;
-
-                // Direction check (Ghidra line 18137)
-                if (slope_clip == xread16(render_context - 0x25c)) {
-                    // === LTR perspective subtile (Ghidra lines 18138-18190) ===
-                    s32 drawy_idx = (s16)(sVar9 - image.wlogy1);
-                    u32 end_ptr = xread32(image.atlpix + (s16)((slope_h & 0xFF) + drawy_idx) * 4) + _precx;
-                    u32 start_ptr = xread32(image.atlpix + (s16)drawy_idx * 4) + _precx;
-
-                    u32 h_accum = (u32)image.tex_hbase;
-                    u8 col_count = width_byte;
-
-                    do {
-                        u8 h_masked = (u8)(h_accum >> 8) & tex_width;
-                        u32 h_saved = (h_accum & 0xFFFF0000) | ((u32)h_masked << 8) | (h_accum & 0xFF);
-                        u32 cur = start_ptr;
-                        u16 vc = v_start;
-
-                        do {
-                            u16 v_m = vc & v_mask;
-                            u16 texel_idx = (v_m & 0xFF00) | ((u8)v_m | h_masked);
-                            u8 texel = xread8(tex_data + texel_idx);
-                            if (texel != 0) {
-                                xwrite8(cur, xread8(alis.ptrdark + dark_base + texel));
-                            }
-                            vc += tex_vstep;
-                            cur += stride;
-                        } while (cur < end_ptr);
-
-                        // Advance h_coord with carry
-                        u32 new_h = h_saved + ((u32)(u8)slope_step << 24 | (u32)(tex_hstep & 0xFFFF));
-                        if (carry4(h_saved, ((u32)(u8)slope_step << 24 | (u32)(tex_hstep & 0xFFFF)))) {
-                            start_ptr += stride;
-                        }
-
-                        if (end_ptr <= start_ptr + (u32)scanline_delta) break;
-                        start_ptr += (u32)scanline_delta + 1;
-                        h_accum = new_h;
-                        col_count--;
-                    } while (col_count != 0);
-
-                    if (remaining < 1) {
-                        return;
-                    }
-                    tex_data += subtile_off;
-                    v_coord = 0;
-                    v_start = tex_hstep;  // Ghidra: uVar16 = DAT_0001ab4a
-                }
-                else {
-                    // === RTL perspective subtile (Ghidra lines 18192-18249) ===
-                    s32 drawy_idx = (s16)(sVar9 - image.wlogy1);
-                    u32 end_ptr = xread32(image.atlpix + (s16)((slope_h & 0xFF) + drawy_idx) * 4) + _precx;
-                    u32 start_ptr = xread32(image.atlpix + (s16)drawy_idx * 4) + _precx + (u32)(u8)width_byte;
-
-                    image.tex_hbase += 0x2000;
-                    u32 h_accum = (u32)image.tex_hbase;
-                    u8 col_count = width_byte;
-
-                    do {
-                        u8 h_masked = (u8)(h_accum >> 8) & tex_width;
-                        u32 h_saved = (h_accum & 0xFFFF0000) | ((u32)h_masked << 8) | (h_accum & 0xFF);
-                        u32 cur = start_ptr;
-                        u16 vc = v_start;
-
-                        do {
-                            u16 v_m = vc & v_mask;
-                            u16 texel_idx = (v_m & 0xFF00) | ((u8)v_m | h_masked);
-                            u8 texel = xread8(tex_data + texel_idx);
-                            if (texel != 0) {
-                                xwrite8(cur, xread8(alis.ptrdark + dark_base + texel));
-                            }
-                            vc += tex_vstep;
-                            cur += stride;
-                        } while (cur < end_ptr);
-
-                        // Subtract h_step (RTL)
-                        u32 new_h = h_saved - ((u32)(u8)slope_step << 24 | (u32)(tex_hstep & 0xFFFF));
-                        if (h_saved < ((u32)(u8)slope_step << 24 | (u32)(tex_hstep & 0xFFFF))) {
-                            start_ptr += stride;
-                        }
-
-                        if (end_ptr <= start_ptr + (u32)scanline_delta) break;
-                        start_ptr += (u32)scanline_delta - 1;
-                        h_accum = new_h;
-                        col_count--;
-                    } while (col_count != 0);
-
-                    image.tex_hbase += (s16)0xe000;  // -= 0x2000, restore
-
-                    if (remaining < 1) {
-                        return;
-                    }
-                    tex_data += subtile_off;
-                    v_coord = 0;
-                    v_start = tex_hstep;
-                }
-
-                // Recompute screen_ptr for mid section after perspective subtile
-                // (continuing from where slope ended)
-            }
-
-            // NOTE: v_mask stays at (tex_height_raw - subtile) << shift
-            // The original does NOT reset to full height here — body uses reduced mask
-        }
-    }
-
-    // === Mid/flat section (Ghidra lines 18253-18278) ===
-    // Render (remaining - vbarbot) rows at full width, left-to-right
-    s16 mid_rows = remaining - image.vbarbot;
-    if (mid_rows != 0 && image.vbarbot <= remaining) {
-        // Recompute screen_ptr for mid section: advance past slope rows
-        s16 mid_drawy = sVar9 + (barheight - remaining);
-        screen_ptr = xread32(image.atlpix + (s16)(mid_drawy - image.wlogy1) * 4) + _precx;
-
-        u8 mr = (u8)mid_rows;
-        do {
-            u16 h_coord = ((image.tex_hbase >> 8) & tex_width) << 8 | (image.tex_hbase & 0xFF);
-            u32 v_masked = (u32)(v_coord & v_mask);
-            u32 dst = screen_ptr;
-            u8 c = width_byte;
-
-            do {
-                u8 h_hi = (u8)(h_coord >> 8);
-                u16 texel_idx = (u16)(v_masked & 0xFF00) | ((u8)v_masked | h_hi);
-                u8 texel = xread8(tex_data + texel_idx);
-                u8 pixel = xread8(alis.ptrdark + dark_base + texel);
-                xwrite8(dst, pixel);
-                dst++;
-                h_coord += tex_hstep;
-                h_coord = ((h_coord >> 8) & tex_width) << 8 | (h_coord & 0xFF);
-                c--;
-            } while (c != 0);
-
-            v_coord += tex_vstep;
-            screen_ptr += stride;
-            mr--;
-        } while (mr != 0);
-    }
-
-    // === Bottom section (Ghidra lines 18279-18380) ===
-    // Renders vbarbot rows using a separate texture type (bottom_type_index)
-    if (image.vbarbot != 0 && 0 < image.vbarbot) {
-        u16 bot_dist = (u16)(botalt - bothigh);
-        if (bot_dist != 0 && bothigh <= botalt) {
-            // atalias lookup for bottom slope (Ghidra lines 18281-18293)
-            s16 bot_slope_step;
-            u16 bot_width_val = (u16)width_byte;  // barwidth as byte
-            if (bot_dist < 0x41) {
-                bot_slope_step = xread16(image.atalias + (u16)(((bot_dist - 1) * 0x40 + bot_width_val) - 1) * 2);
-            }
-            else {
-                bot_dist >>= 2;
-                if (0x40 < bot_dist) bot_dist = 0x40;
-                bot_slope_step = xread16(image.atalias + (u16)(((bot_dist - 1) * 0x40 + (bot_width_val >> 1)) - 1) * 2) >> 1;
-            }
-
-            u8 bot_rows = (u8)image.vbarbot;
-            u16 bot_v_coord = 0;
-            u16 bot_hstep = image.tex_hstep;
-
-            // Load bottom texture from bottom_type_index
-            u32 bot_tex_ptr = xread32(render_context + bottom_type_index + 4);
-            if (bot_tex_ptr != 0) {
-                s32 bot_tex_off = xread32(bot_tex_ptr);
-                u8 bot_tex_width = xread8(bot_tex_ptr + bot_tex_off + 2);
-                u8 bot_shift = xread8(render_context + bottom_type_index);
-                u16 bot_v_mask = xread16(bot_tex_ptr + bot_tex_off + 4) << (bot_shift & 0x1f);
-                u32 bot_tex_data = bot_tex_ptr + bot_tex_off + 8;
-
-                // Darkness for bottom section
-                u8 bot_dark = (u8)(image.vdarkw >> 8) - (u8)((u8)(cell >> 8) >> 6) * 2;
-                if ((s16)((u16)bot_dark << 8) < 0)
-                    bot_dark = 0;
-
-                // Bottom screen address
-                u32 bot_screen = xread32(image.atlpix + (s16)(bothigh - image.wlogy1) * 4) + _precx;
-
-                // Column width starts at full width (Ghidra: CONCAT31(width_byte, 0xFF))
-                u16 bot_col_frac = ((u16)width_byte << 8) | 0xFF;
-
-                // Direction: botalt == precboti → RTL, else LTR (Ghidra line 18297)
-                if (botalt == precboti) {
-                    // === RTL bottom (Ghidra lines 18298-18339) ===
-                    bot_screen += (u32)(u8)width_byte;
-                    image.tex_hbase += 0x2000;
-
-                    do {
-                        u8 cols = (u8)(bot_col_frac >> 8);
-                        u16 h_coord = ((image.tex_hbase >> 8) & bot_tex_width) << 8 | (image.tex_hbase & 0xFF);
-                        u32 v_masked = (u32)(bot_v_coord & bot_v_mask);
-                        u32 dst = bot_screen;
-
-                        u8 c = cols;
-                        do {
-                            u8 h_hi = (u8)(h_coord >> 8);
-                            u16 texel_idx = (u16)(v_masked & 0xFF00) | ((u8)v_masked | h_hi);
-                            u8 texel = xread8(bot_tex_data + texel_idx);
-                            u8 pixel = xread8(alis.ptrdark + ((u32)bot_dark << 8) + texel);
-                            dst--;
-                            xwrite8(dst, pixel);
-                            h_coord -= bot_hstep;
-                            h_coord = ((h_coord >> 8) & bot_tex_width) << 8 | (h_coord & 0xFF);
-                            c--;
-                        } while (c != 0);
-
-                        bot_v_coord += tex_vstep;
-                        bot_col_frac -= bot_slope_step;
-                        bot_screen += stride;
-                        bot_rows--;
-                    } while (bot_rows != 0);
-
-                    image.tex_hbase += (s16)-0x2000;
-                }
-                else {
-                    // === LTR bottom (Ghidra lines 18341-18378) ===
-                    do {
-                        u8 cols = (u8)(bot_col_frac >> 8);
-                        u16 h_coord = ((image.tex_hbase >> 8) & bot_tex_width) << 8 | (image.tex_hbase & 0xFF);
-                        u32 v_masked = (u32)(bot_v_coord & bot_v_mask);
-                        u32 dst = bot_screen;
-
-                        u8 c = cols;
-                        do {
-                            u8 h_hi = (u8)(h_coord >> 8);
-                            u16 texel_idx = (u16)(v_masked & 0xFF00) | ((u8)v_masked | h_hi);
-                            u8 texel = xread8(bot_tex_data + texel_idx);
-                            u8 pixel = xread8(alis.ptrdark + ((u32)bot_dark << 8) + texel);
-                            xwrite8(dst, pixel);
-                            dst++;
-                            h_coord += bot_hstep;
-                            h_coord = ((h_coord >> 8) & bot_tex_width) << 8 | (h_coord & 0xFF);
-                            c--;
-                        } while (c != 0);
-
-                        bot_v_coord += tex_vstep;
-                        bot_col_frac -= bot_slope_step;
-                        bot_screen += stride;
-                        bot_rows--;
-                    } while (bot_rows != 0);
-                }
-            }
-        }
-    }
-}
-
-static void hittest_bar(s32 terrain_cell, s32 render_context, u16 drawy, s16 barheight, s16 barwidth, s32 packed_coord, s16 step_x, s16 step_y)
-{
-    if (alis.platform.is_little_endian)
-    {
-        // DOS: clip boundary = dynamic clip Y written by doland_dos to rc-0x246
-        // (ASM uses GS:[0x9ac] for both clip and dynamic-Y since they're the same location in DOS)
-        s16 clip_boundary = xread16(render_context - 0x246);
-        if ((s16)drawy < clip_boundary)
-        {
-            barheight -= (clip_boundary - (s16)drawy);
-            drawy = clip_boundary;
-            if (barheight <= 0)
-            {
-                barlands(drawy, 0, barwidth);
-                return;
-            }
-        }
-    }
-
-    if ((s16)drawy <= image.ytstpix && image.ytstpix < (s16)(barheight + drawy) && image.precx <= image.xtstpix && image.xtstpix < (s16)(barwidth + image.precx))
-    {
-        u16 shift = (u16)xread16(render_context - 0x3c0) & 0x3f;
-        image.ntstpix = (u16)(xread16(terrain_cell) >> 8);
-        image.cztstpix = (u16)(xread16(terrain_cell) & 0xff);
-        image.cxtstpix = (u16)((s16)((u32)packed_coord >> 0x10) * 2 - step_x << shift) >> 1;
-        image.cytstpix = (u16)((s16)packed_coord * 2 - step_y << shift) >> 1;
-        image.etstpix = 0xfffe;
-        image.dtstpix = xread32hi16(render_context - 0x2e0);
-    }
-    barlands(drawy, barheight, barwidth);
-}
-
 // DOS barland: rewritten from Ghidra decompiled rrq-dos.c barland() function.
 // Ghidra register-to-parameter mapping:
 //   param_1 (AX) = bary (initial screen Y, clipped to drawy)
@@ -1394,8 +838,8 @@ static void barland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 st
 
                 // GS:[0x840] = zoom shift (Ghidra: bVar3)
                 u8 bVar3 = (u8)(xread16(render_context - 0x3c0) & 0x3f);
-                image.cxtstpix = (u16)((s16)((u32)packed_coord >> 0x10) * 2 - step_x << (bVar3 & 0x1f)) >> 1;
-                image.cytstpix = (u16)((s16)packed_coord * 2 - step_y << (bVar3 & 0x1f)) >> 1;
+                image.cxtstpix = (u16)(((s16)((u32)packed_coord >> 0x10) * 2 - step_x) << (bVar3 & 0x1f)) >> 1;
+                image.cytstpix = (u16)(((s16)packed_coord * 2 - step_y) << (bVar3 & 0x1f)) >> 1;
                 image.etstpix = 0xfffe;
                 // GS:[0x922] = depth/altitude
                 image.dtstpix = xread32hi16(render_context - 0x2e0);
@@ -1474,7 +918,7 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
             s32 _precx = (s32)(s16)image.precx;
             u32 stride = (u32)(u16)image.wloglarg;
             u8 shift = xread8(render_context + index);
-            u16 tex_hstep = image.tex_hstep;
+            u16 tex_hstep = image.tex_persp_step;
             u16 tex_vstep = (tex_hstep >> ((8 - shift) & 0x1f)) + 1;
 
             // Early exit: barheight <= 0 (Ghidra lines 17553-17557)
@@ -1605,8 +1049,8 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
         image.cztstpix = (u16)(xread16(terrain_cell) & 0xff);
 
         u8 bVar3 = (u8)(xread16(render_context - 0x3c0) & 0x3f);
-        image.cxtstpix = (u16)((s16)((u32)packed_coord >> 0x10) * 2 - step_x << (bVar3 & 0x1f)) >> 1;
-        image.cytstpix = (u16)((s16)packed_coord * 2 - step_y << (bVar3 & 0x1f)) >> 1;
+        image.cxtstpix = (u16)(((s16)((u32)packed_coord >> 0x10) * 2 - step_x) << (bVar3 & 0x1f)) >> 1;
+        image.cytstpix = (u16)(((s16)packed_coord * 2 - step_y) << (bVar3 & 0x1f)) >> 1;
         image.etstpix = 0xfffe;
         image.dtstpix = xread32hi16(render_context - 0x2e0);
     }
@@ -1840,10 +1284,10 @@ void doland_dos(s32 scene_addr, s32 render_context)
                 u32 quotient = 0x200000 / divisor;
                 if (0x200000 % divisor != 0)
                     quotient++; // ceiling
-                image.tex_hstep = (u16)quotient;
+                image.tex_persp_step = (u16)quotient;
             }
             else
-                image.tex_hstep = 0;
+                image.tex_persp_step = 0;
         }
 
         xwrite32(render_context - 0x278, xread32(render_context - 0x270));
@@ -1877,7 +1321,6 @@ void doland_dos(s32 scene_addr, s32 render_context)
         }
 
         // ----- Select altitude table segment for current distance -----
-        s32 prev_alt_table = alt_table;
         alt_table += dos_alt_delta;
         u16 alt_seg_idx = (u16)(((xread32(render_context - 0x2e0) - xread32(render_context - 0x2c8)) >> 8) / (s32)xread16(render_context - 0x262));
 

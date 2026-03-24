@@ -5070,12 +5070,16 @@ static void ctexmap(void) {
     {
         xwrite32(entry + 4, adresdes(alis.varD7));
 
-        if (alis.platform.is_little_endian)
         {
             u32 res_addr = xread32(entry + 4);
             if (res_addr != 0)
             {
                 u32 bitmap_addr = res_addr + xread32(res_addr);
+
+                // Determine pixel data offset from image format:
+                // Format 0x1C/0x1E have 8-byte header; native 68k format has 6-byte header
+                u8 fmt = xread8(bitmap_addr);
+                u32 pixel_offset = (fmt == 0x1C || fmt == 0x1E) ? 8 : 6;
 
                 // Compute yshift = bit count of x_mask (matches DOS: INC CL; SHR AX,1; JNZ)
                 u16 x_mask = (u16)xread16(bitmap_addr + 2);
@@ -5087,9 +5091,9 @@ static void ctexmap(void) {
                 xwrite16(entry + 2, 0);
 
                 // Scan texture rows for first fully opaque row (no zero pixels).
-                // DOS stores yorigin at entry[2] to skip transparent top rows.
+                // Stores yorigin at entry[2] to skip transparent top rows.
                 s16 y_mask = (s16)xread16(bitmap_addr + 4);
-                u32 pixel_ptr = bitmap_addr + 8;
+                u32 pixel_ptr = bitmap_addr + pixel_offset;
                 s16 rows_rem = y_mask;
                 u8 found_opaque = 0;
 
