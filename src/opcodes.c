@@ -6225,7 +6225,7 @@ static void cchartmap(void) {
                 u16 left_mask = ~(0xffffU >> (min_x - (min_x & 0xfff0) & 0x3f));
                 u16 aligned_max = max_x | 0xf;
                 u16 right_mask = ~(-1 << (-(max_x - aligned_max) & 0x3f));
-                u16 word_span = (ushort)(aligned_max - (min_x & 0xfff0)) >> 4;
+                u16 word_span = (u16)(aligned_max - (min_x & 0xfff0)) >> 4;
                 s16 mid_words = word_span - 1;
                 if (mid_words < 0)
                 {
