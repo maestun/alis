@@ -1665,7 +1665,7 @@ void memfen(void)
     image.ptabfen[3] = image.feny2;
     image.ptabfen += 4;
 
-    s16 *endtabfen = image.tabfen + sizeof(image.tabfen);
+    s16 *endtabfen = image.tabfen + (sizeof(image.tabfen) / sizeof(image.tabfen[0]));
     if (image.ptabfen < endtabfen)
     {
         return;
@@ -1862,7 +1862,7 @@ void clrfen(void)
         return;
     for (s16 y = fy1; y < fy2; y++)
     {
-        memset(image.physic + fx1 + y * alis.platform.width, 0, tmpx);
+        memset(image.logic + fx1 + y * alis.platform.width, 0, tmpx);
     }
 }
 
@@ -1894,7 +1894,7 @@ void clipback(void)
 
 void destofen(sSprite *sprite)
 {
-    if (sprite->newad == 0)
+    if (sprite->newad == 0 || sprite->data == 0)
         return;
     
     u8 *bitmap = (alis.mem + sprite->newad + xread32(sprite->newad));

@@ -1082,7 +1082,13 @@ void zoomtofen(sSprite *sprite)
                     // Render individual pixels in row, stepping backward through texture (flipped)
                     for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_int - zoom_y_step) >> 0x10), (s16)(zoom_y_int - zoom_y_step) - (u16)(zoom_y_int < zoom_y_step)))
                     {
-                        u8 pixel = bitmap[(s16)zoom_y_int + bitmap_row_offset + data_offset];
+                        // NOTE: A negative (s16) texture index on flipped sprites
+                        // sign-extends to an out-of-bounds read before the
+                        // bitmap buffer; wrap it back into the 16-bit range.
+                        s32 bmp_idx = (s16)zoom_y_int + bitmap_row_offset + data_offset;
+                        if (bmp_idx < 0)
+                            bmp_idx += 0x10000;
+                        u8 pixel = bitmap[bmp_idx];
                         if (pixel != 0)  // Skip transparent pixels
                             *framebuffer = pixel;
                     }
@@ -1120,7 +1126,7 @@ void zoomtofen(sSprite *sprite)
                     // Render individual pixels in row, stepping forward through texture (normal)
                     for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_step + zoom_y_int) >> 0x10), (s16)(zoom_y_step + zoom_y_int) + (u16)carry4(zoom_y_step, zoom_y_int)))
                     {
-                        u8 pixel = bitmap[(s16)zoom_y_int + texture_y + data_offset];
+                        u8 pixel = bitmap[(u16)zoom_y_int + texture_y + data_offset];
                         if (pixel != 0)  // Skip transparent pixels
                             *framebuffer = pixel;
                     }

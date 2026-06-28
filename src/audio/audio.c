@@ -23,6 +23,7 @@
 #include "alis.h"
 #include "channel.h"
 #include "mem.h"
+#include "video.h"
 
 sAudio audio = {};
 
@@ -30,8 +31,12 @@ void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, 
 {
     char cson = CHAR_MAX;
     sChannel *canal = NULL;
-    
-    for (int i = 0; i < 4; i++)
+
+    // Channel 3 is reserved for FLI video speech while a film is playing.
+    // In-game SFX would otherwise preempt it and chop speech into fragments.
+    int max_chan = bfilm.playing ? 3 : 4;
+
+    for (int i = 0; i < max_chan; i++)
     {
         if (priorson == audio.channels[i].curson)
         {
@@ -43,7 +48,7 @@ void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, 
     
     if (canal == NULL)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < max_chan; i++)
         {
             if (audio.channels[i].curson < cson)
             {

@@ -466,9 +466,9 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     script->header.vram_alloc_sz = swap16((data + 20));
     script->header.w_unknown7 = swap16((data + 22));
     script->data_org = alis.finprog;
-    if (script->data_org + data_sz > kHostRAMSize)
+    if (script->data_org > kHostRAMSize || data_sz > kHostRAMSize - script->data_org)
     {
-        ALIS_DEBUG(EDebugError, "Out of VM memory loading '%s': need 0x%x, have 0x%x\n", name, script->data_org + data_sz, kHostRAMSize);
+        ALIS_DEBUG(EDebugError, "Out of VM memory loading '%s': need 0x%x at 0x%x, have 0x%x\n", name, data_sz, script->data_org, kHostRAMSize);
         free(script);
         return NULL;
     }
@@ -736,7 +736,7 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
             if (sample[0] == 1 || sample[0] == 2)
             {
                 if (alis.platform.kind == EPlatformPC
-                    ? (((sample[0] == 1 && sample[6] == 1) || sample[0] == 2) && script->type != 0)
+                    ? (sample[6] == 1 && (sample[0] == 1 || sample[0] == 2) && script->type != 0)
                     : sample[6] == 1 && script->type & 1)
                 {
                     u32 fulllen = read32(sample + 2);
@@ -759,7 +759,7 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
             if (sample[0] == 1 || sample[0] == 2)
             {
                 if (alis.platform.kind == EPlatformPC
-                    ? (((sample[0] == 1 && sample[6] == 1) || sample[0] == 2) && script->type != 0)
+                    ? (sample[6] == 1 && (sample[0] == 1 || sample[0] == 2) && script->type != 0)
                     : sample[6] == 1 && script->type & 1)
                 {
                     u32 fulllen = read32(sample + 2);
@@ -1046,10 +1046,16 @@ sAlisScriptData * script_load(const char * script_path) {
             
             unpack_sz -= seekto;
 
-            fseek(fp, seekto, SEEK_SET);
-            fread(unpack_buf, sizeof(u8), unpack_sz, fp);
+            if (unpack_sz <= 0) {
+                ALIS_DEBUG(EDebugError, "Skipping '%s': file too small (only %d bytes after header)\n",
+                           script_path, (s32)input_sz - seekto);
+            }
+            else {
+                fseek(fp, seekto, SEEK_SET);
+                fread(unpack_buf, sizeof(u8), unpack_sz, fp);
 
-            script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
+                script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
+            }
         }
 
         // cleanup

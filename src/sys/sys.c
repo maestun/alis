@@ -159,6 +159,9 @@ void sys_errors_init(void) {
 
     failure = 0;
     signal(SIGSEGV, signals_handler);
+#ifdef SIGBUS
+    signal(SIGBUS,  signals_handler);  // MiNT memprot trap raises SIGBUS
+#endif
     signal(SIGABRT, signals_handler);
     signal(SIGFPE,  signals_handler);
     signal(SIGINT,  signals_handler);
@@ -430,9 +433,17 @@ u8 pblanc10(sChannel *channel, u8 d1b)
 
 void io_canal(sChannel *channel, s16 index)
 {
+    // index > 2 would clobber the noise-period register
+    if (index > 2)
+        return;
+    
+    // sample channels (type & 0x80) must not touch the PSG
+    if (channel->type & 0x80)
+        return;
+
     giaccess(index + 0x88, (channel->volume >> 11) & 0xf, index);
-    giaccess(index * 2 + 0x80, max(8, channel->freq >> 3), index);
-    giaccess(index * 2 + 0x81, max(1, ((channel->freq >> 3) >> 8)) & 0xf, index);
+    giaccess(index * 2 + 0x80, (channel->freq >> 3) & 0xff, index);
+    giaccess(index * 2 + 0x81, ((channel->freq >> 3) >> 8) & 0xf, index);
     
     u8 mixer = giaccess(7, 0, index);
 

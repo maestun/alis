@@ -389,14 +389,31 @@ void fli_audio(u8 *nextaddr, u8 *addr, s16 type)
     if (length == 0)
         return;
 
+    // NOTE: FLI/FLC chunks are word-aligned: an odd data length means one padding byte was inserted to align the next chunk.
+    // Strip it so the tail garbage byte isn't played as a click between chunks.
+    if (length & 1u)
+        length--;
+
     // Set channel directly -- playsample() clamps freq to 1-20 kHz range
-    // which is too low for video audio at 22050 Hz
+    // which is too low for video audio at 22050 Hz.
+    //
+    // Sample rate = (chunk bytes * original_FLI_tick_hz) / waitclock so the
+    // chunk plays exactly one waitclock-frame at the FLI's authored tempo.
+    s16 freq;
+    {
+        u32 f = (bfilm.waitclock > 0)
+                ? (60UL * length) / (u32)bfilm.waitclock
+                : 22050UL;
+        if (f > 32767UL) f = 32767UL;   // sChannel.freq is s16
+        freq = (s16)f;
+    }
+
     // Use channel 3 with high priority so subsequent chunks reuse it
     sChannel *canal = &audio.channels[3];
     canal->address = (s8 *)addr;
     canal->volume = 0x7f;
     canal->length = length;
-    canal->freq = 22050;
+    canal->freq = freq;
     canal->loop = 0;
     canal->played = 0;
     canal->type = eChannelTypeSample;
@@ -433,7 +450,9 @@ void fli_elements(u8 *addr)
                 break;
                 
             default:
-                if (type > 0 && type < 0x1008) {
+                // NOTE: Silmarils audio extension uses 0x1000..0x1007 for the 8 language-track variants. Accepting any type < 0x1008 here
+                // also caught standard FLC chunk types (0xe BRUN, 0x11 PSTAMP, 0x12 LZMA, ...), feeding them to fli_audio as garbage.
+                if (type >= 0x1000 && type <= 0x1007) {
                     fli_audio(nextaddr, addr, type);
                 }
         }
