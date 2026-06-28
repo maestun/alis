@@ -169,7 +169,9 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     sys_init_psg();
 #endif
     
-    isr_step = (double)50.0 / (double)(audio_spec->freq);
+    sys_timeclock_hz = alis.platform.is_little_endian ? 58 : 50;
+    sys_sfx_tick_hz  = alis.platform.is_little_endian ? 60 : 50;
+    isr_step = (double)sys_sfx_tick_hz / (double)(audio_spec->freq);
     isr_counter = 1;
     
     poll_ticks = SDL_GetTicks();

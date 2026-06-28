@@ -46,6 +46,9 @@ u8 *endframe = NULL;
 
 sFLICData bfilm;
 
+static u32 fli_pace_anchor   = 0;
+static u32 fli_pace_total_ms = 0;
+
 u16 fls_drawing = 0;
 u16 fls_pallines = 0;
 s8  fls_state = 0;
@@ -382,21 +385,23 @@ void fli_audio(u8 *nextaddr, u8 *addr, s16 type)
     // Check if this audio track is selected by bfilm.id bitmask
     // type 0x1000 -> bit 8 (French), 0x1001 -> bit 9 (English), 0x1002 -> bit 10 (German)
     u16 mask = (u16)(1 << (type - 0x1000)) << 8;
-    if ((mask & (u16)bfilm.id) == 0)
+    if ((mask & (u16)bfilm.id) == 0) {
+        ALIS_DEBUG(EDebugVerbose, "fli_audio: type=0x%x SKIP (bfilm.id=0x%x mask=0x%x)\n",
+                (int)type, (unsigned)bfilm.id, (unsigned)mask);
         return;
+    }
 
     u32 length = (u32)(nextaddr - addr);
-    if (length == 0)
+    if (length == 0) {
+        ALIS_DEBUG(EDebugVerbose, "fli_audio: type=0x%x SKIP (length=0)\n", (int)type);
         return;
+    }
 
     // NOTE: FLI/FLC chunks are word-aligned: an odd data length means one padding byte was inserted to align the next chunk.
     // Strip it so the tail garbage byte isn't played as a click between chunks.
     if (length & 1u)
         length--;
 
-    // Set channel directly -- playsample() clamps freq to 1-20 kHz range
-    // which is too low for video audio at 22050 Hz.
-    //
     // Sample rate = (chunk bytes * original_FLI_tick_hz) / waitclock so the
     // chunk plays exactly one waitclock-frame at the FLI's authored tempo.
     s16 freq;
@@ -408,16 +413,33 @@ void fli_audio(u8 *nextaddr, u8 *addr, s16 type)
         freq = (s16)f;
     }
 
-    // Use channel 3 with high priority so subsequent chunks reuse it
+    sys_lock_audio();
+
+    u8 next = (u8)((fli_audio_q_head + 1) & (FLI_AUDIO_QUEUE_SIZE - 1));
+    if (next == fli_audio_q_tail) {
+        sys_unlock_audio();
+        return;
+    }
+    fli_audio_queue[fli_audio_q_head].addr   = (s8 *)addr;
+    fli_audio_queue[fli_audio_q_head].length = length;
+    fli_audio_queue[fli_audio_q_head].freq   = freq;
+    fli_audio_q_head = next;
+
     sChannel *canal = &audio.channels[3];
-    canal->address = (s8 *)addr;
-    canal->volume = 0x7f;
-    canal->length = length;
-    canal->freq = freq;
-    canal->loop = 0;
-    canal->played = 0;
-    canal->type = eChannelTypeSample;
-    canal->curson = 0x7f;
+    if (canal->type == eChannelTypeNone) {
+        u8 t = fli_audio_q_tail;
+        canal->address = fli_audio_queue[t].addr;
+        canal->length  = fli_audio_queue[t].length;
+        canal->freq    = fli_audio_queue[t].freq;
+        canal->volume  = 0x7f;
+        canal->loop    = 0;
+        canal->played  = 0;
+        canal->curson  = 0x7f;
+        fli_audio_q_tail = (u8)((t + 1) & (FLI_AUDIO_QUEUE_SIZE - 1));
+        canal->type = eChannelTypeSample;
+    }
+
+    sys_unlock_audio();
 }
 
 void fli_elements(u8 *addr)
@@ -521,6 +543,14 @@ s16 flitofen(void)
 void inifilm(void)
 {
     bfilm.playing = 0;
+
+    sys_lock_audio();
+    audio.channels[3].type   = eChannelTypeNone;
+    audio.channels[3].curson = 0x80;
+    fli_audio_q_head = 0;
+    fli_audio_q_tail = 0;
+    sys_unlock_audio();
+
     switch (alis.platform.kind) {
         case EPlatformAtari:
             bfilm.type = eAlisVideoS512;
@@ -560,30 +590,66 @@ void runfilm(void)
     image.clipx2 = image.fenx2;
     image.clipy2 = image.feny2;
     
+    fli_pace_anchor   = 0;
+    fli_pace_total_ms = 0;
+
     bfilm.playing = 1;
-    
+
     while (true)
     {
         u32 prevclock = alis.timeclock;
+        u8  q_head_before = fli_audio_q_head;
         s16 result = (alis.platform.kind == EPlatformAtari || alis.platform.kind == EPlatformAmiga) ? flstofen(0) : flitofen();
+
+        u8 chunks_enqueued = (u8)((fli_audio_q_head - q_head_before) & (FLI_AUDIO_QUEUE_SIZE - 1));
+
         if (0 < bfilm.waitclock)
         {
-            s16 index = (s16)(((u32)(u16)bfilm.waitclock * 5) / 7);
-            if (index == 0)
+            if (chunks_enqueued)
             {
-                index = 1;
-            }
-            
-            do {
+                if (fli_pace_anchor == 0) {
+                    fli_pace_anchor   = SDL_GetTicks();
+                    fli_pace_total_ms = 0;
+                }
+                for (u8 k = 0; k < chunks_enqueued; k++) {
+                    u8 idx = (u8)((q_head_before + k) & (FLI_AUDIO_QUEUE_SIZE - 1));
+                    s16 cf = fli_audio_queue[idx].freq;
+                    u32 cl = fli_audio_queue[idx].length;
+                    if (cf > 0)
+                        fli_pace_total_ms += (cl * 1000UL) / (u32)cf;
+                }
+
+                while (SDL_GetTicks() - fli_pace_anchor < fli_pace_total_ms) {
 #if ALIS_SDL_VER == 1
-                sys_delay_frame();
-                itroutine(20, NULL);
+                    sys_delay_frame();
+                    itroutine(20, NULL);
 #else
-                SDL_Delay(1);
+                    SDL_Delay(1);
 #endif
-            } while (alis.timeclock < (u32)(index + prevclock));
+                }
+            }
+            else
+            {
+                fli_pace_anchor = 0;
+
+                u32 src = (alis.platform.kind == EPlatformAtari || alis.platform.kind == EPlatformAmiga) ? 50UL : 60UL;
+                s16 index = (s16)(((u32)(u16)bfilm.waitclock * sys_timeclock_hz) / src);
+                if (index == 0)
+                {
+                    index = 1;
+                }
+
+                do {
+#if ALIS_SDL_VER == 1
+                    sys_delay_frame();
+                    itroutine(20, NULL);
+#else
+                    SDL_Delay(1);
+#endif
+                } while (alis.timeclock < (u32)(index + prevclock));
+            }
         }
-        
+
         if (result == 0)
             break;
         

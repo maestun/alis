@@ -127,6 +127,9 @@ struct timeval  loop_time;
 double          isr_step;
 double          isr_counter;
 
+u32             sys_timeclock_hz = 50;
+u32             sys_sfx_tick_hz  = 50;
+
 //static u32      samplelength = 0;
 //static u8       *samplebuffer[1024 * 1024 * 4];
 
@@ -235,6 +238,24 @@ void signals_info(int signo) {
 // ============================================================================
 #pragma mark - Audio
 // ============================================================================
+
+void sys_lock_audio(void)
+{
+#if ALIS_SDL_VER < 2
+    SDL_LockAudio();
+#else
+    SDL_LockAudioDevice(audio_id);
+#endif
+}
+
+void sys_unlock_audio(void)
+{
+#if ALIS_SDL_VER < 2
+    SDL_UnlockAudio();
+#else
+    SDL_UnlockAudioDevice(audio_id);
+#endif
+}
 
 void sys_init_psg(void)
 {
@@ -719,8 +740,27 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                                         ch->loop--;
                                         ch->played = smpidx = accumulator = 0;
                                     }
+                                    else if (i == 3 && fli_audio_q_head != fli_audio_q_tail)
+                                    {
+                                        // FLI speech (channel 3): splice the next queued chunk in seamlessly instead of stopping
+                                        fli_chunks_played++;
+                                        u8 t = fli_audio_q_tail;
+                                        ch->address = fli_audio_queue[t].addr;
+                                        ch->length  = fli_audio_queue[t].length;
+                                        ch->freq    = fli_audio_queue[t].freq;
+                                        fli_audio_q_tail = (u8)((t + 1) & (FLI_AUDIO_QUEUE_SIZE - 1));
+                                        ratio = (ch->freq << 16) / audio_spec->freq;
+                                        ch->played = smpidx = accumulator = 0;
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                                        x0 = x2;
+                                        x1 = (s16)(ch->address[0] * 256);
+                                        x2 = (ch->length > 1) ? (s16)(ch->address[1] * 256) : 0;
+                                        x3 = (ch->length > 2) ? (s16)(ch->address[2] * 256) : 0;
+#endif
+                                    }
                                     else
                                     {
+                                        if (i == 3) fli_chunks_played++;
                                         ch->type = eChannelTypeNone;
                                         ch->curson = 0x80;
                                         break;

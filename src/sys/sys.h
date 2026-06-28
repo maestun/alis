@@ -118,3 +118,9 @@ u16     sys_random(void);
 // =============================================================================
 void    sys_lock_renderer(void);
 void    sys_unlock_renderer(void);
+
+extern u32 sys_timeclock_hz;
+extern u32 sys_sfx_tick_hz;
+
+void    sys_lock_audio(void);
+void    sys_unlock_audio(void);

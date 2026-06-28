@@ -116,7 +116,9 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         exit(-1);
     }
     
-    timer_id = SDL_AddTimer(alis.platform.is_little_endian ? 17 : 20, itroutine, NULL);
+    u32 timer_ms = alis.platform.is_little_endian ? 17 : 20;
+    sys_timeclock_hz = 1000 / timer_ms;
+    timer_id = SDL_AddTimer(timer_ms, itroutine, NULL);
     if (!timer_id) {
         fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
         exit(-1);
@@ -192,7 +194,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 
     sys_init_psg();
     
-    isr_step = (double)50.0 / (double)(audio_spec->freq);
+    sys_sfx_tick_hz = alis.platform.is_little_endian ? 60 : 50;
+    isr_step = (double)sys_sfx_tick_hz / (double)(audio_spec->freq);
     isr_counter = 1;
     
     SDL_PauseAudioDevice(audio_id, mutesound);

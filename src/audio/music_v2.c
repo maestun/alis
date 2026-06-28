@@ -149,7 +149,7 @@ void mv2_gomusic(void)
         mv2_calculfrq();
         mv2_calculvol();
 
-        audio.mutaloop = (audio.mutaloop * 5) / 7; // ~70Hz instead of ~50Hz
+        audio.mutaloop = (audio.mutaloop * 50UL) / sys_sfx_tick_hz; // (audio.mutaloop * 5) / 7;
         audio.soundrout = mv2_opl2rout;
     }
     else if (mv2a.mutype != 0)

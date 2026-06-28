@@ -214,3 +214,19 @@ void io_canal(sChannel *channel, s16 index);
 void mv1_soundrout(void);
 void mv2_soundrout(void);
 void mv2_chiprout(void);
+
+// FLI video audio queue
+
+#define FLI_AUDIO_QUEUE_SIZE 16
+
+typedef struct {
+    s8  *addr;
+    u32  length;
+    s16  freq;
+} sFliAudioChunk;
+
+extern volatile sFliAudioChunk fli_audio_queue[FLI_AUDIO_QUEUE_SIZE];
+extern volatile u8 fli_audio_q_head;  // next slot to write
+extern volatile u8 fli_audio_q_tail;  // next slot to read
+
+extern volatile u32 fli_chunks_played;

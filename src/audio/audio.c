@@ -27,6 +27,12 @@
 
 sAudio audio = {};
 
+// FLI video speech queue
+volatile sFliAudioChunk fli_audio_queue[FLI_AUDIO_QUEUE_SIZE] = {{0}};
+volatile u8  fli_audio_q_head = 0;
+volatile u8  fli_audio_q_tail = 0;
+volatile u32 fli_chunks_played = 0;
+
 void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop, s8 priorson)
 {
     char cson = CHAR_MAX;
