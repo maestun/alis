@@ -21,6 +21,7 @@
 
 #include "alis.h"
 #include "config.h"
+#include "image.h"
 #include "unpack.h"
 #include "sys/sys.h"
 
@@ -73,6 +74,7 @@ int main(int argc, char *argv[]) {
         int fullscreen = 0;
         int unpackmode = 0;
         int mutesound = 0;
+        int opt_far = 0;
 
         const char *path = NULL;
         
@@ -98,6 +100,15 @@ int main(int argc, char *argv[]) {
             {
                 unpackmode = 1;
             }
+            else
+            if (strcmp(cmd, "--far") == 0)
+            {
+                opt_far = 1;
+            }
+            else if (strcmp(cmd, "--1x") == 0) { extern int opt_scale; opt_scale = 1; }
+            else if (strcmp(cmd, "--2x") == 0) { extern int opt_scale; opt_scale = 2; }
+            else if (strcmp(cmd, "--3x") == 0) { extern int opt_scale; opt_scale = 3; }
+            else if (strcmp(cmd, "--4x") == 0) { extern int opt_scale; opt_scale = 4; }
             else
             {
                 path = argv[c];
@@ -127,7 +138,9 @@ int main(int argc, char *argv[]) {
             printf("# ALIS VM initialization...\n");
             printf("#############################\n");
             result = alis_init(*pl);
-            if (result == 1) return result; 
+            if (result == 1) return result;
+
+            if (opt_far) image.ddrawdist = 1;
 
             printf("#############################\n");
             printf("# Starting ALIS VM...\n");

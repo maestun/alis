@@ -99,6 +99,11 @@ u8              joystick0 = 0;
 u8              joystick1 = 0;
 u8              shift = 0;
 
+SDL_Joystick   *sys_joy_handle = NULL;
+#if ALIS_SDL_VER == 2
+SDL_JoystickID  sys_joy_instance_id = -1;
+#endif
+
 mouse_t         mouse;
 
 bool            dirty_mouse;
@@ -129,6 +134,8 @@ double          isr_counter;
 
 u32             sys_timeclock_hz = 50;
 u32             sys_sfx_tick_hz  = 50;
+
+int             opt_scale = 0;
 
 //static u32      samplelength = 0;
 //static u8       *samplebuffer[1024 * 1024 * 4];
@@ -261,9 +268,9 @@ void sys_init_psg(void)
 {
 #if !defined(__TOS__) && !defined(__atarist__)
     audio_psg = PSG_new(2000000, audio_spec->freq);
-    PSG_setClockDivider(audio_psg, 1);
+    PSG_setClockDivider(audio_psg, 0);
     PSG_setVolumeMode(audio_psg, 1); // YM style
-    PSG_setQuality(audio_psg, 1);
+    PSG_setQuality(audio_psg, 0);
     PSG_reset(audio_psg);
 #endif
 }
@@ -695,7 +702,7 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                     volratio = ch->volume >> 1;
 
                     ratio = (ch->freq << 16) / audio_spec->freq;
-                    accumulator = ch->played * ratio;
+                    accumulator = (u64)ch->played * (u64)ratio;
                     smpidx = accumulator >> 16;
                     accumulator &= 0xFFFF;
 
@@ -739,6 +746,12 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                                     {
                                         ch->loop--;
                                         ch->played = smpidx = accumulator = 0;
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                                        x0 = (s16)(ch->address[ch->length - 1] * 256);
+                                        x1 = (s16)(ch->address[0] * 256);
+                                        x2 = (ch->length > 1) ? (s16)(ch->address[1] * 256) : 0;
+                                        x3 = (ch->length > 2) ? (s16)(ch->address[2] * 256) : 0;
+#endif
                                     }
                                     else if (i == 3 && fli_audio_q_head != fli_audio_q_tail)
                                     {
@@ -920,6 +933,13 @@ mouse_t sys_get_mouse(void) {
     return mouse;
 }
 
+mouse_t sys_consume_mouse(void) {
+    mouse_t snap = mouse;
+    mouse.lb_clicked = 0;
+    mouse.rb_clicked = 0;
+    return snap;
+}
+
 void sys_set_mouse(u16 x, u16 y) {
     mouse.x = x;
     mouse.y = y;
@@ -943,6 +963,29 @@ u8 io_inkey(void)
 {
 #if ALIS_SDL_VER == 1
     SDL_PumpEvents();
+
+    // VM tight loops (e.g. the game's pause-on-ESC: oinkey != ESC && oinkey != 0) never yield to sys_poll_event between iterations
+    // without draining KEYDOWN events here, `button` stays at whatever value it had when the loop started and io_inkey returns 0 forever
+    // Consume only KEYDOWN; mouse/quit/KEYUP stay queued for sys_poll_event
+    
+    {
+        SDL_Event ev;
+        while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT,
+                              SDL_EVENTMASK(SDL_KEYDOWN)) > 0)
+        {
+            SDLKey k = ev.key.keysym.sym;
+            if (k == SDLK_PAUSE)
+            {
+                ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request.\n");
+                alis.state = eAlisStateStopped;
+            }
+            else if (k != SDLK_F11 && k != SDLK_F12)
+            {
+                button = ev.key.keysym;
+            }
+        }
+    }
+
     const u8 *currentKeyStates = SDL_GetKeyboardState(NULL);
     if (!currentKeyStates[button.sym])
 #else
@@ -1060,13 +1103,68 @@ u8 io_getkey(void) {
     return result;
 }
 
+#define SYS_JOY_AXIS_DEAD   8000
+
+static u8 sys_joy_compose(int with_mouse_fire) {
+    u8 b = 0;
+
+    if (sys_joy_handle) {
+#if ALIS_SDL_VER == 1
+        SDL_JoystickUpdate();
+#endif
+        s16 ax = SDL_JoystickGetAxis(sys_joy_handle, 0);
+        s16 ay = SDL_JoystickGetAxis(sys_joy_handle, 1);
+        if (ay < -SYS_JOY_AXIS_DEAD) b |= 0x01;
+        if (ay >  SYS_JOY_AXIS_DEAD) b |= 0x02;
+        if (ax < -SYS_JOY_AXIS_DEAD) b |= 0x04;
+        if (ax >  SYS_JOY_AXIS_DEAD) b |= 0x08;
+
+        if (SDL_JoystickNumHats(sys_joy_handle) > 0) {
+            u8 h = SDL_JoystickGetHat(sys_joy_handle, 0);
+            if (h & SDL_HAT_UP)    b |= 0x01;
+            if (h & SDL_HAT_DOWN)  b |= 0x02;
+            if (h & SDL_HAT_LEFT)  b |= 0x04;
+            if (h & SDL_HAT_RIGHT) b |= 0x08;
+        }
+
+        int nb = SDL_JoystickNumButtons(sys_joy_handle);
+        for (int i = 0; i < nb; i++) {
+            if (SDL_JoystickGetButton(sys_joy_handle, i)) { b |= 0x80; break; }
+        }
+    }
+
+    const u8 *keys = SDL_GetKeyboardState(NULL);
+#if ALIS_SDL_VER == 1
+    if (keys[SDLK_UP]    || keys[SDLK_KP8] || keys[SDLK_KP7] || keys[SDLK_KP9]) b |= 0x01;
+    if (keys[SDLK_DOWN]  || keys[SDLK_KP2] || keys[SDLK_KP1] || keys[SDLK_KP3]) b |= 0x02;
+    if (keys[SDLK_LEFT]  || keys[SDLK_KP4] || keys[SDLK_KP7] || keys[SDLK_KP1]) b |= 0x04;
+    if (keys[SDLK_RIGHT] || keys[SDLK_KP6] || keys[SDLK_KP9] || keys[SDLK_KP3]) b |= 0x08;
+#else
+    if (keys[SDL_SCANCODE_UP]    || keys[SDL_SCANCODE_KP_8] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_9]) b |= 0x01;
+    if (keys[SDL_SCANCODE_DOWN]  || keys[SDL_SCANCODE_KP_2] || keys[SDL_SCANCODE_KP_1] || keys[SDL_SCANCODE_KP_3]) b |= 0x02;
+    if (keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_KP_4] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_1]) b |= 0x04;
+    if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_KP_6] || keys[SDL_SCANCODE_KP_9] || keys[SDL_SCANCODE_KP_3]) b |= 0x08;
+#endif
+
+    if (with_mouse_fire && mouse.lb) b |= 0x80;
+    return b;
+}
+
+static void sys_joy_refresh(void) {
+    joystick0 = sys_joy_compose(0);
+    joystick1 = sys_joy_compose(1);
+}
+
 u8 io_joy(u8 port) {
+    sys_joy_refresh();
     return port ? joystick0 : joystick1;
 }
 
 u8 io_joykey(u8 test) {
+    sys_joy_refresh();
+
     u8 result = 0;
-    
+
     if (test == 0)
     {
         result = (joystick1 & 0x80) != 0;

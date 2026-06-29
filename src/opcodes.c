@@ -1153,7 +1153,10 @@ static void cstopret(void) {
 static void cexit(void) {
     if (alis.varD5 == 0)
     {
-        exit(-1);
+        // Quit: stop the VM and unwind to main(), where sys_deinit / alis_deinit run on the main thread.
+        alis.cstopret = 1;
+        alis.state = eAlisStateStopped;
+        alis.script->running = 0;
         return;
     }
 
@@ -2891,7 +2894,7 @@ static void cmousoff(void) {
 // Codopname no. 135 opcode 0x86 cmouse
 // 0x86 - 14d62
 static void cmouse(void) {
-    mouse_t mouse = sys_get_mouse();
+    mouse_t mouse = sys_consume_mouse();
     
     if (alis.platform.kind == EPlatformMac)
     {
@@ -2905,13 +2908,10 @@ static void cmouse(void) {
     alis.varD7 = mouse.y;
     cstore_continue();
     
-    alis.varD7 = mouse.lb ? 1 : (mouse.rb ? 2 : 0);
+    u8 lb_seen = mouse.lb || mouse.lb_clicked;
+    u8 rb_seen = mouse.rb || mouse.rb_clicked;
+    alis.varD7 = lb_seen ? 1 : (rb_seen ? 2 : 0);
     cstore_continue();
-    
-    mouse.lb = 0;
-    
-    alis.butmouse = 0;
-    alis.cbutmouse = 0;
 }
 
 // Codopname no. 136 opcode 0x87 cdefmouse

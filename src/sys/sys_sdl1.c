@@ -192,7 +192,7 @@ void sys_sleep_until(u32 *start, s32 len)
 {
     u32 now = SDL_GetTicks();
     s32 wait = len - (now - *start);
-    if (wait > 0)
+    if (wait > 0 && wait <= len)
         SDL_Delay(wait);
     *start = now;
 }
@@ -269,8 +269,8 @@ void sys_poll_event(void) {
 
         case SDL_MOUSEBUTTONDOWN:
         {
-            if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 1;
-            if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 1;
+            if (event.button.button == SDL_BUTTON_LEFT)  { mouse.lb = 1; mouse.lb_clicked = 1; }
+            if (event.button.button == SDL_BUTTON_RIGHT) { mouse.rb = 1; mouse.rb_clicked = 1; }
             break;
         }
         case SDL_MOUSEBUTTONUP:

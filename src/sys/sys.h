@@ -71,8 +71,13 @@ typedef struct {
     int x, y;
     u8 lb, rb;
     u8 enabled;
+    u8 consumed;
+    u8 lb_clicked;
+    u8 rb_clicked;
 } mouse_t;
+
 mouse_t sys_get_mouse(void);
+mouse_t sys_consume_mouse(void);
 void    sys_set_mouse(u16 x, u16 y);
 void    sys_enable_mouse(u8 enable);
 

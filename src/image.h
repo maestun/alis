@@ -295,6 +295,8 @@ typedef struct {
     s32 ztflowx;
     s32 ztflowy;
 
+    u8 ddrawdist;
+
 } sImage;
 
 extern sImage image;

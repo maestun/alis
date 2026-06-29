@@ -545,6 +545,13 @@ void openland(s16 scene_id)
         }
     }
 
+    // double normal draw distance (--far)
+    if (image.ddrawdist) {
+        xwrite16(scene_addr + 0x6a, 960 * 2);
+        xwrite16(scene_addr + 0x6c, 1680 * 2);
+        xwrite16(scene_addr + 0x6e, 1200 * 2);
+    }
+
     // Allocate shared pixel, altitude, and alias tables
     if (image.tlpix == 0)
     {

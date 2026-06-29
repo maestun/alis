@@ -75,6 +75,7 @@ extern SDL_AudioSpec   *audio_spec;
 
 extern bool            dirty_mouse;
 extern float           scale;
+extern int             opt_scale;   // --Nx integer window scale (sys.c)
 extern float           aspect_ratio;
 extern float           scale_x;
 extern float           scale_y;
@@ -106,16 +107,31 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 
     width = pl->width;
     height = pl->height;
-    
+
+    // CLI override (--Nx). 0 = keep the existing default (scale = 2).
+    if (opt_scale >= 1 && opt_scale <= 4)
+        scale = (float)opt_scale;
+
     scale_x = scale;
     scale_y = scale * aspect_ratio;
     
     printf("  SDL initialization...\n");
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)<0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK) < 0) {
         fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
         exit(-1);
     }
-    
+
+    extern SDL_Joystick *sys_joy_handle;
+    extern SDL_JoystickID sys_joy_instance_id;
+    SDL_JoystickEventState(SDL_ENABLE);
+    if (SDL_NumJoysticks() > 0) {
+        sys_joy_handle = SDL_JoystickOpen(0);
+        if (sys_joy_handle) {
+            sys_joy_instance_id = SDL_JoystickInstanceID(sys_joy_handle);
+            printf("  Joystick: %s\n", SDL_JoystickName(sys_joy_handle));
+        }
+    }
+
     u32 timer_ms = alis.platform.is_little_endian ? 17 : 20;
     sys_timeclock_hz = 1000 / timer_ms;
     timer_id = SDL_AddTimer(timer_ms, itroutine, NULL);
@@ -224,7 +240,7 @@ void sys_sleep_until(struct timeval *start, s32 len)
     gettimeofday(&now, NULL);
     
     s64 wait = len - ((s64)(now.tv_sec * 1000000LL + now.tv_usec) - (s64)(start->tv_sec * 1000000LL + start->tv_usec));
-    if (wait > 0)
+    if (wait > 0 && wait <= len)
         usleep((u32)wait);
     
     gettimeofday(&now, NULL);
@@ -335,14 +351,44 @@ void sys_poll_event(void) {
 
         case SDL_MOUSEBUTTONDOWN:
         {
-            if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 1;
-            if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 1;
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                mouse.lb = 1; mouse.lb_clicked = 1;
+            }
+            if (event.button.button == SDL_BUTTON_RIGHT) {
+                mouse.rb = 1; mouse.rb_clicked = 1;
+            }
             break;
         }
         case SDL_MOUSEBUTTONUP:
         {
             if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 0;
             if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 0;
+            break;
+        }
+        case SDL_JOYDEVICEADDED:
+        {
+            extern SDL_Joystick *sys_joy_handle;
+            extern SDL_JoystickID sys_joy_instance_id;
+            if (sys_joy_handle == NULL) {
+                sys_joy_handle = SDL_JoystickOpen(event.jdevice.which);
+                if (sys_joy_handle) {
+                    sys_joy_instance_id = SDL_JoystickInstanceID(sys_joy_handle);
+                    ALIS_DEBUG(EDebugInfo, "Joystick connected: %s\n",
+                               SDL_JoystickName(sys_joy_handle));
+                }
+            }
+            break;
+        }
+        case SDL_JOYDEVICEREMOVED:
+        {
+            extern SDL_Joystick *sys_joy_handle;
+            extern SDL_JoystickID sys_joy_instance_id;
+            if (sys_joy_handle && event.jdevice.which == sys_joy_instance_id) {
+                SDL_JoystickClose(sys_joy_handle);
+                sys_joy_handle = NULL;
+                sys_joy_instance_id = -1;
+                ALIS_DEBUG(EDebugInfo, "Joystick disconnected\n");
+            }
             break;
         }
         case SDL_QUIT:

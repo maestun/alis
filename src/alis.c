@@ -664,11 +664,11 @@ void alis_save_state(void)
     // FLI/FLC video
     
     fwrite(&bfilm, sizeof(bfilm), 1, fp);
-    value = (u32)((s64)bfilm.addr1 - (s64)alis.mem);
+    value = bfilm.addr1  ? (u32)((s64)bfilm.addr1  - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
-    value = (u32)((s64)bfilm.addr2 - (s64)alis.mem);
+    value = bfilm.addr2  ? (u32)((s64)bfilm.addr2  - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
-    value = (u32)((s64)bfilm.endptr - (s64)alis.mem);
+    value = bfilm.endptr ? (u32)((s64)bfilm.endptr - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
     value = bfilm.delptr ? (u32)((s64)bfilm.delptr - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
@@ -922,13 +922,13 @@ void alis_load_state(void)
     
     fread(&bfilm, sizeof(bfilm), 1, fp);
     fread(&value, 4, 1, fp);
-    bfilm.addr1 = alis.mem + value;
+    bfilm.addr1  = value ? alis.mem + value : NULL;
     fread(&value, 4, 1, fp);
-    bfilm.addr2 = alis.mem + value;
+    bfilm.addr2  = value ? alis.mem + value : NULL;
     fread(&value, 4, 1, fp);
-    bfilm.endptr = alis.mem + value;
+    bfilm.endptr = value ? alis.mem + value : NULL;
     fread(&value, 4, 1, fp);
-    bfilm.delptr = value ? alis.mem + value : 0;
+    bfilm.delptr = value ? alis.mem + value : NULL;
 
     fread(&fls_drawing, sizeof(fls_drawing), 1, fp);
     fread(&fls_pallines, sizeof(fls_pallines), 1, fp);

@@ -98,7 +98,8 @@ sImage image = {
     .sback = 0,
     .wback = 0,
     .cback = 0,
-    .pback = 0
+    .pback = 0,
+    .ddrawdist = 0
 };
 
 void draw_mac_rect(sRect *pos, sRect *bmp, u8 color);
