@@ -2739,12 +2739,7 @@ void draw(void)
     if (alis.fswitch != 0)
     {
         image.physic = image.logic;
-        
-        // NOTE: targhan doesn't use double buffering
-        if (alis.platform.dbl_buf)
-        {
-            image.logic = oldphys;
-        }
+        image.logic = oldphys;
         
         setphysic();
     }
@@ -2891,7 +2886,7 @@ void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
 
     for (s16 y = y1; y <= y2; y++)
     {
-        memset(image.logic + x1 + y * alis.platform.width, image.inkcolor, tmpx);
+        memset(image.physic + x1 + y * alis.platform.width, image.inkcolor, tmpx);
     }
 }
 

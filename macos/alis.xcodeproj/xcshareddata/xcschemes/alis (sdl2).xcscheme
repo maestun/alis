@@ -226,7 +226,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/metalmutant/atari/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/metalmutant/amiga/"
@@ -238,7 +238,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-m /Users/gildor/Work/alis/data/requiem/atari/"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/amiga/"
@@ -250,6 +250,10 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/falcon/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/requiem/falcon_cd/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument

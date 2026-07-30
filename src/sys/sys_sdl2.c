@@ -155,7 +155,6 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     }
     
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderSetScale(renderer, scale, scale);
     SDL_RenderSetLogicalSize(renderer, width, height * aspect_ratio);
     
     pixels = malloc(width * height * sizeof(*pixels));
@@ -332,20 +331,41 @@ u8 sys_start(void) {
     return 0;
 }
 
+static float sys_playfield_fit(float *bar_x, float *bar_y) {
+
+    int win_w, win_h;
+    SDL_GetWindowSize(window, &win_w, &win_h);
+
+    float log_w = (float)width;
+    float log_h = (float)height * aspect_ratio;
+    float fit = fminf((float)win_w / log_w, (float)win_h / log_h);
+
+    if (bar_x) *bar_x = ((float)win_w - log_w * fit) * 0.5f;
+    if (bar_y) *bar_y = ((float)win_h - log_h * fit) * 0.5f;
+
+    return fit;
+}
+
 void sys_poll_event(void) {
-    
+
     sys_render(host.pixelbuf);
-    
+
     SDL_PollEvent(&event);
 
-    // update mouse position
+    // update mouse position, mapping window coordinates to game coordinates
     SDL_GetMouseState(&mouse.x, &mouse.y);
 
-    float newx, newy;
-    SDL_RenderWindowToLogical(renderer, mouse.x, mouse.y, &newx, &newy);
+    float bar_x, bar_y;
+    float fit = sys_playfield_fit(&bar_x, &bar_y);
+    if (fit > 0)
+    {
+        s32 gx = (s32)(((float)mouse.x - bar_x) / fit);
+        s32 gy = (s32)(((float)mouse.y - bar_y) / (fit * aspect_ratio));
 
-    mouse.x = newx;
-    mouse.y = newy / aspect_ratio;
+        // clamp to the playfield so clicks in the bars land on its edge
+        mouse.x = gx < 0 ? 0 : (gx >= (s32)width ? (s32)width - 1 : gx);
+        mouse.y = gy < 0 ? 0 : (gy >= (s32)height ? (s32)height - 1 : gy);
+    }
 
     switch (event.type) {
 
@@ -480,9 +500,9 @@ void sys_poll_event(void) {
         {
             if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
             {
-                SDL_RenderGetScale(renderer, &scale_x, &scale_y);
-                scale_y *= aspect_ratio;
-                
+                scale_x = sys_playfield_fit(NULL, NULL);
+                scale_y = scale_x * aspect_ratio;
+
                 dirty_mouse = true;
             }
             
@@ -653,7 +673,8 @@ void sys_render(pixelbuf_t buffer) {
 
     SDL_UpdateTexture(texture, NULL, pixels, width * sizeof(*pixels));
     
-    // render
+    // clear&render
+    SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
     

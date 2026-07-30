@@ -384,8 +384,17 @@ u8 alis_init(sPlatform platform) {
     
     image.physic = (u8 *)malloc(alis.platform.width * alis.platform.height);
     memset(image.physic, 0, alis.platform.width * alis.platform.height);
-    image.logic  = (u8 *)malloc(alis.platform.width * alis.platform.height);
-    memset(image.logic, 0, alis.platform.width * alis.platform.height);
+
+    // NOTE: single-buffered games draw to and display using the same buffer
+    if (alis.platform.dbl_buf)
+    {
+        image.logic = (u8 *)malloc(alis.platform.width * alis.platform.height);
+        memset(image.logic, 0, alis.platform.width * alis.platform.height);
+    }
+    else
+    {
+        image.logic = image.physic;
+    }
 
     image.logx1 = 0;
     image.logx2 = alis.platform.width - 1;
@@ -400,7 +409,7 @@ u8 alis_init(sPlatform platform) {
     // {
     //   alis.fswitch = 0;
     // } else
-    alis.fswitch = 1;
+    alis.fswitch = alis.platform.dbl_buf;
     alis.flagmain = 0;
     
     alis.fallent = 0;
@@ -517,6 +526,15 @@ void alis_deinit(void) {
     
     //vram_deinit(alis.vram);
     free(alis.mem);
+    alis.mem = NULL;
+
+    if (image.logic != image.physic)
+        free(image.logic);
+
+    image.logic = NULL;
+
+    free(image.physic);
+    image.physic = NULL;
 }
 
 extern sMV1Audio mv1a;
@@ -634,7 +652,8 @@ void alis_save_state(void)
     fwrite(&(image), sizeof(image), 1, fp);
     fwrite(image.spritemem, 1024 * 1024, 1, fp);
     fwrite(image.physic, alis.platform.width * alis.platform.height, 1, fp);
-    fwrite(image.logic, alis.platform.width * alis.platform.height, 1, fp);
+    if (image.logic != image.physic)
+        fwrite(image.logic, alis.platform.width * alis.platform.height, 1, fp);
     
     // audio
     
@@ -895,7 +914,8 @@ void alis_load_state(void)
     
     fread(image.spritemem, 1024 * 1024, 1, fp);
     fread(image.physic, alis.platform.width * alis.platform.height, 1, fp);
-    fread(image.logic, alis.platform.width * alis.platform.height, 1, fp);
+    if (image.logic != image.physic)
+        fread(image.logic, alis.platform.width * alis.platform.height, 1, fp);
 
     // audio
     
