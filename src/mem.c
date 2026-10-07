@@ -26,6 +26,11 @@
 // MARK: - MEMORY ACCESS
 // =============================================================================
 
+// Thin aliases for inline xread/xwrite (NDEBUG path in mem.h)
+u8 *_xmem = NULL;
+u8  _xle  = 0;
+u8  _xwc  = 0;   // ALIS_MEM_WC_INLINE predicate: version >= 30 && little-endian
+
 fRead16 read16;
 fRead24 read24;
 fRead32 read32;
@@ -100,6 +105,11 @@ static u32 _linear32(u32 value) {
 
 void vram_init(void) {
 
+    // Set up thin aliases for inline xread/xwrite (NDEBUG path)
+    _xmem = alis.mem;
+    _xle  = alis.platform.is_little_endian;
+    _xwc  = (alis.platform.version >= 30 && alis.platform.is_little_endian) ? 1 : 0;
+
     read16 = (alis.platform.is_little_endian == is_host_le()) ? _read16 : alis.platform.is_little_endian ? _read16le : _read16be;
     read24 = alis.platform.is_little_endian ? _read_le24 : _read_be_24;
     read32 = (alis.platform.is_little_endian == is_host_le()) ? _read32 : alis.platform.is_little_endian ? _read32le : _read32be;
@@ -129,6 +139,7 @@ u32 swap32(const u8 *ptr) {
     return _convert32(*((u32*)ptr));
 }
 
+#if !defined(ALIS_MEM_NATIVE_ENDIAN) && !defined(NDEBUG)
 u8 xread8(u32 offset) {
     ALIS_DEBUG(EDebugVerbose, " [%.2x <= %.6x]", *(u8 *)(alis.mem + offset), offset);
     return *(alis.mem + offset);
@@ -145,25 +156,14 @@ s32 xread32(u32 offset) {
     ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u32)val, offset);
     return val;
 }
+#endif // ALIS_MEM_NATIVE_ENDIAN
 
 u8 * get_vram(s16 offset) {
     ALIS_DEBUG(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
-s16 xswap16(u16 value) {
-    return _convert16(value);
-}
-
-s32 xswap32(u32 value) {
-    return _convert32(value);
-}
-
-u8 * xreadptr(u32 offset) {
-    ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + offset), offset);
-    return (u8 *)(alis.mem + offset);
-}
-
+#if !defined(ALIS_MEM_NATIVE_ENDIAN) && !defined(NDEBUG)
 void xwrite8(u32 offset, u8 value) {
     ALIS_DEBUG(EDebugVerbose, " [%.2x => %.6x]", value, offset);
     *(u8 *)(alis.mem + offset) = value;
@@ -213,6 +213,15 @@ void xsub32(s32 offset, s32 sub) {
     xwrite32(offset, val - sub);
 }
 
+s16 xswap16(u16 value) {
+    return _convert16(value);
+}
+
+s32 xswap32(u32 value) {
+    return _convert32(value);
+}
+#endif // ALIS_MEM_NATIVE_ENDIAN
+
 void xpush32(s32 value) {
     alis.script->vacc_off -= sizeof(u32);
     xwrite32(alis.script->vram_org + alis.script->vacc_off, value);
@@ -243,6 +252,7 @@ u32 fread32(FILE* fp) {
     return swap32((u8 *)&tmp);
 }
 
+#if !defined(ALIS_MEM_NATIVE_ENDIAN) && !defined(NDEBUG)
 s16 xswap16be(u16 value) {
     return _convert16be(value);
 }
@@ -265,16 +275,11 @@ s32 xread32be(u32 offset) {
     return val;
 }
 
-// 32-bit world coordinate accessors for cwalkmap.
-// On v3.0+ LE, cwalkmap stores 16.16 fixed-point WCX/WCY/WCZ with xwrite32,
-// but other code (generic slocw, cset) writes 16-bit integers with xwrite16.
-// On BE, xread16(addr) naturally gets the high word (integer part) of either format.
-// On LE, xread16(addr) gets the low word — wrong after xwrite32.
-//
-// Fix: on v3.0+ LE, store the 32-bit value in word-swapped format so that
-// bytes 0-1 always hold the integer part (compatible with xread16), and
-// bytes 2-3 hold the fractional part. cwalkmap uses these helpers to
-// read/write the full 16.16 value in this layout.
+#endif // ALIS_MEM_NATIVE_ENDIAN (debug-only accessors above)
+
+#if !defined(ALIS_MEM_NATIVE_ENDIAN) && !(defined(ALIS_MEM_WC_INLINE) && ALIS_MEM_WC_INLINE)
+// World-coordinate accessors for cwalkmap. All builds: v3.0+ LE stores WC as 16.16; swap words so
+// xread16 sees the integer.
 s32 xread32_wc(s32 base, s32 wc_offset) {
     if (alis.platform.version >= 30 && alis.platform.is_little_endian) {
         u16 hi = (u16)xread16(base + wc_offset);       // integer (bytes 0-1 on LE)
@@ -292,6 +297,7 @@ void xwrite32_wc(s32 base, s32 wc_offset, s32 val) {
         xwrite32(base + wc_offset, val);
     }
 }
+#endif // !ALIS_MEM_NATIVE_ENDIAN (world-coordinate accessors)
 
 s32 io_malloc(s32 rawsize)
 {

@@ -21,12 +21,7 @@
 
 #pragma once
 
-//#ifdef _MSC_VER
 # define a32 u32
-//#else
-//# include <stdatomic.h>
-//# define a32 atomic_int
-//#endif
 
 #include "channel.h"
 #include "config.h"
@@ -121,15 +116,21 @@ typedef struct {
 
 } sChipChannel;
 
+// One music tick of mixed samples: <= ~1001 at the fastest Atari rate (50 kHz).
+#if defined(__atarist__) || defined(__TOS__)
+#define kMuBufLen 1024
+#else
+#define kMuBufLen 0xffff
+#endif
+
 typedef struct {
 
-    sAudioVoice voices[4]; //
+    sAudioVoice voices[4];
     sChipChannel chipch[3];
     u32 tabfrq[0x358];
     u16 defvolins;
     u8 defvol[32];
     s16 trkval[36];
-    s8 tabvol[0x4000 * 2];
     s16 prevmufreq;
     s16 prevmuvol;
     u16 mutype;
@@ -179,8 +180,8 @@ typedef struct {
     u16 dchute;
 
     a32 muflag;
-    u16 mutaloop;
-    s16 muadresse[0xffff];
+    u16 mutaloop;                   // <= kMuBufLen (set_mutaloop)
+    s16 muadresse[kMuBufLen];
     u32 smpidx;
 
     void (*soundrout)(void);
@@ -189,11 +190,14 @@ typedef struct {
 
 extern sAudio audio;
 
+static inline void set_mutaloop(u32 n) { audio.mutaloop = (u16)(n < kMuBufLen ? n : kMuBufLen); }
+
 void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop, s8 priorson);
 void playsound(eChannelType type, u8 pereson, u8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson);
 void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson, u16 longson, s16 dvolson, s16 dfreqson);
 
 void offsound(void);
+void audio_relocate(u32 lo, u32 hi, s32 delta);
 
 // older music variant (atari st/amiga ishar and older)
 
@@ -214,10 +218,12 @@ void io_canal(sChannel *channel, s16 index);
 void mv1_soundrout(void);
 void mv2_soundrout(void);
 void mv2_chiprout(void);
+void mv2_opl2rout(void);
 
-// FLI video audio queue
+// FLI speech queue (channel 3 only). Chunks must play back-to-back, so the
+// mixer dequeues the next one when the current ends instead of being replaced.
 
-#define FLI_AUDIO_QUEUE_SIZE 16
+#define FLI_AUDIO_QUEUE_SIZE 16  // power of 2 — head/tail use & mask
 
 typedef struct {
     s8  *addr;
@@ -229,4 +235,6 @@ extern volatile sFliAudioChunk fli_audio_queue[FLI_AUDIO_QUEUE_SIZE];
 extern volatile u8 fli_audio_q_head;  // next slot to write
 extern volatile u8 fli_audio_q_tail;  // next slot to read
 
+// FLI chunks finished on channel 3. Video paces on it (the DAC runs at real
+// time even when the emulated timer doesn't) to keep lip-sync.
 extern volatile u32 fli_chunks_played;

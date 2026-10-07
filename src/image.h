@@ -69,12 +69,40 @@ typedef struct {
     s16 y2;
 } sRect;
 
+// sColorARGB:  SDL2 textures, big-endian SDL1 32-bit — val = 0xAARRGGBB
+// sColorABGR:  little-endian SDL1 32-bit surfaces    — val = 0xAABBGGRR
+// sColorRGBA32: SDL_Color compatible (SDL_PIXELFORMAT_RGBA32) — memory always [R,G,B,A]
+// sColor565:   Falcon 16-bit                         — val = RRRRRGGGGGGBBBBB
+
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+typedef union { struct { u32 a:8; u32 r:8; u32 g:8; u32 b:8; }; u32 val; } sColorARGB;
+typedef union { struct { u32 b:8; u32 g:8; u32 r:8; u32 a:8; }; u32 val; } sColorABGR;
+typedef union { struct { u16 r:5; u16 g:6; u16 b:5; }; u16 val; } sColor565;
+#else
+typedef union { struct { u32 b:8; u32 g:8; u32 r:8; u32 a:8; }; u32 val; } sColorARGB;
+typedef union { struct { u32 r:8; u32 g:8; u32 b:8; u32 a:8; }; u32 val; } sColorABGR;
+typedef union { struct { u16 b:5; u16 g:6; u16 r:5; }; u16 val; } sColor565;
+#endif
+
+// Memory [R,G,B,A] on all platforms — byte-identical to SDL_Color, no #if needed
+typedef union { struct { u32 r:8; u32 g:8; u32 b:8; u32 a:8; }; u32 val; } sColorRGBA32;
+
+typedef enum {
+    EPalARGB,    // SDL2, big-endian SDL1 32-bit
+    EPalABGR,    // little-endian SDL1 32-bit
+    EPalRGBA32,  // SDL_Color compatible — for 8-bit indexed surfaces
+    EPal565      // Falcon 16-bit
+} EPalFormat;
+
 typedef struct {
     
     u8 *spritemem;
 
     u8 *physic;
     u8 *logic;
+    u8 *physic_alloc;       // raw malloc base for physic (for free)
+    u8 *logic_alloc;        // raw malloc base for logic  (for free)
+    u32 buffer_alloc_size;  // sizeof(physic_alloc) == sizeof(logic_alloc)
 
     s16 logx1;
     s16 logx2;
@@ -107,7 +135,9 @@ typedef struct {
     s16 backy1;
     s16 backy2;
     s16 backlarg;
-    u8 *backmap;
+    u8 *backmap;            // background-cache render target (chunky: full-screen 8bpp shadow)
+    u8 *bgcache_alloc;      // raw malloc base of the 8bpp shadow (for free); NULL when no cache
+    u8 *wdraw;             // current sprite-blit destination: image.logic, or backmap while capturing
 
     s32 basesprite;
     u16 libsprit;
@@ -134,14 +164,16 @@ typedef struct {
     
     u8 tvmode;
 
-    u8 svpalet[1024];
-    u8 svpalet2[1024];
-    u8 tpalet[1024];
-    u8 mpalet[1024];
-    float dpalet[1024];
+    u32 svpalet[256];
+    u32 svpalet2[256];
+    u32 tpalet[256];
+    u32 mpalet[256];
+    s32 dpalet[256 * 3];
 
-    u8 *atpalet;
-    u8 *ampalet;
+    u32 *atpalet;
+    u32 *ampalet;
+
+    EPalFormat pal_format;
 
     u8 flinepal;
     s16 firstpal[64];
@@ -295,8 +327,25 @@ typedef struct {
     s32 ztflowx;
     s32 ztflowy;
 
-    u8 ddrawdist;
+    u8 ddrawdist;  // when set, doubles terrain view distance beyond game default
 
+#if ALIS_SDL_VER > 1
+    // Enhanced 32-bit renderer
+    u8 emode;               // 0 = classic 8-bit, 1 = enhanced 32-bit RGBA
+    u8 stripdepth;          // current strip depth 0=near, 255=far (set per strip in doland)
+    u8 *depthbuf;           // per-pixel depth buffer (terrgbaw * terrgbah bytes)
+    u8 **depthrows;         // row pointer table: depthrows[y] → depth row start
+    u8 *omask;              // 1 byte per display pixel: 0=use terrgba, 1=use 8-bit palette
+    u32 fogcol;             // ARGB fog/sky color for distance blending
+    u8 fogbeg;              // depth where fog begins (0-255)
+    u8 fogend;              // depth where fog is fully opaque (0-255)
+    u32 *terrgba;           // native 32-bit ARGB terrain buffer (malloc'd, NULL if not allocated)
+    u16 terrgbaw;           // width of enhanced buffer
+    u16 terrgbah;           // height of enhanced buffer
+    u32 terrgbas;           // pixels per row
+    u32 **terrgbarows;      // row pointer table: terrgbarows[y] → pixel row start
+    u32 darkrgba[256 * 256];// pre-resolved dark table: darkrgba[dark_page<<8|texel] → ARGB
+#endif
 } sImage;
 
 extern sImage image;
@@ -315,7 +364,7 @@ void put_char(s8 character);
 void put_string(void);
 
 void putin(u16 idx);
-void putmapin(s16 spridx, s32 bitmap);
+void putmapin(u16 spridx, s32 bitmap);
 
 u32 itroutine(u32 interval, void *param);
 void draw(void);
@@ -324,6 +373,8 @@ void draw_pixel(s16 x0, s16 y0);
 void draw_line(s16 x0, s16 y0, s16 x1, s16 y1);
 void draw_box(s16 x1,s16 y1,s16 x2,s16 y2);
 void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2);
+void trsfen(u8 *src, u8 *tgt);
+void clrfen(void);
 
 void topalette(u8 *paldata, s32 duration);
 void toblackpal(s16 duration);
@@ -331,17 +382,36 @@ void toblackpal(s16 duration);
 void savepal(s16 mode);
 void restorepal(s16 mode, s32 duration);
 
+// DOS palette model (PC data, see image.c); dos_pal_active() selects it.
+int  dos_pal_active(void);
+void dos_pal_reset(void);
+void dos_pal_tick(void);
+void dos_pal_sync_from_image(void);
+void dos_cpalette(s16 idx, u8 *res);
+void dos_ctopalet(s16 idx, s16 dur, u8 *res);
+void dos_ctoblack(s16 dur);
+void dos_cselpalet(s16 val);
+void dos_cdefcolor(s16 idx, u16 val);
+void dos_csavepal(s16 idx);
+void dos_putin_palette(u8 *res);
+int  dos_film_palette(u8 *addr);
+
 void selpalet(void);
 void setmpalet(void);
 
 void setlinepalet(void);
 
+#if defined(ALIS_TRACE_PAL)
+void pal_trace(const char *op, s32 a, s32 b);   // debug: palette opcodes + bank/line-palette state
+#define PAL_TRACE(op, a, b) pal_trace(op, a, b)
+#else
+#define PAL_TRACE(op, a, b) ((void)0)
+#endif
+
 s16 debprotf(s16 d2w);
 u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3);
 
 void valtostr(char *string, s16 value);
-
-void log_sprites(void);
 
 void mac_update_pos(s16 *x,s16 *y);
 
@@ -352,3 +422,112 @@ extern u8 rots[4];
 s32 calctop(u32 scene_addr, s16 grid_col, s16 grid_row);
 
 void tvtofen(void);
+
+#define PAL_WRITE_DISPATCH(pal, idx, body) do { \
+    switch (image.pal_format) { \
+    case EPalARGB:   { sColorARGB   *p = &((sColorARGB   *)(pal))[(idx)]; body; break; } \
+    case EPalABGR:   { sColorABGR   *p = &((sColorABGR   *)(pal))[(idx)]; body; break; } \
+    case EPalRGBA32: { sColorRGBA32 *p = &((sColorRGBA32 *)(pal))[(idx)]; body; break; } \
+    case EPal565:    { sColor565    *p = &((sColor565    *)pal)[(idx)]; body; break; } \
+    } \
+} while(0)
+
+#define RGB9(addr) { \
+    r = (*(addr) & 0b00000111) << 5; addr++; \
+    g = (*(addr) >> 4) << 5; \
+    b = (*(addr) & 0b00000111) << 5;  addr++; \
+}
+
+#define RGB12(addr) { \
+    r = (*(addr) & 0b00001111) << 4; addr++; \
+    g = (*(addr) >> 4) << 4; \
+    b = (*(addr) & 0b00001111) << 4;  addr++; \
+}
+
+#define RGB18(addr) { \
+    r = *(addr) << 2; addr++; \
+    g = *(addr) << 2; addr++; \
+    b = *(addr) << 2; addr++; \
+}
+
+#define RGB24(addr) { \
+    r = *(addr); addr++; \
+    g = *(addr); addr++; \
+    b = *(addr); addr++; \
+}
+
+#define RGB32(addr) { \
+    r = *(addr); addr++; \
+    g = *(addr); addr++; \
+    b = *(addr); addr++; \
+    addr++; \
+}
+
+#define PAL_WRITE_RGB(pal, index, red, grn, blu) \
+switch (image.pal_format) { \
+case EPalRGBA32: { sColorRGBA32 *cc = (sColorRGBA32 *)&(pal)[(index)]; cc->r = red; cc->g = grn; cc->b = blu; break; } \
+case EPalABGR:   { sColorABGR *cc = (sColorABGR *)&(pal)[(index)]; cc->r = red; cc->g = grn; cc->b = blu; break; } \
+case EPal565:    { sColor565 *cc = &((sColor565 *)(pal))[(index)]; cc->r = red >> 3; cc->g = grn >> 2; cc->b = blu >> 3; break; } \
+default:         { sColorARGB *cc = (sColorARGB *)&(pal)[(index)]; cc->r = red; cc->g = grn; cc->b = blu; break; } \
+}
+
+#define PAL_WRITE_RGB_AT(pal, index, getter) { \
+u8 r, g, b; \
+switch (image.pal_format) { \
+case EPalRGBA32: { getter; sColorRGBA32 *cc = (sColorRGBA32 *)&(pal)[(index)]; cc->r = r; cc->g = g; cc->b = b; break; } \
+case EPalABGR:   { getter; sColorABGR *cc = (sColorABGR *)&(pal)[(index)]; cc->r = r; cc->g = g; cc->b = b; break; } \
+case EPal565:    { getter; sColor565 *cc = &((sColor565 *)(pal))[(index)]; cc->r = r >> 3; cc->g = g >> 2; cc->b = b >> 3; break; } \
+default:         { getter; sColorARGB *cc = (sColorARGB *)&(pal)[(index)]; cc->r = r; cc->g = g; cc->b = b; break; } \
+}}
+
+#define PAL_WRITE(pal, start, len, getter) {\
+u8 r, g, b; \
+switch (image.pal_format) { \
+case EPalRGBA32: { for (int c = 0; c < (len); c++) { getter; sColorRGBA32 *cc = (sColorRGBA32 *)&(pal)[(start) + c]; cc->r = r; cc->g = g; cc->b = b; } break;} \
+case EPalABGR:   { for (int c = 0; c < (len); c++) { getter; sColorABGR *cc = (sColorABGR *)&(pal)[(start) + c]; cc->r = r; cc->g = g; cc->b = b; } break;} \
+case EPal565:    { for (int c = 0; c < (len); c++) { getter; sColor565 *cc = &((sColor565 *)(pal))[(start) + c]; cc->r = r >> 3; cc->g = g >> 2; cc->b = b >> 3; } break;} \
+default:         { for (int c = 0; c < (len); c++) { getter; sColorARGB *cc = (sColorARGB *)&(pal)[(start) + c]; cc->r = r; cc->g = g; cc->b = b; } break;} \
+}}
+
+#define PAL_READ_RGB(pal, idx, _r, _g, _b) \
+    switch (image.pal_format) { \
+    case EPalARGB:   { sColorARGB   *p = &((sColorARGB   *)(pal))[(idx)]; _r=p->r; _g=p->g; _b=p->b; break; } \
+    case EPalABGR:   { sColorABGR   *p = &((sColorABGR   *)(pal))[(idx)]; _r=p->r; _g=p->g; _b=p->b; break; } \
+    case EPalRGBA32: { sColorRGBA32 *p = &((sColorRGBA32 *)(pal))[(idx)]; _r=p->r; _g=p->g; _b=p->b; break; } \
+    case EPal565:    { sColor565    *p = &((sColor565    *)pal)[(idx)]; _r=p->r; _g=p->g; _b=p->b; break; } \
+}
+
+#define TOPALET_INTERP_LOOP(type, amp_ptr, atp_ptr) { \
+    type *amp = (type *)(amp_ptr); \
+    type *atp = (type *)(atp_ptr); \
+    s32 _palc = image.palc; \
+    for (int i = 0; i < 256; i++) { \
+        if (amp[i].val != atp[i].val) { \
+            amp[i].r = atp[i].r + (s32)((image.dpalet[i * 3 + 0] * _palc) >> 16); \
+            amp[i].g = atp[i].g + (s32)((image.dpalet[i * 3 + 1] * _palc) >> 16); \
+            amp[i].b = atp[i].b + (s32)((image.dpalet[i * 3 + 2] * _palc) >> 16); \
+        } \
+    } \
+}
+
+#define PAL_DELTA_LOOP(type, src_ptr, dst_ptr, duration) { \
+    type *src = (type *)(src_ptr); \
+    type *dst = (type *)(dst_ptr); \
+    s32 _dur = (s32)(duration); \
+    if (_dur == 0) _dur = 1; \
+    for (int i = 0; i < 256; i++) { \
+        image.dpalet[i * 3 + 0] = (((s32)src[i].r - (s32)dst[i].r) * 65536) / _dur; \
+        image.dpalet[i * 3 + 1] = (((s32)src[i].g - (s32)dst[i].g) * 65536) / _dur; \
+        image.dpalet[i * 3 + 2] = (((s32)src[i].b - (s32)dst[i].b) * 65536) / _dur; \
+    } \
+}
+
+#if defined(ALIS_NATIVE_PLANAR)
+void planar_tab_flush(void);   // drop cached flipped sprites (sprite_planar.c)
+#endif
+#if defined(ALIS_NATIVE_16BPP)
+void sprite_cache_flush(void); // drop cached expanded sprites (image_draw_16.c)
+#endif
+#if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM && !defined(ALIS_NO_ZOOM_TRIM)
+void zoom_rows_flush(void);    // drop cached billboard row spans (render3d.c)
+#endif

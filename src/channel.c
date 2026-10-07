@@ -20,5 +20,3 @@
 //
 
 #include "channel.h"
-//
-//sChannel channels[4] = {{.type = 0}, {.type = 0}, {.type = 0}, {.type = 0}};

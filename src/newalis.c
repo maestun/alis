@@ -225,7 +225,7 @@
 // toper_CA: + otypitem
 // toper_CC: + oloaded
 // ============================================================================
-// 4. Add routines
+// 4. Store routines
 // ============================================================================
 // tstore_12: sdirb => slocl
 // tstore_14: sdirw => sloctl
@@ -234,7 +234,8 @@
 // tstore_1A: sdirtc => shiml
 // tstore_1C: sdirti => shimtl
 // ============================================================================
-// 5. Store routines
+// 5. Add routines
+// ============================================================================
 // tadd_12: adirb => alocl
 // tadd_14: adirw => aloctl
 // tadd_16: adirp => amainl
@@ -2899,7 +2900,7 @@ static void aeval(void) {
 // ============================================================================
 #pragma mark - Opcode / Codop (Code-op) routines pointer table
 // ============================================================================
-sAlisOpcode opcodes_v40[] = {
+const sAlisOpcode opcodes_v40[] = {
     DECL_OPCODE(0x00, cnul,         "[N/I] null"),
     DECL_OPCODE(0x01, cesc1,        "TODO: add desc"),
     DECL_OPCODE(0x02, cesc2,        "[N/I]"),
@@ -3161,7 +3162,7 @@ sAlisOpcode opcodes_v40[] = {
 // ============================================================================
 #pragma mark - Codesc1 routines pointer table
 // ============================================================================
-sAlisOpcode codesc1names_v40[] = {
+const sAlisOpcode codesc1names_v40[] = {
     DECL_OPCODE(0x00, cnul,         "[N/I] null"),
     DECL_OPCODE(0x01, csoundon,     "sound on"),
     DECL_OPCODE(0x02, csoundoff,    "sound off"),
@@ -3249,7 +3250,7 @@ sAlisOpcode codesc1names_v40[] = {
 // =============================================================================
 #pragma mark - Oper (Operation) routines pointer table
 // =============================================================================
-sAlisOpcode opernames_v40[] = {
+const sAlisOpcode opernames_v40[] = {
     DECL_OPCODE(0x00, oimmb,        "read immediate byte from script, extend to word, copy into r7"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x02, oimmw,        "read immediate word from script, copy into r7"),
@@ -3461,7 +3462,7 @@ sAlisOpcode opernames_v40[] = {
 // ============================================================================
 #pragma mark - Store routines pointer table
 // ============================================================================
-sAlisOpcode storenames_v40[] = {
+const sAlisOpcode storenames_v40[] = {
     DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),
@@ -3527,7 +3528,7 @@ sAlisOpcode storenames_v40[] = {
 // ============================================================================
 #pragma mark - Add routines pointer table
 // ============================================================================
-sAlisOpcode addnames_v40[] = {
+const sAlisOpcode addnames_v40[] = {
     DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),

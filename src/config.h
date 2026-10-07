@@ -43,11 +43,19 @@
 #include <sys/types.h>
 
 #define kProgName           "alis"
-#define kProgVersion        "0.1.039" // temporal version numbering scheme: x.y.zzz; zzz - pull request number
+// version.h is generated from git by scripts/gen_version.sh (every build system runs it).
+#if defined(__has_include)
+# if __has_include("version.h")
+#  include "version.h"
+# endif
+#endif
+#ifndef kProgVersion
+# define kProgVersion       "unknown"
+#endif
 #define kPathMaxLen         (256)
 #define kNameMaxLen         (16)
 #define kDescMaxLen         (1024)
-#define kSaveStateVersion   "0003"
+#define kSaveStateVersion   "0004"
 
 #if defined (_WIN32) || defined (__CYGWIN__)
 #  define kPathSeparator    '\\'
@@ -93,4 +101,17 @@ typedef enum {
 # define ALIS_USE_THREADS   1
 #endif
 
+#define ALIS_CONV_INPLACE   1
+
+// ALIS_PLANAR_CONV: 4-plane sprite storage conversion without the native render. Always on for
+// ALIS_NATIVE_PLANAR; define alone on desktop to debug the conversion (sprites render garbled).
+#if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR && !defined(ALIS_PLANAR_CONV)
+# define ALIS_PLANAR_CONV   1
+#endif
+
 extern int disalis;
+
+// Author mode (-a): scripts open with `omodel < 1000`, which no real machine returns.
+// sys_get_model() answers kAuthorModel to the first caller only (see author-mode item in TODO).
+#define kAuthorModel    0
+extern int authormode;

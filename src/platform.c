@@ -24,6 +24,8 @@
 #include "debug.h"
 #include "platform.h"
 #include "utils.h"
+#include <string.h>
+#include <strings.h>  // for strncasecmp
 
 // TODO: Manhattan Dealers (Operation: Cleanstreets in the US), the first game on the ALIS engine, is different.
 // Atari ST: it uses 'OO' file extension and the main script is in 'man.sng' (not 'OO'!),
@@ -49,6 +51,61 @@ static sPlatform platforms[] = {
 
 int pl_supported(sPlatform* platform) {
     return platform->kind != EPlatformUnknown;
+}
+
+// alis.mem heap size. 1 MB floor (io_model's minimum Atari value 1010 = 1 MB); 2 MB for 8bpp,
+// ALIS_CONV_INPLACE builds and non-textured RRQ; 4 MB for textured RRQ (DOS, Falcon CD).
+u32 pl_compute_ram_size(const sPlatform *pl) {
+    if (pl->uid == EGameRobinsonsRequiem0 || pl->uid == EGameRobinsonsRequiem1) {
+        if (pl->kind == EPlatformPC || pl->kind == EPlatformFalcon)
+            return 4 * 1024 * 1024;
+        return 2 * 1024 * 1024;
+    }
+
+    if (pl->bpp >= 8)
+        return 2 * 1024 * 1024;
+
+#if defined(ALIS_CONV_INPLACE) && ALIS_CONV_INPLACE
+    return 2 * 1024 * 1024;
+#endif
+    return 1 * 1024 * 1024;
+}
+
+// RAM of the machine the original ST/Amiga release targeted (0 = not listed).
+static u32 pl_original_ram(const sPlatform *pl)
+{
+    if (pl->kind != EPlatformAtari && pl->kind != EPlatformAmiga)
+        return 0;
+    switch (pl->uid) {
+        case EGameManhattanDealers0: case EGameManhattanDealers1: case EGameMadShow:
+        case EGameTarghan0: case EGameTarghan1: case EGameWindsurfWilly: case EGameLeFeticheMaya:
+        case EGameColorado: case EGameStarblade: case EGameCrystalsOfArborea0:
+        case EGameCrystalsOfArborea1: case EGameMetalMutant: case EGameBostonBombClub:
+        case EGameStormMaster: case EGameBunnyBricks: case EGameIshar_1:
+            return 512 * 1024;
+        case EGameIshar_2: case EGameTransarctica: case EGameIshar_3:
+        case EGameRobinsonsRequiem0: case EGameRobinsonsRequiem1:
+            return 1024 * 1024;
+        default:
+            return 0;
+    }
+}
+
+// Arena bounds: *pref = the tier above; *floor = 2x the original machine's RAM (8-bit sprites),
+// or *pref when the original isn't listed.
+void pl_arena_range(const sPlatform *pl, u32 *floor, u32 *pref)
+{
+    u32 orig = pl_original_ram(pl);
+    *pref  = pl_compute_ram_size(pl);
+    *floor = (orig && 2 * orig < *pref) ? 2 * orig : *pref;
+}
+
+// omodel memory class (ST data) the original would report for an arena of `ram_sz`:
+// 1000 = 512K, 1010 = 1MB, 1020 = more. Assumes 8-bit sprites need twice the original RAM.
+u16 pl_model_memclass(u32 ram_sz)
+{
+    u32 orig = ram_sz / 2;
+    return orig < 1024 * 1024 ? 1000 : orig < 2 * 1024 * 1024 ? 1010 : 1020;
 }
 
 static sPlatform* pl_get(const char * main_script) {

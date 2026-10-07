@@ -11,6 +11,12 @@
 #include "render3d.h"
 #include "render3d_dos.h"
 
+#if ALIS_SDL_VER < 2
+# include <SDL/SDL.h>
+extern SDL_Rect dirty_rects[256];
+extern u8 dirty_len;
+#endif
+
 // Shared globals defined in render3d.c
 extern u8 fprectop;
 extern u8 fprectopa;
@@ -32,14 +38,48 @@ extern u8 terrain_fill_color;
 extern s16 bartra_saved_si;
 extern s16 bottom_type_index;
 
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+// Per-doland cost counters, defined in render3d_68k.c and printed by affiland.
+// g_bar_px stays 0 here.
+extern u32 g_bar_ticks, g_bar_calls, g_bar_px, g_prescan_ticks, g_prescan_iters;
+#endif
+
 void vgatofen_dos(void)
 {
     image.switchgo = 1;
     u8 *src = image.wlogic + (image.clipx1 + (image.clipy1 - image.wlogy1) * image.wloglarg);
-    
+
     image.vgamodulo = image.wloglarg - ((image.clipx2 - image.clipx1) + 1);
     image.bitmodulo = image.loglarg * 2 - ((image.clipx2 - image.clipx1) + 1);
-    
+
+#if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
+    // Native Falcon: image.logic is the 8-plane planar framebuffer — transpose (c2p) the chunky 3D
+    // viewport instead of byte-copying. 8-bit game (DOS), so all planes used, no bpp mask. See
+    // vgatofen_68k for the alignment rationale.
+    {
+        extern void chunky8_to_planar(const u8 *idx8, s32 w, s32 h, int flip, u8 *dst);
+        s32 pitch = alis.platform.width;
+        s32 x0 = image.clipx1 & ~15, x1 = image.clipx2 | 15, w = x1 - x0 + 1;
+#if defined(__m68k__) && !defined(ALIS_NO_C2P_ASM)
+        extern void c2p8_rect(const u8 *src, s32 src_pitch, u8 *dst, s32 dst_pitch, s32 chunks, s32 rows);
+        if (image.clipy2 >= image.clipy1 && w > 0)
+            c2p8_rect(image.wlogic + x0 + (image.clipy1 - image.wlogy1) * image.wloglarg, image.wloglarg,
+                      image.logic + (u32)image.clipy1 * pitch + x0, pitch, w >> 4, image.clipy2 - image.clipy1 + 1);
+#else
+        for (int y = image.clipy1; y <= image.clipy2; y++) {
+            u8 *src_row = image.wlogic + x0 + (y - image.wlogy1) * image.wloglarg;
+            u8 *dst_row = image.logic + (u32)y * pitch + x0;
+            chunky8_to_planar(src_row, w, 1, 0, dst_row);
+        }
+#endif
+#if ALIS_SDL_VER < 2
+        if (dirty_len > 0xfd) { dirty_rects[0] = (SDL_Rect){0,0,host.pixelbuf.w,host.pixelbuf.h}; dirty_len = 0xff; }
+        else { dirty_rects[dirty_len] = (SDL_Rect){ x0, image.clipy1, w, image.clipy2 - image.clipy1 + 1 }; dirty_len++; }
+#endif
+        return;
+    }
+#endif
+
     u8 *ptr = image.logic;
     u8 *tgt = ptr + image.clipx1 + image.clipy1 * image.loglarg * 2;
     for (int y = image.clipy1; y <= image.clipy2; y++, tgt+=image.bitmodulo, src+=image.vgamodulo) {
@@ -47,6 +87,19 @@ void vgatofen_dos(void)
             *tgt = *src;
         }
     }
+
+#if ALIS_SDL_VER < 2
+    if (dirty_len > 0xfd)
+    {
+        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_len = 0xff;
+    }
+    else
+    {
+        dirty_rects[dirty_len] = (SDL_Rect){ .x = image.clipx1, .y = image.clipy1, .w = image.clipx2 - image.clipx1 + 1, .h = image.clipy2 - image.clipy1 + 1 };
+        dirty_len++;
+    }
+#endif
 }
 
 void clrvga_dos(void)
@@ -58,7 +111,10 @@ void clrvga_dos(void)
     s16 rows = image.feny2 - image.feny1;
     u16 w4 = width >> 2;
     u16 modulo = image.wloglarg - (w4 << 2);
-    u32 *ptr = (u32 *)(image.wlogic + image.fenx1 + image.feny1 * image.wloglarg);
+    // Rows are relative to the land buffer: rebase by wlogy1 like vgatofen_dos, the atlpix
+    // table and clrvga_68k (else the clear overruns the openland allocation).
+    u32 *ptr = (u32 *)(image.wlogic + image.fenx1
+                       + (u32)(u16)(image.feny1 - image.wlogy1) * (u32)image.wloglarg);
     for (s16 y = rows; y >= 0; y--)
     {
         for (u16 x = 0; x < w4; x++)
@@ -282,15 +338,7 @@ void bartra_dos_line(u32 dst, s16 start_col, s16 end_col,
     }
 }
 
-// Fixed bartra_dos(): fixes DH masking / 16-bit accumulator behavior and avoids leaking tex_hbase changes.
-// Main fixes vs your version:
-//  1) Horizontal coord is a true 16-bit accumulator (DX semantics). We DO NOT "renormalize" it.
-//  2) We mask (h >> 8) with tex_width_mask at the moment of indexing (DH &= mask per pixel).
-//  3) We never mutate image.tex_hbase in-place; we use a local working copy that can be +/- 0x2000.
-//
-// Notes:
-//  - This keeps your overall control flow, but replaces the inner pixel loops to match the asm.
-//  - Assumes xread*/xwrite*, carry4(), and your globals (image, alis, etc.) exist as in your code.
+// DOS bartra: 16-bit DX accumulator, per-pixel DH mask, local tex_hbase.
 
 static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
 {
@@ -327,10 +375,15 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
     u16 subtile = xread16(render_context + index + 2);
     u32 tex_base = tex_ptr_addr + (u32)tex_offset;
 
+#if defined(ALIS_PROFILE_TEX)
+    { extern void texprof_add(u32, s32, s32);
+      texprof_add((u32)(tex_ptr_addr + tex_offset), (s32)tex_width_mask + 1, (s32)tex_height_raw); }
+#endif
+
     // --- Darkness ---
     u16 cell = xread16(terrain_cell);
 
-    // keep your math, but preserve it as 8-bit->page in the same way
+    // 8-bit dark page
     s16 dark_page = (s16)(u8)(image.vdarkw >> 8) - (s16)((u8)(cell >> 8) >> 6) * 2;
     if ((s16)((u16)dark_page << 8) < 0) dark_page = 0;
     u32 dark_base = ((u32)(u8)dark_page) << 8;
@@ -421,7 +474,7 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                 slope_rows = (u8)((s8)slope_rows + (s8)remaining);
             }
 
-            // atalias lookup (your logic preserved)
+            // atalias lookup
             u16 slope_dist = (u16)(slope_clip - bary);
             s16 slope_step;
             if (slope_dist < 0x41) {
@@ -483,7 +536,6 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
             }
             u16 slope_h = slope_height;
 
-            // NOTE: This portion is complex in the asm; we keep your structure but fix pixel indexing.
             if (slope_clip == (s16)(bary - bartra_saved_si)) {
                 // PATH A: flat subtile (transparent), LTR
                 v_coord = 0;
@@ -651,7 +703,6 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
 
     // --- Bottom section ---
     if (image.vbarbot > 0) {
-        // Your bottom section logic kept, but inner loops fixed to use DX semantics/masking
         u16 bot_dist = (u16)(botalt - bothigh);
         if (bot_dist != 0 && bothigh <= botalt) {
             s16 bot_slope_step;
@@ -882,7 +933,7 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
         }
     }
 
-    // === X clipping (matching m68k tbarland lines 3282-3320) ===
+    // === X clipping ===
     if (image.clipx1 > barx)
         return;
 
@@ -1063,11 +1114,11 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
 // Clean extraction of the DOS (little-endian) rendering path from doland().
 // Follows the Ghidra-decompiled program flow from rrq-dos.c:18388-18948.
 //
-// Key differences from m68k doland():
+// Key differences from doland_68k():
 //   - tex_hbase computed per row from integer grid coords (not once from fractions)
 //   - Perspective shifts use <<8/<<8 (not <<6/<<10)
 //   - 179-row altitude table (0xB3 segments, not 0x31)
-//   - Calls barland_dos()/tbarland_dos() instead of barland()/tbarland()
+//   - Calls barland_dos()/tbarland_dos() instead of barland_68k()/tbarland_68k()
 //   - tex_hstep computed after per-row state reset (matching DOS ASM ordering)
 //   - No is_little_endian guards; word-swap writeback, terrain_fill_color,
 //     extra height adjust, and wrapped terrain skip are all unconditional
@@ -1075,8 +1126,15 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
 
 void doland_dos(s32 scene_addr, s32 render_context)
 {
+#if defined(ALIS_PROFILE_TEX)
+    { extern void texprof_frame_begin(void); texprof_frame_begin(); }
+#endif
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+    // Same per-doland counters as the 68k path (defined in render3d_68k.c).
+    g_bar_ticks = 0; g_bar_calls = 0; g_bar_px = 0; g_prescan_ticks = 0; g_prescan_iters = 0;
+#endif
     // =========================================================================
-    // INITIALIZATION (based on working older doland() with DOS improvements)
+    // INITIALIZATION
     // =========================================================================
 
     // --- Sprite depth sorting setup ---
@@ -1383,8 +1441,14 @@ void doland_dos(s32 scene_addr, s32 render_context)
             s16 col_target_x = xread32hi16(render_context - 0x280);
 
             // ----- Pre-scan: step through grid cells between columns -----
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+            { extern u32 sys_profile_ticks_safe(void); u32 _pt = sys_profile_ticks_safe();
+#endif
             while (col_target_x < bar_screen_x)
             {
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+                g_prescan_iters++;
+#endif
                 xwrite16(render_context - 0x25e, max_y);
                 u16 prescan_height = 0;
 
@@ -1429,10 +1493,11 @@ void doland_dos(s32 scene_addr, s32 render_context)
                 }
                 else
                 {
-                    // X in bounds: only prescan if wrapping is enabled
-                    if (xread8(render_context - 0x3fe) == 1)
+                    // X in bounds: as the DOS decompile, only the Y-out-of-bounds case is
+                    // wrap-gated; an in-bounds cell is always sampled.
+                    if ((u16)xread16(render_context - 0x292) < next_scan_y)
                     {
-                        if ((u16)xread16(render_context - 0x292) < next_scan_y)
+                        if (xread8(render_context - 0x3fe) == 1)
                         {
                             s32 strip_ptr = xread32(terrain_grid + (s16)(next_scan_x * 4));
                             u16 grid_height = (u16)xread16(render_context - 0x292);
@@ -1442,13 +1507,14 @@ void doland_dos(s32 scene_addr, s32 render_context)
                             }
 
                             adresa = ((strip_ptr - (s16)next_scan_y) - (s32)(s16)next_scan_y);
+                            prescan_height = (u16)(xread16((s32)adresa) & 0xff);
                         }
-                        else
-                        {
-                            s32 strip_ptr = xread32(terrain_grid + (s16)(next_scan_x * 4));
-                            adresa = (strip_ptr + (s16)next_scan_y + (s32)(s16)next_scan_y);
-                        }
-
+                        // wrap off: prescan_height stays 0
+                    }
+                    else
+                    {
+                        s32 strip_ptr = xread32(terrain_grid + (s16)(next_scan_x * 4));
+                        adresa = (strip_ptr + (s16)next_scan_y + (s32)(s16)next_scan_y);
                         prescan_height = (u16)(xread16((s32)adresa) & 0xff);
                     }
                 }
@@ -1463,6 +1529,9 @@ void doland_dos(s32 scene_addr, s32 render_context)
 
                 col_target_x = xread32hi16(render_context - 0x280);
             }
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+            g_prescan_ticks += sys_profile_ticks_safe() - _pt; }
+#endif
 
             // =================================================================
             // Main terrain lookup at center column position
@@ -1564,7 +1633,13 @@ void doland_dos(s32 scene_addr, s32 render_context)
                 if (bar_height != 0 && sborrow2(prev_max_y, ground_clip_y) == (s32)((u32)bar_height << 0x10) < 0)
                 {
                     u32 packed_pos = concat22((trav_x), (trav_x >> 16));
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+                    { extern u32 sys_profile_ticks_safe(void); u32 _bt = sys_profile_ticks_safe();
+#endif
                     barland_dos(terrain_cell, render_context, col_dir_x, (s16)(col_step_y_raw >> 0x10), ground_clip_y, bar_height, terrain_type_idx, bar_screen_x, packed_pos, scan_x);
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+                    g_bar_ticks += sys_profile_ticks_safe() - _bt; g_bar_calls++; }
+#endif
                 }
 
                 // =============================================================
@@ -1753,7 +1828,13 @@ void doland_dos(s32 scene_addr, s32 render_context)
                                     s16 saved_clip = xread16(render_context - 0x25c);
                                     xwrite16(render_context - 0x25c, prectopi);
                                     u32 packed_pos = concat22((trav_x), (trav_x >> 16));
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+                                    { extern u32 sys_profile_ticks_safe(void); u32 _bt = sys_profile_ticks_safe();
+#endif
                                     tbarland_dos(terrain_cell, render_context, col_dir_x, (s16)col_step_y, (s16)prev_oh_top, (s16)oh_bar_height, oh_type_idx, (s16)col_x_pos_swp, packed_pos, oh_packed);
+#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
+                                    g_bar_ticks += sys_profile_ticks_safe() - _bt; g_bar_calls++; }
+#endif
                                     xwrite16(render_context - 0x25c, saved_clip);
                                 }
                             }

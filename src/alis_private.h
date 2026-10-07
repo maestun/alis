@@ -25,6 +25,8 @@
 #include "debug.h"
 #include "sys/sys.h"
 
+#ifndef NDEBUG
+// When NDEBUG is defined, these are inline macros in alis.h
 void readexec_opcode(void);
 void readexec_codesc1name(void);
 void readexec_codesc2name(void);
@@ -36,24 +38,25 @@ void readexec_opername_saveD7(void);
 void readexec_opername_saveD6(void);
 void readexec_addname_swap(void);
 void readexec_opername_swap(void);
+#endif
 
 void cstore_continue(void);
 
-extern sAlisOpcode  opcodes[];
-extern sAlisOpcode  codesc1names[];
-extern sAlisOpcode  codesc2names[];
-extern sAlisOpcode  codesc3names[];
-extern sAlisOpcode  opernames[];
-extern sAlisOpcode  storenames[];
-extern sAlisOpcode  addnames[];
+extern const sAlisOpcode  opcodes[];
+extern const sAlisOpcode  codesc1names[];
+extern const sAlisOpcode  codesc2names[];
+extern const sAlisOpcode  codesc3names[];
+extern const sAlisOpcode  opernames[];
+extern const sAlisOpcode  storenames[];
+extern const sAlisOpcode  addnames[];
 extern sAlisError   errors[];
 
 // newer versions of ALIS
-extern sAlisOpcode  opcodes_v40[];
-extern sAlisOpcode  codesc1names_v40[];
-extern sAlisOpcode  opernames_v40[];
-extern sAlisOpcode  storenames_v40[];
-extern sAlisOpcode  addnames_v40[];
+extern const sAlisOpcode  opcodes_v40[];
+extern const sAlisOpcode  codesc1names_v40[];
+extern const sAlisOpcode  opernames_v40[];
+extern const sAlisOpcode  storenames_v40[];
+extern const sAlisOpcode  addnames_v40[];
 
 // common opcode helpers
 extern u16  loctc_common(u16 offset);

@@ -4,12 +4,15 @@ TARGET_EXEC := alis
 BUILD_DIR := ./build
 SRC_DIRS := ./src
 
+# Program version header from git (scripts/gen_version.sh); rewritten only when it changes.
+VERSION_GEN := $(shell sh scripts/gen_version.sh src/version.h)
+
 SDL2_CFLAGS := $(shell sdl2-config --cflags)
 SDL2_LDFLAGS := $(shell sdl2-config --libs)
 
 # Find all the C and C++ files we want to compile
 # Note the single quotes around the * expressions. The shell will incorrectly expand these otherwise, but we want to send the * directly to the find command.
-SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s' | grep -vF -e 'sys_sdl1.c' -e 'sample2413.c')
+SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s' | grep -vF -e 'sys_sdl1.c')
 
 # Prepends BUILD_DIR and appends .o to every src file
 # As an example, ./your_dir/hello.cpp turns into ./build/./your_dir/hello.cpp.o

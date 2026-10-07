@@ -18,12 +18,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="dirent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\alis.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -45,7 +39,10 @@
     <ClInclude Include="..\src\emu2149\emu2149.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\export.h">
+    <ClInclude Include="..\src\emu8950\emu8950.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\emu8950\emuadpcm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\image.h">
@@ -55,6 +52,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\platform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\render3d.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\render3d_68k.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\render3d_dos.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\screen.h">
@@ -75,17 +81,9 @@
     <ClInclude Include="..\src\video.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="..\src\icons\alis.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="SDL2.dll" />
-    <None Include="SDL2_image.dll" />
-    <None Include="SDL2_mixer.dll" />
-    <None Include="SDL2_ttf.dll" />
+    <ClInclude Include="dirent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\addnames.c">
@@ -112,16 +110,22 @@
     <ClCompile Include="..\src\emu2149\emu2149.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\escnames.c">
+    <ClCompile Include="..\src\emu8950\emu8950.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\export.c">
+    <ClCompile Include="..\src\emu8950\emuadpcm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\escnames.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\image.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mem.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\newalis.c">
@@ -136,6 +140,15 @@
     <ClCompile Include="..\src\platform.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\render3d.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\render3d_68k.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\render3d_dos.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\screen.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -145,7 +158,10 @@
     <ClCompile Include="..\src\storenames.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\sys\sdl2\sys_sdl2.c">
+    <ClCompile Include="..\src\sys\sys.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\sys\sys_sdl2.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\unpack.c">
@@ -157,5 +173,15 @@
     <ClCompile Include="..\src\video.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\icons\alis.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SDL2.dll">
+      <Filter>Assets</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -19,11 +19,15 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// VM-core translation unit: opt into hot-state register pinning (see alis.h).
+#define ALIS_VM_CORE
 #include "alis.h"
 #include "alis_private.h"
 #include "image.h"
 #include "mem.h"
 #include "utils.h"
+#include "sys/sys.h"
+#include <strings.h>
 
 // ============================================================================
 #pragma mark - Additions
@@ -514,26 +518,12 @@ void oshiftkey(void) {
     alis.varD7 = alis.automode ? 0 : io_shiftkey();
 }
 
+// Free space for saves, in KB, capped at 32 MB as the original (GEMDOS Dfree). Saves go to
+// the data folder, so measure its drive whatever letter the script asks for. (The old port
+// read stale host-endian bytes: often ~0 on big-endian hosts → endless "insert save disk".)
 s16 io_dfree(void)
 {
-    u32 result;
-    
-//    __m68k_trap(1);
-    // I2 #fa00 = 0001965c
-    
-    if (*(u32 *)(alis.mem + 0xfa00) < ((u32 *)(alis.buffer))[0])
-    {
-        result = 32000000;
-    }
-    else
-    {
-        result = ((((u32 *)(alis.buffer))[2] & 0xffff) * (((u32 *)(alis.buffer))[3] & 0xffff) & 0xffff) * (((u32 *)(alis.buffer))[0] & 0xffff);
-        if (32000000 < result)
-            result = 32000000;
-    }
-    
-    return result / 1000;
-
+    return sys_free_bytes(alis.platform.path, 32000000) / 1000;
 }
 
 // Opername no. 60 opcode 0x76 ofree
@@ -880,7 +870,7 @@ void oconfig(void) {
 //  then retrieves a WORD offset at (JTAB_OPERNAMES[code]), then
 //  jumps at the address (JTAB_OPERAMES + offset).
 // =============================================================================
-sAlisOpcode opernames[] = {
+const sAlisOpcode opernames[] = {
     DECL_OPCODE(0x00, oimmb,        "read immediate byte from script, extend to word, copy into r7"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x02, oimmw,        "read immediate word from script, copy into r7"),

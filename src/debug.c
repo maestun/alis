@@ -77,7 +77,7 @@ static char* debug_prefix[] = {
     "[VERBOSE]"
 };
 
-#ifndef DISABLE_DEBUG
+#ifndef NDEBUG
 void debug(EDebugLevel level, char * format, ...) {
     if((disalis) && (level < EDebugVerbose)) {
        va_list arg;
@@ -98,19 +98,9 @@ void debug(EDebugLevel level, char * format, ...) {
 
 void vdebug(EDebugLevel level, char * format, va_list args) {
   if(level <= DEBUG_LEVEL) {
-     printf("%s%s ", debug_colors[level], debug_prefix[level]);
+     printf("%s ", debug_colors[level]);
      vprintf(format, args);
      printf("%s", ANSI_COLOR_RESET);
-     fflush(stdout);
-  }
-}
-#else
-void debug(EDebugLevel level, char * format, ...) {
-  if((disalis) && (level < EDebugVerbose)) {
-     va_list arg;
-     va_start(arg, format);
-     fflush(stdout);
-     vprintf(format, arg);
      fflush(stdout);
   }
 }

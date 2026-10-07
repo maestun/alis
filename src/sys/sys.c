@@ -25,6 +25,8 @@
 #include "alis.h"
 #include "audio.h"
 #include "channel.h"
+#include "../audio/dsp_mixer.h"
+#include "../audio/opl_host.h"           // host-side OPL register -> FM block translator
 #include "image.h"
 #include "mem.h"
 #include "platform.h"
@@ -33,6 +35,7 @@
 #include "emu2149.h"
 #include "emu8950.h"
 #include "math.h"
+#include "utils.h"
 
 // 0 No interpolation
 // 1 cubic
@@ -50,9 +53,17 @@ extern const u32 k_frame_ticks;
 
 #include <SDL/SDL.h>
 
-SDL_keysym      button = { 0, 0, 0, 0 };
-SDL_Rect        dirty_rects[2048];
-SDL_Rect        dirty_mouse_rect;
+SDL_keysym button = { 0, 0, 0, 0 };
+SDL_Rect dirty_rects[256];
+SDL_Rect dirty_mouse_rect;
+// The native build defines these in sys_atari.c.
+#if !defined(ALIS_USE_NATIVE_ATARI)
+volatile u8 dirty_pal = 1;
+u8 dirty_len = 0;
+#else
+extern volatile u8 dirty_pal;   // defined in sys_atari.c (Timer-C ISR writes it)
+extern u8 dirty_len;
+#endif
 
 #define SDLK_KP_0   SDLK_KP0
 #define SDLK_KP_1   SDLK_KP1
@@ -66,7 +77,7 @@ SDL_Rect        dirty_mouse_rect;
 #define SDLK_KP_9   SDLK_KP9
 
 #define SDL_GetKeyboardState    SDL_GetKeyState
-#define sys_sleep(t) SDL_Delay(t); sys_poll_event();
+#define sys_sleep(t) sys_delay(t); sys_poll_event();
 
 #elif ALIS_SDL_VER == 2
 
@@ -99,6 +110,7 @@ u8              joystick0 = 0;
 u8              joystick1 = 0;
 u8              shift = 0;
 
+// SDL stick #0, opened in sys_init (SDL2 also hot-plugs it). NULL if none.
 SDL_Joystick   *sys_joy_handle = NULL;
 #if ALIS_SDL_VER == 2
 SDL_JoystickID  sys_joy_instance_id = -1;
@@ -111,6 +123,11 @@ float           scale = 2;
 float           aspect_ratio = 1.2;
 float           scale_x;
 float           scale_y;
+int             opt_scale = 0;  // 0 = platform default (SDL2: 2, SDL1: 1); else 1..4 from --sN
+int             atari_no_timerc = 0;  // --no-timerc: skip Timer C install on Atari (etv_term test only)
+int             atari_audio_rate = 0;    // --audio-rate=N: DMA output rate (0 = auto from _CPU cookie, blind to clock speed)
+int             atari_audio_stereo = 0;  // --audio-stereo: Falcon 8-bit stereo DMA instead of mono (the mix is mono)
+int             atari_audio_backend = 2;  // --audio: 0=auto, 1=force DSP, 2=force DMA (Atari)
 u32             width = 320;
 u32             height = 200;
 
@@ -121,6 +138,12 @@ PSG             *audio_psg;
 OPL             *audio_opl;
 #endif
 
+#if defined(__TOS__) || defined(__atarist__)
+// Host-side translator: decodes the OPL register stream into resolved per-channel
+// FM blocks for the DSP synth (validated bit-exact vs emu8950, see tools/opl_*).
+static opl_host_t *sys_opl_host = NULL;
+#endif
+
 extern u8       *vgalogic_df;
 
 u8              failure;
@@ -129,23 +152,53 @@ u32             poll_ticks;
 struct timeval  frame_time;
 struct timeval  loop_time;
 
-double          isr_step;
-double          isr_counter;
+// 16.16 fixed point for ISR timing (no FPU on 68030)
+u32             isr_step;    // 16.16 fixed-point: 50 * 65536 / host_freq
+u32             isr_counter; // 16.16 fixed-point accumulator
 
+// Rate at which alis.timeclock advances (set by each backend's sys_init).
+// FLI audio uses it to lock speech rate to the frame interval.
 u32             sys_timeclock_hz = 50;
-u32             sys_sfx_tick_hz  = 50;
 
-int             opt_scale = 0;
+// Original game's interrupt cadence (50 Hz Atari/Amiga VBL, 60 Hz DOS PIT). See sys.h.
+u32             sys_sfx_tick_hz = 50;
 
-//static u32      samplelength = 0;
-//static u8       *samplebuffer[1024 * 1024 * 4];
+// The games were made on the ST, so frames, palette fades and music run at its 50 Hz;
+// --native-timing uses the port's own rates instead (DOS: VGA refresh, Mac: 60 Hz ticks).
+int             opt_native_timing = 0;
+
+u32 sys_pace_hz(void)
+{
+    if (opt_native_timing && alis.platform.kind == EPlatformPC)  return 70;
+    if (opt_native_timing && alis.platform.kind == EPlatformMac) return 60;
+    return 50;
+}
+
+u32 sys_music_hz(void)
+{
+    if (opt_native_timing && (alis.platform.kind == EPlatformPC || alis.platform.kind == EPlatformMac))
+        return 60;
+    return 50;
+}
+
+// FLI audio mixer-side logging (fli_dbg_log lives in video.c).
+#ifndef ALIS_FLI_AUDIO_DEBUG
+#define ALIS_FLI_AUDIO_DEBUG 0
+#endif
+#if ALIS_FLI_AUDIO_DEBUG
+extern void fli_dbg_log(const char *fmt, ...);
+#define FLI_DBG_MIX(...) fli_dbg_log(__VA_ARGS__)
+#else
+#define FLI_DBG_MIX(...) ((void)0)
+#endif
 
 
 u8 giaccess(s8 cmd, u8 data, u8 ch);
 bool priorblanc(sChannel *channel);
 u8 pblanc10(sChannel *a0, u8 d1b);
 
-void sys_audio_callback(void *userdata, u8 *stream, s32 len);
+void sys_audio_callback_S16MSB(void *userdata, u8 *stream, s32 len);
+void sys_audio_callback_S8(void *userdata, u8 *stream, s32 len);
 
 // ============================================================================
 #pragma mark - Signals
@@ -161,8 +214,14 @@ void signals_handler(int signo) {
     }
     alis.state = eAlisStateStopped;
 
+#if defined(__atarist__) || defined(__TOS__)
+    // Unhook etv_timer first, before any teardown: TOS would otherwise keep
+    // calling our trampoline from Timer C after the process is gone.
+    extern void atari_timerc_emergency_uninstall(void);
+    atari_timerc_emergency_uninstall();
+#endif
+
     signal(signo, SIG_DFL);
-//  raise(signo);
 }
 
 void sys_errors_init(void) {
@@ -170,7 +229,7 @@ void sys_errors_init(void) {
     failure = 0;
     signal(SIGSEGV, signals_handler);
 #ifdef SIGBUS
-    signal(SIGBUS,  signals_handler);  // MiNT memprot trap raises SIGBUS
+    signal(SIGBUS,  signals_handler);  // MiNT memprot trap uses SIGBUS
 #endif
     signal(SIGABRT, signals_handler);
     signal(SIGFPE,  signals_handler);
@@ -179,7 +238,6 @@ void sys_errors_init(void) {
     signal(SIGILL,  signals_handler);
 
 #if defined (_WIN32) || defined (__MINGW32__)
-//   _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
 #endif
 }
 
@@ -246,46 +304,77 @@ void signals_info(int signo) {
 #pragma mark - Audio
 // ============================================================================
 
-void sys_lock_audio(void)
-{
-#if ALIS_SDL_VER < 2
-    SDL_LockAudio();
-#else
-    SDL_LockAudioDevice(audio_id);
-#endif
-}
+// Atari: PSG writes go to the real YM2149 (mixed with DMA at the speaker), so
+// no software synthesis; emu2149 is excluded from the build (ATARI_EXCLUDES).
 
-void sys_unlock_audio(void)
-{
-#if ALIS_SDL_VER < 2
-    SDL_UnlockAudio();
-#else
-    SDL_UnlockAudioDevice(audio_id);
+#if defined(__TOS__) || defined(__atarist__)
+# include <mint/osbind.h>   /* Giaccess */
 #endif
-}
 
 void sys_init_psg(void)
 {
 #if !defined(__TOS__) && !defined(__atarist__)
+    // ST YM2149: 2 MHz, no internal divider. Quality=0 keeps tiny tone
+    // periods audible (cexplode/cnoise rely on noise leaking through).
     audio_psg = PSG_new(2000000, audio_spec->freq);
     PSG_setClockDivider(audio_psg, 0);
-    PSG_setVolumeMode(audio_psg, 1); // YM style
+    PSG_setVolumeMode(audio_psg, 1);
     PSG_setQuality(audio_psg, 0);
     PSG_reset(audio_psg);
 #endif
+    /* Real YM2149 needs no init — TOS already drives it for keyboard
+     * click etc. and our writes layer on top. */
 }
 
 void sys_deinit_psg(void)
 {
+    // Zero the channel volumes (regs 8-10): the real chip latches and would keep
+    // humming after exit. Reg 7 holds port bits TOS needs, so leave it.
+    sys_write_psg(8,  0);
+    sys_write_psg(9,  0);
+    sys_write_psg(10, 0);
 #if !defined(__TOS__) && !defined(__atarist__)
     PSG_delete(audio_psg);
+    audio_psg = NULL;
 #endif
 }
+
+// Nonzero while YM writes run in ISR context. XBIOS Giaccess isn't reentrant
+// (preempting a main-loop trap corrupts its state → reset), so ISRs hit the
+// YM2149 registers directly; the main loop keeps Giaccess (user-mode safe).
+volatile u8 g_psg_isr_context = 0;
+
+#if defined(__TOS__) || defined(__atarist__)
+// Direct YM2149 access: $FFFF8800 = register-select / read-data, $FFFF8802 = write-data.
+// Mask to IPL 7 so the select+data pair can't be split by another MFP source.
+static inline void psg_hw_write(u8 reg, u8 val)
+{
+    volatile u8 *sel = (volatile u8 *)0xFFFF8800UL;
+    volatile u8 *dat = (volatile u8 *)0xFFFF8802UL;
+    unsigned short sr;
+    __asm__ volatile("move.w %%sr,%0\n\tori.w #0x0700,%%sr" : "=d"(sr) : : "cc", "memory");
+    *sel = reg; *dat = val;
+    __asm__ volatile("move.w %0,%%sr" : : "d"(sr) : "cc", "memory");
+}
+static inline u8 psg_hw_read(u8 reg)
+{
+    volatile u8 *sel = (volatile u8 *)0xFFFF8800UL;
+    unsigned short sr; u8 v;
+    __asm__ volatile("move.w %%sr,%0\n\tori.w #0x0700,%%sr" : "=d"(sr) : : "cc", "memory");
+    *sel = reg; v = *sel;
+    __asm__ volatile("move.w %0,%%sr" : : "d"(sr) : "cc", "memory");
+    return v;
+}
+#endif
 
 void sys_write_psg(u32 reg, u32 val)
 {
 #if defined(__TOS__) || defined(__atarist__)
-    // TODO:
+    if (g_psg_isr_context) { psg_hw_write((u8)(reg & 0x0f), (u8)val); return; }
+    /* Giaccess(data, reg). Bit 7 of reg = write-enable. Registers
+     * 0..15. Routed through XBIOS so it works in user mode without
+     * Super(). */
+    Giaccess((u8)val, (u8)((reg & 0x0f) | 0x80));
 #else
     PSG_writeReg(audio_psg, reg, val);
 #endif
@@ -293,12 +382,12 @@ void sys_write_psg(u32 reg, u32 val)
 
 u8 sys_read_psg(u32 reg)
 {
-    return
 #if defined(__TOS__) || defined(__atarist__)
-    // TODO:
-    0;
+    if (g_psg_isr_context) return psg_hw_read((u8)(reg & 0x0f));
+    /* Bit 7 clear → read register. */
+    return (u8)Giaccess(0, (u8)(reg & 0x0f));
 #else
-    PSG_readReg(audio_psg, reg);
+    return PSG_readReg(audio_psg, reg);
 #endif
 }
 
@@ -322,6 +411,9 @@ void sys_init_opl(void)
     audio_opl = OPL_new(3579545, audio_spec->freq);
     OPL_setChipType(audio_opl, 2); // YM3812
     OPL_reset(audio_opl);
+#else
+    if (!sys_opl_host)                            // Atari: FM-synth on the DSP
+        sys_opl_host = opl_host_new();
 #endif
 }
 
@@ -333,15 +425,98 @@ void sys_deinit_opl(void)
         OPL_delete(audio_opl);
         audio_opl = NULL;
     }
+#else
+    if (sys_opl_host)
+    {
+        opl_host_delete(sys_opl_host);
+        sys_opl_host = NULL;
+    }
 #endif
+}
+
+// ============================================================================
+// OPL2 → DSP bridge
+// ----------------------------------------------------------------------------
+// Desktop: OPL writes go to emu8950. Atari (no AdLib, emu8950 too slow): writes
+// feed opl_host, and sys_opl_frame_tick() pushes the resolved FM blocks to the
+// DSP synth once per music frame.
+//
+// --opl-capture dumps the register stream: 16-byte header {"OPLC", u32 freq,
+// u32 frame_samples, u32 reserved}, then 0x00,reg,val = write; 0x01 = one frame.
+// ============================================================================
+#define SYS_OPL_QUEUE_MAX 256                     // max OPL writes buffered per frame
+int opl_capture_flag = 0;                         // set by --opl-capture
+
+u8  sys_opl_q_reg[SYS_OPL_QUEUE_MAX];             // queued register writes
+u8  sys_opl_q_val[SYS_OPL_QUEUE_MAX];             //   (host → DSP, drained per frame)
+u16 sys_opl_q_count = 0;
+
+static FILE *sys_opl_cap = NULL;                  // capture file (NULL = off)
+
+static void sys_opl_capture_open_if_needed(void)
+{
+    if (!opl_capture_flag || sys_opl_cap)
+        return;
+    sys_opl_cap = fopen("opl_capture.bin", "wb");
+    opl_capture_flag = 0;                         // open once
+    if (sys_opl_cap)
+    {
+        u32 freq = audio_spec ? (u32)audio_spec->freq : 0;
+        u32 fsmp = (u32)audio.mutaloop;
+        u32 rsv  = 0;
+        fwrite("OPLC", 1, 4, sys_opl_cap);
+        fwrite(&freq, 4, 1, sys_opl_cap);
+        fwrite(&fsmp, 4, 1, sys_opl_cap);
+        fwrite(&rsv,  4, 1, sys_opl_cap);
+    }
 }
 
 void sys_write_opl(u32 reg, u8 val)
 {
+    sys_opl_capture_open_if_needed();
+    if (sys_opl_cap)
+    {
+        unsigned char rec[3] = { 0x00, (unsigned char)reg, val };
+        fwrite(rec, 1, 3, sys_opl_cap);
+    }
+
 #if !defined(__TOS__) && !defined(__atarist__)
     if (audio_opl)
-        OPL_writeReg(audio_opl, reg, val);
+        OPL_writeReg(audio_opl, reg, val);        // desktop: emu8950 (the reference)
+#else
+    if (sys_opl_host)                              // Atari: feed the FM-block translator
+        opl_host_write_reg(sys_opl_host, reg, val);
+    if (sys_opl_q_count < SYS_OPL_QUEUE_MAX)        // (raw queue kept for capture/debug)
+    {
+        sys_opl_q_reg[sys_opl_q_count] = (u8)reg;
+        sys_opl_q_val[sys_opl_q_count] = val;
+        sys_opl_q_count++;
+    }
 #endif
+}
+
+// Called once per music frame (end of mv2_opl2rout), after that frame's writes
+// and render. Marks the frame boundary in the capture and drains the queue.
+void sys_opl_frame_tick(void)
+{
+    if (sys_opl_cap)
+    {
+        unsigned char rec = 0x01;
+        fwrite(&rec, 1, 1, sys_opl_cap);
+    }
+#if defined(__TOS__) || defined(__atarist__)
+    // Resolve the 9 channels into FM blocks, apply (FM_Receive), then
+    // trigger one rendered frame (FM_Frame) into the DSP SampleBuffer.
+    if (sys_opl_host && dsp_opl_available)
+    {
+        opl_block_t blocks[9];
+        for (int ch = 0; ch < 9; ch++)
+            opl_host_get_block(sys_opl_host, ch, &blocks[ch]);
+        dsp_opl_feed(blocks);
+        dsp_opl_fm_frame();
+    }
+#endif
+    sys_opl_q_count = 0;
 }
 
 // WAV export for music debugging - accumulates float samples, writes on stop
@@ -369,7 +544,7 @@ void sys_wav_export_start(const char *path)
     strncpy(wav_export_path, path, sizeof(wav_export_path) - 1);
     wav_export_active = 1;
 
-    debug(EDebugWarning, "WAV export started: %s\n", path);
+    ALIS_DEBUG(EDebugWarning, "WAV export started: %s\n", path);
 }
 
 void sys_wav_export_stop(void)
@@ -384,7 +559,7 @@ void sys_wav_export_stop(void)
     wav_export_buf = NULL;
     wav_export_active = 0;
 
-    debug(EDebugWarning, "WAV export stopped: %u samples written to %s\n", wav_export_samples, wav_export_path);
+    ALIS_DEBUG(EDebugWarning, "WAV export stopped: %u samples written to %s\n", wav_export_samples, wav_export_path);
 }
 
 static void sys_wav_export_write(s16 *samples, int count)
@@ -461,13 +636,11 @@ u8 pblanc10(sChannel *channel, u8 d1b)
 
 void io_canal(sChannel *channel, s16 index)
 {
-    // index > 2 would clobber the noise-period register
-    if (index > 2)
-        return;
-    
-    // sample channels (type & 0x80) must not touch the PSG
-    if (channel->type & 0x80)
-        return;
+    // Mirrors Falcon RRQ asm io_canal (rrq-falcon.asm:0xD3EE).
+    // Both early-returns are required: index > 2 would clobber reg 6
+    // (noise period); sample channels (type & 0x80) must not touch PSG.
+    if (index > 2) return;
+    if (channel->type & 0x80) return;
 
     giaccess(index + 0x88, (channel->volume >> 11) & 0xf, index);
     giaccess(index * 2 + 0x80, (channel->freq >> 3) & 0xff, index);
@@ -496,9 +669,56 @@ void io_canal(sChannel *channel, s16 index)
     giaccess(0x87, mixer, index);
 }
 
+// One 50/60 Hz tick of the YM effect channels (DingZap/Noise/Explode), same as
+// the audio callback's isr_counter step. The Falcon DSP path bypasses that
+// callback, so dsp_mixer_tick_isr() calls this from the Timer-A ISR.
+void sys_psg_tick(void)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        sChannel *ch = &audio.channels[i];
+        if (ch->type != eChannelTypeDingZap
+            && ch->type != eChannelTypeNoise
+            && ch->type != eChannelTypeExplode)
+            continue;
+
+        do
+        {
+            if (ch->played < ch->length)
+            {
+                ch->played++;
+
+                s32 vol = (s32)ch->delta_volume + (s32)ch->volume;
+                if (-1 < vol)
+                {
+                    if (0x7fff < vol) vol = 0x7fff;
+                    ch->volume = (s16)vol;
+                    u32 freq = ch->delta_freq + ch->freq;
+                    if (-1 < (s32)(freq << 0x10))
+                    {
+                        ch->freq = freq;
+                        io_canal(ch, i);
+                        break;
+                    }
+                }
+            }
+
+            ch->type   = eChannelTypeNone;
+            ch->volume = 0;
+            ch->freq   = 0;
+            ch->curson = 0x80;
+            ch->state  = 0;
+            ch->played = 0;
+            io_canal(ch, i);
+        }
+        while (false);
+    }
+}
+
+#if !defined(__TOS__) && !defined(__atarist__)
 // OPL2 sound effect support: use OPL2 channels 4-5 for effects (0-3 reserved for music)
-static u8 opl_sfx_initialized[2] = {0, 0};
-static u8 opl_sfx_type[2] = {0, 0};
+u8 opl_sfx_initialized[2] = {0, 0};
+u8 opl_sfx_type[2] = {0, 0};
 
 static void io_canal_opl_init(u8 opl_ch, u8 chan_type)
 {
@@ -596,7 +816,7 @@ static void io_canal_opl(sChannel *channel, s16 index)
     OPL_writeReg(audio_opl, 0xA0 + opl_ch, fnum & 0xFF);
     OPL_writeReg(audio_opl, 0xB0 + opl_ch, 0x20 | 0x1C | ((fnum >> 8) & 0x03));
 }
-
+#endif
 u8 giaccess(s8 cmd, u8 data, u8 ch)
 {
     u8 regval = cmd & 0xf;
@@ -608,20 +828,98 @@ u8 giaccess(s8 cmd, u8 data, u8 ch)
     return sys_read_psg(regval);
 }
 
-void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
-{
-    // TODO: create channels structure holding info about sounds to be played
-    // type: (smaple, sound, noise, ...)
-    // start: (playback start time, use it to calculate what to copy in to the stream)
-    // frequency: we will have to do some interpolation to play at correct speed
-    // ...
+#if ALIS_SND_INTERPOLATE_TYPE == 0
+// (s8)sample * volratio, low 16 bits (all the mixers keep): per channel, rebuilt on volume change.
+static s16 vol_tab[4][256];
+static s32 vol_tab_v[4] = { -1, -1, -1, -1 };
 
+static const s16 *vol_table(int ch, s32 volratio)
+{
+    if (vol_tab_v[ch] != volratio) {
+        for (int k = 0; k < 256; k++)
+            vol_tab[ch][k] = (s16)((s8)k * volratio);
+        vol_tab_v[ch] = volratio;
+    }
+    return vol_tab[ch];
+}
+
+// The plain part of the sample loop: mix until the buffer is full or until the next source step
+// reaches `end` (loop / chunk splice / end of sound), which the caller's full loop body handles.
+// Returns the buffer index it stopped at; state is as at the top of that iteration.
+#define MIX_RUN(name, T, MIX)                                                                      \
+static __attribute__((noinline))                                                                   \
+int name(T *buf, int bi, int len, u8 adv, const s16 *vt, const s8 *addr, u32 end, u32 ratio,        \
+                u32 *accp, int *smpidxp, u32 *playedp, s32 *s0p)                                    \
+{                                                                                                  \
+    u32 acc = *accp, played = *playedp;                                                            \
+    int smpidx = *smpidxp;                                                                         \
+    s32 s0 = *s0p;                                                                                 \
+    for (; bi < len; bi += adv, played++, acc = (acc & 0xFFFF) + ratio) {                          \
+        u32 add = acc >> 16;                                                                       \
+        if (add) {                                                                                 \
+            if ((u32)(smpidx + add) >= end)                                                         \
+                break;                                                                             \
+            smpidx += add;                                                                         \
+            s0 = vt[(u8)addr[smpidx]];                                                             \
+        }                                                                                          \
+        T v = MIX;                                                                                 \
+        buf[bi] = v;                                                                               \
+        if (adv >= 2) buf[bi + 1] = v;                                                             \
+    }                                                                                              \
+    *accp = acc; *playedp = played; *smpidxp = smpidx; *s0p = s0;                                  \
+    return bi;                                                                                     \
+}
+MIX_RUN(mix_run_s16, s16, (s16)(u16)(s0 + buf[bi]))
+typedef int MixRunS8(s8 *buf, int bi, int len, u8 adv, const s16 *vt, const s8 *addr, u32 end, u32 ratio,
+                     u32 *accp, int *smpidxp, u32 *playedp, s32 *s0p);
+#if defined(__m68k__) && !defined(__mcoldfire__)
+MixRunS8 mix_run_s8, mix_run_s8_store;   // sys_atari_mix.S; _store: the buffer is still zero
+#if defined(ALIS_MIX_VERIFY)
+// Run the C version on copies next to the asm and log any difference.
+MIX_RUN(mix_run_s8_c, s8, (s8)((s16)(s0 + ((s16)buf[bi] << 8)) >> 8))
+static int mix_check(MixRunS8 *fn, s8 *buf, int bi, int len, u8 adv, const s16 *vt, const s8 *addr, u32 end,
+                     u32 ratio, u32 *accp, int *smpidxp, u32 *playedp, s32 *s0p)
+{
+    extern void dbglog(const char *fmt, ...);
+    static s8 copy[8192];
+    static u32 calls, bad;
+    u32 acc = *accp, played = *playedp; int smp = *smpidxp; s32 s0 = *s0p;
+    if (len > (int)sizeof(copy)) return fn(buf, bi, len, adv, vt, addr, end, ratio, accp, smpidxp, playedp, s0p);
+    memcpy(copy, buf, len);
+    int ri = mix_run_s8_c(copy, bi, len, adv, vt, addr, end, ratio, &acc, &smp, &played, &s0);
+    int ra = fn(buf, bi, len, adv, vt, addr, end, ratio, accp, smpidxp, playedp, s0p);
+    calls++;
+    if (ri != ra || acc != *accp || smp != *smpidxp || played != *playedp || (s16)s0 != (s16)*s0p || memcmp(copy, buf, len)) {
+        if (bad++ < 8) dbglog("[mix] #%lu BAD %s bi %d/%d acc %lx/%lx smp %d/%d\n", (unsigned long)calls,
+                              fn == mix_run_s8_store ? "store" : "add", ri, ra,
+                              (unsigned long)acc, (unsigned long)*accp, smp, *smpidxp);
+    } else if ((calls & 1023) == 0)
+        dbglog("[mix] %lu calls, %lu bad\n", (unsigned long)calls, (unsigned long)bad);
+    return ra;
+}
+static int mix_run_s8_v(s8 *b, int bi, int l, u8 adv, const s16 *vt, const s8 *a, u32 e, u32 r, u32 *ac, int *sm, u32 *pl, s32 *s0)
+{ return mix_check(mix_run_s8, b, bi, l, adv, vt, a, e, r, ac, sm, pl, s0); }
+static int mix_run_s8_store_v(s8 *b, int bi, int l, u8 adv, const s16 *vt, const s8 *a, u32 e, u32 r, u32 *ac, int *sm, u32 *pl, s32 *s0)
+{ return mix_check(mix_run_s8_store, b, bi, l, adv, vt, a, e, r, ac, sm, pl, s0); }
+#define mix_run_s8 mix_run_s8_v
+#define mix_run_s8_store mix_run_s8_store_v
+#endif
+#else
+MIX_RUN(mix_run_s8, s8, (s8)((s16)(s0 + ((s16)buf[bi] << 8)) >> 8))
+#define mix_run_s8_store mix_run_s8
+#endif
+#undef MIX_RUN
+#endif
+
+// sys_audio_callback_S16MSB — 16-bit signed big-endian stereo/mono output.
+// Used when SDL's negotiated native format is AUDIO_S16MSB (Falcon DMA,
+// desktop SDL, most common path).
+void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
+{
     memset(s, 0, buffer_length);
 
     u32 ratio = 0;
     s32 volratio = 0;
-    
-    bool update_ym = false;
 
 #if ALIS_SND_INTERPOLATE_TYPE > 0
     int a0, a1, a2, a3;
@@ -635,44 +933,50 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
     int smpidx = 0;
     u8 adv = audio_spec->channels;
 
+    // Write one mono sample to every channel of the frame (idx frame-aligned).
+    #define WRITE_AUDIO_FRAME(idx, sample) do {                 \
+        u16 __wfs = (u16)(sample);                               \
+        audio_buffer[(idx)] = __wfs;                             \
+        if (adv >= 2) audio_buffer[(idx) + 1] = __wfs;           \
+    } while (0)
+
     // handle music
-    
+
     if (audio.muflag > 0)
     {
         int smprem = buffer_length / adv;
 
         int buflen = audio.mutaloop;
-        float lenf = (float)buffer_length / (float)buflen;
-        int len = ceil(lenf);
-        
+        int len = (buffer_length + buflen - 1) / buflen;
+
         if (audio.smpidx)
         {
             int smpcopy = min(audio.smpidx, smprem);
             s16 *music_buffer = (audio.muadresse + (buflen - audio.smpidx));
-            
+
             int music_index = 0;
             for (int audio_index = 0; music_index < smpcopy; audio_index+=adv, music_index++)
-                audio_buffer[audio_index] = music_buffer[music_index];
+                WRITE_AUDIO_FRAME(audio_index, music_buffer[music_index]);
 
             smpidx += music_index;
             smprem -= music_index;
-            
+
             audio.smpidx -= music_index;
         }
-        
+
         for (int i = 0; i < len && smprem; i++)
         {
             audio.soundrout();
-            
+
             int smpcopy = min(buflen, smprem);
-            
+
             int music_index = 0;
             for (int audio_index = smpidx * adv; music_index < smpcopy; audio_index+=adv, music_index++)
-                audio_buffer[audio_index] = audio.muadresse[music_index];
+                WRITE_AUDIO_FRAME(audio_index, audio.muadresse[music_index]);
 
             smpidx += music_index;
             smprem -= music_index;
-            
+
             audio.smpidx = buflen - music_index;
         }
     }
@@ -681,13 +985,13 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
         audio.working = 0;
 
     // handle sounds
-    
+
     if (audio.fsound)
     {
-        double prev_counter = isr_counter;
+        u32 prev_counter = isr_counter;
         u32 add = 0;
         s32 s0, s1;
-        s64 accumulator;
+        u32 accumulator;   // 16.16, masked to 16 bits per sample: fits in 32 bits (ratio < 2^31)
         
         for (int i = 0; i < 4; i++)
         {
@@ -700,86 +1004,116 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                 {
                     add = 0;
                     volratio = ch->volume >> 1;
+#if ALIS_SND_INTERPOLATE_TYPE == 0
+                    const s16 *vt = vol_table(i, volratio);
+#endif
+
+                    // addr/length change when the next FLI chunk is spliced in.
+                    s8 *addr   = ch->address;
+                    u32 length = ch->length;
+                    u8  loop   = ch->loop;
+                    u32 played = ch->played;
 
                     ratio = (ch->freq << 16) / audio_spec->freq;
-                    accumulator = (u64)ch->played * (u64)ratio;
-                    smpidx = accumulator >> 16;
-                    accumulator &= 0xFFFF;
+                    u64 start = (u64)played * (u64)ratio;
+                    smpidx = start >> 16;
+                    accumulator = (u32)start & 0xFFFF;
 
 #if ALIS_SND_INTERPOLATE_TYPE > 0
-                    x0 = (smpidx - 1 >= 0) ? (s16)(ch->address[smpidx - 1] * 256) : ch->loop > 1 ? (s16)(ch->address[ch->length - 1] * 256) : 0;
-                    x1 = (s16)(ch->address[smpidx] * 256);
-                    x2 = (smpidx + 1 < ch->length) ? (s16)(ch->address[smpidx + 1] * 256) : ch->loop > 1 ? (s16)(ch->address[0] * 256) : 0;
-                    x3 = (smpidx + 2 < ch->length) ? (s16)(ch->address[smpidx + 2] * 256) : ch->loop > 1 ? (s16)(ch->address[0] * 256) : 0;
+                    x0 = (smpidx - 1 >= 0) ? (s16)(addr[smpidx - 1] * 256) : loop > 1 ? (s16)(addr[length - 1] * 256) : 0;
+                    x1 = (s16)(addr[smpidx] * 256);
+                    x2 = (smpidx + 1 < length) ? (s16)(addr[smpidx + 1] * 256) : loop > 1 ? (s16)(addr[0] * 256) : 0;
+                    x3 = (smpidx + 2 < length) ? (s16)(addr[smpidx + 2] * 256) : loop > 1 ? (s16)(addr[0] * 256) : 0;
 # if ALIS_SND_INTERPOLATE_TYPE == 1
                     a0 = x3 - x2 - x0 + x1;
                     a1 = x0 - x1 - a0;
                     a2 = x2 - x0;
 # endif
 #else
-                    s0 = (s8)ch->address[smpidx] * volratio;
+                    s0 = vt[(u8)addr[smpidx]];
 #endif
-                    
-                    for (int buffer_index = 0; buffer_index < buffer_length; buffer_index+=adv, ch->played++, accumulator+=ratio)
+
+                    int buffer_index = 0;
+                    while (buffer_index < buffer_length)
                     {
+#if ALIS_SND_INTERPOLATE_TYPE == 0
+                        buffer_index = mix_run_s16(audio_buffer, buffer_index, buffer_length, adv, vt, addr, length + 1,
+                                              ratio, &accumulator, &smpidx, &played, &s0);
+                        if (buffer_index >= buffer_length)
+                            break;
+#endif
                         if ((add = accumulator >> 16) > 0)
                         {
                             smpidx += add;
 #if ALIS_SND_INTERPOLATE_TYPE > 0
-                            if (smpidx < ch->length - 3)
-                            {
-                                x0 = x1;
-                                x1 = x2;
-                                x2 = x3;
-                                x3 = (s16)(ch->address[smpidx + 2] * 256);
-                            }
-                            else
-                            {
-                                x0 = x1;
-                                x1 = x2;
-                                x2 = x3;
-                                x3 = 0;
-#endif
-                                if (smpidx >= ch->length + 1)
-                                {
-                                    if (ch->loop > 1)
-                                    {
-                                        ch->loop--;
-                                        ch->played = smpidx = accumulator = 0;
-#if ALIS_SND_INTERPOLATE_TYPE > 0
-                                        x0 = (s16)(ch->address[ch->length - 1] * 256);
-                                        x1 = (s16)(ch->address[0] * 256);
-                                        x2 = (ch->length > 1) ? (s16)(ch->address[1] * 256) : 0;
-                                        x3 = (ch->length > 2) ? (s16)(ch->address[2] * 256) : 0;
-#endif
-                                    }
-                                    else if (i == 3 && fli_audio_q_head != fli_audio_q_tail)
-                                    {
-                                        // FLI speech (channel 3): splice the next queued chunk in seamlessly instead of stopping
-                                        fli_chunks_played++;
-                                        u8 t = fli_audio_q_tail;
-                                        ch->address = fli_audio_queue[t].addr;
-                                        ch->length  = fli_audio_queue[t].length;
-                                        ch->freq    = fli_audio_queue[t].freq;
-                                        fli_audio_q_tail = (u8)((t + 1) & (FLI_AUDIO_QUEUE_SIZE - 1));
-                                        ratio = (ch->freq << 16) / audio_spec->freq;
-                                        ch->played = smpidx = accumulator = 0;
-#if ALIS_SND_INTERPOLATE_TYPE > 0
-                                        x0 = x2;
-                                        x1 = (s16)(ch->address[0] * 256);
-                                        x2 = (ch->length > 1) ? (s16)(ch->address[1] * 256) : 0;
-                                        x3 = (ch->length > 2) ? (s16)(ch->address[2] * 256) : 0;
-#endif
-                                    }
-                                    else
-                                    {
-                                        if (i == 3) fli_chunks_played++;
-                                        ch->type = eChannelTypeNone;
-                                        ch->curson = 0x80;
-                                        break;
-                                    }
+                            // Shift window by 'add' samples so it tracks smpidx when downsampling.
+                            for (u32 step = 1; step <= add; step++) {
+                                x0 = x1; x1 = x2; x2 = x3;
+                                s32 idx = (s32)smpidx - (s32)add + (s32)step + 2;
+                                if (idx < (s32)length) {
+                                    x3 = (s16)(addr[idx] * 256);
+                                } else if (loop > 1) {
+                                    s32 wrapped = idx - (s32)length;
+                                    x3 = (wrapped >= 0 && wrapped < (s32)length)
+                                         ? (s16)(addr[wrapped] * 256)
+                                         : 0;
+                                } else {
+                                    x3 = 0;
                                 }
+                            }
+#else
+                            s0 = vt[(u8)addr[smpidx]];
+#endif
+
+                            if (smpidx >= length + 1)
+                            {
+                                if (loop > 1)
+                                {
+                                    loop--;
+                                    played = smpidx = accumulator = 0;
 #if ALIS_SND_INTERPOLATE_TYPE > 0
+                                    // Re-prime the window at the loop start.
+                                    x0 = (s16)(addr[length - 1] * 256);
+                                    x1 = (s16)(addr[0] * 256);
+                                    x2 = (length > 1) ? (s16)(addr[1] * 256) : 0;
+                                    x3 = (length > 2) ? (s16)(addr[2] * 256) : 0;
+#endif
+                                }
+                                else if (i == 3 && fli_audio_q_head != fli_audio_q_tail)
+                                {
+                                    // Splice in the next queued FLI chunk.
+                                    if (i == 3) fli_chunks_played++;
+                                    u8 t = fli_audio_q_tail;
+                                    addr   = fli_audio_queue[t].addr;
+                                    length = fli_audio_queue[t].length;
+                                    ch->address = addr;
+                                    ch->length  = length;
+                                    ch->freq    = fli_audio_queue[t].freq;
+                                    fli_audio_q_tail = (u8)((t + 1) & (FLI_AUDIO_QUEUE_SIZE - 1));
+                                    ratio = (ch->freq << 16) / audio_spec->freq;
+                                    played = smpidx = accumulator = 0;
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                                    // Carry the old tail in x0 so the splice doesn't click.
+                                    x0 = x3;
+                                    x1 = (length > 0) ? (s16)(addr[0] * 256) : 0;
+                                    x2 = (length > 1) ? (s16)(addr[1] * 256) : 0;
+                                    x3 = (length > 2) ? (s16)(addr[2] * 256) : 0;
+#endif
+                                    FLI_DBG_MIX("S16MSB splice: chunk=%u freq=%d len=%u ratio=0x%x q_used=%u\n",
+                                                fli_chunks_played, (int)ch->freq, length, ratio,
+                                                (unsigned)((fli_audio_q_head - fli_audio_q_tail) & (FLI_AUDIO_QUEUE_SIZE - 1)));
+                                }
+                                else
+                                {
+                                    if (i == 3) {
+                                        fli_chunks_played++;
+                                        FLI_DBG_MIX("S16MSB end: chunk=%u (queue empty, channel terminating)\n",
+                                                    fli_chunks_played);
+                                    }
+                                    ch->type = eChannelTypeNone;
+                                    ch->curson = 0x80;
+                                    break;
+                                }
                             }
 
 # if ALIS_SND_INTERPOLATE_TYPE == 1
@@ -787,11 +1121,8 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
                             a1 = x0 - x1 - a0;
                             a2 = x2 - x0;
 # endif
-#else
-                            s0 = (s8)ch->address[smpidx] * volratio;
-#endif
                         }
-                        
+
 #if ALIS_SND_INTERPOLATE_TYPE > 0
                         t = (accumulator / 65536.0) - add;
 # if ALIS_SND_INTERPOLATE_TYPE == 1
@@ -803,25 +1134,32 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
 # endif
                         s0 = r * volratio;
 #endif
-                        audio_buffer[buffer_index] = (s0 + audio_buffer[buffer_index]);
+                        WRITE_AUDIO_FRAME(buffer_index, s0 + audio_buffer[buffer_index]);
                         accumulator &= 0xFFFF;
+                        buffer_index += adv; played++; accumulator += ratio;
                     }
-                    
+
+                    // Main thread may have replaced the chunk directly; then `played` is stale.
+                    if (ch->address == addr) {
+                        ch->played = played;
+                        ch->loop   = loop;
+                    }
                     break;
                 }
-                    
+
                 case eChannelTypeDingZap:
                 case eChannelTypeNoise:
                 case eChannelTypeExplode:
                 {
                     if (i < 3)
                     {
-                        for (int p = 0; p < buffer_length; p++)
+                        // Count frames, not samples: tick rate must not depend on channel count.
+                        for (int p = 0; p < buffer_length; p += adv)
                         {
                             isr_counter += isr_step;
-                            if (isr_counter >= 1)
+                            if (isr_counter >= 0x10000)
                             {
-                                isr_counter--;
+                                isr_counter -= 0x10000;
 
                                 do
                                 {
@@ -894,40 +1232,402 @@ void sys_audio_callback(void *userdata, u8 *s, s32 buffer_length)
         }
     }
     
+    #undef WRITE_AUDIO_FRAME
+
+#if !defined(__TOS__) && !defined(__atarist__)
+    // The OPL/PSG paths above write only the first channel; duplicate it.
     for (int o = 1; o < audio_spec->channels; o++)
     {
         for (int buffer_index = 0; buffer_index < buffer_length; buffer_index+=adv)
             audio_buffer[buffer_index + o] = audio_buffer[buffer_index];
     }
-    
-//    // NOTE: just for checking
-//
-//    u8 *src = (u8 *)s;
-//    u8 *tgt = (u8 *)samplebuffer + samplelength;
-//
-//    for (int x = 0; x < length; x++)
-//        *tgt++ = *src++;
-//
-//    samplelength += length;
-//
-//    if (samplelength >= 1024 * 1024 * .3)
-//    {
-//        FILE *f = fopen("/Users/gildor/Desktop/test.smp", "wb");
-//        if (f == NULL)
-//        {
-//            return;
-//        }
-//
-//        fwrite(samplebuffer, samplelength, 2, f);
-//        fclose(f);
-//
-//        samplelength = 0;
-//    }
+#endif
+}
+
+// sys_audio_callback_S8 — 8-bit signed output (STE/TT DMA). Narrows the s16 mix
+// inline to avoid SDL's S16→S8 converter. Twin of S16MSB: keep the two in sync.
+
+void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
+{
+    memset(s, 0, buffer_length);
+    int fresh = 1;   // buffer still all zero: the first sample channel can store instead of mix
+
+    u32 ratio = 0;
+    s32 volratio = 0;
+
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+    int a0, a1, a2, a3;
+    int x0, x1, x2, x3;
+    float t, r;
+#endif
+
+    // S8 output: one byte per sample, buffer_length is already the sample
+    // count (no `>>= 1` like the S16MSB variant).
+    s8 *audio_buffer = (s8 *)s;
+
+    int smpidx = 0;
+    u8 adv = audio_spec->channels;
+
+    // Narrow an s16 sample to s8 and write it to every channel of the frame.
+    #define WRITE_AUDIO_FRAME(idx, sample_s16) do {              \
+        s8 __wfs = (s8)((s16)(sample_s16) >> 8);                  \
+        audio_buffer[(idx)] = __wfs;                               \
+        if (adv >= 2) audio_buffer[(idx) + 1] = __wfs;             \
+    } while (0)
+
+    // handle music — mixer output is s16 in audio.muadresse
+
+    if (audio.muflag > 0)
+    {
+        int smprem = buffer_length / adv;
+
+        int buflen = audio.mutaloop;
+        int len = (buffer_length + buflen - 1) / buflen;
+
+        // Chip music plays on the real YM and never fills muadresse: skip the
+        // silent copy but keep calling soundrout() for sequencer timing.
+        extern void mv2_chiprout(void);
+        int chip_only = (audio.soundrout == mv2_chiprout);
+
+        if (audio.smpidx)
+        {
+            int smpcopy = min(audio.smpidx, smprem);
+
+            if (!chip_only)
+            {
+                fresh = 0;
+                s16 *music_buffer = (audio.muadresse + (buflen - audio.smpidx));
+                int music_index = 0;
+                for (int audio_index = 0; music_index < smpcopy; audio_index+=adv, music_index++)
+                    WRITE_AUDIO_FRAME(audio_index, music_buffer[music_index]);
+            }
+
+            smpidx += smpcopy;
+            smprem -= smpcopy;
+
+            audio.smpidx -= smpcopy;
+        }
+
+        for (int i = 0; i < len && smprem; i++)
+        {
+            audio.soundrout();
+
+            int smpcopy = min(buflen, smprem);
+
+            if (!chip_only)
+            {
+                fresh = 0;
+                int music_index = 0;
+                for (int audio_index = smpidx * adv; music_index < smpcopy; audio_index+=adv, music_index++)
+                    WRITE_AUDIO_FRAME(audio_index, audio.muadresse[music_index]);
+            }
+
+            smpidx += smpcopy;
+            smprem -= smpcopy;
+
+            audio.smpidx = buflen - smpcopy;
+        }
+    }
+
+    if (audio.muflag == 0)
+        audio.working = 0;
+
+    // handle sounds
+
+    if (audio.fsound)
+    {
+        u32 prev_counter = isr_counter;
+        u32 add = 0;
+        s32 s0, s1;
+        u32 accumulator;   // 16.16, masked to 16 bits per sample: fits in 32 bits (ratio < 2^31)
+
+        for (int i = 0; i < 4; i++)
+        {
+            isr_counter = prev_counter;
+
+            sChannel *ch = &audio.channels[i];
+            switch (ch->type)
+            {
+                case eChannelTypeSample:
+                {
+                    add = 0;
+                    volratio = ch->volume >> 1;
+#if ALIS_SND_INTERPOLATE_TYPE == 0
+                    const s16 *vt = vol_table(i, volratio);
+#endif
+
+                    // addr/length change when the next FLI chunk is spliced in.
+                    s8 *addr   = ch->address;
+                    u32 length = ch->length;
+                    u8  loop   = ch->loop;
+                    u32 played = ch->played;
+
+                    ratio = (ch->freq << 16) / audio_spec->freq;
+                    u64 start = (u64)played * (u64)ratio;
+                    smpidx = start >> 16;
+                    accumulator = (u32)start & 0xFFFF;
+
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                    x0 = (smpidx - 1 >= 0) ? (s16)(addr[smpidx - 1] * 256) : loop > 1 ? (s16)(addr[length - 1] * 256) : 0;
+                    x1 = (s16)(addr[smpidx] * 256);
+                    x2 = (smpidx + 1 < length) ? (s16)(addr[smpidx + 1] * 256) : loop > 1 ? (s16)(addr[0] * 256) : 0;
+                    x3 = (smpidx + 2 < length) ? (s16)(addr[smpidx + 2] * 256) : loop > 1 ? (s16)(addr[0] * 256) : 0;
+# if ALIS_SND_INTERPOLATE_TYPE == 1
+                    a0 = x3 - x2 - x0 + x1;
+                    a1 = x0 - x1 - a0;
+                    a2 = x2 - x0;
+# endif
+#else
+                    s0 = vt[(u8)addr[smpidx]];
+#endif
+
+                    int buffer_index = 0;
+                    while (buffer_index < buffer_length)
+                    {
+#if ALIS_SND_INTERPOLATE_TYPE == 0
+                        buffer_index = (fresh ? mix_run_s8_store : mix_run_s8)(audio_buffer, buffer_index, buffer_length, adv, vt, addr, length + 1,
+                                              ratio, &accumulator, &smpidx, &played, &s0);
+                        if (buffer_index >= buffer_length)
+                            break;
+#endif
+                        if ((add = accumulator >> 16) > 0)
+                        {
+                            smpidx += add;
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                            // Shift window by 'add' samples so it tracks smpidx when downsampling.
+                            for (u32 step = 1; step <= add; step++) {
+                                x0 = x1; x1 = x2; x2 = x3;
+                                s32 idx = (s32)smpidx - (s32)add + (s32)step + 2;
+                                if (idx < (s32)length) {
+                                    x3 = (s16)(addr[idx] * 256);
+                                } else if (loop > 1) {
+                                    s32 wrapped = idx - (s32)length;
+                                    x3 = (wrapped >= 0 && wrapped < (s32)length)
+                                         ? (s16)(addr[wrapped] * 256)
+                                         : 0;
+                                } else {
+                                    x3 = 0;
+                                }
+                            }
+#else
+                            s0 = vt[(u8)addr[smpidx]];
+#endif
+
+                            if (smpidx >= length + 1)
+                            {
+                                if (loop > 1)
+                                {
+                                    loop--;
+                                    played = smpidx = accumulator = 0;
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                                    x0 = (s16)(addr[length - 1] * 256);
+                                    x1 = (s16)(addr[0] * 256);
+                                    x2 = (length > 1) ? (s16)(addr[1] * 256) : 0;
+                                    x3 = (length > 2) ? (s16)(addr[2] * 256) : 0;
+#endif
+                                }
+                                else if (i == 3 && fli_audio_q_head != fli_audio_q_tail)
+                                {
+                                    // Splice in the next queued FLI chunk.
+                                    if (i == 3) fli_chunks_played++;
+                                    u8 t = fli_audio_q_tail;
+                                    addr   = fli_audio_queue[t].addr;
+                                    length = fli_audio_queue[t].length;
+                                    ch->address = addr;
+                                    ch->length  = length;
+                                    ch->freq    = fli_audio_queue[t].freq;
+                                    fli_audio_q_tail = (u8)((t + 1) & (FLI_AUDIO_QUEUE_SIZE - 1));
+                                    ratio = (ch->freq << 16) / audio_spec->freq;
+                                    played = smpidx = accumulator = 0;
+                                    FLI_DBG_MIX("S8 splice: chunk=%u freq=%d len=%u ratio=0x%x q_used=%u\n",
+                                                fli_chunks_played, (int)ch->freq, length, ratio,
+                                                (unsigned)((fli_audio_q_head - fli_audio_q_tail) & (FLI_AUDIO_QUEUE_SIZE - 1)));
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                                    x0 = x3;   // tail of previous chunk (avoids click)
+                                    x1 = (length > 0) ? (s16)(addr[0] * 256) : 0;
+                                    x2 = (length > 1) ? (s16)(addr[1] * 256) : 0;
+                                    x3 = (length > 2) ? (s16)(addr[2] * 256) : 0;
+#endif
+                                }
+                                else
+                                {
+                                    if (i == 3) {
+                                        fli_chunks_played++;
+                                        FLI_DBG_MIX("S8 end: chunk=%u (queue empty, channel terminating)\n",
+                                                    fli_chunks_played);
+                                    }
+                                    ch->type = eChannelTypeNone;
+                                    ch->curson = 0x80;
+                                    break;
+                                }
+                            }
+
+# if ALIS_SND_INTERPOLATE_TYPE == 1
+                            a0 = x3 - x2 - x0 + x1;
+                            a1 = x0 - x1 - a0;
+                            a2 = x2 - x0;
+# endif
+                        }
+
+#if ALIS_SND_INTERPOLATE_TYPE > 0
+                        t = (accumulator / 65536.0) - add;
+# if ALIS_SND_INTERPOLATE_TYPE == 1
+                        r = ((a0 * (t * t * t)) + (a1 * (t * t)) + (a2 * t) + x1) / 256.0;
+# elif ALIS_SND_INTERPOLATE_TYPE == 2
+                        r = interpolate_hermite(x0, x1, x2, x3, t);
+# else
+                        r = interpolate_hermite_4pt_3ox(x0, x1, x2, x3, t);
+# endif
+                        s0 = r * volratio;
+#endif
+                        // Widen the existing s8 sample so the mix matches S16MSB.
+                        s16 existing_as_s16 = (s16)audio_buffer[buffer_index] << 8;
+                        WRITE_AUDIO_FRAME(buffer_index, s0 + existing_as_s16);
+                        accumulator &= 0xFFFF;
+                        buffer_index += adv; played++; accumulator += ratio;
+                    }
+
+                    // Main thread may have replaced the chunk directly; then `played` is stale.
+                    if (ch->address == addr) {
+                        ch->played = played;
+                        ch->loop   = loop;
+                    }
+                    fresh = 0;
+                    break;
+                }
+
+                case eChannelTypeDingZap:
+                case eChannelTypeNoise:
+                case eChannelTypeExplode:
+                {
+                    if (i < 3)
+                    {
+                        // Count frames, not samples: tick rate must not depend on channel count.
+                        for (int p = 0; p < buffer_length; p += adv)
+                        {
+                            isr_counter += isr_step;
+                            if (isr_counter >= 0x10000)
+                            {
+                                isr_counter -= 0x10000;
+
+                                do
+                                {
+                                    if (ch->played < ch->length)
+                                    {
+                                        ch->played ++;
+
+                                        s32 vol = (s32)ch->delta_volume + (s32)ch->volume;
+                                        if (-1 < vol)
+                                        {
+                                            if (0x7fff < vol)
+                                            {
+                                                vol = 0x7fff;
+                                            }
+
+                                            ch->volume = (s16)vol;
+                                            u32 freq = ch->delta_freq + ch->freq;
+                                            if (-1 < (s32)(freq << 0x10))
+                                            {
+                                                ch->freq = freq;
+#if !defined(__TOS__) && !defined(__atarist__)
+                                                if (alis.platform.kind == EPlatformPC)
+                                                    io_canal_opl(ch, i);
+                                                else
+#endif
+                                                    io_canal(ch, i);
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    ch->type = eChannelTypeNone;
+                                    ch->volume = 0;
+                                    ch->freq = 0;
+                                    ch->curson = 0x80;
+                                    ch->state = 0;
+                                    ch->played = 0;
+#if !defined(__TOS__) && !defined(__atarist__)
+                                    if (alis.platform.kind == EPlatformPC)
+                                        io_canal_opl(ch, i);
+                                    else
+#endif
+                                        io_canal(ch, i);
+                                }
+                                while (false);
+                            }
+
+#if !defined(__TOS__) && !defined(__atarist__)
+                            // Unreachable in practice (S8 is Atari-only); kept compiling.
+                            if (alis.platform.kind == EPlatformPC && audio_opl)
+                            {
+                                s0 = OPL_calc(audio_opl);
+                                s1 = ((s16)audio_buffer[p] << 8) - 0x8000;
+                                s16 mixed = (s16)((s0 + s1) + 0x8000);
+                                audio_buffer[p] = (s8)(mixed >> 8);
+                            }
+                            else
+                            {
+                                s0 = PSG_calc(audio_psg);
+                                s1 = ((s16)audio_buffer[p] << 8) - 0x8000;
+                                s16 mixed = (s16)((s0 + s1) + 0x8000);
+                                audio_buffer[p] = (s8)(mixed >> 8);
+                            }
+#endif
+                        }
+                    }
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        }
+    }
+
+    #undef WRITE_AUDIO_FRAME
+
+#if !defined(__TOS__) && !defined(__atarist__)
+    // The OPL/PSG paths above write only the first channel; duplicate it.
+    for (int o = 1; o < audio_spec->channels; o++)
+    {
+        for (int buffer_index = 0; buffer_index < buffer_length; buffer_index+=adv)
+            audio_buffer[buffer_index + o] = audio_buffer[buffer_index];
+    }
+#endif
 }
 
 // =============================================================================
 #pragma mark - I/O
 // =============================================================================
+
+#if defined(__atarist__) || defined(__TOS__)
+#include <mint/osbind.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#else
+#include <sys/statvfs.h>
+#endif
+
+u32 sys_free_bytes(const char *path, u32 cap)
+{
+    unsigned long long n = 0;
+#if defined(__atarist__) || defined(__TOS__)
+    // Dfree drive: 0 = current, 1 = A:, ... Use the path's drive letter if it has one.
+    _DISKINFO di;
+    int drive = (path && path[0] && path[1] == ':') ? ((path[0] & 0x1f)) : 0;
+    if (Dfree(&di, drive) == 0)
+        n = (unsigned long long)di.b_free * di.b_secsiz * di.b_clsiz;
+#elif defined(_WIN32)
+    ULARGE_INTEGER avail;
+    if (GetDiskFreeSpaceExA(path, &avail, NULL, NULL))
+        n = avail.QuadPart;
+#else
+    struct statvfs st;
+    if (statvfs(path, &st) == 0)
+        n = (unsigned long long)st.f_bavail * st.f_frsize;
+#endif
+    return n < cap ? (u32)n : cap;
+}
 
 mouse_t sys_get_mouse(void) {
     return mouse;
@@ -945,7 +1645,36 @@ void sys_set_mouse(u16 x, u16 y) {
     mouse.y = y;
 }
 
+bool rect_equals(const SDL_Rect *x, const SDL_Rect *y)
+{
+    return x && y && x->x == y->x && x->y == y->y && x->w == y->w && x->h == y->h;
+}
+
 void sys_enable_mouse(u8 enable) {
+    
+#if ALIS_SDL_VER == 1
+    s16 width = mouse.x + 16 > host.pixelbuf.w ? host.pixelbuf.w - mouse.x : 16;
+    s16 height = mouse.y + 16 > host.pixelbuf.h ? host.pixelbuf.h - mouse.y : 16;
+
+    SDL_Rect new_dirty_rect = (SDL_Rect){ .x = mouse.x, .y = mouse.y, .w = width, .h = height };
+    if (dirty_len > 0xfc)
+    {
+        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_len = 0xff;
+    }
+    else
+    {
+        if (dirty_mouse_rect.w > 0 && dirty_mouse_rect.h > 0)
+        {
+            dirty_rects[dirty_len] = dirty_mouse_rect;
+            dirty_len++;
+        }
+        
+        dirty_rects[dirty_len] = dirty_mouse_rect = new_dirty_rect;
+        dirty_len++;
+    }
+#endif
+
     mouse.enabled = enable;
 
     if (!mouse.enabled)
@@ -959,15 +1688,98 @@ void set_update_cursor(void) {
     dirty_mouse = true;
 }
 
+#if defined(ALIS_USE_NATIVE_ATARI)
+extern volatile u8 g_ikbd_pressed[128];   // held-key state (sys_atari_ikbd.S)
+extern volatile u8 g_ikbd_cur;            // last key pressed
+
+// Atari ST (US) keyboard scancode -> ASCII for io_inkey's printable default case
+// (0 = none). Special keys (ESC/arrows/F/modifiers) are handled in the switch.
+static const u8 atari_sc_ascii[128] = {
+    [0x02]='1',[0x03]='2',[0x04]='3',[0x05]='4',[0x06]='5',[0x07]='6',[0x08]='7',[0x09]='8',[0x0a]='9',[0x0b]='0',
+    [0x0c]='-',[0x0d]='=',[0x0e]=0x08,[0x0f]=0x09,
+    [0x10]='q',[0x11]='w',[0x12]='e',[0x13]='r',[0x14]='t',[0x15]='y',[0x16]='u',[0x17]='i',[0x18]='o',[0x19]='p',
+    [0x1a]='[',[0x1b]=']',[0x1c]=0x0d,
+    [0x1e]='a',[0x1f]='s',[0x20]='d',[0x21]='f',[0x22]='g',[0x23]='h',[0x24]='j',[0x25]='k',[0x26]='l',
+    [0x27]=';',[0x28]='\'',[0x29]='`',[0x2b]='\\',
+    [0x2c]='z',[0x2d]='x',[0x2e]='c',[0x2f]='v',[0x30]='b',[0x31]='n',[0x32]='m',
+    [0x33]=',',[0x34]='.',[0x35]='/',[0x39]=' ',[0x53]=0x7f,
+    [0x4a]='-',[0x4e]='+',[0x65]='/',[0x66]='*',
+    [0x67]='7',[0x68]='8',[0x69]='9',[0x6a]='4',[0x6b]='5',[0x6c]='6',
+    [0x6d]='1',[0x6e]='2',[0x6f]='3',[0x70]='0',[0x71]='.',[0x72]=0x0d,
+};
+static const u8 atari_sc_ascii_shift[128] = {
+    [0x02]='!',[0x03]='@',[0x04]='#',[0x05]='$',[0x06]='%',[0x07]='^',[0x08]='&',[0x09]='*',[0x0a]='(',[0x0b]=')',
+    [0x0c]='_',[0x0d]='+',[0x0e]=0x08,[0x0f]=0x09,
+    [0x10]='Q',[0x11]='W',[0x12]='E',[0x13]='R',[0x14]='T',[0x15]='Y',[0x16]='U',[0x17]='I',[0x18]='O',[0x19]='P',
+    [0x1a]='{',[0x1b]='}',[0x1c]=0x0d,
+    [0x1e]='A',[0x1f]='S',[0x20]='D',[0x21]='F',[0x22]='G',[0x23]='H',[0x24]='J',[0x25]='K',[0x26]='L',
+    [0x27]=':',[0x28]='"',[0x29]='~',[0x2b]='|',
+    [0x2c]='Z',[0x2d]='X',[0x2e]='C',[0x2f]='V',[0x30]='B',[0x31]='N',[0x32]='M',
+    [0x33]='<',[0x34]='>',[0x35]='?',[0x39]=' ',
+    // Numpad is shift-independent (shift is read separately via io_shiftkey).
+    [0x4a]='-',[0x4e]='+',[0x65]='/',[0x66]='*',
+    [0x67]='7',[0x68]='8',[0x69]='9',[0x6a]='4',[0x6b]='5',[0x6c]='6',
+    [0x6d]='1',[0x6e]='2',[0x6f]='3',[0x70]='0',[0x71]='.',[0x72]=0x0d,
+};
+#endif
+
+#if defined(ALIS_TRACE_KEYS)
+#include "video.h"
+#endif
+
 u8 io_inkey(void)
 {
+#if defined(ALIS_USE_NATIVE_ATARI)
+    // Scancodes from the IKBD handler (sys_atari_ikbd.S). Report the last key only
+    // while it's held (like SDL key state) so repeated polls see a stable value.
+    {
+        // A press shorter than the poll interval (slow machines) is still reported once.
+        extern volatile u8 g_ikbd_new;
+        u8 sc = g_ikbd_cur;
+        if (sc == 0 || sc >= 128 || (!g_ikbd_pressed[sc] && !g_ikbd_new)) {
+            g_ikbd_cur = 0;
+            return 0;
+        }
+#if defined(ALIS_TRACE_KEYS)
+        {   // key the game sees: log changes and latched (already released) reports
+            extern void dbglog(const char *fmt, ...);
+            static u8 last_sc;
+            u8 held = g_ikbd_pressed[sc] != 0;
+            if (sc != last_sc || !held)
+                dbglog("KEY sc=%02x held=%d new=%d t=%u script=%s film=%d/%d play=%d\n", sc, held,
+                       g_ikbd_new != 0, (unsigned)alis.timeclock, alis.script ? alis.script->name : "?",
+                       (int)bfilm.frame, (int)bfilm.frames, (int)bfilm.playing);
+            last_sc = sc;
+        }
+#endif
+        g_ikbd_new = 0;
+        switch (sc) {
+            case 0x01: return 0x1b;                          // ESC
+            case 0x48: return 0xc8;                          // UP
+            case 0x50: return 0xd0;                          // DOWN
+            case 0x4b: return 0xcb;                          // LEFT
+            case 0x4d: return 0xcd;                          // RIGHT
+            case 0x3b: return 0xbb; case 0x3c: return 0xbc;  // F1 F2
+            case 0x3d: return 0xbd; case 0x3e: return 0xbe;  // F3 F4
+            case 0x3f: return 0xbf; case 0x40: return 0xc0;  // F5 F6
+            case 0x41: return 0xc1; case 0x42: return 0xc2;  // F7 F8
+            case 0x43: return 0xc3; case 0x44: return 0xc4;  // F9 F10
+            case 0x2a: case 0x36: case 0x1d: case 0x38: case 0x3a:
+                return 0;                                    // shift/ctrl/alt/caps
+            default: {
+                u8 shifted = g_ikbd_pressed[0x2a] || g_ikbd_pressed[0x36];
+                u8 ch = (shifted ? atari_sc_ascii_shift : atari_sc_ascii)[sc];
+                return ch ? ch : sc;
+            }
+        }
+    }
+#else
 #if ALIS_SDL_VER == 1
     SDL_PumpEvents();
 
-    // VM tight loops (e.g. the game's pause-on-ESC: oinkey != ESC && oinkey != 0) never yield to sys_poll_event between iterations
-    // without draining KEYDOWN events here, `button` stays at whatever value it had when the loop started and io_inkey returns 0 forever
-    // Consume only KEYDOWN; mouse/quit/KEYUP stay queued for sys_poll_event
-    
+    // VM busy loops (e.g. pause-on-ESC) never reach sys_poll_event, so drain
+    // KEYDOWN here or `button` never changes. Other events (KEYUP drives the
+    // F11/F12 save states) stay queued for sys_poll_event.
     {
         SDL_Event ev;
         while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT,
@@ -1068,10 +1880,21 @@ u8 io_inkey(void)
             return button.sym;
         }
     }
+#endif // ALIS_USE_NATIVE_ATARI
 }
 
 u8 io_shiftkey(void) {
 
+#if defined(ALIS_USE_NATIVE_ATARI)
+    // Read modifiers straight from the IKBD held-key state (sys_atari_ikbd.S).
+    // Encoding: 1=RShift 2=LShift 4=Ctrl 8=Alt.
+    shift = 0;
+    if (g_ikbd_pressed[0x36]) shift |= 1;
+    if (g_ikbd_pressed[0x2a]) shift |= 2;
+    if (g_ikbd_pressed[0x1d]) shift |= 4;
+    if (g_ikbd_pressed[0x38]) shift |= 8;
+    return shift;
+#else
     const u8 *keys = SDL_GetKeyboardState(NULL);
     u16 mod = SDL_GetModState();
 
@@ -1093,6 +1916,7 @@ u8 io_shiftkey(void) {
     shift = (mod & KMOD_ALT)    ? shift |  8 : shift & 0xf7;
     shift = (mod & KMOD_CAPS)   ? shift | 16 : shift & 0xef;
     return shift;
+#endif // ALIS_USE_NATIVE_ATARI
 }
 
 u8 io_getkey(void) {
@@ -1103,6 +1927,35 @@ u8 io_getkey(void) {
     return result;
 }
 
+// Atari joystick byte: bit0=UP bit1=DOWN bit2=LEFT bit3=RIGHT bit7=FIRE. Like the
+// original, merge SDL joystick + keyboard, and the mouse button as fire on
+// joystick1 only (debut_pack mouse-as-joystick).
+#if defined(ALIS_USE_NATIVE_ATARI)
+// IKBD joystick packets (joyvec) + held keys; fire on joystick1 = either mouse button
+// (right = the joystick's own fire while the mouse is on).
+extern volatile u8 g_joy0, g_joy1, g_mouse_buttons;
+
+static u8 sys_joy_keys(void) {
+    const volatile u8 *k = g_ikbd_pressed;
+    u8 b = 0;
+    if (k[0x48] || k[0x68] || k[0x67] || k[0x69]) b |= 0x01;   // up, kp 8/7/9
+    if (k[0x50] || k[0x6e] || k[0x6d] || k[0x6f]) b |= 0x02;   // down, kp 2/1/3
+    if (k[0x4b] || k[0x6a] || k[0x67] || k[0x6d]) b |= 0x04;   // left, kp 4/7/1
+    if (k[0x4d] || k[0x6c] || k[0x69] || k[0x6f]) b |= 0x08;   // right, kp 6/9/3
+    return b;
+}
+
+static void sys_joy_refresh(void) {
+    u8 keys = sys_joy_keys();
+    joystick0 = g_joy0 | keys;
+    joystick1 = g_joy1 | keys | ((g_mouse_buttons & 3) ? 0x80 : 0);
+#if defined(ALIS_DEBUG_AUTOWALK)
+    // Test runs: keep the camera moving (turn left, walk, turn right, walk), 1.5 s per step.
+    static const u8 walk[] = { 0x04, 0x04, 0x01, 0x08, 0x08, 0x01, 0x01, 0x05 };
+    joystick1 |= walk[(sys_ticks() / 1500) % sizeof walk];
+#endif
+}
+#else
 #define SYS_JOY_AXIS_DEAD   8000
 
 static u8 sys_joy_compose(int with_mouse_fire) {
@@ -1133,6 +1986,8 @@ static u8 sys_joy_compose(int with_mouse_fire) {
         }
     }
 
+    // Arrows + numpad as compass directions (7/9/1/3 set both bits). Shift is
+    // not fire: games gating on ojoykey's fire bit would break (Metal Mutant).
     const u8 *keys = SDL_GetKeyboardState(NULL);
 #if ALIS_SDL_VER == 1
     if (keys[SDLK_UP]    || keys[SDLK_KP8] || keys[SDLK_KP7] || keys[SDLK_KP9]) b |= 0x01;
@@ -1154,6 +2009,7 @@ static void sys_joy_refresh(void) {
     joystick0 = sys_joy_compose(0);
     joystick1 = sys_joy_compose(1);
 }
+#endif
 
 u8 io_joy(u8 port) {
     sys_joy_refresh();
@@ -1177,7 +2033,7 @@ u8 io_joykey(u8 test) {
         if (button.sym == -0x1f)
             result = result | 0x80;
     }
-    
+
     return result;
 }
 
@@ -1239,27 +2095,37 @@ time_t sys_get_time(void) {
 
 u16 sys_get_model(void) {
 
+    // Developer/author mode (-a): hand the startup test a sub-1000 model exactly once, then behave
+    // normally so the script's platform discrimination still sees the true machine. See config.h.
+    if (authormode)
+    {
+        authormode = 0;
+        return kAuthorModel;
+    }
+
     // 1010 = Atari ST / 1MB / lowrez
     // 1110 = Atari STe / 1MB / lowrez
     // 1111 = Atari STe / 1MB / mono
     
-    // on PC, there are only 4 correct values (mono, cga, ega, vga?)
-    // 2000 + [0 - 4]
+    // PC, 16-bit engines: 2000 + video adapter (0 CGA, 1 Tandy, 2 EGA, 4 VGA); scripts branch on
+    // omodel % 10. The CGA-art games (version <= 11) and the 32-bit engines (version >= 30, where
+    // the digit is a CPU class) keep 2000.
     
     // TODO: find all values
     switch (alis.platform.kind) {
             
-        case EPlatformAtari:        return alis.platform.version < 20 ? 1010 : 1120; // 1110; 
-        case EPlatformPC:           return 2000;
+        // Memory class (1000 = 512K, 1010 = 1MB, 1020 = more) + 100 for STE (v20+ engines).
+        case EPlatformAtari:
+            if (alis.memclass)
+                return alis.memclass + (alis.platform.version < 20 ? 0 : 100);
+            return alis.platform.version < 20 ? 1010 : 1120;
+        case EPlatformPC:           return alis.platform.version > 11 && alis.platform.version < 30 ? 2004 : 2000;
         case EPlatformAmiga:        return 3000;
         case EPlatformMac:          return 4001;
         case EPlatformFalcon:       return 5000;    // NOTE: 256 color mac also use fo extension but 4000 model value
         case EPlatformAmigaAGA:     return 6000;
             
-        // TODO: find correct values
-        // case EPlatformAmstradCPC:   return 4000;
-        // case EPlatform3DO:          return 4000;
-        // case EPlatformJaguar:       return 4000;
+        // TODO: Amstrad CPC / 3DO / Jaguar values unknown
             
         default:                    return 4000;
     };

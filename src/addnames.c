@@ -19,6 +19,8 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// VM-core translation unit: opt into hot-state register pinning (see alis.h).
+#define ALIS_VM_CORE
 #include "alis.h"
 #include "alis_private.h"
 #include "image.h"
@@ -221,7 +223,7 @@ static void aeval(void) {
 // ============================================================================
 #pragma mark - Add routines pointer table
 // ============================================================================
-sAlisOpcode addnames[] = {
+const sAlisOpcode addnames[] = {
     DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),

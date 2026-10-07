@@ -48,7 +48,6 @@
 #endif
 
 
-extern const u32 kHostRAMSize;
 extern const u32 kVirtualRAMSize;
 
 #define MAX_SCRIPTS     256
@@ -101,14 +100,104 @@ typedef struct {
 // =============================================================================
 typedef void (*alisOpcode)(void);
 
-#define DECL_OPCODE(n, f, d)    { n, f, #f, d }
+// NDEBUG strips the per-opcode name+desc strings (only readexec's debug disassembler reads them).
+#ifdef NDEBUG
+# define DECL_OPCODE(n, f, d)   { .fptr = (f), .code = (n) }
+#else
+# define DECL_OPCODE(n, f, d)   { .fptr = (f), .code = (n), .name = #f, .desc = (d) }
+#endif
 
+// NDEBUG struct padded to 8 bytes: power-of-2 dispatch stride (scaled addressing, no muls).
 typedef struct {
-    u8          code;
     alisOpcode  fptr;
+    u8          code;
+#ifndef NDEBUG
     char        name[kNameMaxLen];
     char        desc[kDescMaxLen];
+#else
+    u8          _pad[3];    // -> sizeof == 8 (power-of-2 dispatch stride)
+#endif
 } sAlisOpcode;
+
+// -----------------------------------------------------------------------------
+// VM hot-state register pinning: in ALIS_VM_CORE units on m68k, a4 = alis.mem and a5 = alis.script
+// (pointers only, so nothing drifts; alis.mem changes need VM_SYNC_MEM, script changes go through
+// ALIS_SET_SCRIPT). -DALIS_VM_REGVARS=0 falls back to plain struct access.
+// -----------------------------------------------------------------------------
+#if !defined(ALIS_VM_REGVARS)
+# if defined(__m68k__) && defined(NDEBUG)
+#  define ALIS_VM_REGVARS 1
+# else
+#  define ALIS_VM_REGVARS 0
+# endif
+#endif
+
+#if ALIS_VM_REGVARS && defined(ALIS_VM_CORE) && defined(__m68k__)
+register u8 *              vm_mem    __asm__ ("a4");
+register sAlisScriptLive * vm_script __asm__ ("a5");
+# define VMEM               vm_mem
+# define VSCRIPT            vm_script
+# define VM_SYNC_MEM()      (vm_mem = alis.mem)
+# define VM_SYNC_SCRIPT()   (vm_script = alis.script)
+#else
+# define VMEM               (alis.mem)
+# define VSCRIPT            (alis.script)
+# define VM_SYNC_MEM()      ((void)0)
+# define VM_SYNC_SCRIPT()   ((void)0)
+#endif
+
+// All writes to the current-script pointer must go through this so the pinned
+// register (if any) stays in sync with the struct member.
+#define ALIS_SET_SCRIPT(x)  do { alis.script = (x); VM_SYNC_SCRIPT(); } while(0)
+
+// Fast inline dispatch macros for NDEBUG builds.
+// Avoids function call overhead and 1KB struct copy per opcode.
+#ifdef NDEBUG
+# define READEXEC_FAST(table)  do { \
+        (table)[*(VMEM + VSCRIPT->pc++)].fptr(); \
+    } while(0)
+// Operand-histogram hook (profiler): count which opernames dominate expression
+// evaluation. Defined in alis.c; no-op unless -DALIS_VM_PROFILE=1.
+#if defined(ALIS_VM_PROFILE) && ALIS_VM_PROFILE
+extern u32 g_oper_count[256];
+extern u32 g_oper_total;
+extern u32 g_cload_sleep, g_cload_work, g_cload_calls;
+extern u32 g_prof_c2p;
+# define PROF_OPER()  (g_oper_count[VMEM[VSCRIPT->pc]]++, g_oper_total++)
+#else
+# define PROF_OPER()  ((void)0)
+#endif
+# define readexec_opcode()          READEXEC_FAST(opcodes)
+# define readexec_codesc1name()     READEXEC_FAST(codesc1names)
+# define readexec_codesc2name()     READEXEC_FAST(codesc2names)
+# define readexec_codesc3name()     READEXEC_FAST(codesc3names)
+# define readexec_opername()        do { PROF_OPER(); READEXEC_FAST(opernames); } while(0)
+# define readexec_storename()       READEXEC_FAST(storenames)
+# define readexec_addname()         READEXEC_FAST(addnames)
+
+# define readexec_addname_swap() do { \
+        char *_tmp = alis.sd7; alis.sd7 = alis.oldsd7; alis.oldsd7 = _tmp; \
+        readexec_addname(); \
+    } while(0)
+
+# define readexec_opername_saveD7() do { \
+        alis.varD6 = alis.varD7; \
+        readexec_opername(); \
+    } while(0)
+
+# define readexec_opername_saveD6() do { \
+        s16 _tmp = alis.varD7; \
+        readexec_opername_saveD7(); \
+        alis.varD6 = alis.varD7; \
+        alis.varD7 = _tmp; \
+    } while(0)
+
+# define readexec_opername_swap() do { \
+        char *_tmp = alis.sd7; alis.sd7 = alis.sd6; alis.sd6 = _tmp; \
+        readexec_opername(); \
+    } while(0)
+
+#endif
 
 PACK_PUSH typedef struct PACK_ATTR {
     u32         vram_offset;
@@ -123,7 +212,7 @@ typedef struct {
     // read values from packed main script
     u16     script_data_tab_len;
     u16     script_vram_tab_len;
-    u32     unused;
+    u32     mem_cap;        // arena cap past debprog (4,000,000 in every known game)
     u32     max_allocatable_vram;
     u32     vram_to_data_offset;
     
@@ -187,7 +276,6 @@ typedef struct {
     sScriptLoc *    atent_ptr;
     u32 *           atprog_ptr;
 
-//    u8              nmode;
     u8              automode;
             
     u8              fallent;
@@ -220,6 +308,7 @@ typedef struct {
     s16             dernent;
             
     u32             finmem;     // 0xf6e98
+    u16             memclass;   // omodel memory class for a reduced arena (0 = legacy value)
             
     s32             basemem;    // 0x22400
     s32             basevar;    // 0x0
@@ -230,8 +319,6 @@ typedef struct {
     u8              fmouse;
     u8              fremouse;
     u8              fremouse2;
-    u8              butmouse;
-    u32             cbutmouse;
     u16             oldmouse;
     u8 *            desmouse;
     
@@ -248,9 +335,6 @@ typedef struct {
     
     s16             poldy;
     s16             poldx;
-
-    // true if disasm only
-    u8              disasm;
     
     // true if vm is running
     eAlisState      state;
@@ -275,12 +359,6 @@ typedef struct {
     s16 *tglinetra;
 
     
-    // in atari, located at $22400
-    // contains the addresses of the loaded scripts' data
-    // 60 dwords max (from $22400 -> $224f0)
-    // u32             script_data_offsets[MAX_SCRIPTS];
-    // u8              script_id_stack[MAX_SCRIPTS]; // TODO: use a real stack ?
-    // u8              script_count;
     u8              script_index;
     
     // SCRIPTS
@@ -383,13 +461,106 @@ typedef struct {
 typedef struct {
 
     // system stuff
-    // mouse_t     mouse;
     pixelbuf_t  pixelbuf;
 } sHost;
 
 extern sAlisVM alis;
+extern u32 alis_arena_size;
+extern const char *alis_fatal; // set to stop the VM with a message shown after shutdown
+    // set by the native memory pre-flight; 0 = preferred tier
 extern sHost host;
 
+// Inlined script-bytecode accessors (release builds; debug builds use the logging versions in
+// script.c). Must follow the `alis` declaration: VMEM/VSCRIPT fall back to alis.mem/alis.script
+// outside VM-core TUs.
+#ifdef NDEBUG
+static inline u8  script_read8(void)  { return VMEM[VSCRIPT->pc++]; }
+static inline u16 script_read16(void) { u16 v = read16(VMEM + VSCRIPT->pc); VSCRIPT->pc += 2; return v; }
+static inline u32 script_read24(void) { u32 v = read24(VMEM + VSCRIPT->pc); VSCRIPT->pc += 3; return v; }
+static inline u32 script_read32(void) { u32 v = read32(VMEM + VSCRIPT->pc); VSCRIPT->pc += 4; return v; }
+#endif
+
+
+// =============================================================================
+// MARK: - Script VRAM / screen-element accessors (inline)
+// =============================================================================
+
+// Script VRAM accessors — indexed from a script's vram origin.
+static inline u32 get_0x3e_wait_time(u32 vram)                        { return xread32(vram - 0x3e); }
+static inline u16 get_0x3a_wait_cycles(u32 vram)                      { return xread16(vram - 0x3a); }
+static inline u16 get_0x38_unknown(u32 vram)                          { return xread16(vram - 0x38); }
+static inline u16 get_0x36_unknown(u32 vram)                          { return xread16(vram - 0x36); }
+static inline u16 get_0x34_unknown(u32 vram)                          { return xread16(vram - 0x34); }
+static inline u8 get_0x32_unknown(u32 vram)                           { return xread8(vram - 0x32); }
+static inline u8 get_0x31_unknown(u32 vram)                           { return xread8(vram - 0x31); }
+static inline u8 get_0x30_unknown(u32 vram)                           { return xread8(vram - 0x30); }
+static inline u8 get_0x2f_chsprite(u32 vram)                          { return xread8(vram - 0x2f); }
+static inline u8 get_0x2e_script_header_word_2(u32 vram)              { return xread8(vram - 0x2e); }
+static inline u8 get_0x2d_calign(u32 vram)                            { return xread8(vram - 0x2d); }
+static inline u8 get_0x2c_calign(u32 vram)                            { return xread8(vram - 0x2c); }
+static inline u8 get_0x2b_cordspr(u32 vram)                           { return xread8(vram - 0x2b); }
+static inline u16 get_0x2a_clinking(u32 vram)                         { return xread16(vram - 0x2a); }
+static inline u8 get_0x28_unknown(u32 vram)                           { return xread8(vram - 0x28); }
+static inline u8 get_0x27_creducing(u32 vram)                         { return xread8(vram - 0x27); }
+static inline u8 get_0x26_creducing(u32 vram)                         { return xread8(vram - 0x26); }
+static inline u8 get_0x25_credon_credoff(u32 vram)                    { return xread8(vram - 0x25); }
+static inline s8 get_0x24_scan_inter(u32 vram)                        { return xread8(vram - 0x24); }
+static inline u8 get_0x23_unknown(u32 vram)                           { return xread8(vram - 0x23); }
+static inline u16 get_0x22_cworld(u32 vram)                           { return xread16(vram - 0x22); }
+static inline u16 get_0x20_set_vect(u32 vram)                         { return xread16(vram - 0x20); }
+static inline s16 get_0x1e_scan_clr(u32 vram)                         { return xread16(vram - 0x1e); }
+static inline s16 get_0x1c_scan_clr(u32 vram)                         { return xread16(vram - 0x1c); }
+static inline s16 get_0x1a_cforme(u32 vram)                           { return xread16(vram - 0x1a); }
+static inline u16 get_0x18_unknown(u32 vram)                          { return xread16(vram - 0x18); }
+static inline u16 get_0x16_screen_id(u32 vram)                        { return xread16(vram - 0x16); }
+static inline u32 get_0x14_script_org_offset(u32 vram)                { return xread32(vram - 0x14); }
+static inline u16 get_0x10_script_id(u32 vram)                        { return xread16(vram - 0x10); }
+static inline u16 get_0x0e_script_ent(u32 vram)                       { return xread16(vram - 0xe); }
+static inline s16 get_0x0c_vacc_offset(u32 vram)                      { return xread16(vram - 0xc); }
+static inline s16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 0xa); }
+static inline u32 get_0x08_script_ret_offset(u32 vram)                { return xread32(vram - 0x8); }
+static inline u8 get_0x04_cstart_csleep(u32 vram)                     { return xread8(vram - 0x4); }
+static inline u8 get_0x03_xinv(u32 vram)                              { return xread8(vram - 0x3); }
+static inline u8 get_0x02_wait_cycles(u32 vram)                       { return xread8(vram - 0x2); }
+static inline u8 get_0x01_wait_count(u32 vram)                        { return xread8(vram - 0x1); }
+
+static inline void set_0x3e_wait_time(u32 vram, u32 val)              { xwrite32(vram - 0x3e, val); }
+static inline void set_0x3a_wait_cycles(u32 vram, u16 val)            { xwrite16(vram - 0x3a, val); }
+static inline void set_0x38_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x38, val); }
+static inline void set_0x36_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x36, val); }
+static inline void set_0x34_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x34, val); }
+static inline void set_0x32_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x32, val); }
+static inline void set_0x31_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x31, val); }
+static inline void set_0x30_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x30, val); }
+static inline void set_0x2f_chsprite(u32 vram, u8 val)                { xwrite8(vram - 0x2f, val); }
+static inline void set_0x2e_script_header_word_2(u32 vram, u8 val)    { xwrite8(vram - 0x2e, val); }
+static inline void set_0x2d_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2d, val); }
+static inline void set_0x2c_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2c, val); }
+static inline void set_0x2b_cordspr(u32 vram, u8 val)                 { xwrite8(vram - 0x2b, val); }
+static inline void set_0x2a_clinking(u32 vram, u16 val)               { xwrite16(vram - 0x2a, val); }
+static inline void set_0x28_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x28, val); }
+static inline void set_0x27_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x27, val); }
+static inline void set_0x26_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x26, val); }
+static inline void set_0x25_credon_credoff(u32 vram, u8 val)          { xwrite8(vram - 0x25, val); }
+static inline void set_0x24_scan_inter(u32 vram, s8 val)              { xwrite8(vram - 0x24, val); }
+static inline void set_0x23_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x23, val); }
+static inline void set_0x22_cworld(u32 vram, u16 val)                 { xwrite16(vram - 0x22, val); }
+static inline void set_0x20_set_vect(u32 vram, u16 val)               { xwrite16(vram - 0x20, val); }
+static inline void set_0x1e_scan_clr(u32 vram, s16 val)               { xwrite16(vram - 0x1e, val); }
+static inline void set_0x1c_scan_clr(u32 vram, s16 val)               { xwrite16(vram - 0x1c, val); }
+static inline void set_0x1a_cforme(u32 vram, s16 val)                 { xwrite16(vram - 0x1a, val); }
+static inline void set_0x18_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x18, val); }
+static inline void set_0x16_screen_id(u32 vram, u16 val)              { xwrite16(vram - 0x16, val); }
+static inline void set_0x14_script_org_offset(u32 vram, u32 val)      { xwrite32(vram - 0x14, val); }
+static inline void set_0x10_script_id(u32 vram, u16 val)              { xwrite16(vram - 0x10, val); }
+static inline void set_0x0e_script_ent(u32 vram, u16 val)             { xwrite16(vram - 0x0e, val); }
+static inline void set_0x0c_vacc_offset(u32 vram, s16 val)            { xwrite16(vram - 0x0c, val); }
+static inline void set_0x0a_vacc_offset(u32 vram, s16 val)            { xwrite16(vram - 0x0a, val); }
+static inline void set_0x08_script_ret_offset(u32 vram, u32 val)      { xwrite32(vram - 0x08, val); }
+static inline void set_0x04_cstart_csleep(u32 vram, u8 val)           { xwrite8(vram - 0x04, val); }
+static inline void set_0x03_xinv(u32 vram, u8 val)                    { xwrite8(vram - 0x03, val); }
+static inline void set_0x02_wait_cycles(u32 vram, u8 val)             { xwrite8(vram - 0x02, val); }
+static inline void set_0x01_wait_count(u32 vram, u8 val)              { xwrite8(vram - 0x01, val); }
 
 // =============================================================================
 // MARK: - API
@@ -408,7 +579,6 @@ void            alis_debug_ram(void);
 void            alis_debug_addr(u16 addr);
 
 void            vram_init(void);
-u8 *            get_vram(s16 offset);
 
 int             adresdes(s32 idx);
 int             adresmus(s32 idx);

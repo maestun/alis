@@ -52,12 +52,16 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      enableAddressSanitizer = "YES"
+      enableASanStackUseAfterReturn = "YES"
+      enableUBSanitizer = "YES"
       launchStyle = "0"
       useCustomWorkingDirectory = "YES"
       customWorkingDirectory = "$PROJECT_DIR"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
+      enableGPUValidationMode = "1"
       allowLocationSimulation = "YES"
       consoleMode = "0"
       structuredConsoleMode = "2">
@@ -72,6 +76,10 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
+         <CommandLineArgument
+            argument = ""
+            isEnabled = "NO">
+         </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar/atari/"
             isEnabled = "NO">
@@ -189,12 +197,16 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "--3x /Users/gildor/work/xxx/colorado/atari"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/amiga/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/dos/"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/lefetichemaya/amiga/"
@@ -237,8 +249,8 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-m /Users/gildor/Work/alis/data/requiem/atari/"
-            isEnabled = "YES">
+            argument = "/Users/gildor/Work/alis/data/requiem/atari/"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/amiga/"
@@ -257,7 +269,11 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/requiem/dos/ --far --3x"
+            argument = "/Users/gildor/Work/alis/data/requiem/dos/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/requiem/dos_cd/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -337,6 +353,13 @@
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
+      <AdditionalOptions>
+         <AdditionalOption
+            key = "MallocScribble"
+            value = ""
+            isEnabled = "YES">
+         </AdditionalOption>
+      </AdditionalOptions>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

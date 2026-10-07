@@ -97,7 +97,6 @@ list(APPEND alis_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/unpack.c
     ${CMAKE_CURRENT_LIST_DIR}/src/utils.c
     ${CMAKE_CURRENT_LIST_DIR}/src/newalis.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/export.c
 #   ${CMAKE_CURRENT_LIST_DIR}/src/font.c
 )
 
@@ -108,6 +107,15 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 
 add_executable(${PROJECT_NAME} ${alis_SOURCES})
+
+# Program version header from git (scripts/gen_version.sh); needs a POSIX sh (Git for Windows has one).
+find_program(ALIS_SH sh)
+if(ALIS_SH)
+    add_custom_target(alis_version ALL
+        COMMAND ${ALIS_SH} ${CMAKE_CURRENT_LIST_DIR}/scripts/gen_version.sh ${CMAKE_CURRENT_LIST_DIR}/src/version.h
+        BYPRODUCTS ${CMAKE_CURRENT_LIST_DIR}/src/version.h)
+    add_dependencies(${PROJECT_NAME} alis_version)
+endif()
 
 target_link_libraries(${PROJECT_NAME} m)
 target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES})
@@ -122,4 +130,3 @@ set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
 
-add_subdirectory(src/emu2149)

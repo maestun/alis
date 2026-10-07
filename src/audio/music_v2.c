@@ -23,9 +23,11 @@
 #include "audio.h"
 #include "config.h"
 #include "mem.h"
+#include "../sys/sys.h"
 
 #include "emu2149.h"
 #include "emu8950.h"
+#include "dsp_mixer.h"
 
 void mv2_soundrout(void);
 void mv2_calculfrq(void);
@@ -35,10 +37,12 @@ void mv2_checkport(u32 noteat, sAudioVoice *voice);
 void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx);
 void mv2_checkcom(u32 noteat, u16 *volsam);
 void mv2_checkefft(sAudioVoice *voice);
-void mv2_soundcal(sAudioVoice *voice);
+void mv2_soundcal(sAudioVoice *voice, const bool first);
+void mv2_soundcal_c(sAudioVoice *voice, const bool first);
 void mv2_stopmusic(void);
 void mv2_onmusic(void);
 
+s16 f_volume(s16 volsam);
 void mv2_chiprout(void);
 s16 mv2_chipinstr(sChipChannel *chanel, s16 idx);
 void mv2_chipcanal(sChipChannel *chanel, s32 idx);
@@ -96,6 +100,13 @@ u16 trkval[] = {
     0x0013, 0x0012, 0x0011, 0x0010,
  };
 
+// The ALIS 2.x DOS driver (Bunny Bricks, Ishar 2 DOS): sequencer on the ~60 Hz game timer
+// (with --native-timing), effect F sets the speed to its raw parameter.
+static bool mv2_old_dos(void)
+{
+    return alis.platform.kind == EPlatformPC && alis.platform.version < 30;
+}
+
 void mv2_gomusic(void)
 {
     audio.muflag = 0;
@@ -122,9 +133,8 @@ void mv2_gomusic(void)
     mv2a.muopl2 = 2 < opl2inst;
     mv2a.mutype = 2 >= chipinst;
     
-//    mv2a.mutype = 4;// alis.vquality + 1;
     audio.muvol = (audio.muvolume >> 1) + 1;
-    audio.mutemp = (u8)(((u32)audio.mutempo * 6) / 0x20);
+    audio.mutemp = (u8)(((u32)audio.mutempo * 6) >> 5);
 
     // init
     if (mv2a.muopl2)
@@ -149,7 +159,8 @@ void mv2_gomusic(void)
         mv2_calculfrq();
         mv2_calculvol();
 
-        audio.mutaloop = (audio.mutaloop * 50UL) / sys_sfx_tick_hz; // (audio.mutaloop * 5) / 7;
+        // mutaloop is sized for a 50 Hz tick; rescale to the music rate (60 Hz DOS with --native-timing).
+        set_mutaloop((audio.mutaloop * 50UL) / sys_music_hz());
         audio.soundrout = mv2_opl2rout;
     }
     else if (mv2a.mutype != 0)
@@ -167,12 +178,13 @@ void mv2_gomusic(void)
             mv2a.voices[i].delta = 0;
         }
 
-        // mv2a.tabvol = newaddr;
         mv2a.prevmuvol = 0;
         mv2a.prevmufreq = 0;
         mv2_calculfrq();
         mv2_calculvol();
-        
+
+        if (mv2_old_dos())
+            set_mutaloop((audio.mutaloop * 50UL) / sys_music_hz());
         audio.soundrout = mv2_soundrout;
     }
     else
@@ -217,11 +229,13 @@ void mv2_gomusic(void)
 
 void mv2_calculfrq(void)
 {
-    float ratio = 50000.0f / audio.host_freq;
-    mv2a.frqmod = ratio * 0x48D378;
-    mv2a.samples = 0x3E7 / ratio;
+    // Fixed-point: ratio = 50000 / host_freq (16.16)
+    // frqmod = ratio * 0x48D378 = 50000 * 0x48D378 / host_freq
+    // samples = 0x3E7 / ratio = 0x3E7 * host_freq / 50000
+    mv2a.frqmod = (u32)((u64)50000 * 0x48D378 / audio.host_freq);
+    mv2a.samples = (u32)((u64)0x3E7 * audio.host_freq / 50000);
 
-    s16 freq = 4; // mv2a.mutype;
+    s16 freq = 4;
     if (freq < 1)
         freq = 1;
     
@@ -232,7 +246,7 @@ void mv2_calculfrq(void)
     {
         sAudioTrkfrq *freqdata = &mv2_trkfrq_ste[(freq - 1)];
         mv2a.mutadata = freqdata->data;
-        audio.mutaloop = mv2a.samples + 1;
+        set_mutaloop(mv2a.samples + 1);
         mv2a.prevmufreq = freq;
         
         s32 index = 0;
@@ -245,32 +259,9 @@ void mv2_calculfrq(void)
 
 void mv2_calculvol(void)
 {
+    // The original also built a volume table here; nothing reads it (mixers scale inline).
     if (mv2a.prevmuvol == 0)
-    {
         mv2a.prevmuvol = -1;
-        
-//        // ST
-//        s16 *tabvolptr = (s16 *)(mv2_audio->tabvol + 0x4000);
-//        for (s32 x = 0x40; x != 0; x--)
-//        {
-//            s8 v = 0x3f;
-//            for (s32 y = 0x7f; y != -1; y--, v--)
-//            {
-//                tabvolptr --;
-//                *tabvolptr = ((s16)((s8)v * x >> 6) + 0x40) * 4;
-//            }
-//        }
-        // ste/falcon
-        s8 *tabvolptr = (s8 *)(mv2a.tabvol + 0x4000);
-        for (s32 x = 0x40; x > 0; x--)
-        {
-            for (s32 y = 0xff; y > -1; y--)
-            {
-                tabvolptr --;
-                *tabvolptr = (s8)(((s8)y * x) / 0x80);
-            }
-        }
-    }
 }
 
 void mv2_soundrout(void)
@@ -316,6 +307,13 @@ f_soundroutc:
     }
     
     mv2a.muvolgen = newvolgen;
+    // Speed 0 (effect F00 = end of song): the original stops the music.
+    if (mv2a.muspeed == 0)
+    {
+        mv2_stopmusic();
+        return;
+    }
+
     if (mv2a.muspeed != 0)
     {
         mv2a.muspeed--;
@@ -323,7 +321,6 @@ f_soundroutc:
         {
             mv2a.muspeed = audio.mutemp;
 
-            s16 prevmucnt = mv2a.mucnt;
             if (-1 < (s16)(mv2a.mucnt - 0x40))
             {
                 mv2a.mucnt = 0;
@@ -349,12 +346,50 @@ f_soundroutc:
         mv2_checkefft(&mv2a.voices[2]);
         mv2_checkefft(&mv2a.voices[3]);
         
-        memset(audio.muadresse, 0, audio.mutaloop * 2);
-        
-        mv2_soundcal(&mv2a.voices[0]);
-        mv2_soundcal(&mv2a.voices[1]);
-        mv2_soundcal(&mv2a.voices[2]);
-        mv2_soundcal(&mv2a.voices[3]);
+        // --- Sample mixing: DSP or CPU ---
+#ifdef ALIS_DSP_MIXER
+        if (dsp_mixer_available)
+        {
+            // DSP path: send voice state, DSP does all per-sample mixing.
+            // No memset/soundcal needed — DSP mixes from scratch.
+            for (int v = 0; v < 4; v++)
+            {
+                sAudioVoice *voice = &mv2a.voices[v];
+                u32 freq = (voice->freqsam < 0)
+                    ? mv2a.tabfrq[-voice->freqsam >> 2] >> 2
+                    : mv2a.tabfrq[voice->freqsam];
+                u32 lengthX = xread32(voice->sample + 2) - 0x11;
+                u32 smpendX = voice->sample + 0x10 + lengthX;
+                u16 volsam = f_volume(voice->volsam);
+
+                // A stale voice can yield a wild offset that bus-errors the DSP
+                // feed: out of VM range → NULL → silent.
+                u32 offX = smpendX - 0x10 - voice->longsam1;
+                u32 ramsz = alis.platform.ram_sz;
+                s8 *maddr = (offX <= ramsz && lengthX <= ramsz - offX)
+                          ? (s8 *)(alis.mem + offX) : NULL;
+
+                dsp_mixer_update_music(v,
+                    maddr,                                                 // current play position
+                    lengthX,                                               // sample length (bytes)
+                    freq,                                                  // 16.16 phase step (rel host_freq)
+                    (s16)volsam,                                           // f_volume() result
+                    (voice->longsam2 > 0) ? 2 : 1,                       // 1=one-shot, 2=loop
+                    0,                                                   // MV2 restarts on address change only
+                    lengthX                                              // loop whole sample (MV2's existing behavior)
+                );
+            }
+        }
+        else
+#endif
+        {
+            // CPU fallback: original mixing path
+            memset(audio.muadresse, 0, audio.mutaloop * 2);
+            mv2_soundcal(&mv2a.voices[0], true);
+            mv2_soundcal(&mv2a.voices[1], false);
+            mv2_soundcal(&mv2a.voices[2], false);
+            mv2_soundcal(&mv2a.voices[3], false);
+        }
     }
 }
 
@@ -431,7 +466,6 @@ void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx)
         newfreq = 0x357;
     }
     
-//    mv2_audio->defvolins = instidx;
     voice->freqsam = newfreq;
     s16 type = sample == 0 ? -1 : xread8(sample - 0x10);
     if (type == 2)
@@ -439,7 +473,7 @@ void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx)
         voice->sample = sample - 0x10;
         voice->startsam1 = sample + 0x10;
         voice->longsam1 = xread32(sample - 0xe) - 0x20;
-        voice->volsam = 0x40; // mv2_audio->defvol[(mv2_audio->defvolins) + 1];
+        voice->volsam = 0x40;
         voice->startsam2 = ((xread32(sample - 0xe) - 0x10) - xread32(sample - 4)) + sample;
         voice->longsam2 = xread32(sample - 4) - xread32(sample - 8);
     }
@@ -489,7 +523,11 @@ void mv2_checkcom(u32 noteat, u16 *volsam)
         }
         case 0xf:
         {
-            u32 newval = (audio.mutempo * (data & 0x1f)) / 0x20;
+            // Bunny Bricks' driver skips F00 (its song then loops); later engines stop on speed 0.
+            if (data == 0 && alis.platform.kind == EPlatformPC && alis.platform.uid == EGameBunnyBricks)
+                break;
+
+            u32 newval = mv2_old_dos() ? data : (audio.mutempo * (data & 0x1f)) >> 5;
             audio.mutemp = (u8)newval;
             mv2a.muspeed = (u16)newval;
             break;
@@ -602,7 +640,6 @@ void mv2_offmusic(u32 much)
 void mv2_stopmusic(void)
 {
     audio.muflag = 0;
-//    mv2a.mubreak = 0;
 }
 
 void mv2_onmusic(void)
@@ -616,8 +653,6 @@ s16 f_volume(s16 volsam)
     // ST/STE
     s16 volume = ((u16)(volsam * mv2a.muvolgen) >> 6) - 1;
     
-    // Falcon
-//    s16 volume = ((u16)(volsam * ((u16)(mv2_audio->muvolgen + 1) >> 1)) >> 6) - 1;
     return volume < 0 ? 0 : volume << 8;
 }
 
@@ -643,7 +678,9 @@ void f_updatevoice(sAudioVoice *voice, u32 smpstart, u32 smplength)
     }
 }
 
-void mv2_soundcal(sAudioVoice *voice)
+// Pure-C reference mixer (the original decompiled body): non-Atari fallback and
+// the ALIS_MV2_MIX_VERIFY oracle for the asm loop. Keep it unchanged.
+void mv2_soundcal_c(sAudioVoice *voice, const bool first)
 {
     u32 freq;
     s16 freqsam = voice->freqsam;
@@ -671,57 +708,307 @@ void mv2_soundcal(sAudioVoice *voice)
         freq = 0;
     }
 
-    u16 prevlongsam1;
-    
     u8 volsam2 = volsam >> 8;
-    
-    float volsamf = (float)volsam2 / (float)0x3f;
-    volsamf *= 64;
+    s16 vol_fixed = (s16)((u32)volsam2);
 
     u16 frqto = 0;
-    bool frqnxt;
-    
+
     u32 sample = voice->sample;
     u32 lengthX = xread32(sample + 2) - 0x11;
-    u32 smpbegX = sample + 0x10;
-    u32 smpendX = smpbegX + lengthX;
+    u32 smpendX = sample + 0x10 + lengthX;
+    if (!sample || smpendX > alis.finmem)
+        return;   // no sample, or a stale header (script data moved)
+
+    u8 * const mem_base = alis.mem;
+    s16 * const dst = audio.muadresse;
+    const u32 mutaloop = audio.mutaloop;
+    const u32 end_adj = smpendX - 0x10;
     
-    for (int index = 0; index < audio.mutaloop; index ++)
+    u32 step_full = ((u32)frqhi << 16) | frqlo;
+
+    if (first)
     {
-        frqnxt = frqto < frqlo;
-        frqto -= frqlo;
-        
-        prevlongsam1 = (u16)longsam1;
-        
-        longsam1 -= (frqnxt + frqhi);
-        if (prevlongsam1 < frqhi || (frqnxt && prevlongsam1 == frqhi))
+        for (u32 index = 0; index < mutaloop; index++)
         {
-            frqlo = freq & 0xffff;
-            frqhi = freq >> 0x10;
-            longsam1 = longsam2;
-            startsam1 = startsam2;
-            if (longsam2 == 0)
-                break;
+            u32 acc_before = ((u32)(u16)longsam1 << 16) | frqto;
+            u32 acc_after;
+            int phase_switch = __builtin_sub_overflow(acc_before, step_full, &acc_after);
+
+            frqto = (u16)acc_after;
+            longsam1 = ((longsam1 >> 16) - (u32)phase_switch) << 16 | (u32)(acc_after >> 16);
+
+            if (phase_switch)
+            {
+                frqlo = freq & 0xffff;
+                frqhi = freq >> 0x10;
+                step_full = ((u32)frqhi << 16) | frqlo;
+                longsam1 = longsam2;
+                startsam1 = startsam2;
+                if (longsam2 == 0)
+                    break;
+            }
+
+            dst[index] = (s16)((s8)mem_base[end_adj - longsam1] * vol_fixed);
         }
+    }
+    else
+    {
+        for (u32 index = 0; index < mutaloop; index++)
+        {
+            u32 acc_before = ((u32)(u16)longsam1 << 16) | frqto;
+            u32 acc_after;
+            s32 phase_switch = __builtin_sub_overflow(acc_before, step_full, &acc_after);
 
-        // NOTE: longsam1 counts DOWN, so startsam1+longsam1 reads backward.
-        // samoffset converts to forward position within the sample data.
-        s32 samoffset = smpendX - (startsam1 + longsam1);
-        s8 sam = xread8(startsam1 + samoffset - 0x10);
+            frqto = (u16)acc_after;
+            longsam1 = ((longsam1 >> 16) - (u32)phase_switch) << 16 | (u32)(acc_after >> 16);
 
-        int total = audio.muadresse[index] + (sam * volsamf);
-        if (total < -32768)
-            total = -32768;
-        
-        if (total > 32767)
-            total = 32767;
-        
-        audio.muadresse[index] = total;
+            if (phase_switch)
+            {
+                frqlo = freq & 0xffff;
+                frqhi = freq >> 0x10;
+                step_full = ((u32)frqhi << 16) | frqlo;
+                longsam1 = longsam2;
+                startsam1 = startsam2;
+                if (longsam2 == 0)
+                    break;
+            }
+
+            s16 scaled_val = (s16)((s8)mem_base[end_adj - longsam1] * vol_fixed);
+            int total = dst[index] + scaled_val;
+            if (total < -32768)
+                total = -32768;
+
+            if (total > 32767)
+                total = 32767;
+
+            dst[index] = (s16)total;
+        }
     }
 
     voice->longsam1 = longsam1;
     voice->startsam1 = startsam1;
 }
+
+// ============================================================================
+// Register-pinned asm version of mv2_soundcal_c (same semantics; avoids ST-RAM
+// stack spills). The reload's step reset is omitted: freq is 0 only when
+// longsam2==0, which breaks on the first reload anyway.
+// ============================================================================
+
+#if defined(ALIS_MV2_MIX_ASM) && ALIS_MV2_MIX_ASM && defined(ALIS_USE_NATIVE_ATARI)
+
+struct mv2_asm_ctx { u32 longsam2; u32 startsam2; u32 startsam1; };
+
+// Runs the per-sample DDA over [dst, dst+mutaloop) into dst. Returns final
+// longsam1; writes final startsam1 into ctx->startsam1. `first` picks the
+// write vs accumulate+clamp body (chosen once, outside the hot loop).
+__attribute__((noinline))
+static u32 mv2_soundcal_asm(s16 *dst, u32 mutaloop, const u8 *read_base,
+                            s16 vol_fixed, u32 step_full, u32 longsam1,
+                            int first, struct mv2_asm_ctx *ctx)
+{
+    u32 ls1 = longsam1;
+    u32 frq = 0;                       // frqto (starts 0)
+    u16 flo = (u16)(step_full & 0xffff);
+    u16 fhi = (u16)(step_full >> 16);
+    u16 vol = (u16)vol_fixed;
+    u32 cnt = mutaloop - 1;            // dbf counter (mutaloop>=1 guaranteed by caller)
+    u32 s1, s2;
+
+    if (first)
+    {
+        __asm__ volatile (
+        "0: sub.w   %[flo],%[frq]              \n"  // frqto -= frqlo, X = borrow
+        "   subx.w  %[fhi],%[ls1]              \n"  // ls1_lo -= frqhi - X ; C = phase_switch
+        "   bcs     3f                         \n"  // sample stepped -> reload
+        "1: move.l  %[ls1],%[s1]               \n"  // s1 = longsam1
+        "   neg.l   %[s1]                      \n"  // s1 = -longsam1  (index = end_adj-longsam1)
+        "   move.b  %[rb]@(0,%[s1]:l),%[s1]    \n"  // s1 = (s8) sample byte
+        "   ext.w   %[s1]                      \n"
+        "   muls.w  %[vol],%[s1]               \n"  // * vol_fixed (product fits s16)
+        "   move.w  %[s1],%[dp]@+              \n"  // dst[i] = scaled
+        "   dbf     %[cnt],0b                  \n"
+        "   bra     9f                         \n"
+        "3: move.l  %[ctx]@(4),%[s1]           \n"  // s1 = startsam2
+        "   move.l  %[s1],%[ctx]@(8)           \n"  // ctx->startsam1 = startsam2
+        "   move.l  %[ctx]@,%[ls1]             \n"  // longsam1 = longsam2 ; sets Z
+        "   beq     9f                         \n"  // longsam2==0 -> break (no write)
+        "   bra     1b                         \n"  // else write with new longsam1
+        "9:                                    \n"
+        : [ls1]"+d"(ls1), [frq]"+d"(frq), [cnt]"+d"(cnt), [dp]"+a"(dst),
+          [s1]"=&d"(s1), [s2]"=&d"(s2)
+        : [flo]"d"(flo), [fhi]"d"(fhi), [vol]"d"(vol),
+          [rb]"a"(read_base), [ctx]"a"(ctx)
+        : "cc", "memory"
+        );
+    }
+    else
+    {
+        __asm__ volatile (
+        "0: sub.w   %[flo],%[frq]              \n"
+        "   subx.w  %[fhi],%[ls1]              \n"
+        "   bcs     3f                         \n"
+        "1: move.l  %[ls1],%[s1]               \n"
+        "   neg.l   %[s1]                      \n"
+        "   move.b  %[rb]@(0,%[s1]:l),%[s1]    \n"
+        "   ext.w   %[s1]                      \n"
+        "   muls.w  %[vol],%[s1]               \n"  // s1 = scaled (32-bit, fits s16)
+        "   move.w  %[dp]@,%[s2]               \n"  // s2 = dst[i]
+        "   ext.l   %[s2]                      \n"
+        "   add.l   %[s2],%[s1]                \n"  // total = dst[i] + scaled
+        "   cmp.l   #32767,%[s1]               \n"  // clamp high
+        "   ble     4f                         \n"
+        "   move.l  #32767,%[s1]               \n"
+        "4: cmp.l   #-32768,%[s1]              \n"  // clamp low
+        "   bge     5f                         \n"
+        "   move.l  #-32768,%[s1]              \n"
+        "5: move.w  %[s1],%[dp]@+              \n"  // dst[i] = total
+        "   dbf     %[cnt],0b                  \n"
+        "   bra     9f                         \n"
+        "3: move.l  %[ctx]@(4),%[s1]           \n"
+        "   move.l  %[s1],%[ctx]@(8)           \n"
+        "   move.l  %[ctx]@,%[ls1]             \n"
+        "   beq     9f                         \n"
+        "   bra     1b                         \n"
+        "9:                                    \n"
+        : [ls1]"+d"(ls1), [frq]"+d"(frq), [cnt]"+d"(cnt), [dp]"+a"(dst),
+          [s1]"=&d"(s1), [s2]"=&d"(s2)
+        : [flo]"d"(flo), [fhi]"d"(fhi), [vol]"d"(vol),
+          [rb]"a"(read_base), [ctx]"a"(ctx)
+        : "cc", "memory"
+        );
+    }
+
+    (void)frq; (void)cnt; (void)s1; (void)s2;
+    return ls1;
+}
+
+#if defined(ALIS_MV2_MIX_VERIFY) && ALIS_MV2_MIX_VERIFY
+// Bit-exact harness counters (updated from the mixer tick — which may run in the
+// audio ISR — so plain volatiles, no dbglog here). Reported from a main-loop
+// safe point (dsp_mixer_poll, [mv2mix]).
+#define MV2_MIX_VERIFY_MAX 4096
+volatile unsigned long mv2_mix_calls = 0;
+volatile unsigned long mv2_mix_bad   = 0;
+volatile long          mv2_mix_bi[6];   // last mismatch: index, asm, C, first, asm_ls1^C_ls1, asm_ss1^C_ss1
+static s16 mv2_mix_scratch[MV2_MIX_VERIFY_MAX];
+static s16 mv2_mix_predst [MV2_MIX_VERIFY_MAX];
+#endif
+
+// Computes the mixer setup exactly as mv2_soundcal_c(), then runs the pinned asm
+// loop (or, flag-off / non-Atari, defers to the pure-C oracle).
+void mv2_soundcal(sAudioVoice *voice, const bool first)
+{
+    // --- setup: identical to mv2_soundcal_c() ---
+    u32 freq;
+    s16 freqsam = voice->freqsam;
+    if (freqsam < 0)
+    {
+        freqsam = -freqsam;
+        freqsam = freqsam >> 2;
+        freq = mv2a.tabfrq[freqsam] >> 2;
+    }
+    else
+    {
+        freq = mv2a.tabfrq[freqsam];
+    }
+
+    u32 startsam1 = voice->startsam1;
+    u32 longsam1 = voice->longsam1;
+    u16 volsam = f_volume(voice->volsam);
+    u32 startsam2 = voice->startsam2;
+    u32 longsam2 = voice->longsam2 - 1;
+    u16 frqlo = freq & 0xffff;
+    u16 frqhi = freq >> 0x10;
+    if ((s32)longsam2 < 1)
+    {
+        longsam2 = 0;
+        freq = 0;
+    }
+
+    u8 volsam2 = volsam >> 8;
+    s16 vol_fixed = (s16)((u32)volsam2);
+
+    u32 sample = voice->sample;
+    u32 lengthX = xread32(sample + 2) - 0x11;
+    u32 smpendX = sample + 0x10 + lengthX;
+    if (!sample || smpendX > alis.finmem)
+        return;   // no sample, or a stale header (script data moved)
+
+    u8 * const mem_base = alis.mem;
+    s16 * const dst = audio.muadresse;
+    const u32 mutaloop = audio.mutaloop;
+    const u32 end_adj = smpendX - 0x10;
+
+    u32 step_full = ((u32)frqhi << 16) | frqlo;
+    (void)freq;   // step reset on reload is a no-op (see header)
+
+    if (mutaloop == 0)
+    {
+        voice->longsam1 = longsam1;
+        voice->startsam1 = startsam1;
+        return;
+    }
+
+    const u8 *read_base = mem_base + end_adj;   // read_base[-(s32)longsam1] == mem_base[end_adj-longsam1]
+
+#if defined(ALIS_MV2_MIX_VERIFY) && ALIS_MV2_MIX_VERIFY
+    if (mutaloop <= MV2_MIX_VERIFY_MAX)
+    {
+        // Snapshot pre-mix dst, then run the trusted C oracle LIVE (keeps
+        // muadresse correct), then run the asm into a scratch and compare.
+        for (u32 i = 0; i < mutaloop; i++) mv2_mix_predst[i] = dst[i];
+
+        mv2_soundcal_c(voice, first);          // trusted result -> live dst + voice
+        u32 c_ls1 = voice->longsam1;
+        u32 c_ss1 = voice->startsam1;
+
+        for (u32 i = 0; i < mutaloop; i++) mv2_mix_scratch[i] = mv2_mix_predst[i];
+        struct mv2_asm_ctx ctx = { longsam2, startsam2, startsam1 };
+        u32 a_ls1 = mv2_soundcal_asm(mv2_mix_scratch, mutaloop, read_base,
+                                     vol_fixed, step_full, longsam1, first, &ctx);
+        u32 a_ss1 = ctx.startsam1;
+
+        mv2_mix_calls++;
+        int bad = 0; long bidx = -1; long ba = 0, bc = 0;
+        for (u32 i = 0; i < mutaloop; i++)
+        {
+            if (mv2_mix_scratch[i] != dst[i])
+            {
+                if (!bad) { bidx = (long)i; ba = mv2_mix_scratch[i]; bc = dst[i]; }
+                bad = 1;
+            }
+        }
+        if (a_ls1 != c_ls1 || a_ss1 != c_ss1) bad = 1;
+        if (bad)
+        {
+            mv2_mix_bad++;
+            mv2_mix_bi[0] = bidx; mv2_mix_bi[1] = ba; mv2_mix_bi[2] = bc;
+            mv2_mix_bi[3] = first ? 1 : 0;
+            mv2_mix_bi[4] = (long)(a_ls1 ^ c_ls1);
+            mv2_mix_bi[5] = (long)(a_ss1 ^ c_ss1);
+        }
+        return;   // live dst already holds the trusted C result
+    }
+    // mutaloop too large for the scratch buffers: fall through to plain asm.
+#endif
+
+    struct mv2_asm_ctx ctx = { longsam2, startsam2, startsam1 };
+    longsam1 = mv2_soundcal_asm(dst, mutaloop, read_base,
+                                vol_fixed, step_full, longsam1, first, &ctx);
+
+    voice->longsam1 = longsam1;
+    voice->startsam1 = ctx.startsam1;
+}
+
+#else  // !ALIS_MV2_MIX_ASM || !native: pure C
+
+void mv2_soundcal(sAudioVoice *voice, const bool first)
+{
+    mv2_soundcal_c(voice, first);
+}
+
+#endif
 
 #pragma mark Atari STE chipmusic
 
@@ -771,6 +1058,13 @@ f_chiprouttc:
     }
     
     mv2a.muvolgen = newvolgen;
+    // Speed 0 (effect F00 = end of song): the original stops the music.
+    if (mv2a.muspeed == 0)
+    {
+        mv2_stopmusic();
+        return;
+    }
+
     if (mv2a.muspeed != 0)
     {
         mv2a.muspeed--;
@@ -808,11 +1102,6 @@ f_chiprouttc:
         mv2_chipcanal(&mv2a.chipch[2], 2);
         
         chipdata[0x1e] = mv2a.chipmixer;
-
-//        u16 *cht = (u16 *)chipdata;
-//        for (int i = 0; i < 13; i++)
-//            printf("\n%.4x %.4x", cht[i * 2 + 0], cht[i * 2 + 1]);
-//        printf("\n");
         
         for (int i = 0; i < 13; i++)
         {
@@ -891,9 +1180,10 @@ void mv2_chipcanal(sChipChannel *chanel, s32 idx)
     s32 address = chanel->address1;
     if (address != 0)
     {
-        while (xread8(address) != 0xff)
+        u8 type;
+        while ((type = xread8(address)) != 0xff)
         {
-            u8 type = xread8(address); address ++;
+            address ++;
             if (type == 0xf5)
             {
                 mv2a.chipmixer |= 1 << idx;
@@ -1108,12 +1398,8 @@ void mv2_opl2_setinst(u32 sample, u8 channel)
 
     const u8 *instdata = (const u8 *)(alis.mem + sample);
 
-    // Instrument layout
-    //   Bytes 0-1:   Header (channel override)
-    //   Bytes 2-14:  Modulator operator (13 bytes)
-    //   Bytes 15-27: Carrier operator (13 bytes)
-    //   Byte 28:     Modulator waveform (reg 0xE0)
-    //   Byte 29:     Carrier waveform (reg 0xE0)
+    // Instrument: 0-1 header (channel override), 2-14 modulator, 15-27 carrier,
+    // 28/29 modulator/carrier waveform (reg 0xE0).
     const u8 *mod_data = instdata + 2;
     const u8 *car_data = instdata + 15;
 
@@ -1310,6 +1596,13 @@ f_opl2routc:
     }
 
     mv2a.muvolgen = newvolgen;
+    // Speed 0 (effect F00 = end of song): the original stops the music.
+    if (mv2a.muspeed == 0)
+    {
+        mv2_stopmusic();
+        return;
+    }
+
     if (mv2a.muspeed != 0)
     {
         mv2a.muspeed--;
@@ -1338,7 +1631,10 @@ f_opl2routc:
             mv2a.mucnt++;
         }
 
-        // Generate OPL2 audio samples into the music buffer
+        // Render OPL2 into the music buffer (no-op on Atari: the DSP synthesizes).
         sys_calc_opl_music();
+
+        // End of OPL frame: capture mark + DSP FM feed.
+        sys_opl_frame_tick();
     }
 }

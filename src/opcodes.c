@@ -19,6 +19,8 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// VM-core translation unit: opt into hot-state register pinning (see alis.h).
+#define ALIS_VM_CORE
 #include "alis.h"
 #include "audio.h"
 #include "alis_private.h"
@@ -682,7 +684,8 @@ static void cloop(s32 offset) {
     {
         alis.script->pc = save_loop_pc;
 
-        if(disalis) {
+#ifndef NDEBUG
+        if (disalis) {
              if (offset<0) {
                  ALIS_DEBUG(EDebugInfo, " [loop jmp up -0x%06x]", abs(offset));
              }
@@ -690,8 +693,8 @@ static void cloop(s32 offset) {
                  ALIS_DEBUG(EDebugInfo, " [loop jmp dn +0x%06x]", offset);
              }
            }
-
-        script_jump(offset);
+#endif
+        alis.script->pc += offset;
     }
 }
 
@@ -899,13 +902,8 @@ static void cclipping(void) {
 // Codopname no. 060 opcode 0x3b cswitching
 // [N/I]: Robinson's Requiem, Storm Master (IBM PC)
 // [N/I]: Ishar 3 Korean (IBM PC)
-// TODO: fswitch is not set to 1 on the PC, but in the current alis implementation
-// it must be set, otherwise the game won't show anything
+// TODO: the PC original never sets fswitch, but this port must or nothing is shown.
 static void cswitching(void) {
-//    if (alis.platform.kind == EPlatformPC) {
-//        ALIS_DEBUG(EDebugWarning, "[N/I] %s: %s", alis.platform.desc, __FUNCTION__);
-//        return;
-//    }
     alis.fswitch = 1;
 }
 
@@ -925,7 +923,6 @@ void get_vector(s16 *x, s16 *y, s16 *z)
     }
     else if ((char)test < 0)
     {
-        // SYS_PrintError();
         alis.wcx = 0;
         alis.wcy = 0;
         alis.wcz = 0;
@@ -1153,7 +1150,8 @@ static void cstopret(void) {
 static void cexit(void) {
     if (alis.varD5 == 0)
     {
-        // Quit: stop the VM and unwind to main(), where sys_deinit / alis_deinit run on the main thread.
+        // Quit: unwind to main(), which tears down on the main thread (cexit runs on the VM
+        // worker thread; sys_deinit owns the IRQ-quiesce ordering).
         alis.cstopret = 1;
         alis.state = eAlisStateStopped;
         alis.script->running = 0;
@@ -1167,8 +1165,15 @@ static void cexit(void) {
 // Codopname no. 070 opcode 0x45 cload
 static void cload(void) {
 
+#if ALIS_VM_PROFILE
+    u32 _cs = sys_profile_ticks();
+#endif
     // NOTE: interuptable delay to make everything work more like on original platforms
     sys_sleep_interactive(&alis.load_delay, alis.load_delay - 100);
+#if ALIS_VM_PROFILE
+    g_cload_sleep += sys_profile_ticks() - _cs;
+    g_cload_calls++;
+#endif
 
     // get script ID
     u16 id = script_read16();
@@ -1180,8 +1185,20 @@ static void cload(void) {
         script_read_until_zero(name);
         strcpy(strrchr(name, '.') + 1, alis.platform.ext);
         strcat(path, name);
-        script_load(strlower((char *)path));
-        
+#if ALIS_VM_PROFILE
+        u32 _cw = sys_profile_ticks();
+#endif
+        sAlisScriptData *loaded = script_load(strlower((char *)path));
+#if ALIS_VM_PROFILE
+        g_cload_work += sys_profile_ticks() - _cw;
+#endif
+        if (!loaded && alis_fatal) {
+            // Out of memory: the original stops with a fatal error too.
+            alis.cstopret = 1;
+            alis.state = eAlisStateStopped;
+            alis.script->running = 0;
+            return;
+        }
         is_delay_script(name);
     }
     else
@@ -1243,56 +1260,6 @@ void cdefsc(void)
     scadd(scridx);
     vectoriel(scridx);
 }
-
-
-// Codopname no. 071 opcode 0x46 cdefsc
-// reads 35 bytes
-//static void cdefsc(void) {
-//    if (image.libsprit == 0)
-//        return;
-//
-//    u16 scridx = script_read16();
-//    set_scr_state(scridx, 0x40);
-//    set_scr_numelem(scridx, script_read8());
-//    set_scr_screen_id(scridx, image.libsprit);
-//    
-//    u16 length = alis.platform.version == 10 ? 26 : 32;
-//
-//    u8 *ptr = alis.mem + alis.basemain + scridx + 6;
-//    for (int i = 0; i < length; i++, ptr++)
-//        *ptr = script_read8();
-//    
-//    set_scr_to_next(scridx, 0);
-//    set_scr_unknown0x2a(scridx, 0);
-//    set_scr_unknown0x2c(scridx, 0);
-//    set_scr_unknown0x2e(scridx, 0);
-//
-//    sSprite *sprite = SPRITE_VAR(image.libsprit);
-//    sprite->link = 0;
-//    sprite->numelem = get_scr_numelem(scridx);
-//    
-//    s16 x = get_scr_newx(scridx);
-//    s16 y = get_scr_newy(scridx);
-//    s16 w = get_scr_width(scridx);
-//    s16 h = get_scr_height(scridx);
-//
-//    if (alis.platform.kind == EPlatformMac)
-//    {
-//        mac_update_pos(&x, &y);
-//        mac_update_pos(&w, &h);
-//    }
-//    
-//    sprite->newx = x;
-//    sprite->newy = y;
-//    sprite->newd = 0x7fff;
-//    sprite->depx = x + w;
-//    sprite->depy = y + h;
-//
-//    image.libsprit = sprite->to_next;
-//
-//    scadd(scridx);
-//    vectoriel(scridx);
-//}
 
 // Codopname no. 072 opcode 0x47 cscreen
 static void cscreen(void) {
@@ -2347,7 +2314,12 @@ static void cpalette(void) {
 
     readexec_opername();
     s16 palidx = alis.varD7;
-    if (palidx < 0)
+    if (dos_pal_active())
+    {
+        s32 addr = palidx < 0 ? 0 : adresdes(palidx);
+        dos_cpalette(palidx, palidx < 0 ? NULL : alis.mem + addr + xread32(addr));
+    }
+    else if (palidx < 0)
     {
         restorepal(palidx, 0);
     }
@@ -2357,6 +2329,7 @@ static void cpalette(void) {
         u8 *paldata = alis.mem + addr + xread32(addr);
         topalette(paldata, 0);
     }
+    PAL_TRACE("cpalette", palidx, 0);
 }
 
 // Codopname no. 106 opcode 0x69 cdefcolor
@@ -2365,25 +2338,22 @@ static void cdefcolor(void) {
     readexec_opername_saveD6();
 
     u8 *rawcolor = (u8 *)&(alis.varD6);
-    
-    u8 r, g, b;
+    s16 index = alis.varD7;
+
+    if (dos_pal_active())
+    {
+        dos_cdefcolor(index, (u16)alis.varD6);
+        return;
+    }
+
     if (alis.platform.kind == EPlatformAmiga || alis.platform.kind == EPlatformAmigaAGA)
     {
-        r = (rawcolor[1] & 0b00001111) << 4;
-        g = (rawcolor[0] >> 4) << 4;
-        b = (rawcolor[0] & 0b00001111) << 4;
+        PAL_WRITE_RGB_AT(image.mpalet, index, RGB12(rawcolor));
     }
     else
     {
-        r = (rawcolor[1] & 0b00000111) << 5;
-        g = (rawcolor[0] >> 4) << 5;
-        b = (rawcolor[0] & 0b00000111) << 5;
+        PAL_WRITE_RGB_AT(image.mpalet, index, RGB9(rawcolor));
     }
-    
-    s16 index = alis.varD7 * 4;
-    image.mpalet[index + 0] = r;
-    image.mpalet[index + 1] = g;
-    image.mpalet[index + 2] = b;
     
     setmpalet();
     set_update_cursor();
@@ -2506,7 +2476,7 @@ static void cfopen(void) {
 
     if(*(alis.mem + alis.script->pc) == 0xff)
     {
-        script_jump(1);
+        alis.script->pc += 1;
         readexec_opername_swap();
         readexec_opername();
 
@@ -2520,7 +2490,6 @@ static void cfopen(void) {
     }
 
     afopen((char *)path, mode);
-//    alis.fp = sys_fopen((char *)path, mode);
     if(alis.fp == NULL) {
         alis_error(ALIS_ERR_FOPEN, path);
     }
@@ -2816,7 +2785,7 @@ static void cdraw(void) {
 static void cbox(void) {
     readexec_opername();
     readexec_opername_saveD6();
-    
+
     s16 oldx = alis.poldx;
     s16 oldy = alis.poldy;
 
@@ -2830,7 +2799,7 @@ static void cbox(void) {
 static void cboxf(void) {
     readexec_opername();
     readexec_opername_saveD6();
-    
+
     s16 oldx = alis.poldx;
     s16 oldy = alis.poldy;
 
@@ -2894,20 +2863,23 @@ static void cmousoff(void) {
 // Codopname no. 135 opcode 0x86 cmouse
 // 0x86 - 14d62
 static void cmouse(void) {
+    // Consume (not just read) so the sticky lb_clicked/rb_clicked latches are cleared.
     mouse_t mouse = sys_consume_mouse();
-    
+
     if (alis.platform.kind == EPlatformMac)
     {
         mouse.x /= 1.5;
         mouse.y /= 1.5;
     }
-   
+
     alis.varD7 = mouse.x;
     cstore_continue();
-    
+
     alis.varD7 = mouse.y;
     cstore_continue();
-    
+
+    // Quick clicks (down+up landed between two script polls) show up
+    // here through the *_clicked latches consumed above.
     u8 lb_seen = mouse.lb || mouse.lb_clicked;
     u8 rb_seen = mouse.rb || mouse.rb_clicked;
     alis.varD7 = lb_seen ? 1 : (rb_seen ? 2 : 0);
@@ -3167,12 +3139,12 @@ void music(void) {
     s16 idx = alis.varD7;
     s32 addr = adresmus(idx);
 
-    u8 type = xread8(alis.script->data->data_org + addr);
+    u8 type = xread8(addr);
     if (type == 0 || type == 3)
     {
         audio.muvolume = 0;
 
-        audio.mupnote = alis.script->data->data_org + addr + 6;
+        audio.mupnote = addr + 6;
         readexec_opername();
         audio.maxvolume = alis.varD7 << 8;
         readexec_opername();
@@ -3209,7 +3181,7 @@ void music(void) {
     {
         audio.muvolume = 0;
 
-        audio.mupnote = alis.script->data->data_org + addr + 6;
+        audio.mupnote = addr + 6;
         readexec_opername();
         audio.maxvolume = (alis.varD7 << 8);
         readexec_opername();
@@ -3266,7 +3238,8 @@ static void cdelmusic(void) {
     
     readexec_opername();
     
-    if (alis.platform.version < 21)
+    // Stop the engine that plays: version-21 games (Boston Bomb Club, Bunny Bricks) still use MV1.
+    if (audio.soundrout == mv1_soundrout)
     {
         mv1_offmusic(alis.varD7);
     }
@@ -3350,17 +3323,17 @@ static void sound(void) {
     u8 speedsam = alis.varD7;
     
     s32 addr = adresmus(index);
-    s8 type = xread8(alis.script->data->data_org + addr);
+    s8 type = xread8(addr);
     if (type == 1 || type == 2)
     {
         if (speedsam == 0)
-            speedsam = xread8(alis.script->data->data_org + addr + 1);
+            speedsam = xread8(addr + 1);
 
-        u32 longsam = xread32(alis.script->data->data_org + addr + 2) - 0x10;
+        u32 longsam = xread32(addr + 2) - 0x10;
         if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameColorado || alis.platform.uid == EGameWindsurfWilly || alis.platform.uid == EGameMadShow || alis.platform.uid == EGameLeFeticheMaya))
-            longsam = xread32be(alis.script->data->data_org + addr + 2) - 0x10;
+            longsam = xread32be(addr + 2) - 0x10;
 
-        u32 startsam = alis.script->data->data_org + addr + 0x10;
+        u32 startsam = addr + 0x10;
         playsample(eChannelTypeSample, alis.mem + startsam, speedsam, volson, longsam, loopsam, priorson);
     }
 }
@@ -3706,10 +3679,11 @@ void printd0(s16 d0w)
     char *ptr = alis.sd7;
     valtostr(alis.sd7, d0w);
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        ALIS_DEBUG(EDebugInfo, " [\"%s\"]", alis.sd7);
     }
-    
+#endif
     while (*ptr != 0)
     {
         put_char(*ptr++);
@@ -3777,7 +3751,11 @@ static void ctoblack(void) {
     readexec_opername_saveD6();
     
     s16 duration = alis.varD6;
-    toblackpal(duration);
+    if (dos_pal_active())
+        dos_ctoblack(duration);
+    else
+        toblackpal(duration);
+    PAL_TRACE("ctoblack", duration, 0);
 }
 
 s16 subcol(s16 change, s16 component)
@@ -3814,19 +3792,24 @@ static void cmovcolor(void) {
 
     if (alis.platform.bpp == 4)
     {
+        u8 r, g, b;
         if (change < 0)
         {
             change = -change;
  
-            image.mpalet[index * 4 + 0] = subcol(change       , image.mpalet[index * 4 + 0] >> 5) << 5;
-            image.mpalet[index * 4 + 1] = subcol(change >> 4  , image.mpalet[index * 4 + 1] >> 5) << 5;
-            image.mpalet[index * 4 + 2] = subcol(change >> 8  , image.mpalet[index * 4 + 2] >> 5) << 5;
+            PAL_READ_RGB(image.mpalet, index, r, g, b);
+            r = subcol(change     , r >> 5) << 5;
+            g = subcol(change >> 4, g >> 5) << 5;
+            b = subcol(change >> 8, b >> 5) << 5;
+            PAL_WRITE_RGB(image.mpalet, index, r, g, b);
         }
         else
         {
-            image.mpalet[index * 4 + 0] = addcol(change       , image.mpalet[index * 4 + 0] >> 5) << 5;
-            image.mpalet[index * 4 + 1] = addcol(change >> 4  , image.mpalet[index * 4 + 1] >> 5) << 5;
-            image.mpalet[index * 4 + 2] = addcol(change >> 8  , image.mpalet[index * 4 + 2] >> 5) << 5;
+            PAL_READ_RGB(image.mpalet, index, r, g, b);
+            r = addcol(change     , r >> 5) << 5;
+            g = addcol(change >> 4, g >> 5) << 5;
+            b = addcol(change >> 8, b >> 5) << 5;
+            PAL_WRITE_RGB(image.mpalet, index, r, g, b);
         }
         
         image.ftopal = 0xff;
@@ -3845,10 +3828,15 @@ static void ctopalet(void) {
     
     alis.flagmain = 0;
    
-    u16 palidx = alis.varD7;
+    s16 palidx = alis.varD7;   // negative = restore saved palette (original: tst.w / bmi)
     u16 duration = alis.varD6;
     
-    if (palidx < 0)
+    if (dos_pal_active())
+    {
+        s32 addr = palidx < 0 ? 0 : adresdes(palidx);
+        dos_ctopalet(palidx, (s16)duration, palidx < 0 ? NULL : alis.mem + addr + xread32(addr));
+    }
+    else if (palidx < 0)
     {
         restorepal(palidx, duration);
     }
@@ -3858,6 +3846,7 @@ static void ctopalet(void) {
         u8 *paldata = alis.mem + addr + xread32(addr);
         topalette(paldata, duration);
     }
+    PAL_TRACE("ctopalet", (s16)palidx, duration);
 }
 
 // Codopname no. 192 opcode 0xbf cnumput
@@ -3980,7 +3969,8 @@ static void cscreduce(void) {
         set_scr_creducing(screen_id, alis.varD7);
         
         readexec_opername();
-        set_scr_clinking(screen_id, (alis.varD6 - 1) << 8 | alis.varD7);
+        set_scr_redmax(screen_id, (u8)(alis.varD6 - 1));
+        set_scr_redshift(screen_id, (u8)alis.varD7);
         set_scr_state(screen_id, get_scr_state(screen_id) | 0x80);
     }
 }
@@ -4088,14 +4078,14 @@ static void cinstru(void) {
     else
     {
         addr = adresmus(scridx);
-        type = xread8(alis.script->data->data_org + addr);
+        type = xread8(addr);
         if (type != 1 && type != 2 && type != 5 && type != 6)
             return;
         
         addr += 0x10;
     }
     
-    audio.tabinst[tabidx].address = alis.script->data->data_org + addr;
+    audio.tabinst[tabidx].address = addr;
     audio.tabinst[tabidx].unknown = instidx;
 }
 
@@ -4119,7 +4109,7 @@ static void cminstru(void) {
     else
     {
         addr = adresmus(scridx);
-        u8 type = xread8(alis.script->data->data_org + addr);
+        u8 type = xread8(addr);
         if (type != 1 && type != 2 && type != 5 && type != 6)
             return;
         
@@ -4264,35 +4254,6 @@ static void cbackstar(void) {
         default:
             break;
     }
-    
-//    if (-1 < (s16)get_0x16_screen_id(alis.script->vram_org))
-//    {
-//        if (alis.platform.uid == EGameColorado) // colorado and likely other older games
-//        {
-//            u8 value = xread8(alis.basemain + 1);
-//            value &= 0xf7;
-//            value &= 0xef;
-//            if (starbuff[0] != 0)
-//                value |= 0x18;
-//
-//            xwrite8(alis.basemain + 1, value);
-//        }
-//        else
-//        {
-//            u8 value = xread8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1);
-//            value &= 0xf7;
-//            value &= 0xef;
-//            if (starbuff[0] != 0)
-//            {
-//                value |= 0x18;
-//
-//                s16 at = xread16(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 2);
-//                rescmode(at, value);
-//            }
-//
-//            xwrite8(alis.basemain + get_0x16_screen_id(alis.script->vram_org) + 1, value);
-//        }
-//    }
 }
 
 // Codopname no. 211 opcode 0xd2 cstarring
@@ -4386,9 +4347,15 @@ static void chsprite(void) {
 // Codopname no. 216 opcode 0xd7 cselpalet
 static void cselpalet(void) {
     readexec_opername();
+    if (dos_pal_active())
+    {
+        dos_cselpalet(alis.varD7);
+        return;
+    }
     alis.varD7 &= 0x3; // 4 palettes: 0...3
     image.thepalet = alis.varD7;
-    image.defpalet = 1;
+    image.defpalet = 1;   // the original only records the bank; palette writes select it
+    PAL_TRACE("cselpalet", alis.varD7, 0);
 }
 
 // Codopname no. 217 opcode 0xd8 clinepalet
@@ -4396,10 +4363,11 @@ static void clinepalet(void) {
     readexec_opername();
     readexec_opername_saveD6();
 
-    if (alis.platform.bpp != 8 && !(alis.platform.uid == EGameMetalMutant && alis.platform.kind == EPlatformPC))
+    if (alis.platform.bpp != 8 && !dos_pal_active() && !(alis.platform.uid == EGameMetalMutant && alis.platform.kind == EPlatformPC))
     {
         setlinepalet();
     }
+    PAL_TRACE("clinepalet", alis.varD7, alis.varD6);
 }
 
 // Codopname no. 218 opcode 0xd9 cautomode
@@ -4454,6 +4422,28 @@ static void cblast(void) {
 
 void iniback(int addr)
 {
+#if !defined(ALIS_NATIVE_16BPP)
+    // Background cache: full-screen shadow laid out like image.logic, so behind-sprites use the
+    // blitters' absolute addressing and backsprite is a plain rect copy. (The original packs a tight
+    // rect buffer, only consistent when backy1==0.) Never cleared, as in the original.
+    (void)addr;
+    if (image.bgcache_alloc)
+        free(image.bgcache_alloc);
+    image.bgcache_alloc = (u8 *)malloc(image.buffer_alloc_size);
+    if (image.bgcache_alloc == NULL)
+    {
+        image.sback = 0;
+        image.backmap = NULL;
+    }
+    else
+    {
+        memset(image.bgcache_alloc, 0, image.buffer_alloc_size);
+        image.backmap = image.bgcache_alloc + host.pixelbuf.surface_h * alis.platform.width;
+        image.backlarg = alis.platform.width;
+        image.backdes = 0;
+        image.backaddr = 0;
+    }
+#else
     u32 size = (((u16)(xread16(addr + 0x12) + 1U) >> 4) * 8) * (u16)((image.backy2 - image.backy1) + 1) + 0x10;
     u32 baddr = io_malloc(size);
     if (baddr == 0)
@@ -4468,19 +4458,33 @@ void iniback(int addr)
         image.backdes = bdes;
         image.backaddr = baddr;
         xwrite32(bdes, 4);
-        
-        s16 *bdata = (s16 *)(alis.mem + xread32(bdes) + bdes);
-        bdata[0] = 0x200;
-        bdata[1] = image.backx2 - image.backx1;
-        bdata[2] = image.backy2 - image.backy1;
+
+        // Bitmap header for the flattened backsprite (planar/16bpp path): read back by
+        // destofen with read16 (= read16be for a BE title); byte 0 is the sprite format.
+        // Store in game/platform byte order (matching the original move.w at 0xbd82).
+        u8 *bhdr = alis.mem + xread32(bdes) + bdes;     // = mem + bdes + 4
+        s16 bw = image.backx2 - image.backx1;
+        s16 bh = image.backy2 - image.backy1;
+        bhdr[0] = 0x02; bhdr[1] = 0x00;                 // format word 0x0200 (fmt=02, flags=00)
+        if (alis.platform.is_little_endian)
+        {
+            bhdr[2] = (u8)(bw & 0xff); bhdr[3] = (u8)(bw >> 8);
+            bhdr[4] = (u8)(bh & 0xff); bhdr[5] = (u8)(bh >> 8);
+        }
+        else
+        {
+            bhdr[2] = (u8)(bw >> 8); bhdr[3] = (u8)(bw & 0xff);
+            bhdr[4] = (u8)(bh >> 8); bhdr[5] = (u8)(bh & 0xff);
+        }
     }
+#endif
 }
 
 // Codopname no. 224 opcode 0xdf cscback
 void cscback(void)
 {
     s8 oldsback = image.sback;
-    
+
     readexec_opername();
     image.sback = alis.varD7;
     readexec_opername();
@@ -4501,8 +4505,17 @@ void cscback(void)
         {
             if (image.sback == 0)
             {
+#if !defined(ALIS_NATIVE_16BPP)
+                if (image.bgcache_alloc)
+                {
+                    free(image.bgcache_alloc);
+                    image.bgcache_alloc = NULL;
+                    image.backmap = NULL;
+                }
+#else
                 io_mfree(image.backaddr);
-                
+#endif
+
                 image.cback = 0;
                 image.pback = 0;
                 
@@ -4534,14 +4547,17 @@ void cscback(void)
                     backsprite->chsprite = 0xff;
                     backsprite->state = 0;
                     backsprite->newad = image.backdes;
-                    
+                    // fenetre31 requires newf >= 0, which cscback never sets: force it drawable.
+                    backsprite->newf = 0;
+
                     s16 elemidx = xread16(tgtaddr + 0x02);
-                    xwrite8(tgtaddr + 0x01, xread16(tgtaddr + 0x01) | 4);
+                    // asm: bset.b #2,(0x1,A2) — byte RMW of numelem; a 16-bit one clobbers its other flags.
+                    xwrite8(tgtaddr + 0x01, xread8(tgtaddr + 0x01) | 4);
                     image.wback = 0;
                     
                     rangesprite(image.backsprite, 0xffff, elemidx);
                     elemidx = SPRITE_VAR(elemidx)->link;
-                    
+
                     do
                     {
                         if (elemidx == image.backsprite)
@@ -4623,9 +4639,17 @@ static void cshrink(void) {
     if (height != 0)
     {
         height++;
-        
+
         s32 bits = width * height;
-        
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+        // Converted planar sprite (byte-6 stamp 4/8): storage is 2 extra header bytes + h*cpr*sp*2,
+        // not width*height. Gated: on other builds bitmap[6] is a real header field.
+        if ((*data == 0x14 || *data == 0x16) && (data[6] == 4 || data[6] == 8)) {
+            s32 cpr = (width + 15) >> 4;
+            bits = 2 + (s32)height * cpr * (data[6] * 2);
+        }
+#endif
+
         u32 offset = get_0x14_script_org_offset(alis.script->vram_org);
         s32 l = xread32(offset + 0xe);
         s16 e = xread16(offset + l + 4);
@@ -4847,18 +4871,7 @@ void putmap(s16 spridx, s32 bitmap)
     sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
     sprite->credon_off = get_0x25_credon_credoff(alis.script->vram_org);
     
-    // TODO: ...
-//    if (-1 < (s8)sprite->credon_off)
-//    {
-//        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
-//        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
-//        if ((s8)sprite->credon_off < 0)
-//        {
-//            u32 scridx = get_0x16_screen_id(alis.script->vram_org) + alis.basemain;
-//            sprite->creducing = 0;
-//            sprite->credon_off = xread8(alis.basemain + scridx + 0x1f);
-//        }
-//    }
+    // TODO: credon_off >= 0 path (creducing from 0x26/0x27).
     
     sprite->chsprite = get_0x2f_chsprite(alis.script->vram_org);
     if ((s8)get_0x25_credon_credoff(alis.script->vram_org) == -0x80)
@@ -5026,7 +5039,11 @@ static void cputmap(void) {
 // Codopname no. 231 opcode 0xe6 csavepal
 static void csavepal(void) {
     readexec_opername();
-    savepal(alis.varD7);
+    if (dos_pal_active())
+        dos_csavepal(alis.varD7);
+    else
+        savepal(alis.varD7);
+    PAL_TRACE("csavepal", alis.varD7, 0);
 }
 
 // Codopname no. 232 opcode 0xe7 csczoom
@@ -5076,10 +5093,17 @@ static void ctexmap(void) {
             {
                 u32 bitmap_addr = res_addr + xread32(res_addr);
 
-                // Determine pixel data offset from image format:
-                // Format 0x1C/0x1E have 8-byte header; native 68k format has 6-byte header
                 u8 fmt = xread8(bitmap_addr);
-                u32 pixel_offset = (fmt == 0x1C || fmt == 0x1E) ? 8 : 6;
+
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+                // Terrain textures may have been planarized at load; the 3D rasterizer samples chunky.
+                { extern int deplanar_8bit_inplace(u32 bitmap_addr);
+                  deplanar_8bit_inplace(bitmap_addr); }
+#endif
+
+                // 0x14/0x16 and 0x1C/0x1E carry an 8-byte header; 0x00/0x02 carry 6.
+                u32 pixel_offset = (fmt == 0x1C || fmt == 0x1E ||
+                                    fmt == 0x14 || fmt == 0x16) ? 8 : 6;
 
                 // Compute yshift = bit count of x_mask (matches DOS: INC CL; SHR AX,1; JNZ)
                 u16 x_mask = (u16)xread16(bitmap_addr + 2);
@@ -5455,6 +5479,7 @@ static void cscview(void) {
 
 // Codopname no. 247 opcode 0xf6 cfilm
 static void cfilm(void) {
+    fli_stream_close();   // stale streaming film — don't leak the file handle
     memset(&bfilm, 0, sizeof(bfilm));
     readexec_opername();
     bfilm.id = alis.varD7;
@@ -5721,11 +5746,6 @@ sVector polarmov(s16 wcx2, s16 wcy2, s16 wcz2, s16 wcax, s16 wcaz)
     }
     result.z = ((int)wcy2 * sinax + (int)wcz2 * cosax) * 0x80;
     
-//    wcz2 = (wcy2 * sinax + wcz2 * cosax) * 0x80;
-//    s16 tmpx2 = (cosaz * wcx2 - (s16)(sinaz * cosax >> 9) * wcy2) * 0x80;
-//    s16 tmpy2 = ((s16)(cosaz * cosax >> 9) * wcy2 + sinaz * wcx2) * 0x80;
-//    wcx2 = tmpx2;
-//    wcy2 = tmpy2;
     return result;
 }
 
@@ -6388,7 +6408,7 @@ static void cjsr(s32 offset) {
     // Sinon ça oblige à créer une pile virtuelle d'adresses
     //   dont la taille est platform-dependent
     xpush32((u32)(alis.script->pc - alis.script->pc_org));
-    script_jump(offset);
+    alis.script->pc += offset;
 }
 
 // Codopname no. 006 opcode 0x05 cjsr8
@@ -6396,15 +6416,16 @@ static void cjsr8(void) {
     // read byte, extend sign
     s16 offset = (s8)script_read8();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
          if (offset<0) {
              ALIS_DEBUG(EDebugInfo, " [call up -0x%02x]", abs(offset));
          }
          else {
              ALIS_DEBUG(EDebugInfo, " [call dn +0x%02x]", offset);
          }
-       }
-
+    }
+#endif
     cjsr(offset);
 }
 
@@ -6412,7 +6433,8 @@ static void cjsr8(void) {
 static void cjsr16(void) {
     s16 offset = script_read16();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
          if (offset<0) {
              ALIS_DEBUG(EDebugInfo, " [call up -0x%04x]", abs(offset));
          }
@@ -6420,7 +6442,7 @@ static void cjsr16(void) {
              ALIS_DEBUG(EDebugInfo, " [call dn +0x%04x]", offset);
          }
        }
-
+#endif
     cjsr(offset);
 }
 
@@ -6428,7 +6450,8 @@ static void cjsr16(void) {
 static void cjsr24(void) {
     s32 offset = script_read24();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
          if (offset<0) {
              ALIS_DEBUG(EDebugInfo, " [call up -0x%06x]", abs(offset));
          }
@@ -6436,7 +6459,7 @@ static void cjsr24(void) {
              ALIS_DEBUG(EDebugInfo, " [call dn +0x%06x]", offset);
          }
        }
-
+#endif
     cjsr(offset);
 }
 
@@ -6449,7 +6472,8 @@ static void cjsr24(void) {
 static void cjmp8(void) {
     s16 offset = (s8)script_read8();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
          if (offset<0) {
              ALIS_DEBUG(EDebugInfo, " [jmp up -0x%02x]", abs(offset));
          }
@@ -6457,15 +6481,16 @@ static void cjmp8(void) {
              ALIS_DEBUG(EDebugInfo, " [jmp dn +0x%02x]", offset);
          }
        }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 010 opcode 0x09 cjmp16
 static void cjmp16(void) {
     s16 offset = script_read16();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
          if (offset<0) {
              ALIS_DEBUG(EDebugInfo, " [jmp up -0x%04x]", abs(offset));
          }
@@ -6473,15 +6498,16 @@ static void cjmp16(void) {
              ALIS_DEBUG(EDebugInfo, " [jmp dn +0x%04x]", offset);
          }
        }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 011 opcode 0x0a cjmp24
 static void cjmp24(void) {
     s32 offset = script_read24();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
          if (offset<0) {
              ALIS_DEBUG(EDebugInfo, " [jmp up -0x%06x]", abs(offset));
          }
@@ -6489,8 +6515,8 @@ static void cjmp24(void) {
              ALIS_DEBUG(EDebugInfo, " [jmp dn +0x%06x]", offset);
          }
        }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 
@@ -6502,7 +6528,8 @@ static void cjmp24(void) {
 static void cbz8(void) {
     s16 offset = alis.varD7 ? 1 : (s8)script_read8();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 != 0) {
            ALIS_DEBUG(EDebugInfo, " [d7<>0 => no jmp +1]");
        }
@@ -6515,15 +6542,16 @@ static void cbz8(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 020 opcode 0x13 cbz16
 static void cbz16(void) {
     s16 offset = alis.varD7 ? 2 : script_read16();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 != 0) {
            ALIS_DEBUG(EDebugInfo, " [d7<>0 => no jmp +2]");
        }
@@ -6536,15 +6564,16 @@ static void cbz16(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 021 opcode 0x14 cbz24
 static void cbz24(void) {
     s32 offset = alis.varD7 ? 3 : script_read24();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 != 0) {
            ALIS_DEBUG(EDebugInfo, " [d7<>0 => no jmp +3]");
        }
@@ -6557,8 +6586,8 @@ static void cbz24(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 
@@ -6570,7 +6599,8 @@ static void cbz24(void) {
 static void cbnz8(void) {
     s16 offset = alis.varD7 == 0 ? 1 : (s8)script_read8();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 == 0) {
            ALIS_DEBUG(EDebugInfo, " [d7==0 => no jmp +1]");
        }
@@ -6583,15 +6613,16 @@ static void cbnz8(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 023 opcode 0x16 cbnz16
 static void cbnz16(void) {
     s16 offset = alis.varD7 == 0 ? 2 : script_read16();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 == 0) {
            ALIS_DEBUG(EDebugInfo, " [d7==0 => no jmp +2]");
        }
@@ -6604,15 +6635,16 @@ static void cbnz16(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 024 opcode 0x17 cbnz24
 static void cbnz24(void) {
     s32 offset = alis.varD7 == 0 ? 3 : script_read24();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 == 0) {
            ALIS_DEBUG(EDebugInfo, " [d7==0 => no jmp +3]");
        }
@@ -6625,8 +6657,8 @@ static void cbnz24(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 
@@ -6638,7 +6670,8 @@ static void cbnz24(void) {
 static void cbeq8(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 1 : (s8)script_read8();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 == alis.varD6) {
            ALIS_DEBUG(EDebugInfo, " [d7==d6 => no jmp +1]");
        }
@@ -6651,15 +6684,16 @@ static void cbeq8(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 026 opcode 0x19 cbeq16
 static void cbeq16(void) {
     s16 offset = alis.varD7 == alis.varD6 ? 2 : script_read16();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 == alis.varD6) {
            ALIS_DEBUG(EDebugInfo, " [d7==d6 => no jmp +2]");
        }
@@ -6672,15 +6706,16 @@ static void cbeq16(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 027 opcode 0x1a cbeq24
 static void cbeq24(void) {
     s32 offset = alis.varD7 == alis.varD6 ? 3 : script_read24();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 == alis.varD6) {
            ALIS_DEBUG(EDebugInfo, " [d7==d6 => no jmp +3]");
        }
@@ -6693,8 +6728,8 @@ static void cbeq24(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 
@@ -6706,7 +6741,8 @@ static void cbeq24(void) {
 static void cbne8(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 1 : (s8)script_read8();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 != alis.varD6) {
            ALIS_DEBUG(EDebugInfo, " [d7<>d6 => no jmp +1]");
        }
@@ -6719,15 +6755,16 @@ static void cbne8(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 029 opcode 0x1c cbne16
 static void cbne16(void) {
     s16 offset = alis.varD7 != alis.varD6 ? 2 : script_read16();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 != alis.varD6) {
            ALIS_DEBUG(EDebugInfo, " [d7<>d6 => no jmp +2]");
        }
@@ -6740,15 +6777,16 @@ static void cbne16(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 // Codopname no. 030 opcode 0x1d cbne24
 static void cbne24(void) {
     s32 offset = alis.varD7 != alis.varD6 ? 3 : script_read24();
 
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        if (alis.varD7 != alis.varD6) {
            ALIS_DEBUG(EDebugInfo, " [d7<>d6 => no jmp +3]");
        }
@@ -6761,8 +6799,8 @@ static void cbne24(void) {
          }
        }
     }
-
-    script_jump(offset);
+#endif
+    alis.script->pc += offset;
 }
 
 
@@ -6847,9 +6885,9 @@ void killent(u16 killent)
         return;
     }
     
-    alis.script = ENTSCR(killent);
+    ALIS_SET_SCRIPT(ENTSCR(killent));
     cerasall();
-    alis.script = ENTSCR(alis.varD5);
+    ALIS_SET_SCRIPT(ENTSCR(alis.varD5));
 
     s32 shrinkby = xread32(vram - 0x14);
     s32 contextsize = get_context_size();
@@ -6913,18 +6951,30 @@ void killent(u16 killent)
 
 void shrinkprog(s32 start, s32 length, u16 id)
 {
-    u8 *target = alis.mem;
-    u8 *source = alis.mem + length;
-    
-    // copy scripts to freed space
-    for (s32 i = start; i < alis.finprog - length; i++)
-    {
-        target[i] = source[i];
-    }
-    
+    // Shift [start+length, finprog) down by `length` to close the gap.
+    if (alis.finprog - length > start)
+        memmove(alis.mem + start, alis.mem + start + length, (size_t)(alis.finprog - length - start));
+
     ALIS_DEBUG(EDebugInfo, "\nFreeing range %.6x - %.6x", start, start + length);
 
     alis.finprog -= length;
+
+    // Address-keyed caches and the cursor pointer must follow the move.
+#if defined(ALIS_NATIVE_PLANAR)
+    planar_tab_flush();
+#endif
+#if defined(ALIS_NATIVE_16BPP)
+    sprite_cache_flush();
+#endif
+#if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM && !defined(ALIS_NO_ZOOM_TRIM)
+    zoom_rows_flush();
+#endif
+    if (alis.desmouse) {
+        u8 *lo = alis.mem + start, *hi = lo + length;
+        if (alis.desmouse >= hi)      alis.desmouse -= length;
+        else if (alis.desmouse >= lo) alis.desmouse = NULL;   // freed: keep the last decoded cursor
+    }
+    audio_relocate(start, start + length, -length);
     
     if (id != 0)
     {
@@ -7018,14 +7068,6 @@ void shrinkprog(s32 start, s32 length, u16 id)
                 u32 org_offset = get_0x14_script_org_offset(script->vram_org);
                 script->vacc_off = -contextsize - xread16(org_offset + 0x16);
                 ALIS_DEBUG(EDebugInfo, " [va %.4x]", (s16)alis.script->vacc_off);
-
-                // NOTE: no longer needed, we are calculating proper value using script start location
-//                while (get_0x0a_vacc_offset(script->vram_org) < script->vacc_off)
-//                {
-//                    script->vacc_off -= 4;
-//                    xsub32(script->vram_org + script->vacc_off, length);
-//                    ALIS_DEBUG(EDebugInfo, " [%.8x => va %.4x + %.6x (%.6x)]", xread32(script->vram_org + script->vacc_off), (s16)script->vacc_off, script->vram_org, script->vacc_off + script->vram_org);
-//                }
             }
             else
             {
@@ -7058,10 +7100,817 @@ void shrinkprog(s32 start, s32 length, u16 id)
     }
 }
 
+// Mirror of shrinkprog (id==0 path): open `length` bytes at `start` by shifting [start, finprog) up.
+// Returns 0 if it would overflow VM RAM.
+#if defined(ALIS_PROFILE_DRAW)
+// Bytes shifted by growprog during the current load (reset and reported by script_load).
+u32 g_lp_grow_bytes = 0;
+#endif
+
+int growprog(s32 start, s32 length)
+{
+    if ((u32)(alis.finprog + length) > alis.finmem)
+        return 0;
+#if defined(ALIS_PROFILE_DRAW)
+    g_lp_grow_bytes += (u32)(alis.finprog - start);   // bytes this shift moves
+#endif
+
+    // memmove handles the overlap (dst > src).
+    memmove(alis.mem + start + length, alis.mem + start, (size_t)(alis.finprog - start));
+
+    alis.finprog += length;
+    audio_relocate(start, start, length);
+
+    for (int i = 0; i < alis.nbprog; i++)
+    {
+        if (start <= (s32)alis.loaded_scripts[i]->data_org)
+        {
+            alis.loaded_scripts[i]->data_org += length;
+            alis.atprog_ptr[i] += length;
+        }
+    }
+
+    for (s16 scidx = screen.ptscreen; scidx != 0; scidx = get_scr_to_next(scidx))
+    {
+        s16 spridx = get_scr_screen_id(scidx);
+        if (spridx != 0)
+        {
+            while ((spridx = SPRITE_VAR(spridx)->link) != 0)
+            {
+                sSprite *sprite = SPRITE_VAR(spridx);
+                if (start < sprite->newad)  sprite->newad += length;
+                if (start < sprite->data)   sprite->data  += length;
+            }
+        }
+    }
+    return 1;
+}
+
+// ----------------------------------------------------------------------------
+// Load-time, IN PLACE per-format converters to 0x14 (transparent) / 0x16 (opaque), named after
+// destofen's draw_*() handlers. Each writes pixels at +8 (8-bit chunky, or planar under
+// ALIS_PLANAR_CONV) and returns the bytes added (0 = skip); the caller applies the table fixups.
+// ----------------------------------------------------------------------------
+
+// DOS scripts with no 3D-sampled resources; whitelist so unknown scripts stay chunky.
+static const char *const k_2d_only_scripts[] = {
+    "authors", "baratin", "baratind", "baratine", "baratinu", "body", "caporal", "flags",
+    "lamort", "logo", "main", "map", "newpref", "newprefd", "newprefs", "newprefu", "objet",
+    "ordi", "prefs", "prefsd", "prefsu", "present", "pupuce", "setup", "souris", "srain",
+    "time", "trouble", "yoda",
+};
+
+// Per-script gate for EVERY format (conv_finish retypes converted sprites to 0x14/0x16, so test the
+// plane stamp, never the format byte). Read by convert_one and sprite_measure, which must agree.
+static int s_conv_planar_ok = 0;
+
+static int conv_planar_allowed_for(const char *name)
+{
+    if (!alis.platform.is_little_endian)
+        return 1;                       // BE data: 3D resources carry their own formats, convert all
+
+    if (!name)
+        return 0;
+
+    // Compare the basename without extension, case-insensitively ("MAIN.IO", "objet.io", ...).
+    for (unsigned i = 0; i < sizeof(k_2d_only_scripts) / sizeof(k_2d_only_scripts[0]); i++)
+    {
+        const char *a = name, *b = k_2d_only_scripts[i];
+        while (*b && *a && *a != '.')
+        {
+            int ca = (*a >= 'A' && *a <= 'Z') ? *a + 32 : *a;
+            if (ca != *b) break;
+            a++; b++;
+        }
+        if (*b == 0 && (*a == 0 || *a == '.'))
+            return 1;
+    }
+    return 0;
+}
+
+// Callers are all inside ALIS_PLANAR_CONV blocks.
+static inline int __attribute__((unused)) conv_planar_enabled(void) { return s_conv_planar_ok; }
+
+// Planar iff byte 6 (padding for 0x14/0x16, never read by the original blitters) holds the plane
+// count stamped by conv_finish; deplanar_8bit_inplace clears it.
+int sprite_is_planar(const u8 *bitmap)
+{
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    if (!bitmap) return 0;
+    if (bitmap[0] != 0x14 && bitmap[0] != 0x16) return 0;
+    return bitmap[6] == 4 || bitmap[6] == 8;
+#else
+    (void)bitmap;
+    return 0;
+#endif
+}
+
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+// Kalms 16x8 chunky->planar transpose (SDL Atari C2pConvert8): 16 pixel bytes -> 8 BE plane words,
+// out[0..7] = plane0..7, MSB = pixel 0.
+static inline void kalms16_8(const u8 *in, u16 *out)
+{
+#if defined(__m68k__)
+    // The 16 pixel bytes are four BE longs; may_alias deref forces move.l (memcpy does not fold here).
+    typedef u32 __attribute__((__may_alias__)) u32a;
+    u32 d0 = *(const u32a *)(in);
+    u32 d1 = *(const u32a *)(in + 4);
+    u32 d2 = *(const u32a *)(in + 8);
+    u32 d3 = *(const u32a *)(in + 12);
+#else
+    u32 d0=((u32)in[0]<<24)|((u32)in[1]<<16)|((u32)in[2]<<8)|in[3];
+    u32 d1=((u32)in[4]<<24)|((u32)in[5]<<16)|((u32)in[6]<<8)|in[7];
+    u32 d2=((u32)in[8]<<24)|((u32)in[9]<<16)|((u32)in[10]<<8)|in[11];
+    u32 d3=((u32)in[12]<<24)|((u32)in[13]<<16)|((u32)in[14]<<8)|in[15];
+#endif
+    u32 d7;
+    d7=((d1>>4)^d0)&0x0f0f0f0fu; d0^=d7; d1^=(d7<<4);
+    d7=((d3>>4)^d2)&0x0f0f0f0fu; d2^=d7; d3^=(d7<<4);
+    d7=((d2>>8)^d0)&0x00ff00ffu; d0^=d7; d2^=(d7<<8);
+    d7=((d3>>8)^d1)&0x00ff00ffu; d1^=d7; d3^=(d7<<8);
+    d7=((d2>>1)^d0)&0x55555555u; d0^=d7; d2^=(d7<<1);
+    d7=((d3>>1)^d1)&0x55555555u; d1^=d7; d3^=(d7<<1);
+    { u32 s2=(d2<<16)|(d2>>16), s0=(d0<<16)|(d0>>16);   // exchange low words d0<->d2 (swap idiom)
+      u32 n0=(d0&0xffff0000u)|(s2&0xffffu), n2=(s0&0xffff0000u)|(d2&0xffffu); d0=n0; d2=n2; }
+    { u32 s3=(d3<<16)|(d3>>16), s1=(d1<<16)|(d1>>16);   // exchange low words d1<->d3
+      u32 n1=(d1&0xffff0000u)|(s3&0xffffu), n3=(s1&0xffff0000u)|(d3&0xffffu); d1=n1; d3=n3; }
+    d7=((d2>>2)^d0)&0x33333333u; d0^=d7; d2^=(d7<<2);
+    d7=((d3>>2)^d1)&0x33333333u; d1^=d7; d3^=(d7<<2);
+    // Here d0=plane7:plane6, d1=plane3:plane2, d2=plane5:plane4, d3=plane1:plane0 (high:low). The
+    // asm's final 4 swaps just reorder to plane6:plane7 etc.; fold that straight into extraction.
+    out[0]=(u16)d3; out[1]=(u16)(d3>>16); out[2]=(u16)d1; out[3]=(u16)(d1>>16);
+    out[4]=(u16)d2; out[5]=(u16)(d2>>16); out[6]=(u16)d0; out[7]=(u16)(d0>>16);
+}
+
+// 8-bit chunky indices -> 8-plane interleaved (one 16px chunk = 8 BE plane words = 16 bytes) via the
+// Kalms transpose. Aligned full chunks feed kalms16_8 the 16 source bytes directly; partial/flipped
+// chunks gather into a 16-byte scratch (0-padded on the right so short chunks left-align correctly).
+void chunky8_to_planar(const u8 *idx8, s32 w, s32 h, int flip, u8 *dst)
+{
+    s32 cpr = (w + 15) >> 4;
+    for (s32 y = 0; y < h; y++) {
+        const u8 *row = idx8 + (s32)y * w;
+        u16 *pw = (u16 *)(dst + (s32)y * cpr * 16);
+        for (s32 cc = 0; cc < cpr; cc++, pw += 8) {
+            s32 base = cc * 16;
+            s32 n = w - base; if (n > 16) n = 16;     // valid columns in this chunk
+            if (n == 16 && !flip) {
+                kalms16_8(row + base, pw);            // fast path: 16 source bytes straight in
+            } else {
+                u8 px[16];
+                if (!flip) { s32 i = 0; for (; i < n; i++) px[i] = row[base + i]; for (; i < 16; i++) px[i] = 0; }
+                else       { s32 i = 0; const u8 *r = row + (w - 1 - base);
+                             for (; i < n; i++) px[i] = r[-i]; for (; i < 16; i++) px[i] = 0; }
+                kalms16_8(px, pw);
+            }
+        }
+    }
+}
+
+// Undo the load-time 8-plane conversion in place (the 3D renderer samples chunky). 4-plane can't:
+// it is half the chunky size and compaction reclaimed the rest (see planar_tab_get_chunky).
+// Clears the plane stamp, so repeat calls on shared resources are no-ops.
+int deplanar_8bit_inplace(u32 bitmap_addr)
+{
+    u8 fmt = alis.mem[bitmap_addr];
+    if (fmt != 0x14 && fmt != 0x16) return 0;      // not an 8-bit resource
+    // Runtime call: check the stamp, not conv_planar_enabled() (valid only while converting).
+    const int np = 8;
+    if (alis.mem[bitmap_addr + 6] != np) return 0;
+
+    s32 w = xread16(bitmap_addr + 2) + 1;
+    s32 h = xread16(bitmap_addr + 4) + 1;
+    if (w <= 0 || h <= 0) return 0;
+    s32 cpr = (w + 15) >> 4;
+    if (cpr * 16 > 1024) return 0;                 // wider than the row scratch — leave it alone
+
+    static u8 rowbuf[1024];
+    for (s32 y = 0; y < h; y++) {
+        // Host-native u16 reads mirror chunky8_to_planar's stores (not xread16).
+        const u16 *pw = (const u16 *)(alis.mem + bitmap_addr + 8 + (s32)y * cpr * np * 2);
+        u8 *out = rowbuf;
+        for (s32 cc = 0; cc < cpr; cc++, pw += np) {
+            for (int b = 15; b >= 0; b--) {        // MSB = leftmost pixel
+                u8 v = 0;
+                for (int k = 0; k < np; k++)
+                    v |= (u8)(((pw[k] >> b) & 1) << k);
+                *out++ = v;
+            }
+        }
+        memcpy(alis.mem + bitmap_addr + 8 + (s32)y * w, rowbuf, (size_t)w);
+    }
+    alis.mem[bitmap_addr + 6] = 0;                 // chunky again
+    return 1;
+}
+
+// 4-bit chunky indices -> 4-plane interleaved (one 16px chunk = 4 BE plane words = 8 bytes).
+void chunky4_to_planar(const u8 *idx8, s32 w, s32 h, int flip, u8 *dst)
+{
+    s32 cpr = (w + 15) >> 4;
+    for (s32 y = 0; y < h; y++) {
+        const u8 *row = idx8 + (s32)y * w;
+        u16 *pw = (u16 *)(dst + (s32)y * cpr * 8);
+        for (s32 cc = 0; cc < cpr; cc++, pw += 4) {
+            s32 base = cc * 16;
+            s32 n = w - base; if (n > 16) n = 16;     // valid columns in this chunk
+            u16 p0=0,p1=0,p2=0,p3=0;
+            if (!flip) {
+                const u8 *r = row + base;
+                for (s32 i = 0; i < n; i++) {
+                    u8 v = r[i];
+                    p0=(u16)((p0<<1)|( v    &1)); p1=(u16)((p1<<1)|((v>>1)&1));
+                    p2=(u16)((p2<<1)|((v>>2)&1)); p3=(u16)((p3<<1)|((v>>3)&1));
+                }
+            } else {
+                const u8 *r = row + (w - 1 - base);
+                for (s32 i = 0; i < n; i++) {
+                    u8 v = r[-i];
+                    p0=(u16)((p0<<1)|( v    &1)); p1=(u16)((p1<<1)|((v>>1)&1));
+                    p2=(u16)((p2<<1)|((v>>2)&1)); p3=(u16)((p3<<1)|((v>>3)&1));
+                }
+            }
+            if (n < 16) { int s = 16 - n;             // left-align the (rare) short last chunk
+                p0<<=s; p1<<=s; p2<<=s; p3<<=s; }
+            pw[0]=p0; pw[1]=p1; pw[2]=p2; pw[3]=p3;
+        }
+    }
+}
+
+// Kalms/Kropacek 4-plane transpose (SDL Atari C2pConvert4): d0/d1 hold 16 scrambled pixels ->
+// out[0..3] = plane0..3, MSB = pixel 0. Callers build d0/d1 inline.
+static inline void kalms_transpose(u32 d0, u32 d1, u16 *out)
+{
+    u32 d7;
+    d7 = ((d1>>8) ^ d0) & 0x00ff00ffu; d0 ^= d7; d1 ^= (d7<<8);
+    d7 = ((d1>>1) ^ d0) & 0x55555555u; d0 ^= d7; d1 ^= (d7<<1);
+    // Exchange inner words via rotate-by-16 (compiles to `swap`, not a slow shift by 16).
+    u32 sd0 = (d0 << 16) | (d0 >> 16);             // = swap(d0)
+    u32 sd1 = (d1 << 16) | (d1 >> 16);             // = swap(d1)
+    u32 nd0 = (d0  & 0xFFFF0000u) | (sd1 & 0x0000FFFFu);
+    u32 nd1 = (sd0 & 0xFFFF0000u) | (d1  & 0x0000FFFFu);
+    d0 = nd0; d1 = nd1;
+    d7 = ((d1>>2) ^ d0) & 0x33333333u; d0 ^= d7; d1 ^= (d7<<2);
+    // Final per-plane swap folded into the extraction.
+    out[0]=(u16)d1; out[1]=(u16)(d1>>16);           // plane0,1
+    out[2]=(u16)d0; out[3]=(u16)(d0>>16);           // plane2,3
+}
+
+// Build d0/d1 from 16 loose pixel bytes (slow path: partial/misaligned/paloff chunks).
+static inline void kalms16_4(const u8 *in, u16 *out)
+{
+    // <<8 accumulation: GCC m68k renders <<24/<<16 as slow register shifts.
+    #define KP(i) ((u32)(in[i] & 0x0F))
+    u32 d0 =          ((KP(0)<<4)|KP(4));
+    d0 = (d0<<8)  |   ((KP(1)<<4)|KP(5));
+    d0 = (d0<<8)  |   ((KP(2)<<4)|KP(6));
+    d0 = (d0<<8)  |   ((KP(3)<<4)|KP(7));
+    u32 d1 =          ((KP(8)<<4)|KP(12));
+    d1 = (d1<<8)  |   ((KP(9)<<4)|KP(13));
+    d1 = (d1<<8)  |   ((KP(10)<<4)|KP(14));
+    d1 = (d1<<8)  |   ((KP(11)<<4)|KP(15));
+    #undef KP
+    kalms_transpose(d0, d1, out);
+}
+
+// Fused 4-bit nibble -> 4-plane converter in one pass (applies paloff + colour-0 transparency).
+// `nib` is the raw packed source (2 px/byte, hi first).
+static void nib_to_planar4(const u8 *nib, s32 w, s32 h, u8 paloff, int transp, u8 *dst)
+{
+    // paloff is 0 for sp==4, so the stored value is the raw nibble; paloff!=0 is a slow fallback.
+    s32 cpr = (w + 15) >> 4;
+    for (s32 y = 0; y < h; y++) {
+        s32 rb = y * w;
+        u16 *pw = (u16 *)(dst + (s32)y * cpr * 8);
+        for (s32 cc = 0; cc < cpr; cc++, pw += 4) {
+            s32 base = cc * 16;
+            s32 n = w - base; if (n > 16) n = 16;
+            s32 g0 = rb + base;
+            u16 out[4];
+            if (n == 16 && !(g0 & 1) && paloff == 0) {
+                // Aligned full chunk: build d0/d1 straight from 8 source bytes (no px[] array).
+                const u8 *r = nib + (g0 >> 1);
+                u8 b0=r[0],b1=r[1],b2=r[2],b3=r[3],b4=r[4],b5=r[5],b6=r[6],b7=r[7];
+                u32 d0 =         (u32)((b0&0xF0)|(b2>>4));        // <<8 accumulation (cheap shifts)
+                d0 = (d0<<8) |   (u32)(((b0&0x0f)<<4)|(b2&0x0f));
+                d0 = (d0<<8) |   (u32)((b1&0xF0)|(b3>>4));
+                d0 = (d0<<8) |   (u32)(((b1&0x0f)<<4)|(b3&0x0f));
+                u32 d1 =         (u32)((b4&0xF0)|(b6>>4));
+                d1 = (d1<<8) |   (u32)(((b4&0x0f)<<4)|(b6&0x0f));
+                d1 = (d1<<8) |   (u32)((b5&0xF0)|(b7>>4));
+                d1 = (d1<<8) |   (u32)(((b5&0x0f)<<4)|(b7&0x0f));
+                kalms_transpose(d0, d1, out);
+            } else {
+                u8 px[16];
+                for (s32 i = 0; i < 16; i++) {
+                    if (i < n) {
+                        s32 g = g0 + i;
+                        u8  b = nib[g >> 1];
+                        u8 nb = (g & 1) ? (b & 0x0f) : (b >> 4);
+                        px[i] = (transp && nb == 0) ? 0 : (u8)(paloff + nb);
+                    } else px[i] = 0;
+                }
+                kalms16_4(px, out);
+            }
+            pw[0]=out[0]; pw[1]=out[1]; pw[2]=out[2]; pw[3]=out[3];
+        }
+    }
+}
+
+// On the desktop ALIS_PLANAR_CONV build the native render (image_draw_planar.c) is NOT compiled,
+// so own the plane-count globals it would otherwise define. (Atari defines them there.)
+#if !defined(ALIS_NATIVE_PLANAR)
+int g_planar_nplanes = 8;
+int g_used_planes = 8;
+#endif
+#endif // ALIS_PLANAR_CONV
+
+#if defined(ALIS_PROFILE_DRAW)
+extern u32 sys_profile_ticks_safe(void);
+u32 g_lp_c2p_ticks = 0, g_lp_grow_ticks = 0, g_lp_fixup_ticks = 0;
+#endif
+
+// Conversion scratch buffer, grown on demand and reused across loads (never freed).
+static u8 *s_conv_tmp = NULL;
+static s32 s_conv_tmp_sz = 0;
+static u8 *conv_tmp(s32 n)
+{
+    if (n > s_conv_tmp_sz) {
+        u8 *p = (u8 *)realloc(s_conv_tmp, (size_t)n);
+        if (!p) return NULL;
+        s_conv_tmp = p; s_conv_tmp_sz = n;
+    }
+    return s_conv_tmp;
+}
+
+// Shared tail. `tmp` holds the decoded 8-bit indices (w*h); writes header + pixels to `dst`.
+// do_grow: open room in place with growprog (dst==src); else space is pre-allocated and the header
+// is relocated. Returns bytes added.
+static s32 conv_finish(s32 dst, s32 src, s32 src_off, s32 old_pix_bytes, s32 w, s32 h, u8 *tmp, int transp, int do_grow)
+{
+    s32 npix = w * h;
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    extern int  g_planar_nplanes;          // set by pass 1 of convert_sprites_inplace
+    s32 cpr = (w + 15) >> 4;
+    // Source storage planes: 4 for 16-colour games (half the RAM + read), 8 otherwise. The 4bpp_*
+    // blitters + the p4 dispatch in destofen_planar consume 4-plane (8-byte) source chunks.
+    int sp  = (g_planar_nplanes == 4) ? 4 : 8;
+    s32 out_bytes = h * cpr * (sp * 2);    // planar interleaved (padded to 16px chunks)
+#else
+    s32 out_bytes = npix;                  // 8-bit chunky
+#endif
+    s32 grow = (8 + out_bytes) - (src_off + old_pix_bytes);
+    if (do_grow) {
+#if defined(ALIS_PROFILE_DRAW)
+        u32 _g0 = sys_profile_ticks_safe();
+#endif
+        if (grow > 0 && !growprog(src + src_off, grow)) return 0;
+#if defined(ALIS_PROFILE_DRAW)
+        g_lp_grow_ticks += sys_profile_ticks_safe() - _g0;
+#endif
+    } else if (dst != src) {
+        memcpy(alis.mem + dst, alis.mem + src, (size_t)src_off);   // relocate header bytes
+    }
+#if defined(ALIS_PROFILE_DRAW)
+    u32 _c0 = sys_profile_ticks_safe();
+#endif
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    if (sp == 4) chunky4_to_planar(tmp, w, h, 0, alis.mem + dst + 8);
+    else         chunky8_to_planar(tmp, w, h, 0, alis.mem + dst + 8);
+#if defined(ALIS_PROFILE_DRAW)
+    g_lp_c2p_ticks += sys_profile_ticks_safe() - _c0;
+#endif
+    alis.mem[dst + 6] = (u8)sp;            // source plane count (flip rebuild + blitter read it)
+#else
+    for (s32 p = 0; p < npix; p++)
+        alis.mem[dst + 8 + p] = tmp[p];
+#if defined(ALIS_PROFILE_DRAW)
+    g_lp_c2p_ticks += sys_profile_ticks_safe() - _c0;
+#endif
+    alis.mem[dst + 6] = 0;
+#endif
+    alis.mem[dst + 7] = 0;
+    alis.mem[dst]     = transp ? 0x14 : 0x16;
+    return grow;          // tmp is the reusable scratch buffer — not freed
+}
+
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+// Fused 4-plane tail: save the packed nibbles, make room as conv_finish, then nib_to_planar4.
+static s32 conv_finish_nib4(s32 dst, s32 src, s32 src_off, s32 old_pix_bytes, s32 w, s32 h, u8 paloff, int transp, int do_grow)
+{
+    s32 cpr = (w + 15) >> 4;
+    s32 raw = (w * h + 1) >> 1;             // packed nibble bytes to preserve across the move
+    u8 *nib = conv_tmp(raw);
+    if (!nib) return 0;
+    memcpy(nib, alis.mem + src + src_off, (size_t)raw);
+    s32 grow = (8 + h * cpr * 8) - (src_off + old_pix_bytes);
+    if (do_grow) {
+#if defined(ALIS_PROFILE_DRAW)
+        u32 _g0 = sys_profile_ticks_safe();
+#endif
+        if (grow > 0 && !growprog(src + src_off, grow)) return 0;
+#if defined(ALIS_PROFILE_DRAW)
+        g_lp_grow_ticks += sys_profile_ticks_safe() - _g0;
+#endif
+    } else if (dst != src) {
+        memcpy(alis.mem + dst, alis.mem + src, (size_t)src_off);   // relocate header bytes
+    }
+#if defined(ALIS_PROFILE_DRAW)
+    u32 _c0 = sys_profile_ticks_safe();
+#endif
+    nib_to_planar4(nib, w, h, paloff, transp, alis.mem + dst + 8);
+#if defined(ALIS_PROFILE_DRAW)
+    g_lp_c2p_ticks += sys_profile_ticks_safe() - _c0;
+#endif
+    alis.mem[dst + 6] = 4;
+    alis.mem[dst + 7] = 0;
+    alis.mem[dst]     = transp ? 0x14 : 0x16;
+    return grow;
+}
+#endif
+
+// 0x00/0x02 — ST 4-bit chunky (pixels at +6, no palette offset).
+static s32 conv_st_4bit(s32 src, s32 dst, int do_grow)
+{
+    s32 w = xread16(src + 2) + 1, h = xread16(src + 4) + 1, npix = w * h;
+    if (npix <= 0) return 0;
+    int transp = (alis.mem[src] == 0x00);
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    extern int g_planar_nplanes;
+    if (g_planar_nplanes == 4)             // fused decode+transpose, no 8-bit scratch
+        return conv_finish_nib4(dst, src, 6, npix >> 1, w, h, 0, transp, do_grow);
+#endif
+    u8 *tmp = conv_tmp(npix);
+    if (!tmp) return 0;
+    const u8 *s = alis.mem + src + 6;
+    for (s32 p = 0; p < npix; p++) {
+        u8 nib = (p & 1) ? (s[p >> 1] & 0x0f) : (s[p >> 1] >> 4);
+        tmp[p] = (transp && nib == 0) ? 0 : nib;
+    }
+    return conv_finish(dst, src, 6, npix >> 1, w, h, tmp, transp, do_grow);
+}
+
+// 0x10/0x12 — 4-bit chunky with palette-bank offset (pixels at +8, paloff at +6).
+static s32 conv_4to8bit(s32 src, s32 dst, int do_grow)
+{
+    s32 w = xread16(src + 2) + 1, h = xread16(src + 4) + 1, npix = w * h;
+    if (npix <= 0) return 0;
+    int transp = (alis.mem[src] == 0x10);
+    u8 paloff  = alis.mem[src + 6];
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    extern int g_planar_nplanes;
+    if (g_planar_nplanes == 4)             // paloff==0 here (idx fits 4 planes)
+        return conv_finish_nib4(dst, src, 8, npix >> 1, w, h, paloff, transp, do_grow);
+#endif
+    u8 *tmp = conv_tmp(npix);
+    if (!tmp) return 0;
+    const u8 *s = alis.mem + src + 8;
+    for (s32 p = 0; p < npix; p++) {
+        u8 nib = (p & 1) ? (s[p >> 1] & 0x0f) : (s[p >> 1] >> 4);
+        tmp[p] = (transp && nib == 0) ? 0 : (u8)(paloff + nib);
+    }
+    return conv_finish(dst, src, 8, npix >> 1, w, h, tmp, transp, do_grow);
+}
+
+// 0x10/0x12 on Amiga — 5-bit planar (pixels at +6, 5 separate bitplanes, linear bitstream).
+static s32 conv_ami_5bit(s32 src, s32 dst, int do_grow)
+{
+    s32 w = xread16(src + 2) + 1, h = xread16(src + 4) + 1, npix = w * h;
+    if (npix <= 0) return 0;
+    int transp = (alis.mem[src] == 0x10);
+    u32 planesize = (u32)npix >> 3;
+    u8 *tmp = conv_tmp(npix);
+    if (!tmp) return 0;
+    const u8 *s = alis.mem + src + 6;
+    for (s32 p = 0; p < npix; p++) {
+        s32 byte = p >> 3; int bit = 7 - (p & 7);
+        u8 idx = 0;
+        for (int pl = 0; pl < 5; pl++)
+            idx |= (u8)(((s[byte + pl * planesize] >> bit) & 1) << pl);
+        tmp[p] = (transp && idx == 0) ? 0 : idx;
+    }
+    return conv_finish(dst, src, 6, (s32)(5 * planesize), w, h, tmp, transp, do_grow);
+}
+
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+// 0x14/0x16 — already 8-bit chunky; only needs re-encoding to planar (compiled whenever the
+// planar conversion is active).
+static s32 conv_8bit(s32 src, s32 dst, int do_grow)
+{
+    s32 w = xread16(src + 2) + 1, h = xread16(src + 4) + 1, npix = w * h;
+    if (npix <= 0) return 0;
+    int transp = (alis.mem[src] == 0x14);
+    u8 *tmp = conv_tmp(npix);
+    if (!tmp) return 0;
+    const u8 *s = alis.mem + src + 8;
+    for (s32 p = 0; p < npix; p++) tmp[p] = s[p];
+    return conv_finish(dst, src, 8, npix, w, h, tmp, transp, do_grow);
+}
+#endif
+
+// Dispatch + convert one sprite from `src` to `dst` (matches PASS-1/2 platform gating exactly).
+// Returns bytes added, or 0 if this sprite is not converted on this platform.
+static s32 convert_one(s32 src, s32 dst, int do_grow)
+{
+    u8 fmt = alis.mem[src];
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    if (!conv_planar_enabled()) return 0;   // see conv_planar_enabled(): nothing planar on DOS data
+#endif
+    if (fmt == 0x00) {
+        if (alis.platform.kind != EPlatformMac
+         && !(alis.platform.kind == EPlatformPC && alis.platform.version <= 11))
+            return conv_st_4bit(src, dst, do_grow);
+    }
+    else if (fmt == 0x02) {
+        if (alis.platform.kind != EPlatformMac
+         && !(alis.platform.kind == EPlatformPC && alis.platform.uid == EGameMadShow))
+            return conv_st_4bit(src, dst, do_grow);
+    }
+    else if (fmt == 0x10 || fmt == 0x12) {
+        return (alis.platform.px_format == EPxFormatAmPlanar)
+             ? conv_ami_5bit(src, dst, do_grow)
+             : conv_4to8bit(src, dst, do_grow);
+    }
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    else if (fmt == 0x14 || fmt == 0x16) {
+        return conv_8bit(src, dst, do_grow);
+    }
+#endif
+    return 0;
+}
+
+// Measure-only twin of convert_one: returns the grow (bytes added) and old on-disk total for the
+// sprite at `addr`, WITHOUT converting, so the compactor can lay out final positions up front.
+// Mirrors the dispatch gating + conv_finish size math exactly (ALIS_CONV_VERIFY cross-checks it).
+static s32 sprite_measure(s32 addr, s32 *p_old_total)
+{
+    u8 fmt = alis.mem[addr];
+    int src_off, converts = 0;
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    if (!conv_planar_enabled()) return -1;   // lockstep with convert_one's blanket gate
+#endif
+    if (fmt == 0x00) {
+        converts = (alis.platform.kind != EPlatformMac
+                 && !(alis.platform.kind == EPlatformPC && alis.platform.version <= 11));
+        src_off = 6;
+    } else if (fmt == 0x02) {
+        converts = (alis.platform.kind != EPlatformMac
+                 && !(alis.platform.kind == EPlatformPC && alis.platform.uid == EGameMadShow));
+        src_off = 6;
+    } else if (fmt == 0x10 || fmt == 0x12) {
+        converts = 1;
+        src_off = (alis.platform.px_format == EPxFormatAmPlanar) ? 6 : 8;
+    } else if (fmt == 0x14 || fmt == 0x16) {
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+        converts = 1;
+#endif
+        src_off = 8;
+    } else {
+        return -1;                           // not a convertible format (grow>=0 means "converts")
+    }
+    if (!converts) return -1;
+
+    s32 w = xread16(addr + 2) + 1, h = xread16(addr + 4) + 1, npix = w * h;
+    if (npix <= 0) return -1;
+
+    s32 old_pix;
+    if (fmt == 0x10 || fmt == 0x12)
+        old_pix = (alis.platform.px_format == EPxFormatAmPlanar) ? (s32)(5 * ((u32)npix >> 3)) : (npix >> 1);
+    else if (fmt == 0x14 || fmt == 0x16)
+        old_pix = npix;
+    else
+        old_pix = npix >> 1;                 // 0x00 / 0x02
+
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    extern int g_planar_nplanes;
+    s32 cpr = (w + 15) >> 4;
+    int sp  = (g_planar_nplanes == 4) ? 4 : 8;
+    s32 out_bytes = h * cpr * (sp * 2);
+#else
+    s32 out_bytes = npix;
+#endif
+    *p_old_total = src_off + old_pix;
+    return (8 + out_bytes) - (src_off + old_pix);
+}
+
+// One converting sprite, captured up front (addresses are original, pre-move).
+typedef struct { s32 addr; s32 grow; s32 old_total; } ConvItem;
+static ConvItem *s_conv_items = NULL;
+static s32       s_conv_items_cap = 0;
+static ConvItem *conv_items(s32 n)
+{
+    if (n > s_conv_items_cap) {
+        ConvItem *p = (ConvItem *)realloc(s_conv_items, (size_t)n * sizeof(ConvItem));
+        if (!p) return NULL;
+        s_conv_items = p; s_conv_items_cap = n;
+    }
+    return s_conv_items;
+}
+static int conv_item_cmp(const void *a, const void *b)
+{
+    s32 x = ((const ConvItem *)a)->addr, y = ((const ConvItem *)b)->addr;
+    return (x > y) - (x < y);
+}
+
+// ---- The original per-sprite path: each conversion calls growprog, which shifts everything above
+// it (O(sprites x size) total bytes moved). Kept for ALIS_CONV_COMPACT=0 / A-B verification. ----
+static s32 convert_incremental(u32 org, s32 l, s32 e, s32 tab)
+{
+    s32 total = 0;
+    for (s32 i = 0; i < e; i++)
+    {
+        s32 a    = tab + i * 4;
+        s32 t    = xread32(org + a);
+        s32 addr = org + a + t;            // re-read after grows
+        s32 grow = convert_one(addr, addr, 1 /*do_grow*/);
+        if (grow <= 0)
+            continue;
+#if defined(ALIS_PROFILE_DRAW)
+        u32 _f0 = sys_profile_ticks_safe();
+#endif
+        for (s32 j = 0; j < e; j++) {      // every sprite above this one shifted up by `grow`
+            s32 aj = tab + j * 4;
+            s32 tj = xread32(org + aj);
+            if (addr < org + aj + tj)
+                xwrite32(org + aj, tj + grow);
+        }
+#if defined(ALIS_PROFILE_DRAW)
+        g_lp_fixup_ticks += sys_profile_ticks_safe() - _f0;
+#endif
+        xwrite32(org + l + 0x6, xread32(org + l + 0x6) + grow);
+        xwrite32(org + l + 0xc, xread32(org + l + 0xc) + grow);
+        total += grow;
+    }
+    return total;
+}
+
+// ---- Single-pass compaction: measure every sprite's grow up front, lay out final positions, then
+// relocate each region exactly once (top-down) while converting each sprite straight from its old
+// slot into its final slot. Each byte moves once instead of once per sprite-below-it. ----
+static s32 convert_compact(u32 org, s32 l, s32 e, s32 tab)
+{
+    ConvItem *it = conv_items(e > 0 ? e : 1);
+    if (!it) return convert_incremental(org, l, e, tab);   // OOM → safe fallback
+
+    // PASS 2a: capture converting sprites + their grows (original, pre-move addresses).
+    s32 m = 0, total = 0;
+    for (s32 i = 0; i < e; i++) {
+        s32 addr = org + tab + i * 4 + xread32(org + tab + i * 4);
+        s32 old_total = 0;
+        s32 grow = sprite_measure(addr, &old_total);
+        // grow >= 0 means the sprite converts; grow == 0 (e.g. 8-bit chunky -> 8-plane) must too.
+        if (grow >= 0) { it[m].addr = addr; it[m].grow = grow; it[m].old_total = old_total; m++; total += grow; }
+    }
+    if (m == 0) return 0;
+    qsort(it, (size_t)m, sizeof(ConvItem), conv_item_cmp);   // ascending by address
+
+    // Offset table: entry j gains the sum of grows of all converting sprites BELOW its target.
+#if defined(ALIS_PROFILE_DRAW)
+    u32 _f0 = sys_profile_ticks_safe();
+#endif
+    for (s32 j = 0; j < e; j++) {
+        s32 aj = tab + j * 4;
+        s32 tj = xread32(org + aj);
+        s32 addrj = org + aj + tj;
+        s32 delta = 0;
+        for (s32 k = 0; k < m && it[k].addr < addrj; k++) delta += it[k].grow;
+        if (delta) xwrite32(org + aj, tj + delta);
+    }
+#if defined(ALIS_PROFILE_DRAW)
+    g_lp_fixup_ticks += sys_profile_ticks_safe() - _f0;
+#endif
+    xwrite32(org + l + 0x6, xread32(org + l + 0x6) + total);
+    xwrite32(org + l + 0xc, xread32(org + l + 0xc) + total);
+
+    // Reserve the total space at the top (the per-call growprog script/sprite fixups are no-ops
+    // during load — the converting script is the last loaded — so a single finprog bump suffices).
+    s32 old_finprog = alis.finprog;
+    if ((u32)(old_finprog + total) > alis.finmem) return 0;
+    alis.finprog = old_finprog + total;
+
+    // Relocate + convert, top-down. `shift` = bytes the region just above sprite k moves up; it
+    // equals G_k + grow_k where G_k (cumulative grow below k) is the offset of sprite k's new slot.
+    s32 read_top = old_finprog;
+    s32 shift = total;
+    for (s32 k = m - 1; k >= 0; k--) {
+        s32 ak = it[k].addr;
+        s32 reg_lo = ak + it[k].old_total;          // first byte above sprite k's old data
+        s32 reg_len = read_top - reg_lo;
+        if (reg_len > 0 && shift > 0) {
+#if defined(ALIS_PROFILE_DRAW)
+            u32 _g0 = sys_profile_ticks_safe();
+#endif
+            memmove(alis.mem + reg_lo + shift, alis.mem + reg_lo, (size_t)reg_len);
+#if defined(ALIS_PROFILE_DRAW)
+            g_lp_grow_ticks += sys_profile_ticks_safe() - _g0;
+#endif
+        }
+        s32 Gk = shift - it[k].grow;                // sprite k's new slot = ak + Gk
+        convert_one(ak, ak + Gk, 0 /*space pre-allocated*/);
+        read_top = ak;
+        shift = Gk;
+    }
+    return total;
+}
+
+#ifndef ALIS_CONV_COMPACT
+#define ALIS_CONV_COMPACT 1
+#endif
+
+// Load-time, IN PLACE: convert every sprite to 0x14/0x16 (8-bit chunky, or planar under
+// ALIS_PLANAR_CONV) via per-format converters dispatched like destofen. Applies cshrink's
+// fixups with the sign flipped. Returns total bytes added (caller bumps script->sz).
+s32 convert_sprites_inplace(u32 org, const char *name)
+{
+    // Decide ONCE per script, before pass 1: every convert_one / sprite_measure call below must see
+    // the same answer or the compactor's layout desynchronizes from what actually gets written.
+    s_conv_planar_ok = conv_planar_allowed_for(name);
+
+    s32 l   = xread32(org + 0xe);
+    s16 e   = xread16(org + l + 4);
+    s32 tab = xread32(org + l) + l;
+    s32 total = 0;
+#if defined(ALIS_PLANAR_CONV) && ALIS_PLANAR_CONV
+    extern int g_planar_nplanes;
+    static int s_conv_maxidx = 0;          // deepest colour index seen → plane count (4/6/8)
+    // PASS 1: plane count from the deepest colour index (format + paloff), before any growprog
+    // moves the table offsets.
+    for (s32 i = 0; i < e; i++)
+    {
+        s32 addr = org + tab + i * 4 + xread32(org + tab + i * 4);
+        u8  fmt  = alis.mem[addr];
+        int mb = (fmt == 0x00 || fmt == 0x02) ? 15
+               : (fmt == 0x10 || fmt == 0x12) ? (alis.platform.px_format == EPxFormatAmPlanar ? 31 : alis.mem[addr + 6] + 15)
+               : (fmt == 0x14 || fmt == 0x16) ? 255 : 0;
+        if (mb > s_conv_maxidx) s_conv_maxidx = mb;
+    }
+    g_planar_nplanes = (s_conv_maxidx < 16) ? 4 : (s_conv_maxidx < 64) ? 6 : 8;
+    // Screen copy follows the colour depth (no clinepal active at conversion time).
+    extern int g_used_planes;
+    g_used_planes = g_planar_nplanes;
+
+#if defined(ALIS_PROFILE_DRAW)
+    {   // Dump the sprite-format histogram + first sprite header (first 10 scripts).
+        extern void dbglog(const char *fmt, ...);
+        static int _cs_dumps = 0;
+        if (_cs_dumps < 10) {
+            _cs_dumps++;
+            u32 hist[256]; for (int k = 0; k < 256; k++) hist[k] = 0;
+            for (s32 i = 0; i < e; i++)
+                hist[alis.mem[org + tab + i * 4 + xread32(org + tab + i * 4)]]++;
+            dbglog("CONVDBG org=%lx e=%d nplanes=%d pxfmt=%d fmts:",
+                   (unsigned long)org, (int)e, g_planar_nplanes, (int)alis.platform.px_format);
+            for (int k = 0; k < 256; k++) if (hist[k]) dbglog(" %02x=%lu", k, (unsigned long)hist[k]);
+            if (e > 0) {
+                s32 a0 = org + tab + xread32(org + tab);
+                dbglog(" | spr0 hdr:");
+                for (int b = 0; b < 12; b++) dbglog(" %02x", alis.mem[a0 + b]);
+            }
+            dbglog("\n");
+        }
+    }
+#endif
+#endif
+
+    // PASS 2: convert every sprite (single-pass compaction; g_planar_nplanes was set in pass 1).
+#if defined(ALIS_CONV_VERIFY) && ALIS_CONV_VERIFY
+    // Desktop A/B: run the original incremental path on a copy, then the compactor for real, and
+    // assert byte-identical program + finprog. [org, finprog) is this (last-loaded, topmost) script.
+    {
+        extern void dbglog(const char *fmt, ...);
+        s32 fp0 = alis.finprog, span = fp0 - org;
+        u8 *orig = (u8 *)malloc((size_t)span);
+        if (orig) {
+            memcpy(orig, alis.mem + org, (size_t)span);
+            s32 totalA = convert_incremental(org, l, e, tab);
+            s32 fpA = alis.finprog, lenA = fpA - org;
+            u8 *resA = (u8 *)malloc((size_t)lenA);
+            if (resA) memcpy(resA, alis.mem + org, (size_t)lenA);
+            memcpy(alis.mem + org, orig, (size_t)span);   // restore
+            alis.finprog = fp0;
+            total = convert_compact(org, l, e, tab);
+            s32 fpB = alis.finprog;
+            if (!resA || totalA != total || fpA != fpB || memcmp(alis.mem + org, resA, (size_t)lenA) != 0)
+                dbglog("CONV VERIFY *** MISMATCH org=%lx totalA=%ld totalB=%ld fpA=%lx fpB=%lx\n",
+                       (unsigned long)org, (long)totalA, (long)total, (unsigned long)fpA, (unsigned long)fpB);
+            else
+                dbglog("CONV VERIFY ok org=%lx total=%ld\n", (unsigned long)org, (long)total);
+            free(resA); free(orig);
+            return total;
+        }
+    }
+#endif
+#if ALIS_CONV_COMPACT
+    total = convert_compact(org, l, e, tab);
+#else
+    total = convert_incremental(org, l, e, tab);
+#endif
+    return total;
+}
+
 // ============================================================================
 #pragma mark - Opcode / Codop (Code-op) routines pointer table (256 values)
 // ============================================================================
-sAlisOpcode opcodes[] = {
+const sAlisOpcode opcodes[] = {
     DECL_OPCODE(0x00, cnul,         "[N/I] null"),
     DECL_OPCODE(0x01, cesc1,        "TODO: add desc"),
     DECL_OPCODE(0x02, cesc2,        "[N/I]"),

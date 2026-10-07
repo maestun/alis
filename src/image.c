@@ -27,25 +27,30 @@
 #include "alis_private.h"
 #include "debug.h"
 #include "mem.h"
+#include "video.h"
 #include "render3d.h"
 #include "screen.h"
 #include "utils.h"
 
 #if ALIS_SDL_VER < 2
 # include <SDL/SDL.h>
-extern u8 dirty_pal;
-extern SDL_Rect dirty_rects[4096];
-extern int dirty_len;
-
-u32 prevtick = 0xffffffff;
+extern volatile u8 dirty_pal;   // set from the Timer-C ISR (itroutine) on native
+extern SDL_Rect dirty_rects[256];
+extern u8 dirty_len;
 #endif
 
-#define DEBUG_CHECK 0
-
-#if DEBUG_CHECK > 0
-# define VERIFYINTEGRITY verifyintegrity()
-#else
-# define VERIFYINTEGRITY
+#if defined(ALIS_PROFILE_DRAW)
+// Lightweight per-phase wall-clock profiler (sys_profile_ticks units: 200 Hz /
+// 5 ms on native Atari). Accumulate over a run; dump every PROF_DUMP_FRAMES
+// frames. g_prof_frame_vsync is added by sys_render (the flip+Vsync wait).
+u32 g_prof_frame_oldfen, g_prof_frame_affiscr, g_prof_frame_drawtot, g_prof_frame_vsync;
+u32 g_prof_frame_frames, g_prof_frame_remap;
+// Overdraw accounting per destofen blit: drawn pixels, opaque/transparent split,
+// blit count, "big" (Blitter-worthy) pixel total.
+u32 g_od_pix, g_od_pix_op, g_od_pix_tr, g_od_blits, g_od_big;
+u32 g_prof_frame_depscreen;   // time in depscreen() (the per-element list re-link) within affiscr
+#define OD_BIG_AREA 2048      // a blit counts as "big" (Blitter-worthy) above this
+#define PROF_DUMP_FRAMES 100
 #endif
 
 u16 moduly;
@@ -88,6 +93,13 @@ sImage image = {
     .numelem = 0,
     .invert_x = 0,
     .depx = 0,
+    .ddrawdist = 0,        // double draw distance --far
+#if ALIS_SDL_VER > 1
+    .emode = 0,            // enhanced mode --fog
+    .fogcol = 0xFF8090A0,   // color terrain fade to
+    .fogbeg = 80,          // fog begins at ~50% distance
+    .fogend = 255,         // fully fogged at ~100% distance
+#endif
     .depy = 0,
     .depz = 0,
     .oldcx = 0,
@@ -98,8 +110,7 @@ sImage image = {
     .sback = 0,
     .wback = 0,
     .cback = 0,
-    .pback = 0,
-    .ddrawdist = 0
+    .pback = 0
 };
 
 void draw_mac_rect(sRect *pos, sRect *bmp, u8 color);
@@ -192,7 +203,7 @@ int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path) {
     // Open file for writing
     file = fopen(path, "wb");
     if (!file) {
-        perror("Error opening file");
+        printf("Error opening file %s\n", path);
         return -1;
     }
 
@@ -229,25 +240,38 @@ int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path) {
 #pragma mark Palette management
 
 
+// Entries one palette bank spans: banks are 64 apart for <8bpp data (thepalet*64), one bank for 8bpp.
+static int pal_bank_len(void) { return alis.platform.bpp != 8 ? 64 : 256; }
+
 void topalet(void)
 {
     image.ftopal = 0;
 
+    // Fades always run over the fixed base (all banks), as the original: the selected bank
+    // pointers can move under this (it runs from the timer thread / ISR).
     if (image.palc == 1)
     {
-        memcpy(image.ampalet, image.atpalet, 1024);
+        memcpy(image.mpalet, image.tpalet, 256 * sizeof(u32));
     }
     else
     {
-        for (s32 i = 0; i < 1024; i++)
-        {
-            if (image.ampalet[i] != image.atpalet[i])
-                image.ampalet[i] = image.atpalet[i] + image.dpalet[i] * image.palc;
+        switch (image.pal_format) {
+            case EPalARGB:
+                TOPALET_INTERP_LOOP(sColorARGB, image.mpalet, image.tpalet);
+                break;
+            case EPalABGR:
+                TOPALET_INTERP_LOOP(sColorABGR,   image.mpalet, image.tpalet);
+                break;
+            case EPalRGBA32:
+                TOPALET_INTERP_LOOP(sColorRGBA32, image.mpalet, image.tpalet);
+                break;
+            case EPal565:
+                TOPALET_INTERP_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet);
+                break;
         }
     }
     
     image.ftopal = 1;
-
     set_update_cursor();
 }
 
@@ -255,16 +279,24 @@ void topalette(u8 *paldata, s32 duration)
 {
     if (alis.platform.kind == EPlatformMac)
     {
-        memset(image.atpalet, 0, 4);
-        memset(image.ampalet, 0, 4);
-        memset(image.atpalet + 4, 0xff, 1020);
-        memset(image.ampalet + 4, 0xff, 1020);
+        // Entry 0 = black, entries 1..255 = white
+        
+        PAL_WRITE_RGB(image.atpalet, 0, 0, 0, 0);
+        PAL_WRITE_RGB(image.ampalet, 0, 0, 0, 0);
+
+        for (int i = 1; i < 256; i++)
+        {
+            PAL_WRITE_RGB(image.atpalet, i, 255, 255, 255);
+            PAL_WRITE_RGB(image.ampalet, i, 255, 255, 255);
+        }
         image.ftopal = 0xff;
     }
     else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
     {
-        memcpy(image.atpalet, cga_palette, sizeof(cga_palette));
-        memcpy(image.ampalet, cga_palette, sizeof(cga_palette));
+        u8 *addr = cga_palette;
+        PAL_WRITE(image.atpalet, 0, 4, RGB32(addr));
+        addr = cga_palette;
+        PAL_WRITE(image.ampalet, 0, 4, RGB32(addr));
     }
     else
     {
@@ -276,26 +308,13 @@ void topalette(u8 *paldata, s32 duration)
             image.palc = 0;
             u8 *palptr = &paldata[2];
             
-            s16 to = 0;
             if (alis.platform.kind == EPlatformAmiga || alis.platform.kind == EPlatformAmigaAGA)
             {
-                for (s32 i = 0; i < 16; i++)
-                {
-                    image.atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
-                    image.atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
-                    image.atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
-                    image.atpalet[to++] = 0;
-                }
+                PAL_WRITE(image.atpalet, 0, 16, RGB12(palptr));
             }
             else
             {
-                for (s32 i = 0; i < 16; i++)
-                {
-                    image.atpalet[to++] = (palptr[i * 2 + 0] & 0b00000111) << 5;
-                    image.atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 5;
-                    image.atpalet[to++] = (palptr[i * 2 + 1] & 0b00000111) << 5;
-                    image.atpalet[to++] = 0;
-                }
+                PAL_WRITE(image.atpalet, 0, 16, RGB9(palptr));
             }
         }
         else // 8 bit palette
@@ -304,29 +323,15 @@ void topalette(u8 *paldata, s32 duration)
             {
                 image.palc = 0;
                 u8 *palptr = &paldata[2];
-                
-                s16 to = 0;
-                
-                for (s32 i = 0; i < 32; i++)
-                {
-                    image.atpalet[to++] = (palptr[i * 2 + 0] & 0b00001111) << 4;
-                    image.atpalet[to++] = (palptr[i * 2 + 1] >> 4) << 4;
-                    image.atpalet[to++] = (palptr[i * 2 + 1] & 0b00001111) << 4;
-                    image.atpalet[to++] = 0;
-                }
+                PAL_WRITE(image.atpalet, 0, 32, RGB12(palptr));
             }
             else
             {
                 image.palc = 0;
                 u8 offset = paldata[2];
-                
-                s32 p = 4;
-                for (int i = offset; i <= offset + colors; i++)
-                {
-                    image.atpalet[i * 4 + 0] = paldata[p++];
-                    image.atpalet[i * 4 + 1] = paldata[p++];
-                    image.atpalet[i * 4 + 2] = paldata[p++];
-                }
+
+                paldata+=4;
+                PAL_WRITE(image.atpalet, offset, colors + 1, RGB24(paldata));
             }
         }
         
@@ -334,37 +339,37 @@ void topalette(u8 *paldata, s32 duration)
         {
             u16 *dkpalptr = (u16 *)image.dkpalet;
             s16 colors = alis.platform.bpp <= 4 ? 16 : 256;
-            
-            s16 to = 0;
-            
+
             for (s32 i = 0; i < colors; i++, dkpalptr += 3)
             {
-                image.atpalet[to++] *= (dkpalptr[0] / 256.0);
-                image.atpalet[to++] *= (dkpalptr[1] / 256.0);
-                image.atpalet[to++] *= (dkpalptr[2] / 256.0);
-                image.atpalet[to++] = 0;
+                u8 _r, _g, _b;
+                PAL_READ_RGB(image.atpalet, i, _r, _g, _b);
+                PAL_WRITE_RGB(image.atpalet, i, (u8)(_r * (dkpalptr[0] / 256.0)), (u8)(_g * (dkpalptr[1] / 256.0)), (u8)(_b * (dkpalptr[2] / 256.0)));
             }
         }
         
+        if (duration == 0)
+            memcpy(image.ampalet, image.atpalet, pal_bank_len() * sizeof(u32));   // only the written bank
+
         image.thepalet = 0;
         image.defpalet = 0;
-        
+        selpalet();
+
         if (duration != 0)
         {
-            selpalet();
-            
-            for (s32 i = 0; i < 1024; i++)
-            {
-                image.dpalet[i] = (image.ampalet[i] - image.atpalet[i]) / (float)duration;
+            switch (image.pal_format) {
+            case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
+            case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
+            case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
+            case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
             }
-            
+
             image.palt = 1;
             image.palt0 = 1;
             image.palc = duration;
         }
         else
         {
-            memcpy(image.ampalet, image.atpalet, 1024);
             image.ftopal = 0xff;
 #if ALIS_SDL_VER < 2
             dirty_pal = 1;
@@ -379,14 +384,17 @@ void toblackpal(s16 duration)
 {
     selpalet();
 
-    memset(image.atpalet, 0, 1024);
-    
+    // Black only the selected bank (the original clears 16 colours of addr_tpalet).
+    memset(image.atpalet, 0, pal_bank_len() * sizeof(u32));
+    if (duration == 0)
+        memset(image.ampalet, 0, pal_bank_len() * sizeof(u32));
+
     image.thepalet = 0;
     image.defpalet = 0;
+    selpalet();
 
     if (duration == 0)
     {
-        memset(image.ampalet, 0, 1024);
         image.ftopal = 0xff;
         image.palc = 0;
 #if ALIS_SDL_VER < 2
@@ -395,11 +403,11 @@ void toblackpal(s16 duration)
     }
     else
     {
-        selpalet();
-
-        for (s32 i = 0; i < 1024; i++)
-        {
-            image.dpalet[i] = (image.ampalet[i] - image.atpalet[i]) / (float)duration;
+        switch (image.pal_format) {
+        case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
+        case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
+        case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
+        case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
         }
 
         image.palt = 1;
@@ -412,8 +420,8 @@ void savepal(s16 mode)
 {
     if (mode < 0 && -3 < mode)
     {
-        u8 *tgt = (mode != -1) ? image.svpalet2 : image.svpalet;
-        memcpy(tgt, image.tpalet, 1024);
+        u32 *tgt = (mode != -1) ? image.svpalet2 : image.svpalet;
+        memcpy(tgt, image.tpalet, 256 * sizeof(u32));
     }
 }
 
@@ -425,15 +433,16 @@ void restorepal(s16 mode, s32 duration)
         return;
     }
 
-    u8 *src = (mode != -1) ? image.svpalet2 : image.svpalet;
-    memcpy(image.tpalet, src, 1024);
+    u32 *src = (mode != -1) ? image.svpalet2 : image.svpalet;
+    memcpy(image.tpalet, src, 256 * sizeof(u32));
 
     image.thepalet = 0;
     image.defpalet = 0;
+    selpalet();
     
     if (duration == 0)
     {
-        memcpy(image.mpalet, src, 1024);
+        memcpy(image.mpalet, src, 256 * sizeof(u32));
         image.ftopal = 0xff;
         image.palc = 0;
 #if ALIS_SDL_VER < 2
@@ -442,9 +451,11 @@ void restorepal(s16 mode, s32 duration)
     }
     else
     {
-        for (s32 i = 0; i < 1024; i++)
-        {
-            image.dpalet[i] = (image.mpalet[i] - image.tpalet[i]) / (float)duration;
+        switch (image.pal_format) {
+        case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
+        case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
+        case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
+        case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
         }
 
         topalet();
@@ -454,13 +465,465 @@ void restorepal(s16 mode, s32 duration)
     }
 }
 
+// ============================================================================
+// DOS palette model (PC data, version >= 12): the originals keep a 6-bit target (tpal) and a
+// live palette (mpal) and fade by chasing mpal toward tpal on the vblank tick. m68k games
+// never come here. Families differ in a few opcode details (see dos_pal_family).
+// ============================================================================
+
+enum { DPAL_NONE, DPAL_C16, DPAL_BUNNY, DPAL_ISHAR, DPAL_B32 };
+
+static struct {
+    u8 tpal[768], mpal[768], sav1[768], sav2[768];
+    u8 step, reload, skip;
+    s8 counter;
+    volatile u8 ftopal, lock;
+    u32 acc;
+} dpal;
+
+// Colorado: 16 colours, no fades. Bunny Bricks / Ishar 1, 2 (Transarctica assumed): the
+// 16-bit driver. RRQ / Ishar 3: the 32-bit driver. Other PC games keep the generic path.
+static int dos_pal_family(void)
+{
+    if (alis.platform.kind != EPlatformPC)
+        return DPAL_NONE;
+
+    switch (alis.platform.uid) {
+        case EGameColorado:             return DPAL_C16;
+        case EGameBunnyBricks:          return DPAL_BUNNY;
+        case EGameIshar_1:
+        case EGameIshar_2:
+        case EGameTransarctica:         return DPAL_ISHAR;
+        case EGameIshar_3:
+        case EGameRobinsonsRequiem0:
+        case EGameRobinsonsRequiem1:    return DPAL_B32;
+        default:                        return DPAL_NONE;
+    }
+}
+
+int dos_pal_active(void) { return dos_pal_family() != DPAL_NONE; }
+
+static u8 dpal_expand(u8 v) { v &= 0x3f; return (u8)((v << 2) | (v >> 4)); }
+
+// The DAC write: the live 6-bit palette becomes the host palette.
+static void dpal_upload(void)
+{
+    int n = dos_pal_family() == DPAL_C16 ? 16 : 256;
+    for (int i = 0; i < n; i++)
+        PAL_WRITE_RGB(image.mpalet, i, dpal_expand(dpal.mpal[i * 3]), dpal_expand(dpal.mpal[i * 3 + 1]), dpal_expand(dpal.mpal[i * 3 + 2]));
+#if ALIS_SDL_VER < 2
+    dirty_pal = 1;
+#endif
+    set_update_cursor();   // the host cursor image is built from the palette
+}
+
+// image.tpalet mirrors the target so save states keep it.
+static void dpal_mirror_target(void)
+{
+    for (int i = 0; i < 256; i++)
+        PAL_WRITE_RGB(image.tpalet, i, dpal_expand(dpal.tpal[i * 3]), dpal_expand(dpal.tpal[i * 3 + 1]), dpal_expand(dpal.tpal[i * 3 + 2]));
+}
+
+static void dpal_chase(void)
+{
+    dpal.ftopal = 0;
+    for (int i = 0; i < 768; i++)
+    {
+        u8 t = dpal.tpal[i], m = dpal.mpal[i];
+        if (t == m)
+            continue;
+
+        dpal.ftopal = 1;
+        if (t > m)
+            dpal.mpal[i] = m + dpal.step < t ? m + dpal.step : t;
+        else
+            dpal.mpal[i] = m - dpal.step > t ? m - dpal.step : t;
+    }
+}
+
+// Fade speed from a duration. Returns 0 when the set is immediate.
+static int dpal_steps(s16 dur, int inc)
+{
+    dpal.step = 1;
+    if (dur == 0)
+        return 0;
+
+    if (dur < 63)
+    {
+        u8 cl = dur & 0xff;
+        if (cl == 0)
+            return 0;   // the original divides by zero here
+
+        dpal.step = 63 / cl + 1;
+        dpal.reload = 1;
+        dpal.counter = 1;
+    }
+    else
+    {
+        s32 q = dur / 63 + inc;
+        if (q > 127) q = 127;
+        dpal.reload = (u8)q;
+        dpal.counter = (s8)q;
+    }
+
+    return 1;
+}
+
+// Immediate set or the first fade step; the 16-bit driver writes the DAC at once.
+static void dpal_apply(int fade)
+{
+    dpal.lock = 1;
+    if (fade)
+    {
+        dpal_chase();
+        dpal.ftopal = 1;
+    }
+    else
+    {
+        dpal.counter = dpal.reload = 0;
+        memcpy(dpal.mpal, dpal.tpal, sizeof(dpal.mpal));
+        dpal.ftopal = 0xff;
+        if (dos_pal_family() != DPAL_B32)
+            dpal_upload();
+    }
+    dpal.lock = 0;
+    dpal_mirror_target();
+}
+
+static void dpal_load16(u8 *words, int first)
+{
+    int fam = dos_pal_family();
+    for (int i = 0; i < 16 && first + i < 256; i++)
+    {
+        u8 hi = words[i * 2], lo = words[i * 2 + 1];
+        u8 c[3] = { (u8)((hi & 0x0f) << 3), (u8)((lo & 0xf0) >> 1), (u8)((lo & 0x0f) << 3) };
+        for (int k = 0; k < 3; k++)
+        {
+            if (fam == DPAL_B32)    // expanded to 8 bits, then the normal >>2 load
+                c[k] = c[k] ? (u8)(((c[k] >> 3) << 5 | 0x1f) >> 2) : 0;
+            else if (fam != DPAL_C16 && c[k])
+                c[k] |= 7;
+            dpal.tpal[(first + i) * 3 + k] = c[k];
+        }
+    }
+}
+
+// RRQ's dark palette applied while loading (8-bit source).
+static u8 dpal_dark(u8 c8, u16 dk)
+{
+    u32 p = (u32)c8 * dk;
+    return (u8)((p > 0xffff ? 0xffff : p) >> 10);
+}
+
+static void dpal_load_dark(u8 *rgb8, int first, int n)
+{
+    u16 *dk = (u16 *)image.dkpalet;
+    for (int i = 0; i < n; i++)
+    {
+        int e = first + i;
+        u8 r = rgb8[i * 3], g = rgb8[i * 3 + 1], b = rgb8[i * 3 + 2];
+        if (!r && !g && !b && (dk[e * 3] > 0x100 || dk[e * 3 + 1] > 0x100 || dk[e * 3 + 2] > 0x100))
+            r = g = b = 2;
+        dpal.tpal[e * 3]     = dpal_dark(r, dk[e * 3]);
+        dpal.tpal[e * 3 + 1] = dpal_dark(g, dk[e * 3 + 1]);
+        dpal.tpal[e * 3 + 2] = dpal_dark(b, dk[e * 3 + 2]);
+    }
+}
+
+// topalette of a 0xFE resource (NULL: keep the target, as the restore path).
+static void dpal_topalette(u8 *res, s16 dur)
+{
+    int fam = dos_pal_family();
+    int fade = dpal_steps(dur, fam != DPAL_BUNNY);
+
+    if (fam == DPAL_C16)
+    {
+        if (res)
+            dpal_load16(res + 2, 0);
+        dpal_apply(0);
+        return;
+    }
+
+    if (res)
+    {
+        int n = res[1] + 1, first = res[2];
+        if (n == 1)
+        {
+            dpal_load16(res + 2, first);
+            if (fam != DPAL_B32)
+                fade = 1;   // the 16-bit driver always takes the fade path here
+        }
+        else
+        {
+            if (first + n > 256)
+                n = 256 - first;
+
+            if (fam == DPAL_B32 && image.fdarkpal)
+                dpal_load_dark(res + 4, first, n);
+            else
+                for (int k = 0; k < n * 3; k++)
+                    dpal.tpal[first * 3 + k] = res[4 + k] >> 2;
+        }
+    }
+
+    dpal_apply(fade);
+    dpal.skip = 0;
+}
+
+static void dpal_ctopalsav(s16 idx, s16 dur)
+{
+    u8 *src = idx == -1 ? dpal.sav1 : dpal.sav2;
+    if (dos_pal_family() == DPAL_B32 && image.fdarkpal)
+    {
+        u8 rgb8[768];
+        for (int k = 0; k < 768; k++)
+            rgb8[k] = src[k] << 2;
+        dpal_load_dark(rgb8, 0, 256);
+    }
+    else
+    {
+        memcpy(dpal.tpal, src, sizeof(dpal.tpal));
+    }
+
+    dpal_topalette(NULL, dur);
+}
+
+void dos_pal_reset(void)
+{
+    memset(&dpal, 0, sizeof(dpal));
+}
+
+void dos_cpalette(s16 idx, u8 *res)
+{
+    int fam = dos_pal_family();
+    if (idx < 0)
+    {
+        if ((fam == DPAL_ISHAR || fam == DPAL_B32) && idx >= -2)
+        {
+            dpal.counter = dpal.reload = 0;
+            dpal_ctopalsav(idx, 0);
+        }
+    }
+    else if ((fam == DPAL_BUNNY || fam == DPAL_C16 || !dpal.skip) && res[0] == 0xfe)
+    {
+        dpal.counter = dpal.reload = 0;
+        dpal_topalette(res, 0);
+        if (fam != DPAL_B32 && fam != DPAL_C16)
+            dpal.ftopal = 1;
+    }
+    dpal.skip = 0;
+}
+
+void dos_ctopalet(s16 idx, s16 dur, u8 *res)
+{
+    int fam = dos_pal_family();
+    if (fam == DPAL_BUNNY || fam == DPAL_C16)
+    {
+        if (idx >= 0 && res[0] == 0xfe)
+            dpal_topalette(res, fam == DPAL_C16 ? 0 : dur);
+    }
+    else if (!dpal.skip)
+    {
+        if (idx < 0)
+        {
+            if (idx >= -2)
+                dpal_ctopalsav(idx, dur);
+        }
+        else if (res[0] == 0xfe)
+        {
+            dpal_topalette(res, dur);
+        }
+    }
+    dpal.skip = 0;
+}
+
+void dos_ctoblack(s16 dur)
+{
+    if (dos_pal_family() == DPAL_C16)
+    {
+        memset(dpal.tpal, 0, sizeof(dpal.tpal));
+        dpal_apply(0);
+        return;
+    }
+
+    int fade = dpal_steps(dur, 0);
+    memset(dpal.tpal, 0, sizeof(dpal.tpal));
+    dpal.lock = 1;
+    if (!fade)
+    {
+        dpal.counter = dpal.reload = 0;
+        memset(dpal.mpal, 0, sizeof(dpal.mpal));
+    }
+    dpal_chase();
+    dpal.ftopal = 1;
+    dpal.lock = 0;
+    dpal_mirror_target();
+    dpal.skip = 0;
+}
+
+void dos_cselpalet(s16 val)
+{
+    if (dos_pal_family() != DPAL_C16)
+        dpal.skip = (u8)val;
+}
+
+void dos_cdefcolor(s16 idx, u16 val)
+{
+    switch (dos_pal_family()) {
+        case DPAL_C16:
+            if (idx >= 0 && idx < 16)
+            {
+                u8 w[2] = { (u8)(val >> 8), (u8)val };
+                dpal_load16(w, idx);
+                memcpy(&dpal.mpal[idx * 3], &dpal.tpal[idx * 3], 3);
+                dpal_upload();
+            }
+            break;
+        case DPAL_BUNNY:
+        case DPAL_ISHAR:
+            // The original indexes the 3-byte entries by 2 (its bug).
+            if (idx >= 0 && idx * 2 + 1 < 768)
+            {
+                dpal.mpal[idx * 2] = (u8)(val >> 8);
+                dpal.mpal[idx * 2 + 1] = (u8)val;
+                dpal_upload();
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void dos_csavepal(s16 idx)
+{
+    int fam = dos_pal_family();
+    if (fam != DPAL_ISHAR && fam != DPAL_B32)
+        return;
+
+    if (idx == -1)
+        memcpy(dpal.sav1, dpal.tpal, sizeof(dpal.tpal));
+    else if (idx == -2)
+        memcpy(dpal.sav2, dpal.tpal, sizeof(dpal.tpal));
+}
+
+// 0xFE resource drawn with put: unreachable in the originals (their path crashes); set it now.
+void dos_putin_palette(u8 *res)
+{
+    dpal.counter = dpal.reload = 0;
+    dpal_topalette(res, 0);
+}
+
+// RRQ/Ishar 3 film colour chunk: written straight into the live palette, entry 0 black.
+int dos_film_palette(u8 *addr)
+{
+    if (dos_pal_family() != DPAL_B32)
+        return 0;
+
+    u16 packets = read16le(addr), index = 0;
+    addr += 2;
+    dpal.lock = 1;
+    do
+    {
+        index += *addr++;
+        u16 len = *addr++;
+        if (len == 0)
+            len = 256;
+        if (index + len > 256)
+        {
+            len = 256 - index;
+            packets = 1;
+        }
+        for (int k = 0; k < len * 3; k++)
+            dpal.mpal[index * 3 + k] = addr[k] & 0x3f;
+        addr += len * 3;
+        index += len;
+    }
+    while (--packets);
+    dpal.mpal[0] = dpal.mpal[1] = dpal.mpal[2] = 0;
+    dpal.lock = 0;
+    dpal_upload();
+    return 1;
+}
+
+// One vblank of the original timer: upload what is live, then step the fade.
+static void dpal_tick(void)
+{
+    if (dpal.lock)
+        return;
+
+    dpal_upload();
+    if (dos_pal_family() == DPAL_B32 && dpal.ftopal == 0xff)
+    {
+        dpal.ftopal = 0;
+        return;
+    }
+
+    if (--dpal.counter >= 0)
+        return;
+
+    dpal.counter = dpal.reload;
+    dpal_chase();
+}
+
+// Called from itroutine; fade steps follow the pace rate (the DOS originals: VGA refresh).
+void dos_pal_tick(void)
+{
+    u32 hz = sys_timeclock_hz ? sys_timeclock_hz : 60;
+    for (dpal.acc += sys_pace_hz(); dpal.acc >= hz; dpal.acc -= hz)
+        if (dpal.ftopal)
+            dpal_tick();
+}
+
+// After a save state load: rebuild the 6-bit state from the restored host palettes.
+void dos_pal_sync_from_image(void)
+{
+    if (!dos_pal_active())
+        return;
+
+    for (int i = 0; i < 256; i++)
+    {
+        u8 r, g, b;
+        PAL_READ_RGB(image.mpalet, i, r, g, b);
+        dpal.mpal[i * 3] = r >> 2; dpal.mpal[i * 3 + 1] = g >> 2; dpal.mpal[i * 3 + 2] = b >> 2;
+        PAL_READ_RGB(image.tpalet, i, r, g, b);
+        dpal.tpal[i * 3] = r >> 2; dpal.tpal[i * 3 + 1] = g >> 2; dpal.tpal[i * 3 + 2] = b >> 2;
+    }
+    dpal.counter = dpal.reload = 0;
+    dpal.step = 1;
+    dpal.ftopal = 1;
+}
+
+#if defined(ALIS_TRACE_PAL)
+void pal_trace(const char *op, s32 a, s32 b)
+{
+    printf("PAL %-10s %5d %5d  [%s] sel=%d flinepal=%d tl:", op, (int)a, (int)b,
+           alis.script ? alis.script->name : "?", (int)image.thepalet, (int)image.flinepal);
+    for (int i = 0; i < 8 && image.tlinepal[i * 2] < 0xff; i++)
+        printf(" %d:%d", image.tlinepal[i * 2], image.tlinepal[i * 2 + 1]);
+    // Colours 1..3 of bank 0 and bank 2: shown (m) and target (t).
+    printf("  m0=%06x,%06x,%06x m2=%06x,%06x,%06x t0=%06x,%06x,%06x t2=%06x,%06x,%06x palc=%d",
+           image.mpalet[1] & 0xffffff, image.mpalet[2] & 0xffffff, image.mpalet[3] & 0xffffff,
+           image.mpalet[129] & 0xffffff, image.mpalet[130] & 0xffffff, image.mpalet[131] & 0xffffff,
+           image.tpalet[1] & 0xffffff, image.tpalet[2] & 0xffffff, image.tpalet[3] & 0xffffff,
+           image.tpalet[129] & 0xffffff, image.tpalet[130] & 0xffffff, image.tpalet[131] & 0xffffff,
+           (int)image.palc);
+    printf("\n");
+    fflush(stdout);
+}
+#endif
+
 void selpalet(void)
 {
     if (alis.platform.bpp != 8)
     {
-        s16 offset = image.thepalet * 64 * 4;
+        s16 offset = image.thepalet * 64;
         image.ampalet = image.mpalet + offset;
         image.atpalet = image.tpalet + offset;
+        // Only the write bank moves: the display stays on bank 0 (other banks show through
+        // clinepalet), as the original. Flag a pal16/CLUT refresh.
+#if ALIS_SDL_VER < 2
+        dirty_pal = 1;
+#endif
     }
 }
 
@@ -496,8 +959,19 @@ void linepal(void)
     palentry[2] = 0;
 }
 
+// Native-planar clinepal: stamp the per-row bank into planes 4-5 (image_draw_planar.c).
+#if defined(ALIS_NATIVE_PLANAR)
+extern void planar_linepal_enable(void);
+extern void planar_linepal_disable(void);
+#define PLANAR_LINEPAL_ENABLE()  planar_linepal_enable()
+#define PLANAR_LINEPAL_DISABLE() planar_linepal_disable()
+#else
+#define PLANAR_LINEPAL_ENABLE()  ((void)0)
+#define PLANAR_LINEPAL_DISABLE() ((void)0)
+#endif
+
 void setlinepalet(void) {
-    
+
     if (alis.varD7 < 0)
     {
         image.flinepal = 0;
@@ -509,6 +983,7 @@ void setlinepalet(void) {
 #if ALIS_SDL_VER < 2
         dirty_pal = 1;
 #endif
+        PLANAR_LINEPAL_DISABLE();
         return;
     }
     
@@ -534,6 +1009,7 @@ void setlinepalet(void) {
 #if ALIS_SDL_VER < 2
             dirty_pal = 1;
 #endif
+            PLANAR_LINEPAL_ENABLE();
             return;
         }
         
@@ -560,6 +1036,7 @@ void setlinepalet(void) {
 #if ALIS_SDL_VER < 2
         dirty_pal = 1;
 #endif
+        PLANAR_LINEPAL_ENABLE();
     }
 }
 
@@ -568,6 +1045,10 @@ void setmpalet(void)
     image.ftopal = 0xff;
     image.thepalet = 0;
     image.defpalet = 0;
+    // Direct palette write (cdefcolor): rebuild pal16 / CLUT.
+#if ALIS_SDL_VER < 2
+    dirty_pal = 1;
+#endif
 }
 
 
@@ -586,148 +1067,6 @@ void printelem(void)
         cursprit += 0x30;
     }
     while (cursprit < image.debsprit + 16 * 0x30);
-}
-
-void log_sprites(void)
-{
-    u8 result = true;
-
-    if (image.libsprit == 0)
-    {
-        ALIS_DEBUG(EDebugError, "image.libsprit = 0!\n");
-        result = false;
-    }
-    
-    ALIS_DEBUG(EDebugInfo, "  list\n");
-
-    u16 curidx;
-    u16 scsprite = screen.ptscreen;
-    
-    while (scsprite != 0)
-    {
-        // if ((get_scr_state(scsprite) & 0x40) == 0)
-        {
-            ALIS_DEBUG(EDebugInfo, "  %s screen [0x%.4x]\n", (get_scr_state(scsprite) & 0x40) == 0 ? "visible" : "hidden", ELEMIDX(scsprite));
-
-            u8 *bitmap = 0;
-            sSprite *sprite;
-            u16 lastidx = 0;
-            for (curidx = get_scr_screen_id(scsprite); curidx != 0; curidx = SPRITE_VAR(curidx)->link)
-            {
-                lastidx = curidx;
-                sprite = SPRITE_VAR(curidx);
-
-                sAlisScriptLive *script = ENTSCR(sprite->script_ent);
-                
-                s32 addr = 0;
-                s32 index = -1;
-                
-                u8 deleted = false;
-                
-                if (script->vram_org)
-                {
-                    u8 *ptr = alis.mem + get_0x14_script_org_offset(script->vram_org);
-                    s32 l = read32(ptr + 0xe);
-                    s32 e = read16(ptr + l + 4);
-                    
-                    sAlisScriptLive *prev = alis.script;
-                    alis.script = script;
-                    
-                    for (s32 i = 0; i < e; i++)
-                    {
-                        addr = adresdes(i);
-                        if (sprite->data == addr)
-                        {
-                            index = i;
-                            break;
-                        }
-                    }
-                    
-                    alis.script = prev;
-                }
-                else
-                {
-                    deleted = true;
-                }
-                
-                u8 type = 0;
-                s16 width = -1;
-                s16 height = -1;
-                u32 spnewad = sprite->newad;
-                if (spnewad)
-                {
-                    bitmap = (alis.mem + spnewad + xread32(spnewad));
-                    if (bitmap)
-                    {
-                        if (bitmap[0] == 1)
-                            type = 1;
-
-                        width = read16(bitmap + 2);
-                        height = read16(bitmap + 4);
-                    }
-                }
-
-                ALIS_DEBUG(EDebugInfo, "  %s %.2x %.2x %.4x type: %c idx: %.3d [x:%d y:%d d:%d w:%d h:%d] %s\n", deleted ? "!!" : "  ", (u8)sprite->state, (u8)sprite->numelem, ELEMIDX(curidx), type ? 'R' : 'B', index, sprite->newx, sprite->newy, sprite->newd, width, height, script->name);
-            }
-        }
-
-        scsprite = get_scr_to_next(scsprite);
-    }
-
-    if (!result)
-    {
-        ALIS_DEBUG(EDebugError, "INTEGRITY COMPROMISED!\n");
-    }
-}
-
-u8 verifyintegrity(void)
-{
-    u8 result = true;
-
-    if (image.libsprit == 0)
-    {
-        ALIS_DEBUG(EDebugError, "ERROR: image.libsprit = 0!\n");
-        result = false;
-    }
-    
-    sSprite *cursprvar = NULL;
-    
-    ALIS_DEBUG(EDebugVerbose, "  list\n");
-
-    u16 previdx = 0;
-    u16 curidx = get_0x18_unknown(alis.script->vram_org);
-    while (curidx != 0)
-    {
-        cursprvar = SPRITE_VAR(curidx);
-        
-        s16 link = cursprvar->link;
-        if (link == curidx)
-        {
-            ALIS_DEBUG(EDebugError, "ERROR: link = 0\n");
-            result = false;
-        }
-        
-        if (link)
-        {
-            s16 link2 = SPRITE_VAR(link)->link;
-            if (link2 == curidx)
-            {
-                ALIS_DEBUG(EDebugError, "ERROR: infinite loop\n");
-                result = false;
-                cursprvar->link = 0;
-            }
-        }
-
-        previdx = curidx;
-        curidx = cursprvar->to_next;
-    }
-
-    if (!result)
-    {
-        ALIS_DEBUG(EDebugError, "INTEGRITY COMPROMISED!\n");
-    }
- 
-    return result;
 }
 
 void inisprit(void)
@@ -875,8 +1214,6 @@ void createlem(u16 *curidx, u16 *previdx)
 
         *curidx = sprit;
     }
-
-//    VERIFYINTEGRITY;
 }
 
 void delprec(u16 elemidx)
@@ -885,7 +1222,8 @@ void delprec(u16 elemidx)
     s16 scridx = cursprvar->screen_id;
     if (elemidx == get_scr_screen_id(scridx))
     {
-        set_scr_screen_id(scridx, cursprvar->screen_id);
+        // Deleting the list head: new head is the sprite's link (not its screen_id).
+        set_scr_screen_id(scridx, cursprvar->link);
         return;
     }
 
@@ -906,11 +1244,6 @@ void delprec(u16 elemidx)
 void killelem(u16 *curidx, u16 *previdx)
 {
     sSprite *cursprvar = SPRITE_VAR(*curidx);
-//    sAlisScriptLive *s = ENTSCR(cursprvar->script_ent);
-//    u8 *resourcedata = alis.mem + cursprvar->data;
-//    s16 width = read16(resourcedata + 2);
-//    s16 height = read16(resourcedata + 4);
-//    printf(" killelem: %d x %d [%s] ", width, height, s->name);
     
     if (alis.ferase == 0 && -1 < cursprvar->state)
     {
@@ -945,12 +1278,10 @@ void killelem(u16 *curidx, u16 *previdx)
     if (*previdx == 0)
     {
         *curidx = get_0x18_unknown(alis.script->vram_org);
-//            VERIFYINTEGRITY;
         return;
     }
     
     *curidx = SPRITE_VAR(*previdx)->to_next;
-//    VERIFYINTEGRITY;
 }
 
 void getelem(u16 *newidx, u16 *oldidx)
@@ -1032,7 +1363,10 @@ void putin(u16 idx)
     {
         if (resourcedata[0] == 0xfe)
         {
-            topalette(resourcedata, 0);
+            if (dos_pal_active())
+                dos_putin_palette(resourcedata);
+            else
+                topalette(resourcedata, 0);
             return;
         }
         
@@ -1117,7 +1451,7 @@ void putin(u16 idx)
     putfin();
 }
 
-void putmapin(s16 spridx, s32 bitmap)
+void putmapin(u16 spridx, s32 bitmap)
 {
     sSprite *sprite = SPRITE_VAR(spridx);
     sprite->data = bitmap;
@@ -1143,7 +1477,13 @@ void putmapin(s16 spridx, s32 bitmap)
         }
     }
 
-    if ((s8)sprite->credon_off >= 0)
+    if (alis.platform.kind == EPlatformPC && alis.platform.uid == EGameColorado)
+    {
+        // Colorado DOS: its credon test never branches, so the context values are always taken.
+        sprite->creducing = get_0x27_creducing(alis.script->vram_org);
+        sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
+    }
+    else if ((s8)sprite->credon_off >= 0)
     {
         sprite->creducing = get_0x27_creducing(alis.script->vram_org);
         sprite->credon_off = get_0x26_creducing(alis.script->vram_org);
@@ -1166,6 +1506,8 @@ void put_char(s8 character)
     if (alis.charmode == 0)
     {
         printf("%c", character);
+        // Prompts ("NDECOR: ") have no newline; flush before getval() blocks.
+        fflush(stdout);
         return;
     }
     
@@ -1210,10 +1552,11 @@ void put_char(s8 character)
 
 void put_string(void)
 {
-    if(disalis) {
+#ifndef NDEBUG
+    if (disalis) {
        ALIS_DEBUG(EDebugInfo, " [\"%s\"]", alis.sd7);
     }
-
+#endif
     for (char *strptr = alis.sd7; *strptr; strptr++)
     {
         put_char(*strptr);
@@ -1297,7 +1640,8 @@ void valtostr(char *string, s16 value)
 #pragma mark calculate what to draw and where
 
 
-s16 inilink(s16 elemidx)
+// u16: the free list runs past 0x7fff; an s16 index sign-flips in SPRITE_VAR math.
+s16 inilink(u16 elemidx)
 {
     image.blocx1 = 0x7fff;
     image.blocy1 = 0x7fff;
@@ -1315,17 +1659,18 @@ u8 calcfen(u16 elemidx1, u16 elemidx3)
         if (idx1sprvar->newd < 0)
             return 0;
         
+        // Inclusive bounds (width is stored as w-1), as the original.
         image.blocx1 = idx1sprvar->newx;
         image.blocy1 = idx1sprvar->newy;
-        image.blocx2 = image.blocx1 + idx1sprvar->width + 1;
-        image.blocy2 = image.blocy1 + idx1sprvar->height + 1;
+        image.blocx2 = image.blocx1 + idx1sprvar->width;
+        image.blocy2 = image.blocy1 + idx1sprvar->height;
     }
-    
+
     sSprite *idx3sprvar = SPRITE_VAR(elemidx3);
     s16 tmpx = idx3sprvar->newx;
     s16 tmpy = idx3sprvar->newy;
-    s16 tmpw = idx3sprvar->depx + 1;
-    s16 tmph = idx3sprvar->depy + 1;
+    s16 tmpw = idx3sprvar->depx;
+    s16 tmph = idx3sprvar->depy;
     
     if (image.blocx1 <= tmpw && image.blocy1 <= tmph && tmpx <= image.blocx2 && tmpy <= image.blocy2)
     {
@@ -1344,11 +1689,21 @@ u8 calcfen(u16 elemidx1, u16 elemidx3)
         image.feny2 = image.blocy2;
         if (tmph < image.blocy2)
             image.feny2 = tmph;
-        
+
+        // 16px-align X after clamping, as the original. clrvga_68k needs odd width,
+        // clrvga_dos width % 4 == 0, skytofen constant clipx1 parity; planar blits whole chunks.
+        // (DOS original aligns bloc before clamping.)
+        {
+            s16 ax1 = image.fenx1 & ~15;
+            s16 ax2 = (image.fenx2 | 15);
+            if (ax1 < 0) ax1 = 0;
+            if (ax2 > alis.platform.width - 1) ax2 = alis.platform.width - 1;
+            image.fenx1 = ax1;
+            image.fenx2 = ax2;
+        }
+
         image.fenlargw = (u16)((image.fenx2 - image.fenx1) + 1) >> 2;
         
-        // NOTE: as far as I know it is never read
-        // image.adfenintv = image.physic + (s32)(s16)(image.fenx1 >> 1) + (u32)image.feny1 * 0xa0;
         return 1;
     }
     
@@ -1412,7 +1767,9 @@ u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3)
     while (sprite3->link != 0)
     {
         sSprite *linksprite = SPRITE_VAR(sprite3->link);
-        if (-1 < linksprite->state && linksprite->newd <= newd1 && (linksprite->newd < newd1 || (linksprite->cordspr <= cordspr1 && (linksprite->cordspr < cordspr1 || (linksprite->numelem <= numelem1 && (linksprite->numelem < numelem1 || -1 == sprite1->state))))))
+        // Signed compare: cscback sets the backsprite's cordspr to 0x80 (-128) so it
+        // sorts first at equal depth.
+        if (-1 < linksprite->state && linksprite->newd <= newd1 && (linksprite->newd < newd1 || ((s8)linksprite->cordspr <= cordspr1 && ((s8)linksprite->cordspr < cordspr1 || (linksprite->numelem <= numelem1 && (linksprite->numelem < numelem1 || -1 == sprite1->state))))))
         {
             break;
         }
@@ -1450,6 +1807,7 @@ void tstjoints(u16 elemidx)
         if (tmpy < (s16)(image.newy + image.newh))
             tmpy = image.newy + image.newh;
 
+        // Inclusive bounds, like the whole bloc/fen pipeline.
         image.blocx2 = tmpx;
         image.blocy2 = tmpy;
         image.joints = 1;
@@ -1571,28 +1929,6 @@ void deptopix(u16 scene, u16 elemidx)
         image.newzoomx = 0;
         image.newzoomy = 0;
         
-        // TODO:
-//        if (alis.platform.version < 30)
-//        {
-//            u32 reducing = elemsprvar->calign2c;
-//            if (reducing != 0)
-//            {
-//                if ((-1 < (char)elemsprvar->calign2d)
-//                {
-//                    u8 bVar3 = (u8)(offset >> 2)
-//                    if (elemsprvar->calign2d < bVar3)
-//                    {
-//                        u8 bVar1 = get_scr_clinking(scene) - elemsprvar->calign2d;
-//                        if ((-1 < (s16)((u16)bVar1 << 8)) && (bVar1 != 0))
-//                        {
-//                            reducing *= (reducing * (bVar3 - elemsprvar->calign2d)) / bVar1 & 0xffff;
-//                        }
-//                    }
-//                }
-//
-//                tmpdepx = (tmpdepx >> (reducing & 0x3f)) << (reducing & 0x3f);
-//            }
-//        }
         
         if (alis.platform.kind == EPlatformMac)
         {
@@ -1610,6 +1946,7 @@ void waitphysic(void)
     do {} while (image.fphysic != 0);
 }
 
+#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
 void trsfen(u8 *src, u8 *tgt)
 {
     s16 fx1 = image.fenx1;
@@ -1642,6 +1979,7 @@ void trsfen(u8 *src, u8 *tgt)
         src += skip;
     }
 }
+#endif // !ALIS_NATIVE_PLANAR (trsfen)
 
 void phytolog(void)
 {
@@ -1654,7 +1992,6 @@ void phytolog(void)
 
 void tvtofen(void)
 {
-    // image.fenx2 = fenlargw * 4 + image.fenx1 - 1;
     trsfen(image.physic, image.logic);
 }
 
@@ -1768,7 +2105,7 @@ void addlink(u16 elemidx)
         if (tmp <= image.blocx1)
             image.blocx1 = tmp;
 
-        tmp += elemsprvar->width + 1;
+        tmp += elemsprvar->width;
         if (image.blocx2 <= tmp)
             image.blocx2 = tmp;
 
@@ -1776,7 +2113,7 @@ void addlink(u16 elemidx)
         if (tmp <= image.blocy1)
             image.blocy1 = tmp;
 
-        tmp += elemsprvar->height + 1;
+        tmp += elemsprvar->height;
         if (image.blocy2 <= tmp)
             image.blocy2 = tmp;
     }
@@ -1852,20 +2189,23 @@ u16 iefflink(u16 elemidx1, u16 elemidx2)
     return elemidx2;
 }
 
+#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
 void clrfen(void)
 {
     s16 fx1 = image.fenx1 < 0 ? 0 : image.fenx1;
     s16 fy1 = image.feny1 < 0 ? 0 : image.feny1;
     s16 fx2 = image.fenx2 >= alis.platform.width ? alis.platform.width - 1 : image.fenx2;
     s16 fy2 = image.feny2 >= alis.platform.height ? alis.platform.height - 1 : image.feny2;
-    s16 tmpx = fx2 - fx1;
-    if (tmpx <= 0 || fy2 <= fy1)
+    // fen is inclusive.
+    s16 tmpx = (fx2 - fx1) + 1;
+    if (tmpx <= 0 || fy2 < fy1)
         return;
-    for (s16 y = fy1; y < fy2; y++)
+    for (s16 y = fy1; y <= fy2; y++)
     {
         memset(image.logic + fx1 + y * alis.platform.width, 0, tmpx);
     }
 }
+#endif // !ALIS_NATIVE_PLANAR (clrfen)
 
 void clipback(void)
 {
@@ -1895,9 +2235,49 @@ void clipback(void)
 
 void destofen(sSprite *sprite)
 {
+    // Blit destination; re-read every call to follow buffer swaps.
+    image.wdraw = image.logic;
+
+#if !defined(ALIS_NATIVE_16BPP)
+    // Background cache: the backsprite copies the flattened background from the shadow
+    // (laid out like image.logic) to the screen as a clipped rect copy over the back rect.
+    if (image.sback != 0 && image.backmap != NULL
+        && sprite == SPRITE_VAR(image.backsprite))
+    {
+        s16 bx1 = image.clipx1 > image.backx1 ? image.clipx1 : image.backx1;
+        s16 by1 = image.clipy1 > image.backy1 ? image.clipy1 : image.backy1;
+        s16 bx2 = image.clipx2 < image.backx2 ? image.clipx2 : image.backx2;
+        s16 by2 = image.clipy2 < image.backy2 ? image.clipy2 : image.backy2;
+        if (bx1 <= bx2 && by1 <= by2)
+        {
+            s32 w = alis.platform.width;
+#if defined(ALIS_NATIVE_PLANAR)
+            // Planar: a row is `w` bytes of 8-plane 16px chunks. Copy whole chunk columns
+            // covering [bx1..bx2] (back rect x-bounds are 16px-aligned by cscback/calcfen;
+            // rounding out only pulls extra correct-background pixels at the edges).
+            s32 c0 = (bx1 >> 4) * 16;
+            s32 nb = (((bx2 >> 4) - (bx1 >> 4)) + 1) * 16;
+            for (s16 y = by1; y <= by2; y++)
+                memcpy(image.logic + (s32)y * w + c0,
+                       image.backmap + (s32)y * w + c0, nb);
+#else
+            // Chunky: one byte per pixel.
+            s32 span = (s32)(bx2 - bx1) + 1;
+            for (s16 y = by1; y <= by2; y++)
+                memcpy(image.logic + (s32)y * w + bx1,
+                       image.backmap + (s32)y * w + bx1, span);
+#endif
+        }
+        return;
+    }
+    // While fenetre has wlogic pointed at the cache, composite behind-sprites into the shadow.
+    if (image.backmap != NULL && image.wlogic == image.backmap)
+        image.wdraw = image.backmap;
+#endif
+
     if (sprite->newad == 0 || sprite->data == 0)
         return;
-    
+
     u8 *bitmap = (alis.mem + sprite->newad + xread32(sprite->newad));
     if (*bitmap < 0)
         return;
@@ -1977,23 +2357,60 @@ void destofen(sSprite *sprite)
     }
     
 #if ALIS_SDL_VER < 2
-    if (dirty_len >= 0)
+    if (dirty_len > 0xfd)
     {
-        if (dirty_len > 2043)
-        {
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-            dirty_len = -1;
-        }
-        else
-        {
-            dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
-            dirty_len++;
-        }
+        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_len = 0xff;
+    }
+    else if (bmp.x2 > 0 && bmp.y2 > 0)
+    {
+        dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
+        dirty_len++;
     }
 #endif
     
+#if defined(ALIS_PROFILE_DRAW)
+    {   // overdraw accounting: bmp.x2/y2 are still the clipped width/height here
+        extern u32 g_od_pix, g_od_pix_op, g_od_pix_tr, g_od_blits, g_od_big;
+        s32 area = (s32)bmp.x2 * (s32)bmp.y2;
+        if (area > 0) {
+            u8 fmt = bitmap[0];
+            int opaque = (fmt == 0x02 || fmt == 0x12 || fmt == 0x16);
+            g_od_pix += area; g_od_blits++;
+            if (opaque) g_od_pix_op += area; else g_od_pix_tr += area;
+            if (area >= 2048) g_od_big += area;
+        }
+    }
+#endif
+
     bmp.x2 += bmp.x1;
     bmp.y2 += bmp.y1;
+
+#if defined(ALIS_NATIVE_16BPP)
+    // Big opaque sprites: pre-expanded 16bpp Blitter-copy cache; CPU blitters on miss.
+    {
+        extern int sprite_cache_try_draw(u8 fmt, u8 *at, u32 newad, sRect *pos, sRect *bmp, s32 width, s32 height, s8 flip);
+        if (sprite_cache_try_draw(bitmap[0], at, sprite->newad, &pos, &bmp, width, height, flip))
+            return;
+    }
+#endif
+
+#if ALIS_DEBUG_PLANAR || defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
+    // Sprites planarized in place at load (convert_sprites_inplace); flips use a lazily
+    // mirrored copy. Per-resource test: on DOS data only some scripts are planarized
+    // (byte 6 = plane count, 0 = chunky). Others fall through to the chunky blitters.
+    {
+        extern int sprite_is_planar(const u8 *bitmap);
+        if (sprite_is_planar(bitmap)) {
+            extern u16 *planar_tab_get_flip(const u8 *bitmap);
+            extern void destofen_planar(const u8 *bitmap, u16 *data, sRect *pos, sRect *bmp);
+            if (!flip) { destofen_planar(bitmap, (u16 *)(bitmap + 8), &pos, &bmp); return; }
+            u16 *_fd = planar_tab_get_flip(bitmap);
+            if (_fd) { destofen_planar(bitmap, _fd, &pos, &bmp); return; }
+            return;   // OOM building the flip — skip rather than draw garbage
+        }
+    }
+#endif
 
     switch (bitmap[0])
     {
@@ -2130,7 +2547,31 @@ s32 calctop(u32 scene_addr, s16 grid_col, s16 grid_row)
 
 void fentotv(void)
 {
+    // Single buffer: nothing to copy, but the window (cleared areas included) must be presented.
+    if (image.logic == image.physic)
+    {
+#if ALIS_SDL_VER < 2
+        if (dirty_len > 0xfd)
+        {
+            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+            dirty_len = 0xff;
+        }
+        else if (image.fenx2 >= image.fenx1 && image.feny2 >= image.feny1)
+        {
+            dirty_rects[dirty_len] = (SDL_Rect){ .x = image.fenx1, .y = image.feny1, .w = image.fenx2 - image.fenx1 + 1, .h = image.feny2 - image.feny1 + 1 };
+            dirty_len++;
+        }
+#endif
+        return;
+    }
+
+#if ALIS_VM_PROFILE
+    u32 _c2p0 = sys_profile_ticks();
+#endif
     trsfen(image.logic, image.physic);
+#if ALIS_VM_PROFILE
+    g_prof_c2p += sys_profile_ticks() - _c2p0;
+#endif
 }
 
 void fenetre(u16 scene, u16 elemidx1, u16 elemidx3, u16 prevspidx)
@@ -2182,46 +2623,62 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3, u16 prevspidx)
                                 {
                                     if ((image.wback != 0) && (image.pback != 0))
                                     {
+                                        // Partial overlap: flatten the behind-sprites into the cache
+                                        // (clipped to the back rect's Y extent), then restore state.
+                                        s16 saveclipy1 = image.clipy1;
+                                        s16 saveclipy2 = image.clipy2;
+
                                         image.wlogic = image.backmap;
                                         image.wlogx1 = image.backx1;
                                         image.wlogx2 = image.backx2;
                                         image.wlogy1 = image.backy1;
                                         image.wlogy2 = image.backy2;
                                         image.wloglarg = image.backlarg;
-                                        
-                                        if (image.clipy1 <= image.backx1)
-                                            image.clipy1 = image.backx1;
-                                        
-                                        if (image.backx2 <= image.clipy2)
-                                            image.clipy2 = image.backx2;
-                                        
+
+                                        if (image.clipy1 <= image.backy1)
+                                            image.clipy1 = image.backy1;
+
+                                        if (image.backy2 <= image.clipy2)
+                                            image.clipy2 = image.backy2;
+
                                         sprite = SPRITE_VAR(tmpidx);
                                         while (true)
                                         {
                                             tmpidx = sprite->link;
                                             if ((tmpidx == 0) || (tmpidx == image.backsprite))
                                                 break;
-                                            
+
                                             sprite = SPRITE_VAR(tmpidx);
                                             if (-1 < sprite->state && -1 < sprite->newf && -1 < sprite->newd)
                                             {
                                                 destofen(sprite);
                                             }
                                         }
-                                        
+
                                         image.wlogic = image.logic;
                                         image.wlogx1 = image.logx1;
                                         image.wlogx2 = image.logx2;
                                         image.wlogy1 = image.logy1;
                                         image.wlogy2 = image.logy2;
                                         image.wloglarg = image.loglarg;
+
+                                        image.clipy1 = saveclipy1;
+                                        image.clipy2 = saveclipy2;
+                                        tmpidx = get_scr_screen_id(scridx);
                                     }
                                 }
                                 else
                                 {
                                     if (image.pback == 0)
+                                    {
+                                        // Cache hit: draw only the backsprite then the front sprites.
+#if !defined(ALIS_NATIVE_16BPP)
+                                        // 16bpp has no cache: tmpidx stays the screen head.
+                                        tmpidx = image.backsprite;
+#endif
                                         goto fenetre31;
-                                    
+                                    }
+
                                     image.wlogic = image.backmap;
                                     image.wlogx1 = image.backx1;
                                     image.wlogx2 = image.backx2;
@@ -2289,77 +2746,6 @@ void fenetre(u16 scene, u16 elemidx1, u16 elemidx3, u16 prevspidx)
 
 void scrolpage(void)
 {
-//    s32 *piVar1;
-//    s16 sVar2;
-//
-//    paglogic = (s32 *)0x0;
-//    pagphysic = addr_physic_vram_start;
-//    piVar1 = io_malloc();
-//    if (piVar1 != (s32 *)0x0)
-//    {
-//        pagphysic = (s32 *)(((s32)piVar1 - 1U | 0xff) + 1);
-//        paglogic = piVar1;
-//        transfen((u8 *)addr_physic_vram_start,(u8 *)pagphysic);
-//    }
-//
-//    vtiming = 0;
-//    pagcalc();
-//
-//    if (image.pagdx != 0)
-//    {
-//        hbar_calc();
-//    }
-//    if (image.pagdy != 0)
-//    {
-//        vbar_calc();
-//    }
-//
-//    sVar2 = image.pagcount - 1;
-//    if (-1 < sVar2)
-//    {
-//        do
-//        {
-//            pagscroll();
-//            if (image.pagdx != 0)
-//            {
-//                hpagbar();
-//            }
-//
-//            if (image.pagdy != 0)
-//            {
-//                vpagbar();
-//            }
-//
-//            piVar1 = pagphysic;
-//            if (paglogic != (s32 *)0x0)
-//            {
-//                pagphysic = addr_physic_vram_start;
-//                addr_physic_vram_start = piVar1;
-//                setphysic();
-//                waitphysic();
-//            }
-//            sVar2 = sVar2 - 1;
-//        }
-//        while (sVar2 != -1);
-//
-//        if (paglogic != (s32 *)0x0)
-//        {
-//            if (paglogic == addr_physic_vram_start)
-//            {
-//                transfen((u8 *)addr_physic_vram_start,(u8 *)pagphysic);
-//                addr_physic_vram_start = pagphysic;
-//                setphysic();
-//                waitphysic();
-//            }
-//
-//            io_mfree();
-//        }
-//    }
-//
-//    if (pagcount != 0x14)
-//    {
-//        transfen((u8 *)addr_physic_vram_start,logic);
-//    }
 }
 
 u16 suitlin1(u16 a2, u16 d1w, u16 d2w, u16 d3w, u16 d4w)
@@ -2395,18 +2781,32 @@ void affiscr(u16 scene, u16 screenidx)
 {
     u16 spriteidx = screenidx;
     u16 prevspidx;
+    // u16: clinking exceeds 0x7fff in Ishar 3.
     u16 linkidx;
     
     if (alis.platform.version >= 30 && xread8(alis.basemain + scene + 0x84) != 0)
     {
         folscreen(scene);
     }
-    
+
+#if defined(ALIS_FORCE_LAND_REDRAW)
+    // Profiling: redraw 3D scenes every frame as if the camera moved.
+    if (alis.platform.version != 0 && (get_scr_numelem(scene) & 2) != 0)
+        set_scr_state(scene, get_scr_state(scene) | 0x80);
+#endif
+
     if ((image.fremap != 0) || ((s8)get_scr_state(scene) < 0))
     {
+#if defined(ALIS_PROFILE_DRAW)
+        extern u32 sys_profile_ticks_safe(void); extern u32 g_prof_frame_depscreen;
+        u32 _dp0 = sys_profile_ticks_safe();
         depscreen(scene, screenidx);
+        g_prof_frame_depscreen += sys_profile_ticks_safe() - _dp0;
+#else
+        depscreen(scene, screenidx);
+#endif
     }
-    
+
     u8 draw = false;
     if (alis.platform.version == 0)
     {
@@ -2458,17 +2858,12 @@ void affiscr(u16 scene, u16 screenidx)
                         {
                             sSprite *sprite = SPRITE_VAR(spriteidx);
 
-                            u8 isback = image.wback == 0;
-                            if (!isback)
+                            // Only effect of this compare is pback (Ghidra's "isback" is CC residue).
+                            if (image.wback != 0 && image.backprof <= sprite->newd)
                             {
-                                isback = image.backprof == sprite->newd;
-                                if (image.backprof <= sprite->newd)
-                                {
-                                    image.pback = 1;
-                                    isback = false;
-                                }
+                                image.pback = 1;
                             }
-                            
+
                             deptopix(scene, spriteidx);
                             tstjoints(spriteidx);
                             
@@ -2647,50 +3042,99 @@ void affiscr(u16 scene, u16 screenidx)
 
 u32 itroutine(u32 interval, void *param)
 {
-#if ALIS_SDL_VER < 2
-    u32 tick = SDL_GetTicks();
-    if (prevtick == 0xffffffff)
-        prevtick = tick;
-#endif
-
     u8 prevtiming = image.vtiming;
     alis.timeclock ++;
     image.fitroutine = 1;
     image.vtiming ++;
-    if (image.vtiming == 0) {
+    if (image.vtiming == 0)
+    {
         image.vtiming = prevtiming;
     }
-    
-    if (image.palc != 0 && (--image.palt) == 0)
+
+    if (dos_pal_active())
+    {
+        dos_pal_tick();
+    }
+    else if (image.palc != 0 && (--image.palt) == 0)
     {
         image.palt = image.palt0;
-#if ALIS_SDL_VER < 2
-        image.palc = min(max(1, image.palc - ((tick - prevtick) >> 4)), image.palc);
-#endif
         topalet();
         image.palc --;
-        
+
 #if ALIS_SDL_VER < 2
         dirty_pal = 1;
 #endif
     }
-    
+
     image.fitroutine = 0;
-#if ALIS_SDL_VER < 2
-    prevtick = tick;
-#endif
     return alis.platform.is_little_endian ? 17 : 20;
 }
 
 void draw(void)
 {
-    VERIFYINTEGRITY;
-
     sys_delay_frame();
+
+    // Render time excludes the frame-cap sleep.
+#if ALIS_VM_PROFILE
+    extern u32 g_prof_draw;
+    extern void prof_frame_end(void);
+    u32 _pd0 = sys_profile_ticks();
+#endif
 
     sys_lock_renderer();
 
-//    waitphysic();
+#if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
+    // During a film the native FLIC/FLS path owns both screen buffers.
+    if (bfilm.type != eAlisVideoNone) {
+        sys_unlock_renderer();
+        return;
+    }
+#endif
+
+#if defined(ALIS_PROFILE_DRAW)
+    extern void dbglog(const char *fmt, ...);
+    extern u32 sys_profile_ticks_safe(void);   // supervisor-safe $4BA read
+    u32 _pf_draw0 = sys_profile_ticks_safe();
+    u32 _fr_oldfen = 0, _fr_affiscr = 0;
+#endif
+
+#if defined(ALIS_NATIVE_16BPP)
+    // Per-row line-palette offsets (clinepal) for the 4-bit blitters.
+    extern void build_line_paloff(void);
+    build_line_paloff();
+
+    // 16-bit bakes RGB at draw time: on a palette change rebuild pal16 and set fremap
+    // so depscreen() re-flags sprites for redraw.
+    int _was_dirty_pal = dirty_pal;
+    if (dirty_pal) {
+        // Clear before consuming: the Timer-C ISR may set it again mid-refresh.
+        dirty_pal = 0;
+        extern void sys_pal16_refresh(void);
+        sys_pal16_refresh();
+        image.fremap = 1;
+    }
+    // Sprite cache is bypassed while the palette is moving (fades).
+    {
+        extern u32 g_pal16_gen; extern u8 g_pal16_fading;
+        static u32 _spc_last_palgen = 0;
+        g_pal16_fading = (g_pal16_gen != _spc_last_palgen);
+        _spc_last_palgen = g_pal16_gen;
+    }
+    {
+        extern void dbglog(const char *fmt, ...);
+        static int _pal_dbg = 0;
+        if (_pal_dbg < 120) {
+            dbglog("draw #%d: dirty_pal=%d dirty_len=%d fswitch=%d fremap=%d clip=[%d,%d..%d,%d]\n",
+                   _pal_dbg, _was_dirty_pal, (int)dirty_len, (int)alis.fswitch, (int)image.fremap,
+                   (int)image.clipx1, (int)image.clipy1, (int)image.clipx2, (int)image.clipy2);
+            _pal_dbg++;
+        }
+    }
+#endif
+
+    // Last flip was non-blocking: wait for the VBL latch before writing image.logic.
+    sys_flip_wait();
+
     if ((alis.fswitch != 0) && (image.fphytolog != 0))
     {
         image.fphytolog = 0;
@@ -2701,15 +3145,20 @@ void draw(void)
     
     if (alis.fswitch != 0)
     {
-        // TODO: mouse
-        if (image.fmouse < 0)
-        {
-            oldfen();
-        }
-        else
-        {
-            oldfen();
-        }
+        // Remove image.logic's own cursor (from when it was front) before oldfen.
+        sys_mouse_erase();
+
+#if defined(ALIS_PROFILE_DRAW)
+        u32 _pf_o0 = sys_profile_ticks_safe();
+        oldfen();
+        _fr_oldfen = sys_profile_ticks_safe() - _pf_o0;
+        g_prof_frame_oldfen += _fr_oldfen;
+#else
+        oldfen();
+#endif
+
+        // oldfen copied the front cursor into image.logic; remove it.
+        sys_mouse_uncopy();
 
         image.ptabfen = image.tabfen;
     }
@@ -2724,7 +3173,10 @@ void draw(void)
     
     s16 scnidx = screen.ptscreen;
     u8 *oldphys = image.physic;
-    
+
+#if defined(ALIS_PROFILE_DRAW)
+    u32 _pf_a0b = sys_profile_ticks_safe();
+#endif
     while (scnidx != 0)
     {
         if ((get_scr_state(scnidx) & 0x40) == 0)
@@ -2734,19 +3186,86 @@ void draw(void)
 
         scnidx = get_scr_to_next(scnidx);
     }
+#if defined(ALIS_PROFILE_DRAW)
+    _fr_affiscr = sys_profile_ticks_safe() - _pf_a0b;
+    g_prof_frame_affiscr += _fr_affiscr;
+    if (image.fremap) g_prof_frame_remap++;
+#endif
+
+#if ALIS_DEBUG_PLANAR || defined(ALIS_NATIVE_16BPP) || defined(ALIS_NATIVE_PLANAR)
+    // Invalidate the 030 data cache if the Blitter wrote this frame.
+    sys_blit_frame_sync();
+#endif
 
     image.fremap = 0;
     if (alis.fswitch != 0)
     {
+        // Draw the cursor before the swap so the presented frame contains it.
+        sys_mouse_draw();
+
         image.physic = image.logic;
         image.logic = oldphys;
         
         setphysic();
     }
 
-    VERIFYINTEGRITY;
+#if defined(ALIS_PROFILE_DRAW)
+    u32 _fr_draw = sys_profile_ticks_safe() - _pf_draw0;
+    g_prof_frame_drawtot += _fr_draw;
+    // Per-frame overdraw deltas + worst-frame capture.
+    static u32 _pp_pix, _pp_op, _pp_tr, _pp_blits;
+    u32 _fp = g_od_pix - _pp_pix, _fop = g_od_pix_op - _pp_op, _ftr = g_od_pix_tr - _pp_tr, _fb = g_od_blits - _pp_blits;
+    _pp_pix = g_od_pix; _pp_op = g_od_pix_op; _pp_tr = g_od_pix_tr; _pp_blits = g_od_blits;
+    static u32 _mx_draw, _mx_old, _mx_aff, _mx_pix, _mx_op, _mx_tr, _mx_blits;
+    if (_fr_draw > _mx_draw) {
+        _mx_draw = _fr_draw; _mx_old = _fr_oldfen; _mx_aff = _fr_affiscr;
+        _mx_pix = _fp; _mx_op = _fop; _mx_tr = _ftr; _mx_blits = _fb;
+    }
+    if (++g_prof_frame_frames >= PROF_DUMP_FRAMES) {
+        extern void dbglog(const char *fmt, ...);
+        dbglog("PROF %u frames (%u remap): draw=%u oldfen=%u affiscr=%u vsync=%u ticks "
+               "[per-frame: draw=%u.%02u oldfen=%u.%02u affiscr=%u.%02u vsync=%u.%02u]\n",
+               g_prof_frame_frames, g_prof_frame_remap,
+               g_prof_frame_drawtot, g_prof_frame_oldfen, g_prof_frame_affiscr, g_prof_frame_vsync,
+               g_prof_frame_drawtot / g_prof_frame_frames, (g_prof_frame_drawtot * 100 / g_prof_frame_frames) % 100,
+               g_prof_frame_oldfen / g_prof_frame_frames, (g_prof_frame_oldfen * 100 / g_prof_frame_frames) % 100,
+               g_prof_frame_affiscr / g_prof_frame_frames, (g_prof_frame_affiscr * 100 / g_prof_frame_frames) % 100,
+               g_prof_frame_vsync / g_prof_frame_frames, (g_prof_frame_vsync * 100 / g_prof_frame_frames) % 100);
+        u32 nf = PROF_DUMP_FRAMES;
+        dbglog("  OVERDRAW/frame: pixels=%u (op=%u tr=%u) blits=%u big_pix=%u  "
+               "[viewport~36000 -> overdraw x%u.%02u; opaque=%u%% big=%u%%]\n",
+               g_od_pix / nf, g_od_pix_op / nf, g_od_pix_tr / nf, g_od_blits / nf, g_od_big / nf,
+               (g_od_pix / nf) / 36000, (((g_od_pix / nf) * 100) / 36000) % 100,
+               g_od_pix ? (g_od_pix_op * 100 / g_od_pix) : 0,
+               g_od_pix ? (g_od_big * 100 / g_od_pix) : 0);
+        dbglog("  WORST frame: draw=%u oldfen=%u affiscr=%u ticks (%ums); pixels=%u (op=%u tr=%u) blits=%u\n",
+               _mx_draw, _mx_old, _mx_aff, _mx_draw * 5, _mx_pix, _mx_op, _mx_tr, _mx_blits);
+        dbglog("  SPLIT: depscreen=%u ticks (%u%% of affiscr) -> blit-loop=%u ticks  [affiscr=%u]\n",
+               g_prof_frame_depscreen, g_prof_frame_affiscr ? (g_prof_frame_depscreen * 100 / g_prof_frame_affiscr) : 0,
+               g_prof_frame_affiscr > g_prof_frame_depscreen ? g_prof_frame_affiscr - g_prof_frame_depscreen : 0, g_prof_frame_affiscr);
+#if defined(ALIS_NATIVE_16BPP)
+        {
+            extern u32 g_spc_hit, g_spc_exp, g_spc_skip; extern u16 g_spc_skipfmt;
+            dbglog("  SPRITE-CACHE: hit=%u expand=%u skip=%u (last skipped fmt=0x%02x)\n",
+                   g_spc_hit, g_spc_exp, g_spc_skip, (unsigned)g_spc_skipfmt);
+            g_spc_hit = g_spc_exp = g_spc_skip = 0;
+        }
+#endif
+        g_prof_frame_oldfen = g_prof_frame_affiscr = g_prof_frame_drawtot = g_prof_frame_vsync = 0;
+        g_prof_frame_frames = g_prof_frame_remap = 0;
+        g_od_pix = g_od_pix_op = g_od_pix_tr = g_od_blits = g_od_big = 0;
+        _pp_pix = _pp_op = _pp_tr = _pp_blits = 0;
+        g_prof_frame_depscreen = 0;
+        _mx_draw = _mx_old = _mx_aff = _mx_pix = _mx_op = _mx_tr = _mx_blits = 0;
+    }
+#endif
 
     sys_unlock_renderer();
+
+#if ALIS_VM_PROFILE
+    g_prof_draw += sys_profile_ticks() - _pd0;
+    prof_frame_end();
+#endif
 }
 
 // TODO: move to script.c
@@ -2784,6 +3303,11 @@ s16 debprotf(s16 target_id)
 
 #pragma mark -
 #pragma mark Draw functions
+
+// Native (ALIS_NATIVE_PLANAR) provides planar-optimized versions of all the
+// draw_* / trsfen / clrfen routines in image_draw_planar.c; exclude the generic
+// versions here to avoid duplicate-symbol link errors. SDL1 builds use these.
+#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)
 
 void draw_pixel(s16 x0, s16 y0)
 {
@@ -2825,6 +3349,9 @@ void draw_line(s16 x0, s16 y0, s16 x1, s16 y1)
     }
 }
 
+#endif // !ALIS_NATIVE_PLANAR (draw_pixel/draw_line — planar versions exist)
+
+// draw_box stays compiled for all targets — it only calls draw_line
 void draw_box(s16 x1,s16 y1,s16 x2,s16 y2)
 {
     if (alis.platform.kind == EPlatformMac)
@@ -2834,18 +3361,15 @@ void draw_box(s16 x1,s16 y1,s16 x2,s16 y2)
     }
 
 #if ALIS_SDL_VER < 2
-    if (dirty_len >= 0)
+    if (dirty_len > 0xfd)
     {
-        if (dirty_len > 2043)
-        {
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-            dirty_len = -1;
-        }
-        else
-        {
-            dirty_rects[dirty_len] = (SDL_Rect){ .x = x1, .y = y1, .w = x2 - x1 + 1, .h = y2 - y1 + 1 };
-            dirty_len++;
-        }
+        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_len = 0xff;
+    }
+    else
+    {
+        dirty_rects[dirty_len] = (SDL_Rect){ .x = x1, .y = y1, .w = x2 - x1 + 1, .h = y2 - y1 + 1 };
+        dirty_len++;
     }
 #endif
 
@@ -2855,6 +3379,7 @@ void draw_box(s16 x1,s16 y1,s16 x2,s16 y2)
     draw_line(x1, y2, x1, y1);
 }
 
+#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
 void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
 {
     if (alis.platform.kind == EPlatformMac)
@@ -2869,30 +3394,27 @@ void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
     tmpx = x2 - x1;
 
 #if ALIS_SDL_VER < 2
-    if (dirty_len >= 0)
+    if (dirty_len > 0xfd)
     {
-        if (dirty_len > 2043)
-        {
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-            dirty_len = -1;
-        }
-        else
-        {
-            dirty_rects[dirty_len] = (SDL_Rect){ .x = x1, .y = y1, .w = x2 - x1 + 1, .h = y2 - y1 + 1 };
-            dirty_len++;
-        }
+        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_len = 0xff;
+    }
+    else
+    {
+        dirty_rects[dirty_len] = (SDL_Rect){ .x = x1, .y = y1, .w = x2 - x1 + 1, .h = y2 - y1 + 1 };
+        dirty_len++;
     }
 #endif
 
     for (s16 y = y1; y <= y2; y++)
     {
-        memset(image.physic + x1 + y * alis.platform.width, image.inkcolor, tmpx);
+        memset(image.logic + x1 + y * alis.platform.width, image.inkcolor, tmpx);
     }
 }
 
 void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
 {
-    u8 *tgt = image.logic + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
     if (color == 15) {
         for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w) {
             for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = (w + h) % 2;
@@ -2908,7 +3430,7 @@ void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
 
 void draw_rect(sRect *pos, sRect *bmp, u8 color)
 {
-    u8 *tgt = image.logic + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
     for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w) {
         for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = color;
     }
@@ -2919,7 +3441,7 @@ void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 index, color;
     u16 swadd = width >> 2;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
     if (flip) {
         for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
             for (s32 w = bmp->x1; w < bmp->x2; w++) {
@@ -2947,7 +3469,7 @@ void draw_mac_mono_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 index;
     u16 swadd = width >> 2;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
     if (flip) {
         for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
             for (s32 w = bmp->x1; w < bmp->x2; w++) {
@@ -2970,7 +3492,7 @@ void draw_dos_cga_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 {
     u16 swadd = width >> 1;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
     u8 index;
     s16 wh;
 
@@ -3000,7 +3522,7 @@ void draw_dos_cga_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 {
     u16 swadd = width >> 2;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
     u8 index;
 
     if (flip) {
@@ -3026,7 +3548,7 @@ void draw_st_4bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 color;
     u16 swadd = width >> 1;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
+    u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
     if (flip) {
         if (bmp->x1 % 2 == 1) {
@@ -3105,7 +3627,7 @@ void draw_st_4bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 {
     u16 swadd = width >> 1;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
+    u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
     if (flip) {
         if (bmp->x1 % 2 == 1) {
@@ -3190,7 +3712,7 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
 
     u16 swadd = width;
     u16 src = bmp->y1 * swadd;
-    u8 *tgt = image.logic + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
 
     if (flip) {
         s16 x1 = (bmp->x1 >> 3) << 3;
@@ -3315,7 +3837,7 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
 
     u16 swadd = width;
     u16 src = bmp->y1 * swadd;
-    u8 *tgt = image.logic + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
+    u8 *tgt = image.wdraw + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
 
     if (flip) {
         s16 x1 = (bmp->x1 >> 3) << 3;
@@ -3429,7 +3951,7 @@ void draw_4to8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip, u8 pal_o
     u8 color;
     u16 swadd = width >> 1;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
+    u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
     if (flip) {
         if (bmp->x1 % 2 == 1) {
@@ -3508,7 +4030,7 @@ void draw_4to8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip, u8 pal_o
 {
     u16 swadd = width >> 1;
     u8 *src = at + bmp->y1 * swadd;
-    u8 *tgt = image.logic + (pos->y1 + bmp->y1) * host.pixelbuf.w;
+    u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
     if (flip) {
         if (bmp->x1 % 2 == 1) {
@@ -3588,7 +4110,7 @@ void draw_8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 color;
     u16 wadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
     u8 *src = (flip ? width - 1: 0) + at + 2 + bmp->y1 * width;
-    u8 *tgt = image.logic + (bmp->x1 + pos->x1) + (pos->y1 + bmp->y1) * host.pixelbuf.w;
+    u8 *tgt = image.wdraw + (bmp->x1 + pos->x1) + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
     if (flip) {
         for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd) {
@@ -3612,7 +4134,7 @@ void draw_8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
 {
     u16 wadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
     u8 *src = (flip ? width - 1: 0) + at + 2 + bmp->y1 * width;
-    u8 *tgt = image.logic + (bmp->x1 + pos->x1) + (pos->y1 + bmp->y1) * host.pixelbuf.w;
+    u8 *tgt = image.wdraw + (bmp->x1 + pos->x1) + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
     if (flip) {
         for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd) {
@@ -3627,21 +4149,10 @@ void draw_8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
         }
     }
 }
+#endif // !ALIS_NATIVE_PLANAR (draw_* family — planar versions in image_draw_planar.c)
 
 void draw_fli_video(u8 *bitmap)
 {
-    // FLI video
-    
-    u32 size1 = read32(bitmap + 2);
-    s8 *fliname = (s8 *)&bitmap[6];
-    ALIS_DEBUG(EDebugVerbose, "FLI video (%s) %d bytes [", fliname, size1);
-
-    u32 size2 = (*(u32 *)(&bitmap[32]));
-    u16 frames = (*(u16 *)(&bitmap[38]));
-
-    ALIS_DEBUG(EDebugVerbose, "size: %d frames: %d]\n", size2, frames);
-
-    // TODO: ...
 }
 
 void mapchar(int a2,char *a4,s16 d3w,s16 d4w,s16 d5w)
@@ -3685,9 +4196,23 @@ u8 chartpdeco(u32 src)
     return xread8(src);
 }
 
-// DOS chart pixel function - writes directly to tgt (matching original asm behavior:
-// pixel is written inside function, skipped entirely for missing textures)
-static void chartpixel(u8 *tgt, u32 src, u32 type_table_base, u16 xdc, u16 ydc)
+#if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
+// Plot one pixel into the 8-plane framebuffer (the RRQ map is drawn per-pixel through a mask).
+static inline void planar_plot(u8 *buf, s32 x, s32 y, u8 c)
+{
+    if ((u32)x >= (u32)alis.platform.width || (u32)y >= (u32)alis.platform.height) return;
+    u16 *chunk = (u16 *)(buf + (u32)y * alis.platform.width + (x & ~15));
+    u16 m = (u16)(0x8000u >> (x & 15));
+    for (int k = 0; k < 8; k++) {
+        if ((c >> k) & 1) chunk[k] |= m; else chunk[k] &= (u16)~m;
+    }
+}
+#endif
+
+// DOS chart pixel: writes to tgt, skipped for missing textures (as the original).
+// plot_x is the screen X; xdc (texture/dither phase) is not advanced across fully-masked
+// column groups, so the planar path must not plot at xdc.
+static void chartpixel(u8 *tgt, u32 src, u32 type_table_base, u16 xdc, u16 ydc, s32 plot_x)
 {
     // Read terrain type from high byte of 16-bit cell
     u16 cell = (u16)xread16(src);
@@ -3727,7 +4252,16 @@ static void chartpixel(u8 *tgt, u32 src, u32 type_table_base, u16 xdc, u16 ydc)
     else if (shade > 15) shade = 15;
 
     // 2D palette lookup via darkness table, write directly to framebuffer
+#if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
+    // image.logic is planar: plot by coordinate.
+    (void)tgt;
+    {
+        u8 mc = xread8(alis.ptrdark + ((u16)shade << 8) + tex_pixel);
+        planar_plot(image.logic, plot_x, ydc, alis.platform.bpp == 4 ? (mc & 0xf) : mc);
+    }
+#else
     *tgt = xread8(alis.ptrdark + ((u16)shade << 8) + tex_pixel);
+#endif
 }
 
 u8 chartptra(u32 src)
@@ -3899,6 +4433,8 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             ydeschart = image.blocy2 - image.wlogy1;
 
             u8 *tgt = image.logic + ydeschart * host.pixelbuf.w + xdeschart;
+            // Screen X; diverges from xdeschart on fully-masked column groups (see chartpixel).
+            s32 sx = xdeschart;
 
             // Render row-major, bottom-to-top
             while (height > 0)
@@ -3907,6 +4443,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                 u32 entity_src_save = entity_src;
                 u32 bitmap_src_save = bitmap_src;
                 u16 xdeschart_save = xdeschart;
+                s32 sx_save = sx;
 
                 for (s16 cg = 0; cg < col_groups_count; cg++)
                 {
@@ -3917,6 +4454,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                     if (mask == 0)
                     {
                         tgt += 16;
+                        sx += 16;               // destination moves even though xdeschart does not
                         entity_src += group_stride;
                     }
                     else
@@ -3925,9 +4463,10 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                         {
                             if (mask & (1 << bit))
                             {
-                                chartpixel(tgt, entity_src, type_table_base, xdeschart, ydeschart);
+                                chartpixel(tgt, entity_src, type_table_base, xdeschart, ydeschart, sx);
                             }
                             tgt++;
+                            sx++;
                             xdeschart++;
                             entity_src += pixel_stride;
                         }
@@ -3938,6 +4477,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                 entity_src = entity_src_save;
                 bitmap_src = bitmap_src_save;
                 xdeschart = xdeschart_save;
+                sx = sx_save;
 
                 ydeschart--;
                 bitmap_src += 2;
@@ -4047,7 +4587,13 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                         {
                             if (mask & (1 << bit))
                             {
+#if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
+                                u8 mc = (*chartproc)(entity_src);
+                                planar_plot(image.logic, xdeschart, ydeschart,
+                                            alis.platform.bpp == 4 ? (mc & 0xf) : mc);
+#else
                                 *tgt = (*chartproc)(entity_src);
+#endif
                             }
                             tgt++;
                             xdeschart++;
@@ -4216,7 +4762,6 @@ void draw_transarctica_map(sSprite *sprite, u32 mapaddr, sRect lim)
                                         if ((h + posy1) >= lim.y2)
                                             continue;
 
-                                        // tgt = image.logic + (w + posx1) + ((posy1 + h) * host.pixelbuf.w);
                                         *tgt = color;
                                     }
                                 }

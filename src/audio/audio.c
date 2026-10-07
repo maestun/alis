@@ -27,10 +27,9 @@
 
 sAudio audio = {};
 
-// FLI video speech queue
 volatile sFliAudioChunk fli_audio_queue[FLI_AUDIO_QUEUE_SIZE] = {{0}};
-volatile u8  fli_audio_q_head = 0;
-volatile u8  fli_audio_q_tail = 0;
+volatile u8 fli_audio_q_head = 0;
+volatile u8 fli_audio_q_tail = 0;
 volatile u32 fli_chunks_played = 0;
 
 void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop, s8 priorson)
@@ -38,8 +37,7 @@ void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, 
     char cson = CHAR_MAX;
     sChannel *canal = NULL;
 
-    // Channel 3 is reserved for FLI video speech while a film is playing.
-    // In-game SFX would otherwise preempt it and chop speech into fragments.
+    // While a film plays, channel 3 is reserved for FLI speech (SFX would chop it).
     int max_chan = bfilm.playing ? 3 : 4;
 
     for (int i = 0; i < max_chan; i++)
@@ -51,7 +49,7 @@ void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, 
             break;
         }
     }
-    
+
     if (canal == NULL)
     {
         for (int i = 0; i < max_chan; i++)
@@ -125,11 +123,6 @@ void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson,
     if ((priorson >= 0 && cson < 0 && cson != -0x80) || priorson < cson)
         return;
 
-//    if ((s8)type < '\0')
-//    {
-//        gosound(canal);
-//    }
-//    else
     {
         canal->state = -0x80;
         canal->curson = priorson;
@@ -144,22 +137,82 @@ void runson(eChannelType type, s8 pereson, s8 priorson, s16 volson, u16 freqson,
     }
 }
 
+static void channel_off(int i)
+{
+    audio.channels[i].type = eChannelTypeNone;
+    audio.channels[i].volume = 0;
+    audio.channels[i].freq = 0;
+    audio.channels[i].curson = 0x80;
+    audio.channels[i].pere = 0;
+    audio.channels[i].state = 0;
+    audio.channels[i].played = 0;
+
+    if (i < 3)
+        io_canal(&(audio.channels[i]), i);
+}
+
 void offsound(void)
 {
     for (int i = 0; i < 4; i++)
+        channel_off(i);
+}
+
+extern sMV1Audio mv1a;
+extern sMV2Audio mv2a;
+
+// VM address after script data moved: >= hi shifts by delta, [lo, hi) was removed (0), below lo stays.
+static inline u32 moved(u32 a, u32 lo, u32 hi, s32 delta)
+{
+    return a < lo ? a : a < hi ? 0 : a + delta;
+}
+
+static inline void move_ptr(u32 *a, u32 lo, u32 hi, s32 delta) { *a = moved(*a, lo, hi, delta); }
+
+// The original engine leaves audio pointing at the old location after shrinkprog (garbage
+// sound); our mixers derive read pointers from sample headers, so stale ones crash.
+void audio_relocate(u32 lo, u32 hi, s32 delta)
+{
+    for (int i = 0; i < 128; i++)
+        move_ptr(&audio.tabinst[i].address, lo, hi, delta);
+
+    if (audio.mupnote >= lo && audio.mupnote < hi)
+        audio.muflag = 0;
+    move_ptr(&audio.mupnote, lo, hi, delta);
+    move_ptr(&mv1a.noteptr, lo, hi, delta);
+
+    for (int i = 0; i < kNumMV1Channels; i++)
     {
-        audio.channels[i].type = eChannelTypeNone;
-        audio.channels[i].volume = 0;
-        audio.channels[i].freq = 0;
-        audio.channels[i].curson = 0x80;
-        audio.channels[i].pere = 0;
-        audio.channels[i].state = 0;
-        audio.channels[i].played = 0;
+        sMV1Channel *ch = &mv1a.channels[i];
+        move_ptr(&ch->instr, lo, hi, delta);
+        move_ptr(&ch->endsam, lo, hi, delta);
+        move_ptr(&ch->startsam.address, lo, hi, delta);
+        if (ch->startsam.address == 0 && ch->instr == 0)
+            ch->actflag = 0;
     }
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 4; i++)
     {
-        io_canal(&(audio.channels[i]), i);
+        sAudioVoice *v = &mv2a.voices[i];
+        u32 sample = v->sample;
+        move_ptr(&v->sample, lo, hi, delta);
+        move_ptr(&v->startsam1, lo, hi, delta);
+        move_ptr(&v->startsam2, lo, hi, delta);
+        if (sample && !v->sample)
+            memset(v, 0, sizeof(*v));
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        sChannel *ch = &audio.channels[i];
+        u8 *a = (u8 *)ch->address;
+        if (a < alis.mem + lo || a >= alis.mem + alis.finmem)
+            continue;
+
+        u32 at = moved((u32)(a - alis.mem), lo, hi, delta);
+        if (at)
+            ch->address = (s8 *)(alis.mem + at);
+        else
+            channel_off(i);
     }
 }
 

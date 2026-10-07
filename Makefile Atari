@@ -1,10 +1,10 @@
-#CC=m68k-atari-mint-gcc
-#CXX=m68k-atari-mint-gcc
-#CXX=m68k-atari-mint-gcc
+CC=m68k-atari-mint-gcc
+CXX=m68k-atari-mint-gcc
+CXX=m68k-atari-mint-gcc
 
-CC=m68k-atari-mint-gcc-13.3.0
-CXX=m68k-atari-mint-gcc-13.3.0
-CXX=m68k-atari-mint-gcc-13.3.0
+#CC=m68k-atari-mint-gcc-13.3.0
+#CXX=m68k-atari-mint-gcc-13.3.0
+#CXX=m68k-atari-mint-gcc-13.3.0
 
 #CC=m68k-atari-mint-gcc-14.2.0
 #CXX=m68k-atari-mint-gcc-14.2.0
@@ -17,11 +17,52 @@ TARGET_EXEC = alis.ttp
 BUILD_DIR = ./build
 SRC_DIRS = ./src
 
-SDL_FLAGS = -L/opt/cross-mint/lib -lSDL -lGEM -lm
+# Program version header from git (scripts/gen_version.sh); rewritten only when it changes.
+VERSION_GEN := $(shell sh scripts/gen_version.sh src/version.h)
+
+# SDL library variant selector. We ship three pre-built libSDL variants
+# in /opt/cross-mint/lib (and per-multilib subdirs) for A/B testing the
+# Atari XBIOS phantom-keypress bug:
+#   (default, no SDL_VARIANT)   libSDL.a           — current production lib
+#   SDL_VARIANT=vkbderr         libSDL_vkbderr.a   — vkbderr ACIA-error handler
+#   SDL_VARIANT=nokbdvec        libSDL_nokbdvec.a  — XBIOS keyboard hook disabled
+# Usage:
+#   make -f "Makefile Atari" SDL_VARIANT=vkbderr
+SDL_VARIANT ?=
+ifeq ($(SDL_VARIANT),)
+SDL_LIB = -lSDL
+else
+SDL_LIB = -lSDL_$(SDL_VARIANT)
+endif
+SDL_FLAGS = -L/opt/cross-mint/lib $(SDL_LIB) -lGEM -lm
+ifdef USE_NATIVE_ATARI
+SDL_FLAGS = -L/opt/cross-mint/lib -lGEM -lm   # native uses SDL headers for types only
+endif
 
 # Find all the C and C++ files we want to compile
 # Note the single quotes around the * expressions. The shell will incorrectly expand these otherwise, but we want to send the * directly to the find command.
-SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s' | grep -vF -e 'sys_sdl2.c' -e 'sample2413.c')
+# Native Atari: set USE_NATIVE_ATARI=1 on make command line to use direct XBIOS video
+#
+# On Atari (__atarist__), sys_init_psg / sys_init_opl and related runtime
+# calls are already stub-guarded to no-op, but the emulator translation units
+# still link in their full bodies (PSG_setClock / OPL_new / OPL_RateConv_new,
+# etc — all with softfloat init that drags in ___fixxfsi / fmovex). Drop the
+# sources entirely: the Falcon has a real YM2149 in hardware, the games of
+# interest don't use OPL / ADPCM, and the stubs resolve all call sites.
+ATARI_EXCLUDES := sys_sdl2.c emu2149.c emu8950.c emuadpcm.c
+ATARI_EXCLUDE_ARGS := $(foreach f,$(ATARI_EXCLUDES),-e '$(f)')
+
+# Atari audio/ISR subsystem (DMA output, DSP via --audio=dsp, Timer-A/C, VBL) is always
+# built; DSP/DMA hardware is gated at runtime by machine type.
+ifeq ($(ALIS_DSP_MIXER),0)
+$(error ALIS_DSP_MIXER=0 is no longer supported)
+endif
+
+ifdef USE_NATIVE_ATARI
+SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s' -or -name '*.S' | grep -vF -e 'sys_sdl1.c' $(ATARI_EXCLUDE_ARGS))
+else
+SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s' -or -name '*.S' | grep -vF -e 'sys_atari.c' -e 'image_draw_planar.c' $(ATARI_EXCLUDE_ARGS))
+endif
 
 # Prepends BUILD_DIR and appends .o to every src file
 # As an example, ./your_dir/hello.cpp turns into ./build/./your_dir/hello.cpp.o
@@ -42,17 +83,166 @@ CPPFLAGS := $(INC_FLAGS) -MMD -MP
 
 # -mfastcall -mshort
 #CFLAGS := -O2 -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
-#CFLAGS := -O2 -fomit-frame-pointer -m5475 -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
+#CFLAGS := -O2 -fomit-frame-pointer -mcfv4e -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
 #CFLAGS := -O2 -fomit-frame-pointer -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
 
-CFLAGS := -g -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0
-  
+ifdef USE_NATIVE_ATARI
+CFLAGS := -O3 -funroll-loops -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_USE_NATIVE_ATARI=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
+else
+#CFLAGS := -O3 -funroll-loops -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1 -DALIS_MEM_NATIVE_ENDIAN=1
+CFLAGS := -O3 -funroll-loops -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
+#CFLAGS := -g -fno-omit-frame-pointer -O3 -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
+endif
+
+# Atari 68k host is BE; if we know we will only run BE Atari games, we
+# can enable the direct-access memory macros (mem.h) and drop the
+# function-pointer byte-swap indirection on the rendering hot path.
+# Leave it OFF by default so the same binary can run DOS/LE games via
+# the runtime endian-swap path. Opt in only with USE_NATIVE_ATARI=1.
+#ifdef USE_NATIVE_ATARI
+#CFLAGS += -DALIS_MEM_NATIVE_ENDIAN=1
+#endif
+
+# Opt-in CFLAGS override for A/B testing. Usage:
+#   make -f "Makefile Atari" USE_NATIVE_ATARI=1 EXTRA_CFLAGS="..."
+CFLAGS += $(EXTRA_CFLAGS)
+
+# VM hot-state register pinning (see ALIS_VM_REGVARS in alis.h). Default ON.
+# Pins vm_mem (a4) and vm_script (a5) so the byte-fetch path doesn't reload them
+# from the global `alis` struct. The registers MUST be reserved program-wide:
+# without -ffixed, non-VM-core TUs (main.c, render, sys, ...) keep private values
+# in a4/a5 across calls into VM-core functions, which overwrite them via the
+# pointer-sync and -- treating them as global regs -- never restore them. That
+# clobbers the caller and crashes. -ffixed guarantees no TU uses a4/a5 freely.
+# A/B baseline (no pinning, full register file): make -f "Makefile Atari" VM_REGVARS=0
+VM_REGVARS ?= 1
+ifeq ($(VM_REGVARS),1)
+CFLAGS += -ffixed-a4 -ffixed-a5
+else
+CFLAGS += -DALIS_VM_REGVARS=0
+endif
+
+# VM-vs-render frame profiler (alis.c). Every 512 frames appends a VM%/DRAW%
+# split to its own file C:\vmprof.log (fallback: ./vmprof.log, A:\vmprof.log).
+# Works in any build (native or SDL1). Enable with:
+#   make -f "Makefile Atari" VM_PROFILE=1
+ifdef VM_PROFILE
+CFLAGS += -DALIS_VM_PROFILE=1
+endif
+
+# Experiment: request a 16-bit Falcon truecolor surface (chunky, no planar c2p)
+# instead of the native 8-bit mode, to A/B render speed. SDL1 build only.
+#   make -f "Makefile Atari" FALCON_16BPP=1
+ifdef FALCON_16BPP
+CFLAGS += -DALIS_FALCON_16BPP=1
+endif
+
+# Native renderer selection: planar (direct 8-plane blits + Videl BPS8) is the
+# default. With FALCON_16BPP the native build instead renders 8-bit chunky and
+# expands to a 16-bit Videl (BPS16) framebuffer at flip — so the planar blitters
+# (image_draw_planar.c) are OFF and the generic chunky blitters (image.c) are ON.
+ifdef USE_NATIVE_ATARI
+ifdef FALCON_16BPP
+CFLAGS += -DALIS_NATIVE_16BPP=1
+else
+CFLAGS += -DALIS_NATIVE_PLANAR=1
+# 16-bit videos ON by default for the native planar build: FLI/FLC + S512 (ALIS_S512_FALCON16
+# is auto-derived) play back in a temporary Videl BPS16 mode on Falcon (sys_film16_*), then
+# restore the planar gameplay mode. Fully Falcon-runtime-gated (no-op on TT/ST -> planar film
+# fallback), and orthogonal to the whole-screen FALCON_16BPP mode. Disable with FLI16=0.
+FLI16 ?= 1
+ifneq ($(FLI16),0)
+CFLAGS += -DALIS_FLI_FALCON16=1
+endif
+endif
+endif
+
+CFLAGS += -DALIS_DSP_MIXER=1
+
+# Embed build info for profiling log
+CFLAGS += -DBUILD_CFLAGS='"$(CFLAGS)"'
+LDFLAGS := -m68020-60
+#LDFLAGS := -mcfv4e
+
+# --- Auto-clean on config change ---------------------------------------------
+# make only recompiles when a *source* file changes, not when build flags do. So
+# switching USE_NATIVE_ATARI / FALCON_16BPP / VM_REGVARS / ... would silently
+# reuse objects built under the old flags — e.g. an sys.c.o that still defines
+# dirty_pal/dirty_len, giving "multiple definition" at link. We stamp the config
+# toggles to build/.build_sig; if they changed since the last build, wipe build/
+# so everything recompiles cleanly. (Skipped for the `clean` goal.)
+BUILD_SIG      := native=$(USE_NATIVE_ATARI);16bpp=$(FALCON_16BPP);fli16=$(FLI16);regvars=$(VM_REGVARS);profile=$(VM_PROFILE);extra=$(EXTRA_CFLAGS)
+BUILD_SIG_FILE := $(BUILD_DIR)/.build_sig
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+  BUILD_SIG_OLD := $(shell cat $(BUILD_SIG_FILE) 2>/dev/null)
+  ifneq ($(BUILD_SIG),$(BUILD_SIG_OLD))
+    $(info [auto-clean] build config changed -> wiping $(BUILD_DIR))
+    $(shell rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) && printf '%s' '$(BUILD_SIG)' > $(BUILD_SIG_FILE))
+  endif
+endif
+
+# Post-link: stamp MiNT PRG header flags so the binary is usable under a
+# memory-protected MiNT kernel.
+#   -S : allow supervisor-mode access to own memory (required for SDL on
+#        Atari; without it, SDL's trap/Supexec calls bus-error under mem prot)
+#   -r : load executable into fast (TT/alt) RAM when available
+#   -a : allocate further memory from fast RAM (benefits the VM arena)
+# Use PRGFLAGS := to override (e.g. `make PRGFLAGS="-S"`); PRGFLAGS_TOOL can
+# be overridden if the cross-mint tool is installed under a different prefix.
+PRGFLAGS_TOOL ?= m68k-atari-mint-flags
+PRGFLAGS      ?= -S -r -a
+
+# The .ttp is stripped (symbols live in alis.sym); STRIP=0 keeps them in the binary.
+STRIP ?= 1
+
+# DSP56001 programs → C headers. The headers are tracked, so asm56k (tools/ or PATH) and
+# tools/lod_to_h.py are only needed when a .asm changes.
+DSP_ASM   := src/audio/dsp_mixer.asm
+DSP_LOD   := $(BUILD_DIR)/dsp_mixer.lod
+DSP_HDR   := src/audio/dsp_mixer_bin.h
+ASM56K    ?= $(shell which asm56k 2>/dev/null || echo tools/asm56k)
+
+# Default target must be declared before any DSP rules
+.DEFAULT_GOAL := $(BUILD_DIR)/$(TARGET_EXEC)
+
+$(DSP_HDR): $(DSP_ASM)
+	@mkdir -p $(BUILD_DIR)
+	$(ASM56K) -o $(DSP_LOD) $<
+	python3 tools/lod_to_h.py $(DSP_LOD) -o $@
+
+# Simplet DSP Soundtracker — second DSP program, built alongside
+# dsp_mixer.asm so we can pick which one to load from C.
+DSP_TRACKER_ASM := src/audio/dsp_tracker.asm
+DSP_TRACKER_LOD := $(BUILD_DIR)/dsp_tracker.lod
+DSP_TRACKER_HDR := src/audio/dsp_tracker_bin.h
+
+$(DSP_TRACKER_HDR): $(DSP_TRACKER_ASM)
+	@mkdir -p $(BUILD_DIR)
+	$(ASM56K) -o $(DSP_TRACKER_LOD) $<
+	python3 tools/lod_to_h.py $(DSP_TRACKER_LOD) --varname dsp_tracker_program -o $@
+
+# Ensure the DSP program headers are generated before the objects compile.
+$(OBJS): | $(DSP_HDR) $(DSP_TRACKER_HDR)
+
 # The final build step.
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CXX) $(OBJS) -o $@ $(LDFLAGS) $(SDL_FLAGS)
+	@# Hatari profiler symbols: nm-style ASCII (TEXT symbols, link-relative; Hatari adds the
+	@# program text base on load). Load with `symbols alis.sym` in the Hatari debugger.
+	@m68k-atari-mint-nm -n $@ 2>/dev/null | grep -E '^[0-9a-f]+ [Tt] [A-Za-z_]' > $(@:.ttp=.sym) || true
+	@echo "  symbols -> $(@:.ttp=.sym) ($$(grep -c . $(@:.ttp=.sym) 2>/dev/null || echo 0) entries)"
+ifneq ($(STRIP),0)
+	m68k-atari-mint-strip $@
+endif
+	$(PRGFLAGS_TOOL) $(PRGFLAGS) $@
 
 # Build step for C source
-$(BUILD_DIR)/%.c.o: %.c                         
+$(BUILD_DIR)/%.c.o: %.c
+	mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+# Build step for assembly source
+$(BUILD_DIR)/%.S.o: %.S
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 

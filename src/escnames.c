@@ -23,6 +23,12 @@
 #include "alis_private.h"
 #include "audio.h"
 #include "video.h"
+#include <sys/stat.h>
+
+// fileno is POSIX but may not be declared with strict C99
+#if !defined(_WIN32)
+extern int fileno(FILE *);
+#endif
 
 // ============================================================================
 #pragma mark - Codesc1 routines
@@ -57,8 +63,14 @@ void cmusicoff(void) {
 
 // Codesc1name no. 06 opcode 0x05 cdelfilm
 void cdelfilm(void) {
+#if defined(ALIS_TRACE_KEYS)
+    { extern void dbglog(const char *fmt, ...);
+      dbglog("cdelfilm t=%u script=%s film=%d/%d\n", (unsigned)alis.timeclock, alis.script->name, (int)bfilm.frame, (int)bfilm.frames); }
+#endif
     endfilm();
-    
+
+    fli_stream_close();   // close the streaming file handle (no-op in whole-file mode)
+
     if (bfilm.delptr != NULL)
         free(bfilm.delptr);
 
@@ -67,6 +79,12 @@ void cdelfilm(void) {
 
 // Codesc1name no. 07 opcode 0x06 copenfilm
 void copenfilm(void) {
+#if defined(ALIS_TRACE_KEYS)
+    { extern void dbglog(const char *fmt, ...);
+      dbglog("copenfilm t=%u script=%s\n", (unsigned)alis.timeclock, alis.script->name); }
+#endif
+    fli_stream_close();   // stale streaming film (script skipped cdelfilm) — don't leak the handle
+
     memset(&bfilm, 0, sizeof(bfilm));
 
     readexec_opername();
@@ -76,35 +94,83 @@ void copenfilm(void) {
     
     alis.fp = NULL;
 
-    // TODO: hack!!!
-
+    // The one CD carries both "150." (smaller, Falcon-sized) and "300." (fullscreen) video
+    // variants; this remaps 150 -> 300 to force the fullscreen version. Native Atari (Falcon)
+    // should use its own 150 videos: they play smoothly on the 16-bit fused film path and are
+    // positioned correctly (fli_decomp16 honours fenx1/feny1). Keep the remap only off-target.
+#if !defined(ALIS_USE_NATIVE_ATARI)
     char *at = strstr(alis.sd7, "150.");
     if (at != NULL)
     {
         memcpy(at, "300.", 4);
     }
-    
+#endif
+
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
     strcat(path, alis.sd7);
 
     afopen((char *)path, 1);
-    
+
+#if defined(ALIS_USE_NATIVE_ATARI)
+    // Native Falcon prefers its own smaller "150." speech videos (they play on the
+    // 16-bit fused film path and are positioned correctly), so the remap above is
+    // skipped on-target. But not every data set ships the 150 variants — when the
+    // 150 file is absent, afopen fails, addr stays NULL and the whole speech film
+    // (and its audio) is silently skipped. Fall back to the "300." fullscreen
+    // variant, the one the desktop build always opens successfully.
+    if (alis.fp == NULL)
+    {
+        char *at = strstr(alis.sd7, "150.");
+        if (at != NULL)
+        {
+            memcpy(at, "300.", 4);
+            strcpy(path, alis.platform.path);
+            strcat(path, alis.sd7);
+            afopen((char *)path, 1);
+        }
+    }
+#endif
+
     u8 *addr = NULL;
-    
+
     if (alis.fp)
     {
         struct stat st;
         fstat(fileno(alis.fp), &st);
         off_t size = st.st_size;
-        
+
+#if defined(ALIS_FLI_STREAM_TEST)
+        // Test build: force every film through the streaming path.
+#else
         addr = malloc(size);
+#endif
         if (addr)
         {
             fread(addr, size, 1, alis.fp);
         }
+        else
+        {
+            // Not enough free RAM for the whole film — on a real Falcon the
+            // game data leaves ~2.5 MB of heap while the large speech videos
+            // run 3-7.5 MB, and this malloc failing silently skipped them.
+            // Fall back to the original CD engine's scheme: stream the film
+            // through a bounded sliding window (fli_stream_* in video.c).
+            // fli_stream_open takes ownership of the file handle.
+            if (fli_stream_open(alis.fp, (u32)size))
+            {
+                addr = bfilm.sbuf;
+                alis.fp = NULL;
+            }
+            else
+            {
+                extern void dbglog(const char*,...);
+                dbglog("[flistream] film '%s' (%ld bytes) SKIPPED — no RAM for it at all\n",
+                       alis.sd7, (long)size);
+            }
+        }
     }
-    
+
     bfilm.addr1 = addr;
     bfilm.addr2 = addr;
     bfilm.delptr = addr;
@@ -121,7 +187,7 @@ void copenfilm(void) {
 // ============================================================================
 #pragma mark - Codesc1 routines pointer table
 // ============================================================================
-sAlisOpcode codesc1names[] = {
+const sAlisOpcode codesc1names[] = {
     DECL_OPCODE(0x00, cnul,         "[N/I] null"),
     DECL_OPCODE(0x01, csoundon,     "sound on"),
     DECL_OPCODE(0x02, csoundoff,    "sound off"),
@@ -135,7 +201,7 @@ sAlisOpcode codesc1names[] = {
 #pragma mark - Codesc2 routines pointer table
 // ============================================================================
 
-sAlisOpcode codesc2names[] = {
+const sAlisOpcode codesc2names[] = {
     DECL_OPCODE(0x00, cnul,         "[N/I] null"),
 };
 
@@ -143,6 +209,6 @@ sAlisOpcode codesc2names[] = {
 #pragma mark - Codesc3 routines pointer table
 // ============================================================================
 
-sAlisOpcode codesc3names[] = {
+const sAlisOpcode codesc3names[] = {
     DECL_OPCODE(0x00, cnul,         "[N/I] null"),
 };

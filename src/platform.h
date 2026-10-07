@@ -139,3 +139,6 @@ typedef struct {
 
 sPlatform*  pl_guess(const char* folder_path, int mode);
 int         pl_supported(sPlatform* platform);
+u32         pl_compute_ram_size(const sPlatform *pl);
+void        pl_arena_range(const sPlatform *pl, u32 *floor, u32 *pref);
+u16         pl_model_memclass(u32 ram_sz);

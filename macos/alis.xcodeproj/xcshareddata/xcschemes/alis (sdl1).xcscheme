@@ -34,6 +34,8 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      enableASanStackUseAfterReturn = "YES"
+      enableUBSanitizer = "YES"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
@@ -54,21 +56,49 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "-m /Users/gildor/Work/alis/data/ishar/atari/"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/ishar3/atari/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/ishar3/falcon/"
+            argument = "-m --s3 /Users/gildor/Work/alis/data/ishar3/falcon/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/ishar3/dos/"
+            argument = "-m /Users/gildor/Work/alis/data/ishar3/amiga/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-m /Users/gildor/Work/alis/data/ishar3/atari/"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-m /Users/gildor/Work/alis/data/ishar3/dos/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/requiem/falcon/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-m /Users/gildor/Work/alis/data/targhan/amiga/"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
+      <AdditionalOptions>
+         <AdditionalOption
+            key = "MallocScribble"
+            value = ""
+            isEnabled = "YES">
+         </AdditionalOption>
+         <AdditionalOption
+            key = "MallocGuardEdges"
+            value = ""
+            isEnabled = "YES">
+         </AdditionalOption>
+      </AdditionalOptions>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

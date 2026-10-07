@@ -19,6 +19,8 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// VM-core translation unit: opt into hot-state register pinning (see alis.h).
+#define ALIS_VM_CORE
 #include "alis.h"
 #include "alis_private.h"
 #include "image.h"
@@ -259,7 +261,7 @@ void cstore_continue(void) {
 //  then retrieves a WORD offset at (JTAB_OPERNAMES[code]), then
 //  jumps at the address (JTAB_OPERAMES + offset).
 // ============================================================================
-sAlisOpcode storenames[] = {
+const sAlisOpcode storenames[] = {
     DECL_OPCODE(0x00, pnul,         "[N/I] null pointer"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x02, pnul,         "[N/I] null pointer"),

@@ -19,17 +19,29 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// This is a VM-core translation unit: opt into hot-state register pinning
+// (see ALIS_VM_REGVARS in alis.h). Must precede any include.
+#define ALIS_VM_CORE
 #include "alis.h"
 #include "alis_private.h"
 #include "audio.h"
 #include "image.h"
 #include "mem.h"
+#include "screen.h"
 #include "sys/sys.h"
 #include "render3d.h"
 #include "utils.h"
 #include "video.h"
+#ifdef ALIS_DSP_MIXER
+#include "audio/dsp_mixer.h"
+#if defined(__atarist__) || defined(__TOS__)
+#include "sys/sys_atari_dma_sound.h"
+#endif
+#endif
 
 sAlisVM alis;
+u32 alis_arena_size = 0;
+const char *alis_fatal = NULL;
 sHost host;
 
 sAlisError errors[] = {
@@ -44,8 +56,13 @@ sAlisError errors[] = {
 };
 
 
-const u32 kHostRAMSize          = 1024 * 1024 * 4;
+// Virtual accumulator origin (grows down), below every game's basemem.
+static const u32 kAccOrg = 0x19c00;
+
 const u32 kVirtualRAMSize       = 0xffff * sizeof(u8);
+
+// SPRITE_VAR touches at most basesprite (0x8000) + finsprit (0xFFFF) + 0x30 bytes; 128 KB covers it.
+const u32 kSpriteMemSize        = 0x20000;
 
 
 extern s32 testIndex;
@@ -55,9 +72,7 @@ extern u32 testData[];
 // MARK: - Private
 // =============================================================================
 
-//u8 used_opcodes[512];
-
-void readexec(sAlisOpcode * table, char * name, u8 identation) {
+void readexec(const sAlisOpcode * table, char * name, u8 identation) {
 #ifndef NDEBUG
     if (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz || alis.script->pc - alis.script->pc_org == kVirtualRAMSize)
     {
@@ -70,7 +85,7 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
     else
     {
         // fetch code
-        u8 code = *(alis.mem + alis.script->pc++);
+        u8 code = *(VMEM + VSCRIPT->pc++);
         sAlisOpcode opcode = table[code];
         
         if (!disalis)
@@ -115,17 +130,17 @@ void readexec(sAlisOpcode * table, char * name, u8 identation) {
         }
     }
 #else
-    sAlisOpcode opcode = table[*(alis.mem + alis.script->pc++)];
+    sAlisOpcode opcode = table[*(VMEM + VSCRIPT->pc++)];
     opcode.fptr();
 #endif
 }
 
-void readexec_opcode(void) {
 #ifndef NDEBUG
+// When NDEBUG is defined, these are replaced by inline macros in alis.h
+void readexec_opcode(void) {
     if (!disalis) {
        ALIS_DEBUG(EDebugInfo, "\n%s [%.6x:%.4x]: 0x%06x:", alis.script->name, alis.script->vram_org, (u16)(alis.script->vacc_off), alis.script->pc);
     }
-#endif
     readexec(opcodes, "opcode", 0);
 }
 
@@ -169,7 +184,6 @@ void readexec_opername_saveD7(void) {
 
 // gparam1
 void readexec_opername_saveD6(void) {
-    
     s16 tmp = alis.varD7;
     readexec_opername_saveD7();
     alis.varD6 = alis.varD7;
@@ -183,6 +197,7 @@ void readexec_opername_swap(void) {
 
     readexec_opername();
 }
+#endif
 
 
 void alis_load_main(void) {
@@ -200,37 +215,10 @@ void alis_load_main(void) {
         // skip 6 bytes
         fseek(fp, 6, SEEK_CUR);
         
-//        // read raw specs header
-//        alis.specs.script_data_tab_len = fread16(fp);
-//        alis.specs.script_vram_tab_len = fread16(fp);
-//        alis.specs.unused = fread32(fp);
-//        alis.specs.max_allocatable_vram = fread32(fp);
-//        alis.specs.vram_to_data_offset = fread32(fp);
-//        alis.specs.vram_to_data_offset += 3;
-//        alis.specs.vram_to_data_offset *= 0x28;
-//        
-//        alis.vprotect = 0;
-//        
-//        // set the location of scripts' vrams table
-//        alis.atprog = ALIS_VM_RAM_ORG;
-//        alis.atprog_ptr = (u32 *)(alis.mem + alis.atprog);
-//        alis.atent = alis.atprog + 0xf0;
-//        alis.atent_ptr = (sScriptLoc *)(alis.vram_org + 0xf0); // (alis.specs.script_data_tab_len * sizeof(u32)));
-//        alis.maxent = alis.specs.script_vram_tab_len;
-//        alis.debent = alis.atent + alis.maxent * 6;
-//        alis.finent = alis.debent;
-//
-//        image.debsprit = ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1;
-//        image.finsprit = image.debsprit + alis.specs.vram_to_data_offset;
-//        alis.debprog = image.finsprit;
-//        alis.finprog = alis.debprog;
-//        alis.dernprog = alis.atprog;
-//        alis.maxprog = 0x3c; // TODO: read from script / alis2
-        
         // read raw specs header
         alis.specs.script_data_tab_len = fread16(fp);
         alis.specs.script_vram_tab_len = fread16(fp);
-        alis.specs.unused = fread32(fp);
+        alis.specs.mem_cap = fread32(fp);
         alis.specs.max_allocatable_vram = fread32(fp);
         alis.specs.vram_to_data_offset = fread32(fp);
         alis.specs.vram_to_data_offset += 3;
@@ -255,7 +243,9 @@ void alis_load_main(void) {
         alis.dernprog = alis.atprog;
         alis.maxprog = alis.specs.script_data_tab_len;
 
-        alis.finmem = kHostRAMSize - 0x9168;
+        alis.finmem = alis.platform.ram_sz - 0x9168;
+        if (alis.specs.mem_cap && (u32)alis.debprog + alis.specs.mem_cap < alis.finmem)
+            alis.finmem = alis.debprog + alis.specs.mem_cap;   // as the original
 
         inisprit();
 
@@ -283,7 +273,7 @@ void alis_load_main(void) {
               script_vram_tab_end,
               main_script_data_addr,
               alis.specs.script_vram_max_addr,
-              alis.specs.unused);
+              alis.specs.mem_cap);
         fclose(fp);
 
         // load main scripts as an usual script...
@@ -314,16 +304,22 @@ u8 alis_init(sPlatform platform) {
     script_guess_game(platform.main);
     if (alis.platform.uid <= 0) return 1;
 
+    // VM heap: the native pre-flight sizes it to the machine, else the game's preferred tier.
+    u32 floor, pref;
+    pl_arena_range(&alis.platform, &floor, &pref);
+    alis.platform.ram_sz = alis_arena_size ? alis_arena_size : pref;
+    alis.memclass = alis.platform.ram_sz < pref ? pl_model_memclass(alis.platform.ram_sz) : 0;
+    printf("  VM heap: %u KB (game uid 0x%x, platform %d, v%u, bpp %u)\n",
+           alis.platform.ram_sz / 1024,
+           alis.platform.uid, alis.platform.kind,
+           alis.platform.version, alis.platform.bpp);
+
     alis.timeclock = 0;
     
     audio.fsound = 1;
     audio.fmusic = 1;
     audio.musicId = 0xffff;
 
-//    alis.nmode = 0; // 0 = atari 16 colors
-//                    // 3 = mono
-//                    // 8 = falcon 256 colors
-    
     memset(audio.tabinst, 0, sizeof(audio.tabinst));
 
     alis.restart_loop = 0;
@@ -338,20 +334,21 @@ u8 alis_init(sPlatform platform) {
         alis.theconfig = 0x87; // sound + video + high memory
     }
     
-    memset(&image, 0, sizeof(image));
-    
+    dos_pal_reset();
     switch (alis.platform.kind) {
-        case EPlatformAtari:
-        case EPlatformFalcon:
-            memset(image.tpalet, 0xff, sizeof(image.tpalet));
-            memset(image.mpalet, 0xff, sizeof(image.mpalet));
-            break;
-            
         case EPlatformPC:
-            memcpy(image.tpalet, cga_palette, sizeof(cga_palette));
-            memcpy(image.mpalet, cga_palette, sizeof(cga_palette));
-            break;
-            
+            // CGA-art games; the VGA ones start black like the original DAC (first fade from black)
+            if (alis.platform.version <= 11)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    { sColorARGB *c = (sColorARGB *)&image.tpalet[i]; c->r = cga_palette[i * 4 + 0]; c->g = cga_palette[i * 4 + 1]; c->b = cga_palette[i * 4 + 2]; c->a = 0; }
+                    { sColorARGB *c = (sColorARGB *)&image.mpalet[i]; c->r = cga_palette[i * 4 + 0]; c->g = cga_palette[i * 4 + 1]; c->b = cga_palette[i * 4 + 2]; c->a = 0; }
+                }
+                break;
+            }
+            // fall through
+
         default:
             memset(image.tpalet, 0, sizeof(image.tpalet));
             memset(image.mpalet, 0, sizeof(image.mpalet));
@@ -375,40 +372,49 @@ u8 alis_init(sPlatform platform) {
     image.fonum = 0xffff;
     image.loglarg = 0xa0; // 0x50 for st
 
-    // init virtual ram
-    alis.mem = malloc(sizeof(u8) * kHostRAMSize);
-    memset(alis.mem, 0, sizeof(u8) * kHostRAMSize);
-
-    image.spritemem = (u8 *)malloc(1024 * 1024);
-    memset(image.spritemem, 0x0, 1024 * 1024);
-    
-    image.physic = (u8 *)malloc(alis.platform.width * alis.platform.height);
-    memset(image.physic, 0, alis.platform.width * alis.platform.height);
-
-    // NOTE: single-buffered games draw to and display using the same buffer
-    if (alis.platform.dbl_buf)
-    {
-        image.logic = (u8 *)malloc(alis.platform.width * alis.platform.height);
-        memset(image.logic, 0, alis.platform.width * alis.platform.height);
+    // VM heap, sized by pl_compute_ram_size. Can fail on a real Atari (main.c pre-flights it).
+    alis.mem = malloc(sizeof(u8) * alis.platform.ram_sz);
+    if (alis.mem == NULL) {
+        printf("\nOut of memory: could not allocate the %u KB game heap.\n",
+               alis.platform.ram_sz / 1024);
+        return 1;
     }
-    else
-    {
-        image.logic = image.physic;
+    VM_SYNC_MEM();
+    memset(alis.mem, 0, sizeof(u8) * alis.platform.ram_sz);
+    _xmem = alis.mem;
+    _xle  = alis.platform.is_little_endian;
+    _xwc  = (alis.platform.version >= 30 && alis.platform.is_little_endian) ? 1 : 0;
+
+    image.spritemem = (u8 *)malloc(kSpriteMemSize);
+    if (image.spritemem == NULL) {
+        printf("\nOut of memory: could not allocate the %u KB sprite pool.\n",
+               (u32)kSpriteMemSize / 1024);
+        return 1;
     }
+    memset(image.spritemem, 0x0, kSpriteMemSize);
+
+    image.buffer_alloc_size = alis.platform.width * (alis.platform.height + 2 * host.pixelbuf.surface_h);
+    // Prefer platform framebuffers (native Atari: ST-RAM, VIDEL can't scan TT-RAM); NULL -> malloc.
+    u8 *fb = sys_get_framebuffer(0);
+    image.physic_alloc = fb ? fb : (u8 *)malloc(image.buffer_alloc_size);
+    image.logic_alloc = image.physic_alloc;
+    memset(image.physic_alloc, 0, image.buffer_alloc_size);
+
+    if (alis.platform.dbl_buf) {
+        u8 *fb = sys_get_framebuffer(1);
+        image.logic_alloc = fb ? fb : (u8 *)malloc(image.buffer_alloc_size);
+        memset(image.logic_alloc, 0, image.buffer_alloc_size);
+    }
+
+    image.physic = image.physic_alloc + host.pixelbuf.surface_h * alis.platform.width;
+    image.logic  = image.logic_alloc  + host.pixelbuf.surface_h * alis.platform.width;
 
     image.logx1 = 0;
     image.logx2 = alis.platform.width - 1;
     image.logy1 = 0;
     image.logy2 = alis.platform.height - 1;
 
-    // NOTE: cswitching is never called for older games
-    // TODO: check other PC games. Robinson's Requiem, Storm Master (IBM PC): fswitch = 0
-    // TODO: fswitch is not set to 1 on the PC, but in the current alis implementation
-    // it must be set, otherwise the game won't show anything
-    // if (alis.platform.kind == EPlatformPC)
-    // {
-    //   alis.fswitch = 0;
-    // } else
+    // cswitching is never called by older games (see cswitching for the PC caveat).
     alis.fswitch = alis.platform.dbl_buf;
     alis.flagmain = 0;
     
@@ -419,7 +425,6 @@ u8 alis_init(sPlatform platform) {
     alis.ferase = 0;
 
     alis.saversp = 0;
-//    alis.basemem = 0x22400 + 0x3600;    // I3 0x25a00
     alis.basevar = 0;
     alis.finmem = alis.basemem - 0x400; // 0x22000 + 0x3600;
 
@@ -449,7 +454,10 @@ u8 alis_init(sPlatform platform) {
     alis.vstandard = 0x19d16; // 0x153C6;
     memset(alis.mem + alis.vstandard, 0, 256);
 
-    alis.tabptr = 0x212ee; // 0x1b82e; // tab containing 2 * 16 pointers
+    // Work areas sit below every game's basemem (lowest 0x1f300): at 0x212ee/0x22880 they
+    // overlapped the entity contexts of low-basemem games (Arborea: the expression stack
+    // overwrote another entity's wait reload).
+    alis.tabptr = 0x19c00; // tab containing 2 * 16 pointers
     memset(alis.mem + alis.tabptr, 0, 2 * 16 * 4);
     
     alis.sd7 = alis.bsd7;
@@ -465,10 +473,7 @@ u8 alis_init(sPlatform platform) {
     // the script data address table is located at vram start
     alis.script_data_orgs = (u32 *)alis.vram_org;
     
-    // TODO: init virtual accumulator
-//    alis.acc_org = alis.script->vram_org;
-//    alis.acc = alis.script->vram_org + kVirtualRAMSize;
-    alis.acc = alis.acc_org = (s16 *)(alis.mem + 0x22880/*0x1cdc0*/); // 0x198e2);
+    alis.acc = alis.acc_org = (s16 *)(alis.mem + kAccOrg);
     
     alis.pretrlinetra = (s16 *)(alis.mem + 0x1ef7c);
     alis.pretglinetra = (s16 *)(alis.mem + 0x1f58e);
@@ -484,14 +489,14 @@ u8 alis_init(sPlatform platform) {
     host.pixelbuf.w = alis.platform.width;
     host.pixelbuf.h = alis.platform.height;
     host.pixelbuf.data = image.physic;
-    host.pixelbuf.palette = image.ampalet;
+    host.pixelbuf.palette = image.mpalet;
 
     alis.load_delay = 0;
     alis.unload_delay = 0;
     
     // load main script
     alis_load_main();
-    alis.script = alis.main;
+    ALIS_SET_SCRIPT(alis.main);
     alis.basemain = alis.main->vram_org;
     
     alis.desmouse = NULL;
@@ -520,21 +525,26 @@ u8 alis_init(sPlatform platform) {
 void alis_deinit(void) {
     // free scripts
     // TODO: use real script table / cunload
-    // for(int i = 0; i < MAX_SCRIPTS; i++) {
-    //     script_unload(alis.script);
-    // }
-    
-    //vram_deinit(alis.vram);
     free(alis.mem);
     alis.mem = NULL;
+    VM_SYNC_MEM();
 
-    if (image.logic != image.physic)
-        free(image.logic);
+    free(image.spritemem);
+    image.spritemem = NULL;
 
+    // Free the surface-sized backing stores via the alloc base
+    // pointers, not via image.physic/logic which are offset into the
+    // alloc by surface_y_off. Single-buffered games (fswitch/dbl_buf 0)
+    // share ONE allocation between logic and physic — free it only once.
+    free(image.physic_alloc);
+    if (image.logic_alloc != image.physic_alloc)
+        free(image.logic_alloc);
+    image.physic_alloc = NULL;
+    image.logic_alloc = NULL;
+    image.physic = NULL;
     image.logic = NULL;
 
-    free(image.physic);
-    image.physic = NULL;
+    image.buffer_alloc_size = 0;
 }
 
 extern sMV1Audio mv1a;
@@ -543,9 +553,6 @@ extern sMV2Audio mv2a;
 extern u16 fls_drawing;
 extern u16 fls_pallines;
 extern s8  fls_state;
-extern u8 pvgalogic[1024 * 1024];
-extern u8 *vgalogic;
-extern u8 *vgalogic_df;
 extern u8 *endframe;
 
 void alis_save_state(void)
@@ -575,7 +582,7 @@ void alis_save_state(void)
     fwrite(alis_size_s, 8, 1, fp);
 
     fwrite(&(alis), sizeof(alis), 1, fp);
-    size_t vram_size = sizeof(u8) * kHostRAMSize;
+    size_t vram_size = sizeof(u8) * alis.platform.ram_sz;
     fwrite(&vram_size, sizeof(size_t), 1, fp);
     fwrite(alis.mem, vram_size, 1, fp);
     
@@ -604,7 +611,8 @@ void alis_save_state(void)
     {
         if (alis.loaded_scripts[i])
         {
-            fwrite(&i, 2, 1, fp);
+            u16 idx = (u16)i;   // 2 bytes of an int are its HIGH half on big-endian hosts
+            fwrite(&idx, 2, 1, fp);
             fwrite(alis.loaded_scripts[i], sizeof(sAlisScriptData), 1, fp);
         }
     }
@@ -630,7 +638,8 @@ void alis_save_state(void)
     {
         if (alis.live_scripts[i])
         {
-            fwrite(&i, 2, 1, fp);
+            u16 idx = (u16)i;   // 2 bytes of an int are its HIGH half on big-endian hosts
+            fwrite(&idx, 2, 1, fp);
             fwrite(&(alis.live_scripts[i]->data->header.id), 2, 1, fp);
             fwrite(alis.live_scripts[i], sizeof(sAlisScriptLive), 1, fp);
         }
@@ -649,11 +658,14 @@ void alis_save_state(void)
 
     // image
 
+    sys_cursor_hold(1);
     fwrite(&(image), sizeof(image), 1, fp);
-    fwrite(image.spritemem, 1024 * 1024, 1, fp);
+    fwrite(image.spritemem, kSpriteMemSize, 1, fp);
     fwrite(image.physic, alis.platform.width * alis.platform.height, 1, fp);
+    // Single-buffered: logic == physic, so only one screen buffer exists. Load mirrors this.
     if (image.logic != image.physic)
         fwrite(image.logic, alis.platform.width * alis.platform.height, 1, fp);
+    sys_cursor_hold(0);
     
     // audio
     
@@ -667,6 +679,9 @@ void alis_save_state(void)
     else if (audio.soundrout == mv2_chiprout) {
         audio_type = 3;
     }
+    else if (audio.soundrout == mv2_opl2rout) {
+        audio_type = 4;
+    }
 
     fwrite(&(audio), sizeof(audio), 1, fp);
     for (int i = 0; i < 4; i++)
@@ -674,11 +689,24 @@ void alis_save_state(void)
         value = (u32)((s64)audio.channels[i].address - (s64)alis.mem);
         fwrite(&value, 4, 1, fp);
     }
-    
+
     fwrite(&audio_type, sizeof(audio_type), 1, fp);
-    
+
     fwrite(&(mv1a), sizeof(mv1a), 1, fp);
     fwrite(&(mv2a), sizeof(mv2a), 1, fp);
+
+    // OPL2 SFX channel state (non-Atari builds)
+#if !defined(__TOS__) && !defined(__atarist__)
+    extern u8 opl_sfx_initialized[2];
+    extern u8 opl_sfx_type[2];
+    fwrite(opl_sfx_initialized, sizeof(opl_sfx_initialized), 1, fp);
+    fwrite(opl_sfx_type, sizeof(opl_sfx_type), 1, fp);
+#else
+    {
+        u8 zeros[4] = {0};
+        fwrite(zeros, 4, 1, fp);
+    }
+#endif
     
     // FLI/FLC video
     
@@ -695,16 +723,21 @@ void alis_save_state(void)
     fwrite(&fls_drawing, sizeof(fls_drawing), 1, fp);
     fwrite(&fls_pallines, sizeof(fls_pallines), 1, fp);
     fwrite(&fls_state, sizeof(fls_state), 1, fp);
-    fwrite(&pvgalogic, sizeof(pvgalogic), 1, fp);
-    
-    value = (u32)((s64)vgalogic - (s64)pvgalogic);
+    value = pvgalogic != NULL;   // film buffer only exists while a film is up
     fwrite(&value, 4, 1, fp);
-
-    value = (u32)((s64)vgalogic_df - (s64)pvgalogic);
-    fwrite(&value, 4, 1, fp);
+    if (pvgalogic) {
+        fwrite(pvgalogic, kVgaLogicSize, 1, fp);
+        value = (u32)(vgalogic - pvgalogic);
+        fwrite(&value, 4, 1, fp);
+        value = (u32)(vgalogic_df - pvgalogic);
+        fwrite(&value, 4, 1, fp);
+    }
 
     value = endframe ? (u32)((s64)endframe - (s64)alis.mem) : 0;
     fwrite(&value, 4, 1, fp);
+
+    // screen list head (appended; older files end before it)
+    fwrite(&screen.ptscreen, sizeof(screen.ptscreen), 1, fp);
 
     fclose(fp);
 
@@ -764,16 +797,39 @@ void alis_load_state(void)
     char savemain[kPathMaxLen] = {0};
     strcpy(savemain, alis.platform.main);
 
+    sys_isr_pause(1);
+    sys_cursor_hold(1);
+    u8 *oldmem = alis.mem;
+    size_t oldmem_size = alis.platform.ram_sz;
     memset(&alis, 0, alis_size);
     fread(&(alis), alis_size, 1, fp);
 
     strcpy(alis.platform.path, savepath);
     strcpy(alis.platform.main, savemain);
     
-    size_t vram_size = sizeof(u8) * kHostRAMSize;
+    size_t vram_size = 0;
     fread(&vram_size, sizeof(size_t), 1, fp);
-    alis.mem = malloc(vram_size);
+    // Reuse the arena: a second copy may not fit (4 MB machines) and the old one leaked.
+    if (oldmem && vram_size == oldmem_size)
+        alis.mem = oldmem;
+    else {
+        free(oldmem);
+        alis.mem = malloc(vram_size);
+    }
+    VM_SYNC_MEM();
+    _xmem = alis.mem;
+    _xle  = alis.platform.is_little_endian;
+    _xwc  = (alis.platform.version >= 30 && alis.platform.is_little_endian) ? 1 : 0;
     fread(alis.mem, vram_size, 1, fp);
+#if defined(ALIS_NATIVE_PLANAR)
+    planar_tab_flush();   // new memory image: caches are keyed by old addresses
+#endif
+#if defined(ALIS_NATIVE_16BPP)
+    sprite_cache_flush();
+#endif
+#if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM && !defined(ALIS_NO_ZOOM_TRIM)
+    zoom_rows_flush();
+#endif
     
     alis.vram_org = alis.mem + alis.basemem;
     
@@ -837,7 +893,7 @@ void alis_load_state(void)
     alis.acc = (s16 *)(alis.mem + value);
 
     fread(&value, 4, 1, fp);
-    alis.acc_org = (s16 *)(alis.mem + value);
+    alis.acc = alis.acc_org = (s16 *)(alis.mem + kAccOrg);   // older saves stored 0x22880
     
     u16 idx = 0;
     u16 id = 0;
@@ -877,7 +933,7 @@ void alis_load_state(void)
     alis.main = alis.live_scripts[value];
 
     fread(&value, 4, 1, fp);
-    alis.script = alis.live_scripts[value];
+    ALIS_SET_SCRIPT(alis.live_scripts[value]);
     
     // mouse
     
@@ -887,33 +943,56 @@ void alis_load_state(void)
     u8 enable_mouse = 0;
     fread(&enable_mouse, 1, 1, fp);
 
-    // image
-    
-    u8 *spritemem   = image.spritemem;
-    u8 *physic      = image.physic;
-    u8 *logic       = image.logic;
-    u8 *backmap     = image.backmap;
-    u8 *atpalet     = image.atpalet;
-    u8 *ampalet     = image.ampalet;
-    s16 *ptabfen    = image.ptabfen;
-    u8 *bufpack     = image.bufpack;
-    u8 *wlogic      = image.wlogic;
-    
+    // image: runtime-allocated pointers (not into alis.mem) must survive the fread.
+
+    u8 *spritemem    = image.spritemem;
+    u8 *physic       = image.physic;
+    u8 *logic        = image.logic;
+    u8 *physic_alloc = image.physic_alloc;
+    u8 *logic_alloc  = image.logic_alloc;
+    u8 *backmap      = image.backmap;
+    u32 *atpalet     = image.atpalet;
+    u32 *ampalet     = image.ampalet;
+    s16 *ptabfen     = image.ptabfen;
+    u8 *bufpack      = image.bufpack;
+    u8 *wlogic       = image.wlogic;
+    u8 *bgcache_alloc = image.bgcache_alloc;   // host malloc (background cache) — not in alis.mem
+    u8 *wdraw         = image.wdraw;            // current draw target (== logic or backmap)
+#if ALIS_SDL_VER > 1
+    u8  *depthbuf     = image.depthbuf;
+    u8 **depthrows    = image.depthrows;
+    u8  *omask        = image.omask;
+    u32 *terrgba      = image.terrgba;
+    u32 **terrgbarows = image.terrgbarows;
+#endif
+
     memset(&image, 0, sizeof(image));
     fread(&(image), sizeof(image), 1, fp);
+
+    image.spritemem    = spritemem;
+    image.physic       = physic;
+    image.logic        = logic;
+    image.physic_alloc = physic_alloc;
+    image.logic_alloc  = logic_alloc;
+    image.backmap      = backmap;
+    image.atpalet      = atpalet;
+    image.ampalet      = ampalet;
+    image.ptabfen      = ptabfen;
+    image.bufpack      = bufpack;
+    image.wlogic       = wlogic;
+    image.bgcache_alloc = bgcache_alloc;
+    image.wdraw         = wdraw;
+#if ALIS_SDL_VER > 1
+    image.depthbuf    = depthbuf;
+    image.depthrows   = depthrows;
+    image.omask       = omask;
+    image.terrgba     = terrgba;
+    image.terrgbarows = terrgbarows;
+#endif
     
-    image.spritemem = spritemem;
-    image.physic    = physic;
-    image.logic     = logic;
-    image.backmap   = backmap;
-    image.atpalet   = atpalet;
-    image.ampalet   = ampalet;
-    image.ptabfen   = ptabfen;
-    image.bufpack   = bufpack;
-    image.wlogic    = wlogic;
-    
-    fread(image.spritemem, 1024 * 1024, 1, fp);
+    fread(image.spritemem, kSpriteMemSize, 1, fp);
     fread(image.physic, alis.platform.width * alis.platform.height, 1, fp);
+    // Single-buffered: logic == physic and only one buffer was saved (mirror alis_save_state).
     if (image.logic != image.physic)
         fread(image.logic, alis.platform.width * alis.platform.height, 1, fp);
 
@@ -926,17 +1005,32 @@ void alis_load_state(void)
         fread(&value, 4, 1, fp);
         audio.channels[i].address = (s8 *)alis.mem + value;
     }
-    
+
     fread(&audio_type, sizeof(audio_type), 1, fp);
     switch (audio_type)
     {
-        case 1: audio.soundrout = mv1_soundrout; break;
-        case 2: audio.soundrout = mv2_soundrout; break;
-        case 3: audio.soundrout = mv2_chiprout; break;
+        case 1:  audio.soundrout = mv1_soundrout;  break;
+        case 2:  audio.soundrout = mv2_soundrout;  break;
+        case 3:  audio.soundrout = mv2_chiprout;   break;
+        case 4:  audio.soundrout = mv2_opl2rout;   break;
+        default: audio.soundrout = NULL;           break;
     }
-    
+
     fread(&(mv1a), sizeof(mv1a), 1, fp);
     fread(&(mv2a), sizeof(mv2a), 1, fp);
+
+    // OPL2 SFX channel state (non-Atari builds)
+#if !defined(__TOS__) && !defined(__atarist__)
+    extern u8 opl_sfx_initialized[2];
+    extern u8 opl_sfx_type[2];
+    fread(opl_sfx_initialized, sizeof(opl_sfx_initialized), 1, fp);
+    fread(opl_sfx_type, sizeof(opl_sfx_type), 1, fp);
+#else
+    {
+        u8 zeros[4];
+        fread(zeros, 4, 1, fp);
+    }
+#endif
     
     // FLI/FLC video
     
@@ -950,20 +1044,43 @@ void alis_load_state(void)
     fread(&value, 4, 1, fp);
     bfilm.delptr = value ? alis.mem + value : NULL;
 
+    // Streaming-film state (file handle, window buffer) is not restorable: clear the saved pointers.
+    bfilm.sfp = NULL;
+    bfilm.sbuf = NULL;
+    bfilm.sfill = NULL;
+    bfilm.sbuf_size = 0;
+    bfilm.sremain = 0;
+    bfilm.sfile_size = 0;
+
     fread(&fls_drawing, sizeof(fls_drawing), 1, fp);
     fread(&fls_pallines, sizeof(fls_pallines), 1, fp);
     fread(&fls_state, sizeof(fls_state), 1, fp);
-    fread(&pvgalogic, sizeof(pvgalogic), 1, fp);
     fread(&value, 4, 1, fp);
-    vgalogic = pvgalogic + value;
-    fread(&value, 4, 1, fp);
-    vgalogic_df = pvgalogic + value;
+    if (value && vgalogic_alloc()) {
+        fread(pvgalogic, kVgaLogicSize, 1, fp);
+        fread(&value, 4, 1, fp);
+        vgalogic = pvgalogic + value;
+        fread(&value, 4, 1, fp);
+        vgalogic_df = pvgalogic + value;
+    } else if (!value) {
+        vgalogic_free();
+    }
     fread(&value, 4, 1, fp);
     endframe = value ? alis.mem + value : NULL;
+    u16 ptscreen;
+    if (fread(&ptscreen, sizeof(ptscreen), 1, fp) == 1)
+        screen.ptscreen = ptscreen;
     
     fclose(fp);
 
-    host.pixelbuf.palette = image.ampalet;
+    host.pixelbuf.palette = image.mpalet;
+    dos_pal_sync_from_image();
+#if ALIS_SDL_VER < 2
+    {
+        extern volatile u8 dirty_pal;
+        dirty_pal = 1;   // push the restored palette (native/SDL1 only reload it when dirty)
+    }
+#endif
 
     sys_init_timers();
 
@@ -980,23 +1097,136 @@ void alis_load_state(void)
     alis.trlinetra = (s16 *)(alis.mem + 0x1f07e);
     alis.tglinetra = (s16 *)(alis.mem + 0x1f690);
 
+    sys_cursor_hold(0);
+    sys_isr_pause(0);
+
     printf("\n");
     ALIS_DEBUG(EDebugSystem, "Savestate loaded from: %s.\n", path);
 }
 
+// -----------------------------------------------------------------------------
+// VM-vs-render frame profiler (-DALIS_VM_PROFILE=1): ticks in alis_loop() vs draw(),
+// accumulated over a window of frames and dumped as a ratio.
+// -----------------------------------------------------------------------------
+#ifndef ALIS_VM_PROFILE
+# define ALIS_VM_PROFILE 0
+#endif
+#if ALIS_VM_PROFILE
+#include <stdio.h>
+// Accumulators are extern-visible: draw() (image.c) times only the render work,
+// AFTER sys_delay_frame()'s frame-cap sleep, so the sleep is NOT counted.
+u32 g_prof_vm = 0;               // accumulated ticks in alis_loop (VM dispatch)
+u32 g_prof_draw = 0;             // accumulated ticks in draw() render work
+u32 g_prof_frames = 0;
+static FILE *g_prof_file = NULL; // own log file, independent of dbglog/backend
+static u32 g_op_count[256];      // per-opcode execution count (this window)
+static u32 g_op_total = 0;       // total opcodes executed (this window)
+static u32 g_op_time[256];       // per-opcode accumulated TICKS (finds heavy opcodes)
+u32 g_oper_count[256];           // per-OPERAND (opername) execution count
+u32 g_oper_total = 0;            // total operands evaluated (this window)
+u32 g_cload_sleep = 0;           // cload: ticks in artificial sys_sleep_interactive
+u32 g_cload_work = 0;            // cload: ticks in real file load + unpack
+u32 g_cload_calls = 0;           // cload: number of calls (this window)
+u32 g_prof_c2p = 0;              // ticks in trsfen (chunky->physical transfer / c2p)
+// Called once per frame from draw() after rendering; dumps every ALIS_VM_PROFILE_WINDOW frames.
+void prof_frame_end(void) {
+    // Window size in frames: -DALIS_VM_PROFILE_WINDOW=n.
+#ifndef ALIS_VM_PROFILE_WINDOW
+#define ALIS_VM_PROFILE_WINDOW 512
+#endif
+    if (++g_prof_frames < ALIS_VM_PROFILE_WINDOW)
+        return;
+    if (!g_prof_file) {
+        // fallbacks: hard drive, then current dir, then floppy
+        g_prof_file = fopen("C:\\vmprof.log", "w");
+        if (!g_prof_file) g_prof_file = fopen("vmprof.log", "w");
+        if (!g_prof_file) g_prof_file = fopen("A:\\vmprof.log", "w");
+    }
+    if (g_prof_file) {
+        u32 tot = g_prof_vm + g_prof_draw; if (!tot) tot = 1;
+        fprintf(g_prof_file, "VMPROF %u frames: vm=%u draw=%u  -> VM=%u%% DRAW=%u%%  ops=%u\n",
+                g_prof_frames, g_prof_vm, g_prof_draw,
+                (u32)((g_prof_vm * 100ULL) / tot), (u32)((g_prof_draw * 100ULL) / tot),
+                g_op_total);
+        // top 12 opcodes by execution count this window (hex code -> map via opcodes.c)
+        fprintf(g_prof_file, "  OPHIST:");
+        u32 ot = g_op_total ? g_op_total : 1;
+        for (int n = 0; n < 12; n++) {
+            int best = -1; u32 bestc = 0;
+            for (int i = 0; i < 256; i++)
+                if (g_op_count[i] > bestc) { bestc = g_op_count[i]; best = i; }
+            if (best < 0) break;
+            fprintf(g_prof_file, " %02x=%u(%u%%)", best, bestc, (u32)((bestc * 100ULL) / ot));
+            g_op_count[best] = 0; // remove so next pass finds the next-highest
+        }
+        fprintf(g_prof_file, "\n");
+        // top 12 operands (opernames) by execution count this window
+        fprintf(g_prof_file, "  OPERHIST:");
+        u32 et = g_oper_total ? g_oper_total : 1;
+        for (int n = 0; n < 12; n++) {
+            int best = -1; u32 bestc = 0;
+            for (int i = 0; i < 256; i++)
+                if (g_oper_count[i] > bestc) { bestc = g_oper_count[i]; best = i; }
+            if (best < 0) break;
+            fprintf(g_prof_file, " %02x=%u(%u%%)", best, bestc, (u32)((bestc * 100ULL) / et));
+            g_oper_count[best] = 0;
+        }
+        fprintf(g_prof_file, " (opers=%u)\n", g_oper_total);
+        // top 12 opcodes by accumulated TIME (the actual cost — finds heavy opcodes)
+        fprintf(g_prof_file, "  OPTIME:");
+        u32 vt = g_prof_vm ? g_prof_vm : 1;
+        for (int n = 0; n < 12; n++) {
+            int best = -1; u32 bestt = 0;
+            for (int i = 0; i < 256; i++)
+                if (g_op_time[i] > bestt) { bestt = g_op_time[i]; best = i; }
+            if (best < 0) break;
+            fprintf(g_prof_file, " %02x=%u(%u%%)", best, bestt, (u32)((bestt * 100ULL) / vt));
+            g_op_time[best] = 0;
+        }
+        fprintf(g_prof_file, "\n");
+        fprintf(g_prof_file, "  CLOAD: calls=%u sleep=%u work=%u  |  c2p=%u (%u%% of draw)\n",
+                g_cload_calls, g_cload_sleep, g_cload_work,
+                g_prof_c2p, (u32)((g_prof_c2p * 100ULL) / (g_prof_draw ? g_prof_draw : 1)));
+        fflush(g_prof_file);
+    }
+    g_cload_sleep = g_cload_work = g_cload_calls = 0;
+    g_prof_c2p = 0;
+    for (int i = 0; i < 256; i++) { g_op_count[i] = 0; g_oper_count[i] = 0; g_op_time[i] = 0; }
+    g_op_total = 0;
+    g_oper_total = 0;
+    g_prof_vm = g_prof_draw = g_prof_frames = 0;
+}
+# define PROF_VM_T0()   u32 _pvm0 = sys_profile_ticks()
+# define PROF_VM_ADD()  (g_prof_vm += sys_profile_ticks() - _pvm0)
+# define PROF_OP(op)    (g_op_count[(op)]++, g_op_total++)
+#else
+# define PROF_VM_T0()   ((void)0)
+# define PROF_VM_ADD()  ((void)0)
+# define PROF_OP(op)    ((void)0)
+#endif
+
 void alis_loop(void) {
 
+    PROF_VM_T0();
     alis.script->running = 1;
     while (alis.state && alis.script->running) {
 
-//#ifndef NDEBUG
+#ifndef NDEBUG
         u32 pc_before = alis.script->pc;
-//#endif
+#endif
+#if ALIS_VM_PROFILE
+        {
+            u8 _op = VMEM[VSCRIPT->pc];   // peek opcode before readexec consumes it
+            g_op_count[_op]++; g_op_total++;
+            u32 _t0 = sys_profile_ticks();
+            readexec_opcode();
+            g_op_time[_op] += sys_profile_ticks() - _t0;  // full opcode time -> this opcode
+        }
+#else
         readexec_opcode();
-//#ifndef NDEBUG
-        if (alis.script->running && alis.state &&
-            (alis.script->pc < alis.script->pc_org ||
-             alis.script->pc >= alis.script->pc_org + alis.script->data->sz))
+#endif
+#ifndef NDEBUG
+        if (alis.script->running && alis.state && (alis.script->pc < alis.script->pc_org || alis.script->pc >= alis.script->pc_org + alis.script->data->sz))
         {
             printf("\n*** PC CORRUPTION DETECTED ***\n");
             printf("  Script: %s\n", alis.script->name);
@@ -1009,9 +1239,10 @@ void alis_loop(void) {
                    alis.mem[pc_before], alis.mem[pc_before+1], alis.mem[pc_before+2], alis.mem[pc_before+3],
                    alis.mem[pc_before+4], alis.mem[pc_before+5], alis.mem[pc_before+6], alis.mem[pc_before+7]);
         }
-//#endif
+#endif
     }
 
+    PROF_VM_ADD();
     // alis loop was stopped by 'cexit', 'cstop', or user event
 }
 
@@ -1115,8 +1346,39 @@ void updtcoord(u32 addr)
     }
 }
 
+#if defined(ALIS_DEBUG_AUTOLOAD)
+// Test runs: load alis.state once, ALIS_DEBUG_AUTOLOAD ms after the main loop starts (1 = 2 s).
+// Too early (first VM steps) leaves the engine half set up; slow machines need a longer delay.
+static void autoload_state(void)
+{
+    static u32 t0;
+    static u8 done;
+    u32 delay = ALIS_DEBUG_AUTOLOAD > 1 ? ALIS_DEBUG_AUTOLOAD : 2000;
+    if (!t0) t0 = sys_ticks() | 1;
+    if (!done) {
+        if (sys_ticks() - t0 > delay) { done = 1; t0 = sys_ticks() | 1; alis.state = eAlisStateLoad; }
+        return;
+    }
+#if defined(ALIS_DEBUG_AUTOSAVE)
+    // ...and save it back ALIS_DEBUG_AUTOSAVE ms later (refreshes old savestates).
+    if (done == 1 && sys_ticks() - t0 > ALIS_DEBUG_AUTOSAVE) { done = 2; alis.state = eAlisStateSave; }
+#endif
+}
+#endif
+
+// Native-only VM startup tracing via dbglog (sys_atari.c), capped; no-op elsewhere.
+#if defined(ALIS_USE_NATIVE_ATARI)
+extern void dbglog(const char *fmt, ...);
+static int g_natlog_n = 0;
+# define NATLOG(...)  do { if (g_natlog_n < 60) { g_natlog_n++; dbglog(__VA_ARGS__); } } while(0)
+#else
+# define NATLOG(...)  ((void)0)
+#endif
+
 void alis_main_V2(void) {
+    NATLOG("V2 enter state=%d varD5=%d\n", alis.state, alis.varD5);
     while (alis.state) {
+        NATLOG("V2 loop top varD5=%d\n", alis.varD5);
         
         if (alis.state == eAlisStateSave)
         {
@@ -1131,7 +1393,7 @@ void alis_main_V2(void) {
         
         alis.restart_loop = 0;
         
-        alis.script = ENTSCR(alis.varD5);
+        ALIS_SET_SCRIPT(ENTSCR(alis.varD5));
         
         alis.fallent = 0;
         alis.fseq = 0;
@@ -1171,8 +1433,10 @@ void alis_main_V2(void) {
                 alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
                 alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
                 alis.fseq++;
+                NATLOG("pre alis_loop pc=%x\n", alis.script->pc);
                 alis_loop();
-                
+                NATLOG("post alis_loop pc=%x\n", alis.script->pc);
+
                 sys_delay_loop();
                 
                 if (alis.restart_loop == 0)
@@ -1202,8 +1466,16 @@ void alis_main_V2(void) {
         alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
         if (alis.varD5 == 0)
         {
-            alis.script = ENTSCR(alis.varD5);
+            ALIS_SET_SCRIPT(ENTSCR(alis.varD5));
+            NATLOG("frame boundary: pre draw()\n");
             draw();
+            NATLOG("post draw()\n");
+#ifdef ALIS_DSP_MIXER
+            dsp_mixer_poll();
+#if defined(__atarist__) || defined(__TOS__)
+            atari_dma_sound_poll();   // STE/TT: top up the DMA ring buffer
+#endif
+#endif
 #if ALIS_USE_THREADS <= 0
             sys_poll_event();
 #endif
@@ -1212,7 +1484,12 @@ void alis_main_V2(void) {
 }
 
 void alis_main_V3(void) {
+    NATLOG("V3 enter state=%d varD5=%d\n", alis.state, alis.varD5);
     while (alis.state) {
+        NATLOG("V3 loop top varD5=%d\n", alis.varD5);
+#if defined(ALIS_DEBUG_AUTOLOAD)
+        autoload_state();
+#endif
 
         if (alis.state == eAlisStateSave)
         {
@@ -1224,11 +1501,12 @@ void alis_main_V3(void) {
             alis_load_state();
             alis.state = eAlisStateRunning;
         }
-        
+
         alis.restart_loop = 0;
-        
-        alis.script = ENTSCR(alis.varD5);
-        
+
+        ALIS_SET_SCRIPT(ENTSCR(alis.varD5));
+        NATLOG("V3 script=%s vram=%x pc=%x\n", alis.script->name, alis.script->vram_org, alis.script->pc);
+
         alis.fallent = 0;
         alis.fseq = 0;
         alis.acc = alis.acc_org;
@@ -1265,8 +1543,10 @@ void alis_main_V3(void) {
                 alis.script->pc = get_0x08_script_ret_offset(alis.script->vram_org);
                 alis.script->vacc_off = get_0x0a_vacc_offset(alis.script->vram_org);
                 alis.fseq++;
+                NATLOG("pre alis_loop pc=%x\n", alis.script->pc);
                 alis_loop();
-                
+                NATLOG("post alis_loop pc=%x\n", alis.script->pc);
+
                 if (alis.restart_loop == 0)
                 {
                     set_0x0a_vacc_offset(alis.script->vram_org, alis.script->vacc_off);
@@ -1292,8 +1572,16 @@ void alis_main_V3(void) {
         alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
         if (alis.varD5 == 0)
         {
-            alis.script = ENTSCR(alis.varD5);
+            ALIS_SET_SCRIPT(ENTSCR(alis.varD5));
+            NATLOG("frame boundary: pre draw()\n");
             draw();
+            NATLOG("post draw()\n");
+#ifdef ALIS_DSP_MIXER
+            dsp_mixer_poll();
+#if defined(__atarist__) || defined(__TOS__)
+            atari_dma_sound_poll();   // STE/TT: top up the DMA ring buffer
+#endif
+#endif
 #if ALIS_USE_THREADS <= 0
             sys_poll_event();
 #endif
@@ -1304,7 +1592,10 @@ void alis_main_V3(void) {
 int alis_thread(void *data) {
     alis.cstopret = 0;
     alis.varD5 = 0;
-    
+
+    NATLOG("alis_thread: version=%d main=%c\n", alis.platform.version,
+           alis.platform.version < 30 ? '2' : '3');
+
     if (alis.platform.version < 30)
     {
         alis_main_V2();
@@ -1314,6 +1605,7 @@ int alis_thread(void *data) {
         alis_main_V3();
     }
 
+    NATLOG("alis_thread: returned\n");
     return 0;
 }
 
@@ -1371,6 +1663,7 @@ s32 adresform(s16 idx)
     return 0;
 }
 
+// Absolute address of sound resource idx in the main script (flagmain) or the current one.
 s32 adresmus(s32 idx)
 {
     u32 mem = get_0x14_script_org_offset(alis.flagmain ? alis.main->vram_org : alis.script->vram_org);
@@ -1381,11 +1674,11 @@ s32 adresmus(s32 idx)
     if (len > idx)
     {
         s32 at = xread32(addr + 0xc) + off + idx * 4;
-        return xread32(mem + at) + at;
+        return mem + xread32(mem + at) + at;
     }
 
     ALIS_DEBUG(EDebugFatal, "ERROR: Failed to read sound resource at index %d from script %s\n", idx, alis.flagmain ? alis.main->name : alis.script->name);
-    return 0x11;
+    return mem + 0x11;
 }
 
 #pragma mark -

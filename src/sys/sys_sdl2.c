@@ -75,7 +75,7 @@ extern SDL_AudioSpec   *audio_spec;
 
 extern bool            dirty_mouse;
 extern float           scale;
-extern int             opt_scale;   // --Nx integer window scale (sys.c)
+extern int             opt_scale;
 extern float           aspect_ratio;
 extern float           scale_x;
 extern float           scale_y;
@@ -92,23 +92,29 @@ extern u32             poll_ticks;
 extern struct timeval   frame_time;
 extern struct timeval   loop_time;
 
-extern double          isr_step;
-extern double          isr_counter;
+extern u32             isr_step;
+extern u32             isr_counter;
 
 u32                   *pixels;
 
-void sys_audio_callback(void *userdata, u8 *stream, s32 len);
+void sys_audio_callback_S16MSB(void *userdata, u8 *stream, s32 len);
+void sys_audio_callback_S8(void *userdata, u8 *stream, s32 len);
 
 // ============================================================================
 #pragma mark - SDL2 System init
 // ============================================================================
+
+u32 sys_profile_ticks(void) { return SDL_GetTicks(); }
+u32 sys_ticks(void) { return SDL_GetTicks(); }
+void sys_delay(u32 ms) { SDL_Delay(ms); }
+u8 *sys_get_framebuffer(int index) { (void)index; return NULL; }  // VM mallocs the render buffers
 
 void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 
     width = pl->width;
     height = pl->height;
 
-    // CLI override (--Nx). 0 = keep the existing default (scale = 2).
+    // CLI override (--sN). 0 = use existing default (scale=2).
     if (opt_scale >= 1 && opt_scale <= 4)
         scale = (float)opt_scale;
 
@@ -116,7 +122,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     scale_y = scale * aspect_ratio;
     
     printf("  SDL initialization...\n");
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK)<0) {
         fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
         exit(-1);
     }
@@ -131,13 +137,17 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
             printf("  Joystick: %s\n", SDL_JoystickName(sys_joy_handle));
         }
     }
-
-    u32 timer_ms = alis.platform.is_little_endian ? 17 : 20;
-    sys_timeclock_hz = 1000 / timer_ms;
-    timer_id = SDL_AddTimer(timer_ms, itroutine, NULL);
-    if (!timer_id) {
-        fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
-        exit(-1);
+    
+    {
+        u32 timer_ms = alis.platform.is_little_endian ? 17 : 20;
+        timer_id = SDL_AddTimer(timer_ms, itroutine, NULL);
+        if (!timer_id) {
+            fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
+            exit(-1);
+        }
+        // 17ms → ~58.82 Hz, 20ms → 50 Hz. video.c uses this to keep FLI
+        // speech rate and frame pacing locked together.
+        sys_timeclock_hz = 1000 / timer_ms;
     }
     
     printf("  Video initialization...\n");
@@ -155,6 +165,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     }
     
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderSetScale(renderer, scale, scale);
     SDL_RenderSetLogicalSize(renderer, width, height * aspect_ratio);
     
     pixels = malloc(width * height * sizeof(*pixels));
@@ -167,6 +178,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         SDL_DestroyWindow(window);
         exit(-1);
     }
+
+    image.pal_format = EPalARGB;  // SDL2 uses ARGB8888 textures
     
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
     
@@ -183,7 +196,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     desired_spec->format = AUDIO_S16;
     desired_spec->channels = 1;
     desired_spec->samples = desired_spec->freq / 50; // 20 ms
-    desired_spec->callback = sys_audio_callback;
+    desired_spec->callback = sys_audio_callback_S16MSB;
     desired_spec->userdata = NULL;
     desired_spec->size = desired_spec->samples * 2;
     
@@ -208,10 +221,13 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     audio.host_format = audio_spec->format;
 
     sys_init_psg();
-    
+
+    // DOS games ticked their audio engine on a 60 Hz PIT; Atari/Amiga
+    // games on a 50 Hz PAL VBL. See sys.h.
     sys_sfx_tick_hz = alis.platform.is_little_endian ? 60 : 50;
-    isr_step = (double)sys_sfx_tick_hz / (double)(audio_spec->freq);
-    isr_counter = 1;
+
+    isr_step = (sys_sfx_tick_hz * 65536UL) / (u32)audio_spec->freq;
+    isr_counter = 0x10000;
     
     SDL_PauseAudioDevice(audio_id, mutesound);
     
@@ -276,7 +292,7 @@ void sys_delay_loop(void)
 
 void sys_delay_frame(void)
 {
-    sys_sleep_until(&frame_time, k_frame_ticks * alis.ctiming);
+    sys_sleep_until(&frame_time, k_frame_ticks * 50 / sys_pace_hz() * alis.ctiming);
 }
 
 void sys_sleep_until_music_stops(void)
@@ -331,84 +347,33 @@ u8 sys_start(void) {
     return 0;
 }
 
-static float sys_playfield_fit(float *bar_x, float *bar_y) {
-
-    int win_w, win_h;
-    SDL_GetWindowSize(window, &win_w, &win_h);
-
-    float log_w = (float)width;
-    float log_h = (float)height * aspect_ratio;
-    float fit = fminf((float)win_w / log_w, (float)win_h / log_h);
-
-    if (bar_x) *bar_x = ((float)win_w - log_w * fit) * 0.5f;
-    if (bar_y) *bar_y = ((float)win_h - log_h * fit) * 0.5f;
-
-    return fit;
-}
-
 void sys_poll_event(void) {
-
+    
     sys_render(host.pixelbuf);
-
-    SDL_PollEvent(&event);
-
-    // update mouse position, mapping window coordinates to game coordinates
+    
+    // update mouse position
     SDL_GetMouseState(&mouse.x, &mouse.y);
 
-    float bar_x, bar_y;
-    float fit = sys_playfield_fit(&bar_x, &bar_y);
-    if (fit > 0)
-    {
-        s32 gx = (s32)(((float)mouse.x - bar_x) / fit);
-        s32 gy = (s32)(((float)mouse.y - bar_y) / (fit * aspect_ratio));
+    float newx, newy;
+    SDL_RenderWindowToLogical(renderer, mouse.x, mouse.y, &newx, &newy);
 
-        // clamp to the playfield so clicks in the bars land on its edge
-        mouse.x = gx < 0 ? 0 : (gx >= (s32)width ? (s32)width - 1 : gx);
-        mouse.y = gy < 0 ? 0 : (gy >= (s32)height ? (s32)height - 1 : gy);
-    }
+    mouse.x = newx;
+    mouse.y = newy / aspect_ratio;
 
+    // Drain the event queue; quick clicks latch in mouse.lb_clicked / rb_clicked.
+    while (SDL_PollEvent(&event)) {
     switch (event.type) {
 
         case SDL_MOUSEBUTTONDOWN:
         {
-            if (event.button.button == SDL_BUTTON_LEFT) {
-                mouse.lb = 1; mouse.lb_clicked = 1;
-            }
-            if (event.button.button == SDL_BUTTON_RIGHT) {
-                mouse.rb = 1; mouse.rb_clicked = 1;
-            }
+            if (event.button.button == SDL_BUTTON_LEFT)  { mouse.lb = 1; mouse.lb_clicked = 1; }
+            if (event.button.button == SDL_BUTTON_RIGHT) { mouse.rb = 1; mouse.rb_clicked = 1; }
             break;
         }
         case SDL_MOUSEBUTTONUP:
         {
             if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 0;
             if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 0;
-            break;
-        }
-        case SDL_JOYDEVICEADDED:
-        {
-            extern SDL_Joystick *sys_joy_handle;
-            extern SDL_JoystickID sys_joy_instance_id;
-            if (sys_joy_handle == NULL) {
-                sys_joy_handle = SDL_JoystickOpen(event.jdevice.which);
-                if (sys_joy_handle) {
-                    sys_joy_instance_id = SDL_JoystickInstanceID(sys_joy_handle);
-                    ALIS_DEBUG(EDebugInfo, "Joystick connected: %s\n",
-                               SDL_JoystickName(sys_joy_handle));
-                }
-            }
-            break;
-        }
-        case SDL_JOYDEVICEREMOVED:
-        {
-            extern SDL_Joystick *sys_joy_handle;
-            extern SDL_JoystickID sys_joy_instance_id;
-            if (sys_joy_handle && event.jdevice.which == sys_joy_instance_id) {
-                SDL_JoystickClose(sys_joy_handle);
-                sys_joy_handle = NULL;
-                sys_joy_instance_id = -1;
-                ALIS_DEBUG(EDebugInfo, "Joystick disconnected\n");
-            }
             break;
         }
         case SDL_QUIT:
@@ -427,23 +392,6 @@ void sys_poll_event(void) {
                     printf("\n");
                     ALIS_DEBUG(EDebugSystem, "INTERRUPT: User debug label.\n");
                     break;
-
-//                case SDLK_F10:
-//                {
-//                    FILE *f = fopen("/tmp/palette.act", "wb");
-//                    if (f)
-//                    {
-//                        for (int i = 0; i < 256; i++)
-//                        {
-//                            fputc(image.ampalet[i * 4 + 0], f);
-//                            fputc(image.ampalet[i * 4 + 1], f);
-//                            fputc(image.ampalet[i * 4 + 2], f);
-//                        }
-//                        fclose(f);
-//                        printf("Palette dumped to /tmp/palette.act\n");
-//                    }
-//                    break;
-//                }
 
                 case SDLK_F9:
                 {
@@ -500,15 +448,42 @@ void sys_poll_event(void) {
         {
             if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
             {
-                scale_x = sys_playfield_fit(NULL, NULL);
-                scale_y = scale_x * aspect_ratio;
+                SDL_RenderGetScale(renderer, &scale_x, &scale_y);
+                scale_y *= aspect_ratio;
 
                 dirty_mouse = true;
             }
-            
+
+            break;
+        }
+        case SDL_JOYDEVICEADDED:
+        {
+            extern SDL_Joystick *sys_joy_handle;
+            extern SDL_JoystickID sys_joy_instance_id;
+            if (sys_joy_handle == NULL) {
+                sys_joy_handle = SDL_JoystickOpen(event.jdevice.which);
+                if (sys_joy_handle) {
+                    sys_joy_instance_id = SDL_JoystickInstanceID(sys_joy_handle);
+                    ALIS_DEBUG(EDebugInfo, "Joystick connected: %s\n",
+                               SDL_JoystickName(sys_joy_handle));
+                }
+            }
+            break;
+        }
+        case SDL_JOYDEVICEREMOVED:
+        {
+            extern SDL_Joystick *sys_joy_handle;
+            extern SDL_JoystickID sys_joy_instance_id;
+            if (sys_joy_handle && event.jdevice.which == sys_joy_instance_id) {
+                SDL_JoystickClose(sys_joy_handle);
+                sys_joy_handle = NULL;
+                sys_joy_instance_id = -1;
+                ALIS_DEBUG(EDebugInfo, "Joystick disconnected\n");
+            }
             break;
         }
     };
+    }   // end of SDL_PollEvent drain loop
 }
 
 // ============================================================================
@@ -531,6 +506,9 @@ void sys_render(pixelbuf_t buffer) {
     
         // Amiga HAM bitplanes
         
+        // Use raw RGB palette saved by fls_pal
+        u8 (*ham_pal)[3] = bfilm.ham_pal;
+
         u32 px = 0;
         u32 planesize = (buffer.w * buffer.h) >> 3;
 
@@ -558,9 +536,9 @@ void sys_render(pixelbuf_t buffer) {
                     control = ((*c4 >> bit) & 1) << 0 | ((*c5 >> bit) & 1) << 1;
                     switch (control) {
                         case 0:
-                            r = buffer.palette[index + 0];
-                            g = buffer.palette[index + 1];
-                            b = buffer.palette[index + 2];
+                            r = ham_pal[index >> 2][0];
+                            g = ham_pal[index >> 2][1];
+                            b = ham_pal[index >> 2][2];
                             break;
                         case 1:
                             b = index << 2;
@@ -638,6 +616,64 @@ void sys_render(pixelbuf_t buffer) {
             memcpy(curpal, palette, 32);
         }
     }
+    else if (image.emode && image.terrgbarows)
+    {
+        int stride = 2 + (sizeof(u8 *) >> 1);
+        s16 *cur = image.firstpal;
+        s16 *nxt = cur + stride;
+
+        u16 uipaloff = 0;
+        if (image.flinepal)
+        {
+            while (nxt[0] != 0xff && 150 >= nxt[1])
+            {
+                cur = nxt;
+                nxt = cur + stride;
+            }
+            
+            uipaloff = cur[2];
+        }
+        
+        cur = image.firstpal;
+        nxt = cur + stride;
+
+        // Enhanced mode: blit terrgba for terrain area, 8-bit for sprites/sky/UI
+        u8 pal_mask = alis.platform.bpp == 4 ? 0x0F : 0xFF;
+        for (int y = 0; y < buffer.h; y++)
+        {
+            s16 ty = y - image.wlogy1;
+            int base = y * buffer.w;
+            
+            while (nxt[0] != 0xff && y >= nxt[1])
+            {
+                cur = nxt;
+                nxt = cur + stride;
+            }
+            u16 paloff = cur[2];
+
+            for (int x = 0; x < buffer.w; x++)
+            {
+                int px = base + x;
+                
+                if (ty >= 0 && ty < image.terrgbah && x < image.terrgbaw && buffer.data[px] == 0xff)
+                {
+                    // Sentinel value 1 = untouched terrain → use RGBA with fog
+                    pixels[px] = image.terrgbarows[ty][x];
+                }
+                else if (ty >= 0 && ty < image.terrgbah && x < image.terrgbaw)
+                {
+                    // Terrain area but overwritten by destofen/sprites → 8-bit palette
+                    int index = buffer.data[px] + paloff;
+                    pixels[px] = buffer.palette[index] | 0xFF000000u;
+                }
+                else
+                {
+                    int index = buffer.data[px] + uipaloff;
+                    pixels[px] = buffer.palette[index] | 0xFF000000u;
+                }
+            }
+        }
+    }
     else if (image.flinepal)
     {
         int stride = 2 + (sizeof(u8 *) >> 1);
@@ -657,7 +693,7 @@ void sys_render(pixelbuf_t buffer) {
             for (int x = 0; x < buffer.w; x++)
             {
                 int index = buffer.data[base + x] + paloff;
-                pixels[base + x] = (u32)(0xff000000 + (buffer.palette[index * 4 + 0] << 16) + (buffer.palette[index * 4 + 1] << 8) + (buffer.palette[index * 4 + 2] << 0));
+                pixels[base + x] = buffer.palette[index] | 0xFF000000u;
             }
         }
     }
@@ -667,14 +703,13 @@ void sys_render(pixelbuf_t buffer) {
         for (int px = 0; px < buffer.w * buffer.h; px++)
         {
             index = buffer.data[px];
-            pixels[px] = (u32)(0xff000000 + (buffer.palette[index * 4 + 0] << 16) + (buffer.palette[index * 4 + 1] << 8) + (buffer.palette[index * 4 + 2] << 0));
+            pixels[px] = buffer.palette[index] | 0xFF000000u;
         }
     }
 
     SDL_UpdateTexture(texture, NULL, pixels, width * sizeof(*pixels));
     
-    // clear&render
-    SDL_RenderClear(renderer);
+    // render
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
     
@@ -685,8 +720,15 @@ void sys_render(pixelbuf_t buffer) {
 #pragma mark - SDL2 System deinit
 // ============================================================================
 
+void sys_restore_desktop(void) { }   // GEM/desktop handover: native Atari backend only
+
 void sys_deinit(void) {
-    
+
+    {
+        extern SDL_Joystick *sys_joy_handle;
+        if (sys_joy_handle) { SDL_JoystickClose(sys_joy_handle); sys_joy_handle = NULL; }
+    }
+
     SDL_RemoveTimer(timer_id);
     SDL_PauseAudioDevice(audio_id, 1);
     SDL_CloseAudioDevice(audio_id);
@@ -698,7 +740,6 @@ void sys_deinit(void) {
 
     free(audio_spec);
 
-//   SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -722,8 +763,14 @@ void sys_unlock_renderer(void) {
 #pragma mark - SDL2 MOUSE
 // =============================================================================
 
+// Integrated-cursor hooks (used by the native 16bpp backend); no-ops under SDL2.
+void sys_mouse_erase(void)  {}
+void sys_mouse_uncopy(void) {}
+void sys_mouse_draw(void)   {}
+void sys_flip_wait(void)    {}
+
 void sys_dirty_mouse(void) {
-    
+
     if (alis.desmouse == NULL)
     {
         SDL_ShowCursor(mouse.enabled);
@@ -741,7 +788,7 @@ void sys_dirty_mouse(void) {
         case 0x00:
         case 0x02:
         {
-            u8 *palette = host.pixelbuf.palette;
+            u32 *palette = host.pixelbuf.palette;
 
             if (image.flinepal)
             {
@@ -753,7 +800,7 @@ void sys_dirty_mouse(void) {
                     if (unk1 == 0xff)
                         break;
 
-                    palette = host.pixelbuf.palette + palentry[2] * 4;
+                    palette = host.pixelbuf.palette + palentry[2];
                     palentry += 2 + (sizeof(u8 *) >> 1);
                 }
             }
@@ -773,7 +820,7 @@ void sys_dirty_mouse(void) {
                     s16 wh = w / 2;
                     color = *(at + wh + h * (width / 2));
                     color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
-                    pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (palette[color * 4 + 0] << 16) + (palette[color * 4 + 1] << 8) + (palette[color * 4 + 2] << 0));
+                    pixels[px] = color == clear ? 0 : (palette[color] | 0xFF000000u);
                 }
             }
             
@@ -798,7 +845,7 @@ void sys_dirty_mouse(void) {
                     color = *(at + wh + h * (width / 2));
                     color = w % 2 == 0 ? ((color & 0b11110000) >> 4) : (color & 0b00001111);
                     int index = palidx + color;
-                    pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (host.pixelbuf.palette[index * 4 + 0] << 16) + (host.pixelbuf.palette[index * 4 + 1] << 8) + (host.pixelbuf.palette[index * 4 + 2] << 0));
+                    pixels[px] = color == clear ? 0 : (host.pixelbuf.palette[index] | 0xFF000000u);
                 }
             }
             break;
@@ -826,7 +873,7 @@ void sys_dirty_mouse(void) {
             for (int px = 0; px < width * height; px++)
             {
                 color = at[px];
-                pixels[px] = color == clear ? 0 : (u32)(0xff000000 + (host.pixelbuf.palette[color * 4 + 0] << 16) + (host.pixelbuf.palette[color * 4 + 1] << 8) + (host.pixelbuf.palette[color * 4 + 2] << 0));
+                pixels[px] = color == clear ? 0 : (host.pixelbuf.palette[color] | 0xFF000000u);
             }
 
             break;

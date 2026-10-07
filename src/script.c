@@ -19,6 +19,8 @@
 // OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// VM-core translation unit: opt into hot-state register pinning (see alis.h).
+#define ALIS_VM_CORE
 #include "alis.h"
 #include "alis_private.h"
 #include "debug.h"
@@ -35,14 +37,10 @@
 
 // byte 0 -> magic
 // byte 1..3 -> unpacked size (24 bits)
-//#define HEADER_MAGIC_SZ     (sizeof(u32))
 // byte 4..5 -> main script if zero
-//#define HEADER_CHECK_SZ     (sizeof(u16))
 // if main: byte 6..21 -> main header
-//#define HEADER_MAIN_SZ      (16 * sizeof(u8))
 // if main: byte 22..29 -> dic
 // if not main: byte 6..13 -> dic
-//#define HEADER_DIC_SZ       (2 * sizeof(u32))
 
 u8 is_packedx(u32 magic) {
     return ((magic >> 24) & 0xf0) == 0xa0;
@@ -61,14 +59,6 @@ int is_main(u16 check) {
 // =============================================================================
 
 int search_insert(u32 *nums, u32 size, int target_id) {
-    
-//    u8 a = SCENE_GET_AT(8, 0, u8, NOP);
-//    u8 x = SCENE_GET(8, SC_RETURN_OFFSET);
-//    u8 y = SCENE_GET(8, SC_WAIT_COUNT);
-    
-    // TODO: why was it there and why it caused rendering artifacts in RRQ?
-//    SCENE_SET_AT(8, 0, u8, NOP, 10);
-//    SCENE_SET(8, SC_WAIT_COUNT, 12);
     
     int start = 0;
     int end = size - 1;
@@ -93,10 +83,7 @@ void protect(void)
     if (alis.vprotect != 0)
     {
         u8 *workbuffptr = alis.buffer;
-//    uVar1 = FUN_0000f00e();
-//    if ((s16)uVar1 == 0) {
         alis.basemain = alis.atprog;
-//    }
     }
     
     alis.vprotect = 0;
@@ -392,11 +379,16 @@ void script_guess_game(const char * script_path) {
                     //#######################################################################################
                 }
 
-                printf("Starting %s %s (ALIS ver. %.1f)\n", alis.platform.name, alis.platform.desc, alis.platform.version / 10.0);
-                printf("         Host:  %s,  Platform:  %s,  Artificial version: %d\n", is_host_le() ? "LE" : "BE", alis.platform.is_little_endian ? "LE" : "BE", alis.platform.version);
-                printf("         Platform UID: Specs+0x08 x Specs+0x0c = Vmaxvram x Vmaxsprite\n");
-                printf("                   =>  0x%08x x 0x%08x = 0x%08x\n", alis.header.val3, alis.header.val4, alis.platform.uid);
-                fflush(stdout);
+                // Announce once (native Atari calls this twice: memory pre-check, then alis_init).
+                static int announced = 0;
+                if (!announced) {
+                    announced = 1;
+                    printf("Starting %s %s (ALIS ver. %.1f)\n", alis.platform.name, alis.platform.desc, alis.platform.version / 10.0);
+                    printf("         Host:  %s,  Platform:  %s,  Artificial version: %d\n", is_host_le() ? "LE" : "BE", alis.platform.is_little_endian ? "LE" : "BE", alis.platform.version);
+                    printf("         Platform UID: Specs+0x08 x Specs+0x0c = Vmaxvram x Vmaxsprite\n");
+                    printf("                   =>  0x%08x x 0x%08x = 0x%08x\n", alis.header.val3, alis.header.val4, alis.platform.uid);
+                    fflush(stdout);
+                }
             }
             else {
                 ALIS_DEBUG(EDebugError, "The version of the %s file is not supported, or it is not a valid main file of the game.\n", script_path);
@@ -413,8 +405,12 @@ void script_guess_game(const char * script_path) {
     }
 }
 
+#if defined(ALIS_PROFILE_DRAW)
+// Sprite-conversion ticks for the current load (reset in script_load, reported in its LOAD line).
+static u32 g_lp_conv_ticks = 0;
+#endif
+
 sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
-    
     s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
     if (insert > 0 && insert < alis.nbprog)
@@ -466,9 +462,14 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     script->header.vram_alloc_sz = swap16((data + 20));
     script->header.w_unknown7 = swap16((data + 22));
     script->data_org = alis.finprog;
-    if (script->data_org > kHostRAMSize || data_sz > kHostRAMSize - script->data_org)
+    // Scripts must stay below finmem (io_malloc blocks sit above it), as the original.
+    // Overflow-safe: data_sz may be a wrapped negative s32.
+    if ((u32)script->data_org > alis.finmem ||
+        data_sz > alis.finmem - (u32)script->data_org)
     {
-        ALIS_DEBUG(EDebugError, "Out of VM memory loading '%s': need 0x%x at 0x%x, have 0x%x\n", name, data_sz, script->data_org, kHostRAMSize);
+        ALIS_DEBUG(EDebugError, "Out of VM memory loading '%s': need 0x%x at 0x%x, have 0x%x\n",
+                   name, data_sz, script->data_org, alis.finmem);
+        alis_fatal = "Out of game memory: this machine has too little RAM for this game.";
         free(script);
         return NULL;
     }
@@ -716,14 +717,32 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                 }
             }
         }
+
+#if (defined(ALIS_CONV_INPLACE) && ALIS_CONV_INPLACE) || (defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR)
+        // Convert every sprite IN PLACE at load (as the original Falcon io_pixel): to 8-bit chunky,
+        // or planar on native Atari. destofen reads the result straight from bitmap+8.
+        {
+            // `name` selects the per-script 2D/3D policy on DOS data (opcodes.c
+            // conv_planar_allowed_for): the 3D renderer samples its resources as chunky.
+            extern s32 convert_sprites_inplace(u32 org, const char *name);
+#if defined(ALIS_PROFILE_DRAW)
+            extern u32 sys_profile_ticks_safe(void);
+            u32 _lp_c0 = sys_profile_ticks_safe();
+#endif
+            script->sz += convert_sprites_inplace(script->data_org, script->name);
+#if defined(ALIS_PROFILE_DRAW)
+            g_lp_conv_ticks += sys_profile_ticks_safe() - _lp_c0;
+#endif
+        }
+#endif
     }
-    
+
     {
         data = alis.mem + script->data_org;
         s32 l = read32(data + 0xe);
 
         // convert samples
-    
+
         u32 maxlen = 0;
 
         s32 samples = read16(data + l + 0x10);
@@ -923,7 +942,8 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     // TODO: RRQ changes
 //    0001bde6 42 68 ff ca     clr.w      (-0x36,A0)
 //    0001bdea 42 68 ff c8     clr.w      (-0x38,A0)
-    set_0x26_creducing(script->vram_org, 0);
+    if (!(alis.platform.kind == EPlatformPC && alis.platform.uid == EGameColorado))   // Colorado DOS keeps 0xff
+        set_0x26_creducing(script->vram_org, 0);
     // -----------------
     
     if (contextsize > 0x2e)
@@ -985,11 +1005,24 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
  24...xx    ?       unpacked data (1st word is ID, must be zero)
  */
 sAlisScriptData * script_load(const char * script_path) {
-    
+
     sAlisScriptData * script = NULL;
-    
+
     s32 unpack_sz = -1;
-    
+#if defined(ALIS_PROFILE_DRAW)
+    // Per-script load profiling: unpack_script vs script_init (sprite conversion) + growprog volume.
+    extern u32 sys_profile_ticks_safe(void);   // 200 Hz, 5 ms/tick
+    extern u32 g_lp_grow_bytes;
+    extern u32 g_lp_c2p_ticks, g_lp_grow_ticks, g_lp_fixup_ticks;
+    extern void dbglog(const char *fmt, ...);
+    const char *_lp_name = strrchr(script_path, kPathSeparator);
+    _lp_name = _lp_name ? _lp_name + 1 : script_path;
+    u32 _lp_unpack = 0, _lp_init = 0, _lp_t = 0;
+    g_lp_grow_bytes = 0;
+    g_lp_conv_ticks = 0;
+    g_lp_c2p_ticks = 0; g_lp_grow_ticks = 0; g_lp_fixup_ticks = 0;
+#endif
+
     FILE * fp = fopen(script_path, "rb");
     if (fp) {
         ALIS_DEBUG(EDebugInfo, "\nLoading script file: %s\n", script_path);
@@ -1029,9 +1062,21 @@ sAlisScriptData * script_load(const char * script_path) {
                 pak_sz -= kVMSpecsSize;
             }
 
+#if defined(ALIS_PROFILE_DRAW)
+            _lp_t = sys_profile_ticks_safe();
+#endif
             unpack_sz = unpack_script(script_path, unpack_buf);
+#if defined(ALIS_PROFILE_DRAW)
+            _lp_unpack = sys_profile_ticks_safe() - _lp_t;
+#endif
             if (unpack_sz > 0) {
+#if defined(ALIS_PROFILE_DRAW)
+                _lp_t = sys_profile_ticks_safe();
+#endif
                 script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
+#if defined(ALIS_PROFILE_DRAW)
+                _lp_init = sys_profile_ticks_safe() - _lp_t;
+#endif
             }
         }
         else {
@@ -1043,7 +1088,7 @@ sAlisScriptData * script_load(const char * script_path) {
             s32 seekto = kPackedHeaderSize;
             if(is_main(check))
                 seekto += kVMSpecsSize;
-            
+
             unpack_sz -= seekto;
 
             if (unpack_sz <= 0) {
@@ -1054,13 +1099,34 @@ sAlisScriptData * script_load(const char * script_path) {
                 fseek(fp, seekto, SEEK_SET);
                 fread(unpack_buf, sizeof(u8), unpack_sz, fp);
 
+#if defined(ALIS_PROFILE_DRAW)
+                _lp_t = sys_profile_ticks_safe();
+#endif
                 script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
+#if defined(ALIS_PROFILE_DRAW)
+                _lp_init = sys_profile_ticks_safe() - _lp_t;
+#endif
             }
         }
 
         // cleanup
         free(unpack_buf);
         fclose(fp);
+#if defined(ALIS_PROFILE_DRAW)
+        // conv split: c2p (chunky->planar) | grow (growprog memmove) | fix (O(n^2) offset table)
+        // | prep (per-sprite malloc + nibble-unpack pass + free = conv - the other three).
+        u32 _lp_prep = g_lp_conv_ticks;
+        if (_lp_prep > g_lp_c2p_ticks + g_lp_grow_ticks + g_lp_fixup_ticks)
+            _lp_prep -= g_lp_c2p_ticks + g_lp_grow_ticks + g_lp_fixup_ticks;
+        else _lp_prep = 0;
+        dbglog("LOAD %-13s unpack=%lums init=%lums conv=%lums [c2p=%lu grow=%lu fix=%lu prep=%lu] shift=%luKB\n",
+               _lp_name,
+               (unsigned long)(_lp_unpack * 5), (unsigned long)(_lp_init * 5),
+               (unsigned long)(g_lp_conv_ticks * 5),
+               (unsigned long)(g_lp_c2p_ticks * 5), (unsigned long)(g_lp_grow_ticks * 5),
+               (unsigned long)(g_lp_fixup_ticks * 5), (unsigned long)(_lp_prep * 5),
+               (unsigned long)(g_lp_grow_bytes >> 10));
+#endif
         
         if (unpack_sz < 0) {
             ALIS_DEBUG(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
@@ -1113,33 +1179,12 @@ sAlisScriptData * script_load(const char * script_path) {
             }
         }
     }
-    else if (alis.platform.kind == EPlatformPC && (alis.platform.uid == EGameWindsurfWilly))
-    {
-        if (script->header.id == 79)
-        {
-            // HACK: load and apply logo palette
-
-            u32 addr = script->data_org;
-            s32 l = xread32(addr + 0xe);
-            s32 e = xread16(addr + l + 4);
-            if (e > 6)
-            {
-                s32 a = xread32(addr + l) + l + 6 * 4;
-                addr += a;
-                u8 *paldata = alis.mem + addr + xread32(addr);
-                topalette(paldata, 0);
-            }
-        }
-    }
         
     return script;
 }
 
 
 void script_unload(sAlisScriptData * script) {
-//    free(script->ram);
-//    free(script->data);
-    // free(script);
 }
 
 bool is_delay_script(char *name) {
@@ -1183,158 +1228,48 @@ bool is_delay_script(char *name) {
 // MARK: - Script data access
 // =============================================================================
 
-u8 script_read8(void) {
+// Release builds use the static-inline versions in alis.h; these logging
+// variants are debug-only (see script.h).
 #ifndef NDEBUG
-    u8 ret = (alis.mem[alis.script->pc++]);
+u8 script_read8(void) {
+    u8 ret = (VMEM[VSCRIPT->pc++]);
     ALIS_DEBUG(EDebugInfo, " 0x%02x", ret & 0xff);
     return ret;
-#else
-    return alis.mem[alis.script->pc++];
-#endif
 }
 
 /**
  * @brief Reads a word from current script
- * 
- * @return u16 
+ *
+ * @return u16
  */
 u16 script_read16(void) {
 
-    u32 val = read16(alis.mem + alis.script->pc);
-    alis.script->pc += 2;
+    u32 val = read16(VMEM + VSCRIPT->pc);
+    VSCRIPT->pc += 2;
     ALIS_DEBUG(EDebugInfo, " 0x%04x", val & 0xffff);
     return val;
 }
 
 u32 script_read24(void) {
-    u32 val = read24(alis.mem + alis.script->pc);
-    alis.script->pc += 3;
+    u32 val = read24(VMEM + VSCRIPT->pc);
+    VSCRIPT->pc += 3;
     ALIS_DEBUG(EDebugInfo, " 0x%06x", val & 0xffffff);
     return val;
 }
 
 u32 script_read32(void) {
 
-    u32 val = read32(alis.mem + alis.script->pc);
-    alis.script->pc += 4;
+    u32 val = read32(VMEM + VSCRIPT->pc);
+    VSCRIPT->pc += 4;
     ALIS_DEBUG(EDebugInfo, " 0x%x", val);
     return val;
 }
+#endif
 
 void script_read_bytes(u32 len, u8 * dest) {
-    while(len--) {
-        *dest++ = alis.mem[alis.script->pc++];
-    }
+    while(len--) *dest++ = VMEM[VSCRIPT->pc++];
 }
 
 void script_read_until_zero(char * dest) {
-    while((*dest++ = alis.mem[alis.script->pc++]));
+    while((*dest++ = VMEM[VSCRIPT->pc++]));
 }
-
-void script_jump(s32 offset) {
-    if(!alis.disasm) {
-        alis.script->pc += offset;
-    }
-}
-
-
-// void script_debug(sAlisScriptData * script) {
-    
-//     debug(EDebugInfo, "\n-- SCRIPT --\n'%s' (0x%02x)\nHeader:\n",
-//            script->name,
-//            script->header.id);
-    
-//     // total header len is located in header, also add sizeof(script_id)
-//     u8 header_len = script->header.code_loc_offset + sizeof(u16) /* script ID length */;
-    
-// //    for(int i = 0; i < header_len; i++) {
-// //        printf("%02x ", script->data_org[i]);
-// //    }
-    
-//     u8 code = *(alis.mem + alis.script->pc++);//*(script->pc);
-//     debug(EDebugInfo, "\nDATA ORG: 0x%06x\nCODE ORG: 0x%06x\nPC OFFSET: 0x%04x\nPC BYTE: 0x%02x ('%s')\n",
-//            script->data_org,
-//            script->data_org + header_len,
-//            alis.script->pc,
-//            // script_pc(script),
-//            code,
-//            opcodes[code].name);
-// }
-
-u32 get_0x3e_wait_time(u32 vram)                        { return xread32(vram - 0x3e); }
-u16 get_0x3a_wait_cycles(u32 vram)                      { return xread16(vram - 0x3a); }
-u16 get_0x38_unknown(u32 vram)                          { return xread16(vram - 0x38); }
-u16 get_0x36_unknown(u32 vram)                          { return xread16(vram - 0x36); }
-u16 get_0x34_unknown(u32 vram)                          { return xread16(vram - 0x34); }
-u8 get_0x32_unknown(u32 vram)                           { return xread8(vram - 0x32); }
-u8 get_0x31_unknown(u32 vram)                           { return xread8(vram - 0x31); }
-u8 get_0x30_unknown(u32 vram)                           { return xread8(vram - 0x30); }
-u8 get_0x2f_chsprite(u32 vram)                          { return xread8(vram - 0x2f); }
-u8 get_0x2e_script_header_word_2(u32 vram)              { return xread8(vram - 0x2e); }
-u8 get_0x2d_calign(u32 vram)                            { return xread8(vram - 0x2d); }
-u8 get_0x2c_calign(u32 vram)                            { return xread8(vram - 0x2c); }
-u8 get_0x2b_cordspr(u32 vram)                           { return xread8(vram - 0x2b); }
-u16 get_0x2a_clinking(u32 vram)                         { return xread16(vram - 0x2a); }
-u8 get_0x28_unknown(u32 vram)                           { return xread8(vram - 0x28); }
-u8 get_0x27_creducing(u32 vram)                         { return xread8(vram - 0x27); }
-u8 get_0x26_creducing(u32 vram)                         { return xread8(vram - 0x26); }
-u8 get_0x25_credon_credoff(u32 vram)                    { return xread8(vram - 0x25); }
-s8 get_0x24_scan_inter(u32 vram)                        { return xread8(vram - 0x24); }
-u8 get_0x23_unknown(u32 vram)                           { return xread8(vram - 0x23); }
-u16 get_0x22_cworld(u32 vram)                           { return xread16(vram - 0x22); }
-//u8 get_0x21_cworld(u32 vram)                            { return xread8(vram - 0x21); }
-u16 get_0x20_set_vect(u32 vram)                         { return xread16(vram - 0x20); }
-s16 get_0x1e_scan_clr(u32 vram)                         { return xread16(vram - 0x1e); }
-s16 get_0x1c_scan_clr(u32 vram)                         { return xread16(vram - 0x1c); }
-s16 get_0x1a_cforme(u32 vram)                           { return xread16(vram - 0x1a); }
-u16 get_0x18_unknown(u32 vram)                          { return xread16(vram - 0x18); }
-u16 get_0x16_screen_id(u32 vram)                        { return xread16(vram - 0x16); }
-u32 get_0x14_script_org_offset(u32 vram)                { return xread32(vram - 0x14); }
-u16 get_0x10_script_id(u32 vram)                        { return xread16(vram - 0x10); }
-u16 get_0x0e_script_ent(u32 vram)                       { return xread16(vram - 0xe); }
-s16 get_0x0c_vacc_offset(u32 vram)                      { return xread16(vram - 0xc); }
-s16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 0xa); }
-u32 get_0x08_script_ret_offset(u32 vram)                { return xread32(vram - 0x8); }
-u8 get_0x04_cstart_csleep(u32 vram)                     { return xread8(vram - 0x4); }
-u8 get_0x03_xinv(u32 vram)                              { return xread8(vram - 0x3); }
-u8 get_0x02_wait_cycles(u32 vram)                       { return xread8(vram - 0x2); }
-u8 get_0x01_wait_count(u32 vram)                        { return xread8(vram - 0x1); }
-
-void set_0x3e_wait_time(u32 vram, u32 val)              { xwrite32(vram - 0x3e, val); }
-void set_0x3a_wait_cycles(u32 vram, u16 val)            { xwrite16(vram - 0x3a, val); }
-void set_0x38_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x38, val); }
-void set_0x36_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x36, val); }
-void set_0x34_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x34, val); }
-void set_0x32_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x32, val); }
-void set_0x31_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x31, val); }
-void set_0x30_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x30, val); }
-void set_0x2f_chsprite(u32 vram, u8 val)                { xwrite8(vram - 0x2f, val); }
-void set_0x2e_script_header_word_2(u32 vram, u8 val)    { xwrite8(vram - 0x2e, val); }
-void set_0x2d_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2d, val); }
-void set_0x2c_calign(u32 vram, u8 val)                  { xwrite8(vram - 0x2c, val); }
-void set_0x2b_cordspr(u32 vram, u8 val)                 { xwrite8(vram - 0x2b, val); }
-void set_0x2a_clinking(u32 vram, u16 val)               { xwrite16(vram - 0x2a, val); }
-void set_0x28_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x28, val); }
-void set_0x27_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x27, val); }
-void set_0x26_creducing(u32 vram, u8 val)               { xwrite8(vram - 0x26, val); }
-void set_0x25_credon_credoff(u32 vram, u8 val)          { xwrite8(vram - 0x25, val); }
-void set_0x24_scan_inter(u32 vram, s8 val)              { xwrite8(vram - 0x24, val); }
-void set_0x23_unknown(u32 vram, u8 val)                 { xwrite8(vram - 0x23, val); }
-void set_0x22_cworld(u32 vram, u16 val)                 { xwrite16(vram - 0x22, val); }
-//void set_0x21_cworld(u32 vram, u8 val)                  { xwrite8(vram - 0x21, val); }
-void set_0x20_set_vect(u32 vram, u16 val)               { xwrite16(vram - 0x20, val); }
-void set_0x1e_scan_clr(u32 vram, s16 val)               { xwrite16(vram - 0x1e, val); }
-void set_0x1c_scan_clr(u32 vram, s16 val)               { xwrite16(vram - 0x1c, val); }
-void set_0x1a_cforme(u32 vram, s16 val)                 { xwrite16(vram - 0x1a, val); }
-void set_0x18_unknown(u32 vram, u16 val)                { xwrite16(vram - 0x18, val); }
-void set_0x16_screen_id(u32 vram, u16 val)              { xwrite16(vram - 0x16, val); }
-void set_0x14_script_org_offset(u32 vram, u32 val)      { xwrite32(vram - 0x14, val); }
-void set_0x10_script_id(u32 vram, u16 val)              { xwrite16(vram - 0x10, val); }
-void set_0x0e_script_ent(u32 vram, u16 val)             { xwrite16(vram - 0x0e, val); }
-void set_0x0c_vacc_offset(u32 vram, s16 val)            { xwrite16(vram - 0x0c, val); }
-void set_0x0a_vacc_offset(u32 vram, s16 val)            { xwrite16(vram - 0x0a, val); }
-void set_0x08_script_ret_offset(u32 vram, u32 val)      { xwrite32(vram - 0x08, val); }
-void set_0x04_cstart_csleep(u32 vram, u8 val)           { xwrite8(vram - 0x04, val); }
-void set_0x03_xinv(u32 vram, u8 val)                    { xwrite8(vram - 0x03, val); }
-void set_0x02_wait_cycles(u32 vram, u8 val)             { xwrite8(vram - 0x02, val); }
-void set_0x01_wait_count(u32 vram, u8 val)              { xwrite8(vram - 0x01, val); }

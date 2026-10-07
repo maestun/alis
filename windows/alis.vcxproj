@@ -85,6 +85,13 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\SDL2-2.26.3\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PreBuildEvent>
+      <Command>set SH=sh
+where sh &gt;nul 2&gt;nul || set SH="%ProgramFiles%\Git\bin\sh.exe"
+%SH% "$(ProjectDir)..\scripts\gen_version.sh" "$(ProjectDir)..\src\version.h" 2&gt;nul
+exit /b 0</Command>
+      <Message>Program version from git (scripts/gen_version.sh)</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -105,6 +112,13 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\SDL2-2.26.3\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PreBuildEvent>
+      <Command>set SH=sh
+where sh &gt;nul 2&gt;nul || set SH="%ProgramFiles%\Git\bin\sh.exe"
+%SH% "$(ProjectDir)..\scripts\gen_version.sh" "$(ProjectDir)..\src\version.h" 2&gt;nul
+exit /b 0</Command>
+      <Message>Program version from git (scripts/gen_version.sh)</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -122,6 +136,13 @@
       <AdditionalLibraryDirectories>C:\SDL2-2.26.3\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_image.lib;SDL2_mixer.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>set SH=sh
+where sh &gt;nul 2&gt;nul || set SH="%ProgramFiles%\Git\bin\sh.exe"
+%SH% "$(ProjectDir)..\scripts\gen_version.sh" "$(ProjectDir)..\src\version.h" 2&gt;nul
+exit /b 0</Command>
+      <Message>Program version from git (scripts/gen_version.sh)</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -142,6 +163,13 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\SDL2-2.26.3\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PreBuildEvent>
+      <Command>set SH=sh
+where sh &gt;nul 2&gt;nul || set SH="%ProgramFiles%\Git\bin\sh.exe"
+%SH% "$(ProjectDir)..\scripts\gen_version.sh" "$(ProjectDir)..\src\version.h" 2&gt;nul
+exit /b 0</Command>
+      <Message>Program version from git (scripts/gen_version.sh)</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\src\alis.h" />
@@ -153,7 +181,6 @@
     <ClInclude Include="..\src\emu2149\emu2149.h" />
     <ClInclude Include="..\src\emu8950\emu8950.h" />
     <ClInclude Include="..\src\emu8950\emuadpcm.h" />
-    <ClInclude Include="..\src\export.h" />
     <ClInclude Include="..\src\image.h" />
     <ClInclude Include="..\src\mem.h" />
     <ClInclude Include="..\src\platform.h" />
@@ -167,16 +194,12 @@
     <ClInclude Include="..\src\utils.h" />
     <ClInclude Include="..\src\video.h" />
     <ClInclude Include="dirent.h" />
-    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\icons\alis.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="SDL2.dll" />
-    <None Include="SDL2_image.dll" />
-    <None Include="SDL2_mixer.dll" />
-    <None Include="SDL2_ttf.dll" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\addnames.c" />
@@ -187,12 +210,12 @@
     <ClCompile Include="..\src\channel.c" />
     <ClCompile Include="..\src\debug.c" />
     <ClCompile Include="..\src\emu2149\emu2149.c" />
-    <ClInclude Include="..\src\emu8950\emu8950.c" />
-    <ClInclude Include="..\src\emu8950\emuadpcm.c" />
+    <ClCompile Include="..\src\emu8950\emu8950.c" />
+    <ClCompile Include="..\src\emu8950\emuadpcm.c" />
     <ClCompile Include="..\src\escnames.c" />
-    <ClCompile Include="..\src\export.c" />
     <ClCompile Include="..\src\image.c" />
     <ClCompile Include="..\src\main.c" />
+    <ClCompile Include="..\src\mem.c" />
     <ClCompile Include="..\src\newalis.c" />
     <ClCompile Include="..\src\opcodes.c" />
     <ClCompile Include="..\src\opernames.c" />
@@ -203,7 +226,8 @@
     <ClCompile Include="..\src\screen.c" />
     <ClCompile Include="..\src\script.c" />
     <ClCompile Include="..\src\storenames.c" />
-    <ClCompile Include="..\src\sys\sdl2\sys_sdl2.c" />
+    <ClCompile Include="..\src\sys\sys.c" />
+    <ClCompile Include="..\src\sys\sys_sdl2.c" />
     <ClCompile Include="..\src\unpack.c" />
     <ClCompile Include="..\src\utils.c" />
     <ClCompile Include="..\src\video.c" />

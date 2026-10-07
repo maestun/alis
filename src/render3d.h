@@ -66,6 +66,8 @@ void glandtopix(s32 render_context, s16 *out_x, s16 *out_y, s16 offset_x, s16 of
 void barsprite(s32 render_context, s16 type_idx, s16 world_x, s16 world_y, s16 unused);
 void spritaff(s16 depth_layer);
 
+void vgatobuf(void);
+
 // Function pointers — set by render3d_init() based on platform
 extern void (*calclan0)(s32 scene_addr, s32 render_context);
 extern void (*doland)(s32 scene_addr, s32 render_context);
