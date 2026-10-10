@@ -1214,7 +1214,7 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                                 s1 = audio_buffer[p] - 0x8000;
                                 audio_buffer[p] = (s0 + s1) + 0x8000;
                             }
-                            else
+                            else if (!(audio.muflag > 0 && audio.soundrout == mv0_soundrout))
                             {
                                 s0 = PSG_calc(audio_psg);
                                 s1 = audio_buffer[p] - 0x8000;
@@ -1565,7 +1565,7 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                                 s16 mixed = (s16)((s0 + s1) + 0x8000);
                                 audio_buffer[p] = (s8)(mixed >> 8);
                             }
-                            else
+                            else if (!(audio.muflag > 0 && audio.soundrout == mv0_soundrout))
                             {
                                 s0 = PSG_calc(audio_psg);
                                 s1 = ((s16)audio_buffer[p] << 8) - 0x8000;
@@ -1958,7 +1958,7 @@ static void sys_joy_refresh(void) {
 #else
 #define SYS_JOY_AXIS_DEAD   8000
 
-static u8 sys_joy_compose(int with_mouse_fire) {
+static u8 sys_joy_compose(int with_mouse_fire, int with_keys) {
     u8 b = 0;
 
     if (sys_joy_handle) {
@@ -1986,30 +1986,42 @@ static u8 sys_joy_compose(int with_mouse_fire) {
         }
     }
 
-    // Arrows + numpad as compass directions (7/9/1/3 set both bits). Shift is
-    // not fire: games gating on ojoykey's fire bit would break (Metal Mutant).
-    const u8 *keys = SDL_GetKeyboardState(NULL);
+    if (with_keys) 
+    {
+        // Arrows + numpad as compass directions (7/9/1/3 set both bits). Shift is
+        // not fire: games gating on ojoykey's fire bit would break (Metal Mutant).
+        const u8 *keys = SDL_GetKeyboardState(NULL);
 #if ALIS_SDL_VER == 1
-    if (keys[SDLK_UP]    || keys[SDLK_KP8] || keys[SDLK_KP7] || keys[SDLK_KP9]) b |= 0x01;
-    if (keys[SDLK_DOWN]  || keys[SDLK_KP2] || keys[SDLK_KP1] || keys[SDLK_KP3]) b |= 0x02;
-    if (keys[SDLK_LEFT]  || keys[SDLK_KP4] || keys[SDLK_KP7] || keys[SDLK_KP1]) b |= 0x04;
-    if (keys[SDLK_RIGHT] || keys[SDLK_KP6] || keys[SDLK_KP9] || keys[SDLK_KP3]) b |= 0x08;
+        if (keys[SDLK_UP]    || keys[SDLK_KP8] || keys[SDLK_KP7] || keys[SDLK_KP9]) b |= 0x01;
+        if (keys[SDLK_DOWN]  || keys[SDLK_KP2] || keys[SDLK_KP1] || keys[SDLK_KP3]) b |= 0x02;
+        if (keys[SDLK_LEFT]  || keys[SDLK_KP4] || keys[SDLK_KP7] || keys[SDLK_KP1]) b |= 0x04;
+        if (keys[SDLK_RIGHT] || keys[SDLK_KP6] || keys[SDLK_KP9] || keys[SDLK_KP3]) b |= 0x08;
 #else
-    if (keys[SDL_SCANCODE_UP]    || keys[SDL_SCANCODE_KP_8] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_9]) b |= 0x01;
-    if (keys[SDL_SCANCODE_DOWN]  || keys[SDL_SCANCODE_KP_2] || keys[SDL_SCANCODE_KP_1] || keys[SDL_SCANCODE_KP_3]) b |= 0x02;
-    if (keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_KP_4] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_1]) b |= 0x04;
-    if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_KP_6] || keys[SDL_SCANCODE_KP_9] || keys[SDL_SCANCODE_KP_3]) b |= 0x08;
+        if (keys[SDL_SCANCODE_UP]    || keys[SDL_SCANCODE_KP_8] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_9]) b |= 0x01;
+        if (keys[SDL_SCANCODE_DOWN]  || keys[SDL_SCANCODE_KP_2] || keys[SDL_SCANCODE_KP_1] || keys[SDL_SCANCODE_KP_3]) b |= 0x02;
+        if (keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_KP_4] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_1]) b |= 0x04;
+        if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_KP_6] || keys[SDL_SCANCODE_KP_9] || keys[SDL_SCANCODE_KP_3]) b |= 0x08;
 #endif
+    }
 
     if (with_mouse_fire && mouse.lb) b |= 0x80;
     return b;
 }
 
 static void sys_joy_refresh(void) {
-    joystick0 = sys_joy_compose(0);
-    joystick1 = sys_joy_compose(1);
+    joystick0 = sys_joy_compose(0, 1);
+    joystick1 = sys_joy_compose(1, 1);
 }
 #endif
+
+// joystick only, no arrows/numpad emulation (v1.0 reads the IKBD joystick byte)
+u8 io_joy_raw(void) {
+#if defined(ALIS_USE_NATIVE_ATARI)
+    return g_joy1 | ((g_mouse_buttons & 3) ? 0x80 : 0);
+#else
+    return sys_joy_compose(1, 0);
+#endif
+}
 
 u8 io_joy(u8 port) {
     sys_joy_refresh();

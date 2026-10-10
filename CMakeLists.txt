@@ -74,6 +74,7 @@ list(APPEND alis_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/sys/sys.c
     ${CMAKE_CURRENT_LIST_DIR}/src/sys/sys_sdl2.c
     ${CMAKE_CURRENT_LIST_DIR}/src/audio/audio.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/audio/music_v0.c
     ${CMAKE_CURRENT_LIST_DIR}/src/audio/music_v1.c
     ${CMAKE_CURRENT_LIST_DIR}/src/audio/music_v2.c
     ${CMAKE_CURRENT_LIST_DIR}/src/main.c

@@ -205,6 +205,7 @@ exit /b 0</Command>
     <ClCompile Include="..\src\addnames.c" />
     <ClCompile Include="..\src\alis.c" />
     <ClCompile Include="..\src\audio\audio.c" />
+    <ClCompile Include="..\src\audio\music_v0.c" />
     <ClCompile Include="..\src\audio\music_v1.c" />
     <ClCompile Include="..\src\audio\music_v2.c" />
     <ClCompile Include="..\src\channel.c" />

@@ -309,7 +309,6 @@ s16 tables[] = {
 s16 *tabsin = tables + 720;
 s16 *tabcos = tables + 810;
 
-u8 vstandard[256];
 
 s16 px1;
 s16 py1;
@@ -418,6 +417,9 @@ void map_cnul(void)      {
 
 // Codopname no. 002 opcode 0x01 cesc1
 static void cesc1(void)     {
+    if (alis.platform.version == 10)
+        return;
+    
     readexec_codesc1name();
 }
 
@@ -431,6 +433,9 @@ static void cesc1(void)     {
 // The function is not yet found in ALIS interpreters (no confirmation that the codesc1 table
 // has been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc2(void)     {
+    if (alis.platform.version == 10)
+        return;
+    
     ALIS_DEBUG(EDebugWarning, "[N/I]: ", __FUNCTION__);
     readexec_codesc2name();
 }
@@ -439,6 +444,9 @@ static void cesc2(void)     {
 // The function is not yet found in ALIS interpreters (no confirmation that tables codesc1 and codesc2
 // have been completed), restored for a reason. This does not affect the code if it does not exist.
 static void cesc3(void)     {
+    if (alis.platform.version == 10)
+        return;
+    
     ALIS_DEBUG(EDebugWarning, "[N/I]: ", __FUNCTION__);
     readexec_codesc3name();
 }
@@ -582,6 +590,9 @@ static void csprinti(void) {
 
 // Codopname no. 039 opcode 0x26 csprinta
 static void csprinta(void) {
+    if (alis.platform.version == 10)
+        return;
+    
     alis.charmode = 0;
     readexec_opername_saveD7();
     put_string();
@@ -1068,6 +1079,12 @@ void clivin(void)
                 *(s16 *)(next + 0x44) = *(s16 *)(prev_vram + 0x44);
                 *(s16 *)(next + 0x48) = *(s16 *)(prev_vram + 0x48);
             }
+            else if (alis.platform.version == 10)
+            {
+                // position and velocity (DOS skips bytes 6-7), byte 8 is not inherited
+                memcpy(next, prev_vram, alis.platform.kind == EPlatformPC ? 6 : 8);
+                memcpy(next + 9, prev_vram + 9, 3);
+            }
             else
             {
                 memcpy(next, prev_vram, 0xb);
@@ -1140,6 +1157,8 @@ static void cstopret(void) {
     if (alis.fseq == 0)
     {
         cstop();
+        if (alis.platform.version == 10) // v1.0 just stops
+            return;
     }
     
     cret();
@@ -1207,7 +1226,13 @@ static void cload(void) {
         // we are dooing it elsewhere, shouldnt ever be reached;
         ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
 
-        readexec_opername_swap();
+        if (alis.platform.version == 10)
+        {
+            char name[16] = {0};
+            script_read_until_zero(name);
+        }
+        else
+            readexec_opername_swap();
     }
 }
 
@@ -1251,9 +1276,12 @@ void cdefsc(void)
 
     scdosprite(scridx);
 
-    set_scr_unknown0x2a(scridx, 0);
-    set_scr_unknown0x2c(scridx, 0);
-    set_scr_unknown0x2e(scridx, 0);
+    if (alis.platform.version != 10)
+    {
+        set_scr_unknown0x2a(scridx, 0);
+        set_scr_unknown0x2c(scridx, 0);
+        set_scr_unknown0x2e(scridx, 0);
+    }
 
     image.libsprit = sprite->to_next;
 
@@ -1294,11 +1322,15 @@ static void cputnat(void) {
     image.depx = alis.varD7;
     readexec_opername_saveD7();
     image.depy = alis.varD7;
-    readexec_opername_saveD7();
-    image.depz = alis.varD7;
+    image.depz = 0;
+    if (alis.platform.version != 10)
+    {
+        readexec_opername_saveD7();
+        image.depz = alis.varD7;
+    }
     readexec_opername_saveD7();
     readexec_opername_saveD6();
-    
+
     image.numelem = alis.varD6;
     u16 idx = alis.varD7;
     
@@ -1650,9 +1682,190 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
     return monofirm(ent_vram, ent_formedata);
 }
 
+// v1.0 forms: header byte 0 < 0 composite (byte 1 = count, then sub-form indices),
+// 0 = box of 6 signed bytes, > 0 = box of 6 words (x, y, z, dx, dy, dz)
+
+static u32 formbase_v10(u32 vram)
+{
+    u32 addr = get_0x14_script_org_offset(vram);
+    if (alis.platform.kind == EPlatformPC)
+    {
+        addr += (u16)xread16(addr + 0xe);
+        addr += (u16)xread16(addr + 6);
+    }
+    else
+    {
+        addr += (u32)xread32(addr + 0xe);
+        addr += (u32)xread32(addr + 6);
+    }
+
+    return addr;
+}
+
+static inline u32 formaddr_v10(u32 base, s16 idx) { return base + (s16)xread16(base + idx * 2); }
+
+// 68k tests the whole header word, x86 only its first byte
+static inline s16 formhdr_v10(u32 at) { return alis.platform.kind == EPlatformPC ? (s8)xread8(at) : xread16(at); }
+
+static void formbox_v10(u32 at, s16 hdr, u32 vram, s16 px, s16 py, s16 pz, u8 bug, s16 *b)
+{
+    s16 x1, y1, z1, x2, y2, z2;
+    if (hdr == 0)
+    {
+        x1 = (s8)xread8(at + 2); y1 = (s8)xread8(at + 3); z1 = (s8)xread8(at + 4);
+        x2 = (s8)xread8(at + 5); y2 = (s8)xread8(at + 6); z2 = (s8)xread8(at + 7);
+    }
+    else
+    {
+        x1 = xread16(at + 2); y1 = xread16(at + 4); z1 = xread16(at + 6);
+        x2 = xread16(at + 8); y2 = xread16(at + 10); z2 = xread16(at + 12);
+    }
+
+    u8 inv = get_0x03_xinv(vram) != 0;
+    if (inv)
+        x1 = -x1;
+    
+    x1 += px; y1 += py; z1 += pz;
+    if (inv)
+    {
+        // original 68k bug: word box negates x1 again instead of dx
+        if (bug && hdr != 0)
+        {
+            x1 = -x1;
+        }
+        else
+        {
+            x2 = -x2;
+        }
+    }
+    
+    x2 += x1; y2 += y1; z2 += z1;
+    
+    s16 t;
+    if (y2 <= y1)
+    {
+        t = y1;
+        y1 = y2;
+        y2 = t;
+    }
+    
+    if (z2 <= z1)
+    {
+        t = z1;
+        z1 = z2;
+        z2 = t;
+    }
+    
+    if (x2 <= x1)
+    {
+        t = x1;
+        x1 = x2;
+        x2 = t;
+    }
+    
+    b[0] = x1; b[1] = y1; b[2] = z1; b[3] = x2; b[4] = y2; b[5] = z2;
+}
+
+static u8 formhit_ent_v10(u32 at, u32 base, u32 vram, const s16 *own, int depth)
+{
+    s16 hdr = formhdr_v10(at);
+    if (hdr < 0)
+    {
+        if (depth > 16)
+            return 0;
+        
+        u8 cnt = xread8(at + 1);
+        for (int i = 0; i < cnt; i++)
+        {
+            s16 idx = xread16(at + 2 + i * 2);
+            if (idx >= 0 && formhit_ent_v10(formaddr_v10(base, idx), base, vram, own, depth + 1))
+                return 1;
+        }
+        
+        return 0;
+    }
+    
+    s16 b[6];
+    formbox_v10(at, hdr, vram, xread16(vram + 0), xread16(vram + 2), xread16(vram + 4), 0, b);
+    return !(b[4] < own[1] || b[1] > own[4] || b[5] < own[2] || b[2] > own[5] || b[3] < own[0] || b[0] > own[3]);
+}
+
+static u8 formhit_own_v10(u32 at, u32 base, u32 ent_form, u32 ent_base, u32 ent_vram, int depth)
+{
+    s16 hdr = formhdr_v10(at);
+    if (hdr < 0)
+    {
+        if (depth > 16)
+            return 0;
+        
+        u8 cnt = xread8(at + 1);
+        for (int i = 0; i < cnt; i++)
+        {
+            s16 idx = xread16(at + 2 + i * 2);
+            if (idx >= 0 && formhit_own_v10(formaddr_v10(base, idx), base, ent_form, ent_base, ent_vram, depth + 1))
+                return 1;
+        }
+        
+        return 0;
+    }
+    
+    s16 own[6];
+    formbox_v10(at, hdr, alis.script->vram_org, alis.wcx, alis.wcy, alis.wcz, alis.platform.kind != EPlatformPC, own);
+    return formhit_ent_v10(ent_form, ent_base, ent_vram, own, 0);
+}
+
+static void clipform_v10(void)
+{
+    alis.ptrent = alis.tablent;
+    if (alis.wforme >= 0)
+    {
+        u32 vram = alis.script->vram_org;
+        u32 base = formbase_v10(vram);
+        u32 form = formaddr_v10(base, alis.wforme);
+        s16 entidx = 0;
+        
+        do
+        {
+            u32 ent_vram = xread32(alis.atent + entidx);
+            s16 ent_forme = get_0x1a_cforme(ent_vram);
+            if ((xread8(ent_vram + 0xc) & (u8)alis.matmask) && xread16(ent_vram + 6) == xread16(vram + 6) && ent_forme >= 0 && ent_vram != vram)
+            {
+                u32 ent_base = formbase_v10(ent_vram);
+                if (formhit_own_v10(form, base, formaddr_v10(ent_base, ent_forme), ent_base, ent_vram, 0))
+                {
+                    ALIS_DEBUG(EDebugInfo, "\n  hit: entity %.4x", entidx);
+                    int index = (int)(alis.ptrent - alis.tablent);
+                    if (index >= 127)
+                        break;
+                    
+                    alis.matent[index] = 0;
+                    alis.tablent[index] = entidx;
+                    alis.ptrent++;
+                    if (alis.fallent == 0)
+                        break;
+                }
+            }
+            
+            entidx = xread16(alis.atent + 4 + entidx);
+        }
+        while (entidx != 0);
+    }
+    
+    int index = (int)(alis.ptrent - alis.tablent);
+    alis.matent[index] = 0;
+    alis.tablent[index] = -1;
+    alis.ptrent++;
+}
+
 // check for intersected object
 
 void clipform(void) {
+    
+    if (alis.platform.version == 10)
+    {
+        clipform_v10();
+        return;
+    }
     
     alis.ptrent = alis.tablent;
     if (-1 < alis.wforme)
@@ -1762,6 +1975,22 @@ static void ctstmov(void) {
 
 // Codopname no. 085 opcode 0x54 ctstset
 static void ctstset(void) {
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        alis.wcx = alis.varD7;
+        readexec_opername();
+        alis.wcy = alis.varD7;
+        readexec_opername();
+        alis.wcz = alis.varD7;
+        readexec_opername();
+        alis.matmask = alis.varD7;
+        alis.wforme = get_0x1a_cforme(alis.script->vram_org);
+        clipform();
+        crstent();
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -1783,6 +2012,13 @@ static void cftstmov(void) {
 
 // Codopname no. 087 opcode 0x56 cftstset
 static void cftstset(void) {
+    if (alis.platform.version == 10)
+    {
+        // v1.0 handler is relative, same as cftstmov
+        cftstmov();
+        return;
+    }
+    
     readexec_opername();
     alis.wcx = alis.varD7;
     readexec_opername();
@@ -1817,6 +2053,22 @@ u8 calcnear(u32 source, u32 target, s32 *val)
     s32 wcx = xread16(target + ALIS_SCR_WCX) - xread16(source + ALIS_SCR_WCX);
     s32 wcy = xread16(target + ALIS_SCR_WCY) - xread16(source + ALIS_SCR_WCY);
     s32 wcz = xread16(target + ALIS_SCR_WCZ) - xread16(source + ALIS_SCR_WCZ);
+    if (alis.platform.version == 10)
+    {
+        // v1.0: 16-bit deltas; view drops the y term (68k adds it to d7) and truncates the dot to 16 bits
+        s16 dx = wcx, dy = wcy, dz = wcz;
+        *val = dx * dx + dy * dy + dz * dz;
+        if (*val > (s32)alis.valnorme)
+            return 1;
+
+        if (alis.fview == 0)
+            return 0;
+
+        alis.varD7 += (s8)xread8(source + ALIS_SCR_WCY2) * dy;
+        s16 dot = (s8)xread8(source + ALIS_SCR_WCX2) * dx + (s8)xread8(source + ALIS_SCR_WCZ2) * dz;
+        return *val <= dot * (s32)alis.valchamp ? 0 : 1;
+    }
+
     *val = (wcx * wcx) + (wcy * wcy) + (wcz * wcz);
     return (*val <= alis.valnorme && (alis.fview == 0 || *val <= ((s8)xread8(source + ALIS_SCR_WCX2) * wcx + (s8)xread8(source + ALIS_SCR_WCY2) * wcy + (s8)xread8(source + ALIS_SCR_WCZ2) * wcz) * (s32)alis.valchamp)) ? 0 : 1;
 }
@@ -1848,8 +2100,40 @@ void trinorme(int bufidx)
     }
 }
 
+static void findent(u8 bytyp, u8 near)
+{
+    u32 src_vram = alis.script->vram_org;
+    s16 tabidx = 0;
+    s16 entidx = 0;
+    s32 value;
+    
+    do
+    {
+        u32 tgt_vram = xread32(alis.atent + entidx);
+        if ((bytyp ? alis.varD7 == (s16)get_0x10_script_id(tgt_vram) : (xread8(tgt_vram + 0xc) & (u8)alis.matmask) != 0)
+            && (!near || xread16(tgt_vram + 6) == xread16(src_vram + 6)) && src_vram != tgt_vram
+            && (!near || !calcnear(src_vram, tgt_vram, &value)) && tabidx < 127)
+        {
+            alis.tablent[tabidx++] = entidx;
+            if (alis.fallent == 0)
+                break;
+        }
+    }
+    while ((entidx = xread16(alis.atent + 4 + entidx)));
+    
+    alis.tablent[tabidx] = -1;
+    alis.fallent = 0;
+    crstent();
+}
+
 void sviewtyp(void)
 {
+    if (alis.platform.version == 10)
+    {
+        findent(1, 1);
+        return;
+    }
+    
     s16 id = alis.varD7;
     if (id < 0)
         id &= 0xff;
@@ -1973,6 +2257,12 @@ s16 clipmat(s32 src_vram, s32 tgt_vram)
 
 void sviewmat(void)
 {
+    if (alis.platform.version == 10)
+    {
+        findent(0, 1);
+        return;
+    }
+    
     s16 bufidx = 0;
     if (alis.fallent == 0)
     {
@@ -2252,6 +2542,8 @@ static void csend(void) {
             if (scanclr2 == get_0x1e_scan_clr(vram))
             {
                 length--;
+                if (alis.platform.version == 10)
+                    scanclr2 = get_0x1c_scan_clr(vram);
                 break;
             }
             
@@ -2279,7 +2571,8 @@ static void csend(void) {
 // Codopname no. 103 opcode 0x66 cscanclr
 static void cscanclr(void) {
     set_0x1e_scan_clr(alis.script->vram_org, get_0x1c_scan_clr(alis.script->vram_org));
-    set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
+    if (alis.platform.version != 10)
+        set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
 }
 
 // Codopname no. 099 opcode 0x62 cscanon
@@ -2290,7 +2583,8 @@ static void cscanon(void) {
 // Codopname no. 100 opcode 0x63 cscanoff
 static void cscanoff(void) {
     set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) | 1);
-    cscanclr();
+    if (alis.platform.version != 10)
+        cscanclr();
 }
 
 // Codopname no. 101 opcode 0x64 cinteron
@@ -2314,7 +2608,14 @@ static void cpalette(void) {
 
     readexec_opername();
     s16 palidx = alis.varD7;
-    if (dos_pal_active())
+    if (alis.platform.version == 10)
+    {
+        // keeps the BIOS CGA palette
+        u8 *paldata = alis.mem + adresdes(palidx);
+        if (alis.platform.kind != EPlatformPC && paldata[0] == 0xfe)
+            topalette(paldata, 0);
+    }
+    else if (dos_pal_active())
     {
         s32 addr = palidx < 0 ? 0 : adresdes(palidx);
         dos_cpalette(palidx, palidx < 0 ? NULL : alis.mem + addr + xread32(addr));
@@ -2365,8 +2666,47 @@ static void ctiming(void) {
     alis.ctiming = (u8)(alis.varD7 & 0xff);
 }
 
+static void ymsfx(eChannelType type, u8 vol, int zap)
+{
+    u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
+    readexec_opername();
+    u8 priorson = alis.varD7;
+    readexec_opername();
+    u16 freqson = alis.varD7;
+    readexec_opername();
+    u16 longson = alis.varD7;
+    s16 dfreqson = 0;
+    if (zap)
+    {
+        readexec_opername();
+        dfreqson = alis.varD7;
+    }
+    
+    if (longson == 0)
+    {
+        return;
+    }
+    
+    s16 volson = vol << 8;
+    s16 dvolson = 0;
+    if (dfreqson == 0)
+    {
+        dvolson = volson / longson;
+        if (dvolson == 0)
+            dvolson = 1;
+    }
+    
+    runson(type, pereson, priorson, volson, freqson, longson, -dvolson, dfreqson);
+}
+
 // Codopname no. 108 opcode 0x6b czap
 static void czap(void) {
+    if (alis.platform.version == 10)
+    {
+        ymsfx(eChannelTypeDingZap, 0xf, 1);
+        return;
+    }
+
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     u8 priorson = alis.varD7;
@@ -2389,6 +2729,12 @@ static void czap(void) {
 
 // Codopname no. 109 opcode 0x6c cexplode
 static void cexplode(void) {
+    if (alis.platform.version == 10)
+    {
+        ymsfx(eChannelTypeExplode, 0xf, 0);
+        return;
+    }
+
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     u8 priorson = alis.varD7;
@@ -2414,6 +2760,12 @@ static void cexplode(void) {
 
 // Codopname no. 110 opcode 0x6d cding
 static void cding(void) {
+    if (alis.platform.version == 10)
+    {
+        ymsfx(eChannelTypeDingZap, 0xf, 0);
+        return;
+    }
+
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     u8 priorson = alis.varD7;
@@ -2439,6 +2791,14 @@ static void cding(void) {
 
 // Codopname no. 111 opcode 0x6e cnoise
 static void cnoise(void) {
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        readexec_opername();
+        readexec_opername();
+        return;
+    }
+
     u8 pereson = get_0x0e_script_ent(alis.script->vram_org);
     readexec_opername();
     u8 priorson = alis.varD7;
@@ -2464,6 +2824,19 @@ static void cnoise(void) {
 
 // Codopname no. 112 opcode 0x6f cinitab
 static void cinitab(void) {
+    if (alis.platform.version == 10)
+    {
+        // copy inline bytes into the script variables (DOS copies one byte less)
+        s16 offset = script_read16();
+        u16 length = script_read16();
+        if (alis.platform.kind == EPlatformPC && length)
+            length--;
+        
+        for (u16 i = 0; i < length; i++)
+            xwrite8(alis.script->vram_org + offset + i, script_read8());
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -2506,11 +2879,26 @@ static void cfclose(void) {
 
 // Codopname no. 115 opcode 0x72 cfcreat
 static void cfcreat(void) {
+    if (alis.platform.version == 10)
+    {
+        char name[kPathMaxLen] = {0};
+        script_read_until_zero(name);
+        script_read16();
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 116 opcode 0x73 cfdel
 static void cfdel(void) {
+    if (alis.platform.version == 10)
+    {
+        char name[kPathMaxLen] = {0};
+        script_read_until_zero(name);
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -2532,6 +2920,13 @@ static void cfwritev(void) {
 
 // Codopname no. 119 opcode 0x76 cfwritei
 static void cfwritei(void) {
+    if (alis.platform.version == 10)
+    {
+        char name[kPathMaxLen] = {0};
+        script_read_until_zero(name);
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -2817,24 +3212,52 @@ static void cink(void) {
 
 // Codopname no. 127 opcode 0x7e cpset
 static void cpset(void) {
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        alis.poldx = alis.varD7;
+        readexec_opername();
+        alis.poldy = alis.varD7;
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 128 opcode 0x7f cpmove
 static void cpmove(void) {
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        alis.poldx += alis.varD7;
+        readexec_opername();
+        alis.poldy += alis.varD7;
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Codopname no. 129 opcode 0x80 cpmode
 static void cpmode(void) {
-    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
-
     readexec_opername();
     image.line_a_mode = alis.varD7;
 }
 
 // Codopname no. 130 opcode 0x81 cpicture
 static void cpicture(void) {
+    if (alis.platform.version == 10)
+    {
+        alis.flagmain = 0;
+        readexec_opername();
+        image.depx = 0;
+        image.depy = 0;
+        image.depz = 0;
+        image.invert_x = 0;
+        picture_v10(alis.varD7);
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -2907,6 +3330,9 @@ static void cdefmouse(void) {
 static void csetmouse(void) {
     readexec_opername();
     u16 x = alis.varD7;
+    if (alis.platform.version == 10 && alis.platform.kind == EPlatformPC)
+        return;
+    
     readexec_opername();
     u16 y = alis.varD6;
     sys_set_mouse(x, y);
@@ -2934,7 +3360,7 @@ u8 *deb_approach(s32 offset, s16 *wcx, s16 *wcy, s16 *wcz)
     *wcy = xread16(offset + ALIS_SCR_WCY) - xread16(alis.script->vram_org + ALIS_SCR_WCY);
     *wcz = xread16(offset + ALIS_SCR_WCZ) - xread16(alis.script->vram_org + ALIS_SCR_WCZ);
     
-    u8 *address = get_0x20_set_vect(alis.script->vram_org) == 0 ? vstandard : alis.mem + get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org);
+    u8 *address = get_0x20_set_vect(alis.script->vram_org) == 0 ? alis.mem + alis.vstandard : alis.mem + get_0x20_set_vect(alis.script->vram_org) + get_0x14_script_org_offset(alis.script->vram_org);
 
     alis.varD7 = *address;
     xwrite8(alis.script->vram_org + ALIS_SCR_ADDR, *address);
@@ -3059,7 +3485,7 @@ static void cvmov(void) {
 // Codopname no. 146 opcode 0x91 cdefworld
 static void cdefworld(void) {
     s16 offset = script_read16();
-    u8 counter = 6;
+    u8 counter = alis.platform.version == 10 && alis.platform.kind == EPlatformPC ? 5 : 6;
     while(counter--) {
         xwrite8(alis.script->vram_org + offset, script_read8());
     }
@@ -3073,6 +3499,14 @@ static void cworld(void) {
 
 // Codopname no. 148 opcode 0x93 cfindmat
 static void cfindmat(void) {
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        alis.matmask = alis.varD7;
+        findent(0, 0);
+        return;
+    }
+
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -3086,6 +3520,12 @@ static void cfindtyp(void) {
     else
     {
         readexec_opername();
+    }
+    
+    if (alis.platform.version == 10 && alis.platform.kind != EPlatformPC)
+    {
+        findent(1, 0);
+        return;
     }
     
     if (alis.varD7 < 0)
@@ -3125,10 +3565,20 @@ void music(void) {
     if (alis.platform.version <= 10)
     {
         readexec_opername();
-        readexec_opername();
-        readexec_opername();
-        readexec_opername();
-        readexec_opername();
+        s16 idx = alis.varD7;
+        s32 addr = (idx < 0 || alis.platform.kind == EPlatformPC) ? 0 : adresmus(idx);
+        if (idx < 0)
+            mv0_offmusic();
+
+        s16 op[4];
+        for (int i = 0; i < 4; i++)
+        {
+            readexec_opername();
+            op[i] = alis.varD7;
+        }
+
+        if (addr && xread8(addr) == 0)
+            mv0_gomusic(addr, op[0], op[1], op[2], op[3]);
         return;
     }
     
@@ -3234,7 +3684,10 @@ static void cmusic(void) {
 // Codopname no. 151 opcode 0x96 cdelmusic
 static void cdelmusic(void) {
     if (alis.platform.version <= 10)
+    {
+        mv0_offmusic();
         return;
+    }
     
     readexec_opername();
     
@@ -3252,6 +3705,12 @@ static void cdelmusic(void) {
 // Codopname no. 152 opcode 0x97 ccadence
 static void ccadence(void) {
     readexec_opername();
+    if (alis.platform.version == 10)
+    {
+        mv0_cadence(alis.varD7);
+        return;
+    }
+
     if (alis.varD7 == 0)
         alis.varD7 = 1;
 
@@ -3262,6 +3721,12 @@ static void ccadence(void) {
 // Codopname no. 153 opcode 0x98 csetvolum
 static void csetvolum(void) {
     readexec_opername();
+    if (alis.platform.version == 10)
+    {
+        mv0_volume(alis.varD7);
+        return;
+    }
+
     audio.muvolume = alis.varD7;
     *(u8 *)&audio.maxvolume = alis.varD7;
     audio.muvol = ((audio.muvolume) >> 1) + 1;
@@ -3298,6 +3763,18 @@ static void cxinvoff(void) {
 static void clistent(void) {
     s16 entidx = 0;
     s16 tabidx = 0;
+    if (alis.platform.version == 10)
+    {
+        // v1.0 includes entity 0 and keeps fallent
+        do
+            alis.tablent[tabidx++] = entidx;
+        while ((entidx = xread16(alis.atent + 4 + entidx)) != 0 && tabidx < 127);
+        
+        alis.tablent[tabidx] = -1;
+        crstent();
+        return;
+    }
+    
     while ((entidx = xread16(alis.atent + 4 + entidx)) != 0)
     {
         alis.matent[tabidx] = 0;
@@ -3311,6 +3788,36 @@ static void clistent(void) {
 }
 
 static void sound(void) {
+    // v1.0: priority (0 = 4, odd = interruptible), index; one digi channel at ~8 kHz
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        u8 prio = alis.varD7;
+        readexec_opername();
+        if (alis.platform.kind == EPlatformPC)
+            return;
+
+        s32 addr = adresmus(alis.varD7);
+        sChannel *ch = &audio.channels[3];
+        if (xread8(addr) != 1 || (ch->type == eChannelTypeSample && !(ch->curson & 1)))
+            return;
+
+        u16 len = (xread8(addr + 1) << 8) | xread8(addr + 2);
+        if (len < 2)
+            return;
+
+        ch->type = eChannelTypeNone;
+        ch->address = (s8 *)(alis.mem + addr + 3);
+        ch->length = len - 1;
+        ch->freq = 7979;
+        ch->volume = 0xff;
+        ch->loop = 0;
+        ch->played = 0;
+        ch->curson = prio ? prio : 4;
+        ch->type = eChannelTypeSample;
+        return;
+    }
+
     readexec_opername();
     u8 index = alis.varD7;
     readexec_opername();
@@ -3352,11 +3859,27 @@ static void cmsound(void) {
 
 // Codopname no. 160 opcode 0x9f credon
 static void credon(void) {
+    // v1.0: cding with volume
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        ymsfx(eChannelTypeDingZap, alis.varD7, 0);
+        return;
+    }
+
     set_0x25_credon_credoff(alis.script->vram_org, 0x0);
 }
 
 // Codopname no. 161 opcode 0xa0 credoff
 static void credoff(void) {
+    // v1.0: cexplode with volume
+    if (alis.platform.version == 10)
+    {
+        readexec_opername();
+        ymsfx(eChannelTypeExplode, alis.varD7, 0);
+        return;
+    }
+
     set_0x25_credon_credoff(alis.script->vram_org, alis.platform.version < 30 ? 0xff : 0x80);
 }
 
@@ -6824,8 +7347,11 @@ static void cstart(s32 offset) {
             set_0x08_script_ret_offset(alis.script->vram_org, offset + alis.script->pc);
         }
         
-        set_0x04_cstart_csleep(alis.script->vram_org, 1);
-        set_0x01_wait_count(alis.script->vram_org, 1);
+        if (alis.platform.version != 10)
+        {
+            set_0x04_cstart_csleep(alis.script->vram_org, 1);
+            set_0x01_wait_count(alis.script->vram_org, 1);
+        }
         
         if (alis.platform.version >= 30)
         {

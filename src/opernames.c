@@ -109,6 +109,13 @@ void oimmw(void) {
 
 // Opername no. 03 opcode 0x04 oimmp
 void oimmp(void) {
+    if (alis.platform.version == 10)
+    {
+        script_read16();
+        alis.varD7 = script_read16();
+        return;
+    }
+    
     // reads null-terminated data into bssChunk3
     script_read_until_zero(alis.sd7);
     ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= sd7]", alis.sd7);
@@ -131,12 +138,21 @@ void olocw(void) {
 // Opername no. 06 opcode 0x0a olocp
 void olocp(void) {
     s16 offset = script_read16();
+    if (alis.platform.version == 10)
+    {
+        alis.varD7 = xread16(alis.script->vram_org + offset + 2);
+        return;
+    }
+    
     ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 // Opername no. 07 opcode 0x0c oloctp
 void oloctp(void) {
+    if (alis.platform.version == 10)
+        return;
+    
     s32 addr = tabstring(alis.script->vram_org + script_read16());
     ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
@@ -175,12 +191,21 @@ void odirw(void) {
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
 void odirp(void) {
     u8 offset = script_read8();
+    if (alis.platform.version == 10)
+    {
+        alis.varD7 = xread16(alis.script->vram_org + offset + 2);
+        return;
+    }
+    
     ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)get_vram(offset), alis.script->vram_org + offset);
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
 // Opername no. 13 opcode 0x18 odirtp
 void odirtp(void) {
+    if (alis.platform.version == 10)
+        return;
+    
     s32 addr = tabstring(alis.script->vram_org + script_read8());
     ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
@@ -213,12 +238,21 @@ void omainw(void) {
 // Opername no. 18 opcode 0x22 omainp
 void omainp(void) {
     s16 offset = script_read16();
+    if (alis.platform.version == 10)
+    {
+        alis.varD7 = xread16(alis.basemain + offset + 2);
+        return;
+    }
+    
     ALIS_DEBUG(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.basemain + offset), alis.basemain + offset);
     strcpy(alis.sd7, (char *)(alis.mem + alis.basemain + offset));
 }
 
 // Opername no. 19 opcode 0x24 omaintp
 void omaintp(void) {
+    if (alis.platform.version == 10)
+        return;
+    
     s32 addr = tabstring(alis.basemain + script_read16());
     ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + addr), addr);
     strcpy(alis.sd7, (char *)(alis.mem + addr));
@@ -260,6 +294,12 @@ void ohimp(void) {
     u32 vram_addr = xread32(alis.atent + entry);
 
     s16 offset = script_read16();
+    if (alis.platform.version == 10)
+    {
+        alis.varD7 = xread16(vram_addr + offset + 2);
+        return;
+    }
+    
     ALIS_DEBUG(EDebugVerbose, " [\"%s\" <= %.6x]", (char *)(alis.mem + vram_addr + offset), vram_addr + offset);
     strcpy(alis.sd7, (char *)(alis.mem + vram_addr + offset));
 }
@@ -271,11 +311,27 @@ void ohimtp(void) {
 
 // Opername no. 26 opcode 0x32 ohimtc
 void ohimtc(void) {
+    if (alis.platform.version == 10)
+    {
+        s16 offset = script_read16();
+        u32 vram = xread32(alis.atent + xread16(alis.script->vram_org + (s16)script_read16()));
+        alis.varD7 = (s8)xread8(tabchar(vram + offset));
+        return;
+    }
+    
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
 // Opername no. 27 opcode 0x34 ohimti
 void ohimti(void) {
+    if (alis.platform.version == 10)
+    {
+        s16 offset = script_read16();
+        u32 vram = xread32(alis.atent + xread16(alis.script->vram_org + (s16)script_read16()));
+        alis.varD7 = xread16(tabint(vram + offset));
+        return;
+    }
+    
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
@@ -472,7 +528,7 @@ void okeyon(void) {
 void ojoy(void) {
     if (alis.automode == 0)
     {
-        alis.varD7 = io_joy(alis.varD7);
+        alis.varD7 = alis.platform.version == 10 ? io_joy_raw() : io_joy(alis.varD7);
     }
 }
 

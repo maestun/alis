@@ -365,6 +365,20 @@ void put_string(void);
 
 void putin(u16 idx);
 void putmapin(u16 spridx, s32 bitmap);
+void scalaire_v10(s16 scene, s16 *x, s16 *y, s16 *z);
+void picture_v10(u16 idx);
+
+// clamp a filled box (x2 exclusive, y2 inclusive) to the screen, 0 when nothing is left
+static inline int boxf_clip(s16 *x1, s16 *y1, s16 *x2, s16 *y2)
+{
+    if (*y1 > *y2) { s16 t = *y1; *y1 = *y2; *y2 = t; }
+    if (*x1 < 0) *x1 = 0;
+    if (*y1 < 0) *y1 = 0;
+    if (*x2 > alis.platform.width) *x2 = alis.platform.width;
+    if (*y2 >= alis.platform.height) *y2 = alis.platform.height - 1;
+    return *x1 < *x2 && *y1 <= *y2;
+}
+void destofen(sSprite *sprite);
 
 u32 itroutine(u32 interval, void *param);
 void draw(void);

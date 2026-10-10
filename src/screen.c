@@ -132,16 +132,25 @@ void scdosprite(s16 scridx)
         mac_update_pos(&w, &h);
     }
     
-    sprite->newx = x;
+    if (alis.platform.version == 10)
+    {
+        sprite->newx = x & 0xfff0;
+        sprite->depx = (x + w) | 0xf;
+    }
+    else
+    {
+        sprite->newx = x;
+        sprite->depx = x + w;
+    }
     sprite->newy = y;
     sprite->newd = 0x7fff;
-    sprite->depx = x + w;
     sprite->depy = y + h;
 }
 
 void vectoriel(s16 scridx)
 {
-    set_scr_unknown0x26(scridx, get_scr_unknown0x21(scridx) * get_scr_unknown0x25(scridx) - get_scr_unknown0x24(scridx) * get_scr_unknown0x22(scridx));
-    set_scr_unknown0x27(scridx, get_scr_unknown0x22(scridx) * get_scr_unknown0x23(scridx) - get_scr_unknown0x25(scridx) * get_scr_unknown0x20(scridx));
-    set_scr_unknown0x28(scridx, get_scr_unknown0x20(scridx) * get_scr_unknown0x24(scridx) - get_scr_unknown0x23(scridx) * get_scr_unknown0x21(scridx));
+    s8 *m = (s8 *)(alis.mem + alis.basemain + scridx + (alis.platform.version == 10 ? 0x1a : 0x20));
+    m[6] = m[1] * m[5] - m[4] * m[2];
+    m[7] = m[2] * m[3] - m[5] * m[0];
+    m[8] = m[0] * m[4] - m[3] * m[1];
 }

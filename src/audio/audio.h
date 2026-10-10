@@ -209,6 +209,67 @@ void mv1_offmusic(u32 much);
 void mv2_gomusic(void);
 void mv2_offmusic(u32 much);
 
+// v1.0 ym music (manhattan dealers)
+
+#define kMV0Loops 32
+
+typedef struct {
+
+    u8 on;
+    u8 vflags;
+    s8 vdelta;
+    u8 vcnt;
+    u8 vrate;
+    u8 vnum;
+    u8 vol;
+    u8 pflags;
+    u16 venv;
+    u16 period;
+    u8 busy;
+    u8 dur;
+
+} sMV0Channel;
+
+typedef struct {
+
+    sMV0Channel ch[3];
+    u8 playing;
+    u8 starting;
+    u8 pending;
+    u8 played;
+    u8 cadence;
+    u8 maxvol;
+    u8 curvol;
+    u8 tgtvol;
+    u8 count;
+    u8 divider;
+    u8 rr;
+    u8 transpose;
+    u16 pfadein;
+    u16 psustain;
+    u16 pfadeout;
+    u16 fadein;
+    u16 sustain;
+    u16 fadeout;
+    u16 step;
+    u16 rate;
+    u32 songptr;
+    u8 loopsp;
+    u16 loopcnt[kMV0Loops];
+    u32 loopptr[kMV0Loops];
+
+} sMV0Audio;
+
+extern sMV0Audio mv0a;
+
+void mv0_gomusic(u32 addr, u8 vol, s16 fadein, s16 sustain, s16 fadeout);
+void mv0_offmusic(void);
+void mv0_cadence(u8 cadence);
+void mv0_volume(u8 vol);
+void mv0_reset(void);
+void mv0_relocate(u32 lo, u32 hi, s32 delta);
+void mv0_soundrout(void);
+
 // ym
 
 void io_canal(sChannel *channel, s16 index);

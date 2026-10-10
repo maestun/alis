@@ -76,16 +76,18 @@ static inline void set_scr_unknown0x0a(u32 scridx, s16 val)    { xwrite16(alis.b
 static inline s16 get_scr_unknown0x0c(u32 scridx)              { return xread16(alis.basemain + scridx + 0xc); }
 static inline void set_scr_unknown0x0c(u32 scridx, s16 val)    { xwrite16(alis.basemain + scridx + 0xc, val); }
 
-static inline s16 get_scr_newx(u32 scridx)                     { return xread16(alis.basemain + scridx + 0xe); }
+static inline u32 get_scr_geo(u32 scridx)                      { return alis.basemain + scridx + (alis.platform.version == 10 ? 0xa : 0xe); }
+
+static inline s16 get_scr_newx(u32 scridx)                     { return xread16(get_scr_geo(scridx)); }
 static inline void set_scr_newx(u32 scridx, s16 val)           { xwrite16(alis.basemain + scridx + 0xe, val); }
 
-static inline s16 get_scr_newy(u32 scridx)                     { return xread16(alis.basemain + scridx + 0x10); }
+static inline s16 get_scr_newy(u32 scridx)                     { return xread16(get_scr_geo(scridx) + 2); }
 static inline void set_scr_newy(u32 scridx, s16 val)           { xwrite16(alis.basemain + scridx + 0x10, val); }
 
-static inline s16 get_scr_width(u32 scridx)                    { return xread16(alis.basemain + scridx + 0x12); }
+static inline s16 get_scr_width(u32 scridx)                    { return xread16(get_scr_geo(scridx) + 4); }
 static inline void set_scr_width(u32 scridx, s16 val)          { xwrite16(alis.basemain + scridx + 0x12, val); }
 
-static inline s16 get_scr_height(u32 scridx)                   { return xread16(alis.basemain + scridx + 0x14); }
+static inline s16 get_scr_height(u32 scridx)                   { return xread16(get_scr_geo(scridx) + 6); }
 static inline void set_scr_height(u32 scridx, s16 val)         { xwrite16(alis.basemain + scridx + 0x14, val); }
 
 static inline s16 get_scr_depx(u32 scridx)                     { return xread16(alis.basemain + scridx + 0x16); }

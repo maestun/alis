@@ -281,6 +281,16 @@ void alis_load_main(void) {
         alis.main = script_live(script);
         alis.basemain = alis.main->vram_org;
 
+        if (alis.platform.version == 10) {
+            // NOTE: v1.0 default direction table: last index, then 26 unit vectors
+            static const s8 dirtab[] = {
+                0x19,
+                1,0,0, 1,1,0, 0,1,0, -1,1,0, -1,0,0, -1,-1,0, 0,-1,0, 1,-1,0, 1,0,1,
+                1,1,1, 0,1,1, -1,1,1, -1,0,1, -1,-1,1, 0,-1,1, 1,-1,1, 0,0,1, 1,0,-1,
+                1,1,-1, 0,1,-1, -1,1,-1, -1,0,-1, -1,-1,-1, 0,-1,-1, 1,-1,-1, 0,0,-1 };
+            memcpy(alis.mem + alis.vstandard, dirtab, sizeof(dirtab));
+        }
+
         alis.dernent = xswap16(alis.atent_ptr[0].offset);
         alis.atent_ptr[0].offset = 0;
     }
@@ -682,6 +692,9 @@ void alis_save_state(void)
     else if (audio.soundrout == mv2_opl2rout) {
         audio_type = 4;
     }
+    else if (audio.soundrout == mv0_soundrout) {
+        audio_type = 5;
+    }
 
     fwrite(&(audio), sizeof(audio), 1, fp);
     for (int i = 0; i < 4; i++)
@@ -1013,6 +1026,7 @@ void alis_load_state(void)
         case 2:  audio.soundrout = mv2_soundrout;  break;
         case 3:  audio.soundrout = mv2_chiprout;   break;
         case 4:  audio.soundrout = mv2_opl2rout;   break;
+        case 5:  audio.soundrout = mv0_soundrout; mv0_reset(); break;
         default: audio.soundrout = NULL;           break;
     }
 
@@ -1271,6 +1285,9 @@ void updtcoord(u32 addr)
         s16 addz = xread16(addr + 4) - image.oldcz;
         if (addz != 0 || addx != 0 || addy != 0)
         {
+            if (alis.platform.version == 10)
+                scalaire_v10(get_0x16_screen_id(alis.script->vram_org), &addx, &addy, &addz);
+
             for (sSprite *sprite = SPRITE_VAR(get_0x18_unknown(alis.script->vram_org)); sprite != NULL; sprite = SPRITE_VAR(sprite->to_next))
             {
                 if (sprite->state == 0)
@@ -1398,6 +1415,7 @@ void alis_main_V2(void) {
         alis.fallent = 0;
         alis.fseq = 0;
         alis.acc = alis.acc_org;
+        u8 killed = 0;
 
         if (get_0x24_scan_inter(alis.script->vram_org) < 0 && (get_0x24_scan_inter(alis.script->vram_org) & 2) == 0)
         {
@@ -1408,22 +1426,24 @@ void alis_main_V2(void) {
                 savecoord(alis.script->vram_org);
                 alis.script->pc = get_0x14_script_org_offset(alis.script->vram_org) + 10 + script_offset;
                 alis_loop();
-                updtcoord(alis.script->vram_org);
+                killed = alis.restart_loop && alis.platform.version == 10;
+                if (!killed)
+                    updtcoord(alis.script->vram_org);
             }
         }
-        
-        if (get_0x04_cstart_csleep(alis.script->vram_org) == 0)
+
+        if (!killed && get_0x04_cstart_csleep(alis.script->vram_org) == 0)
         {
             ALIS_DEBUG(EDebugInfo, "\n SLEEPING %s", alis.script->name);
         }
 
-        if (get_0x04_cstart_csleep(alis.script->vram_org) != 0)
+        if (!killed && get_0x04_cstart_csleep(alis.script->vram_org) != 0)
         {
             if ((s8)get_0x04_cstart_csleep(alis.script->vram_org) < 0)
             {
                 set_0x04_cstart_csleep(alis.script->vram_org, 1);
             }
-            
+
             set_0x01_wait_count(alis.script->vram_org, get_0x01_wait_count(alis.script->vram_org) - 1);
             ALIS_DEBUG(EDebugInfo, "\n %s %s [%.2x, %.2x] ", get_0x01_wait_count(alis.script->vram_org) == 0 ? "RUNNING" : "WAITING", alis.script->name, get_0x01_wait_count(alis.script->vram_org), get_0x02_wait_cycles(alis.script->vram_org));
             if (get_0x01_wait_count(alis.script->vram_org) == 0)
@@ -1637,6 +1657,22 @@ void alis_error(int errnum, ...) {
 s32 adresdes(s32 idx)
 {
     u32 addr = get_0x14_script_org_offset(alis.flagmain ? alis.main->vram_org : alis.script->vram_org);
+    if (alis.platform.version == 10)
+    {
+        if (alis.platform.kind == EPlatformPC)
+        {
+            addr += (u16)xread16(addr + 0xe);
+            addr += (u16)xread16(addr);
+        }
+        else
+        {
+            addr += (u32)xread32(addr + 0xe);
+            addr += (u32)xread32(addr);
+        }
+        
+        return addr + (s16)xread16(addr + idx * 2);
+    }
+
     addr += xread32(addr + 0xe);
     
     s32 len = xread16(addr + 4);
@@ -1650,6 +1686,22 @@ s32 adresdes(s32 idx)
 s32 adresform(s16 idx)
 {
     u32 addr = get_0x14_script_org_offset(alis.script->vram_org);
+    if (alis.platform.version == 10)
+    {
+        if (alis.platform.kind == EPlatformPC)
+        {
+            addr += (u16)xread16(addr + 0xe);
+            addr += (u16)xread16(addr + 6);
+        }
+        else
+        {
+            addr += (u32)xread32(addr + 0xe);
+            addr += (u32)xread32(addr + 6);
+        }
+        
+        return addr + (s16)xread16(addr + idx * 2);
+    }
+    
     addr += xread32(addr + 0xe);
     
     s32 len = xread16(addr + 0xa);
@@ -1667,6 +1719,25 @@ s32 adresform(s16 idx)
 s32 adresmus(s32 idx)
 {
     u32 mem = get_0x14_script_org_offset(alis.flagmain ? alis.main->vram_org : alis.script->vram_org);
+
+    // v1.0: table of unsigned 16-bit offsets from its base
+    if (alis.platform.version == 10)
+    {
+        u32 addr = mem;
+        if (alis.platform.kind == EPlatformPC)
+        {
+            addr += (u16)xread16(addr + 0xe);
+            addr += (u16)xread16(addr + 0xc);
+        }
+        else
+        {
+            addr += (u32)xread32(addr + 0xe);
+            addr += (u32)xread32(addr + 0xc);
+        }
+
+        return addr + (u16)xread16(addr + idx * 2);
+    }
+
     s32 off = xread32(mem + 0xe);
     u32 addr = mem + off;
 

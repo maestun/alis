@@ -703,6 +703,7 @@ void draw_boxf(s16 x1, s16 y1, s16 x2, s16 y2)
 {
     if (alis.platform.kind == EPlatformMac) { mac_update_pos(&x1, &y1); mac_update_pos(&x2, &y2); }
     s16 t = min(x1, x2); x2 = max(x1, x2); x1 = t;
+    if (!boxf_clip(&x1, &y1, &x2, &y2)) return;
     s16 tmpx = x2 - x1;
     if (dirty_len < 0xfe) dirty_len++;   // native uses dirty_len only as a flip gate
     u16 c = pal16[image.inkcolor];

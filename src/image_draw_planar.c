@@ -368,6 +368,7 @@ void draw_boxf(s16 x1, s16 y1, s16 x2, s16 y2)
     s16 tmpx = min(x1, x2);
     x2 = max(x1, x2);
     x1 = tmpx;
+    if (!boxf_clip(&x1, &y1, &x2, &y2)) return;
     tmpx = x2 - x1;
 
     dirty_rect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);

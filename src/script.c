@@ -181,7 +181,7 @@ void script_guess_game(const char * script_path) {
             u32 magic = fread32(fp);
             u16 check = fread16(fp);
             
-            if(is_main(check)) {
+            if (is_main(check)) {
                 
                 alis.header.val0 = fread16(fp);
                 alis.header.val1 = fread16(fp);
@@ -410,6 +410,93 @@ void script_guess_game(const char * script_path) {
 static u32 g_lp_conv_ticks = 0;
 #endif
 
+static void tochunky(u8 *bitmap)
+{
+    u16 width = read16(bitmap + 2) + 1;
+    u16 height = read16(bitmap + 4) + 1;
+    u8 pixels[16];
+    u32 at = 6;
+    
+    for (int b = 0; b < width * height; b+=16)
+    {
+        memset(pixels, 0, 16);
+        for (int c = 0; c < 8; c++)
+        {
+            uint32_t rot = (7 - c);
+            uint32_t mask = 1 << rot;
+            pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
+            pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
+        }
+        
+        for (int d = 0; d < 8; d++)
+        {
+            bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
+        }
+    }
+}
+
+static void all_tosigned(u8 *data)
+{
+    u8 *hdr = data + read32(data + 0xe);
+    u8 *tab = hdr + read32(hdr + 0xc);
+    s16 count = read16(hdr + 0x10);
+    if (count <= 0)
+        return;
+    
+    u8 *done[count];
+    s16 ndone = 0;
+
+    for (s16 i = 0; i < count; i++)
+    {
+        u8 *smp = tab + (u16)read16(tab + i * 2);
+        if (smp[0] != 1)
+            continue;
+
+        s16 j = 0;
+        while (j < ndone && done[j] != smp)
+            j++;
+        
+        if (j < ndone)
+            continue;
+        
+        done[ndone++] = smp;
+
+        u16 len = (smp[1] << 8) | smp[2];
+        for (u16 k = 0; k < len; k++)
+            smp[3 + k] ^= 0x80;
+    }
+}
+
+static void all_tochunky(u8 *data)
+{
+    u8 *hdr = data + read32(data + 0xe);
+    u8 *tab = hdr + read32(hdr);
+    s16 count = read16(hdr + 4);
+    if (count <= 0)
+        return;
+    
+    u8 *done[count];
+    s16 ndone = 0;
+
+    for (s16 i = 0; i < count; i++)
+    {
+        u8 *bmp = tab + (s16)read16(tab + i * 2);
+        if (bmp[0] != 0)
+            continue;
+
+        s16 j = 0;
+        while (j < ndone && done[j] != bmp)
+            j++;
+        
+        if (j < ndone)
+            continue;
+        
+        done[ndone++] = bmp;
+
+        tochunky(bmp);
+    }
+}
+
 sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     s16 id = swap16((data + 0));
     s16 insert = debprotf(id);
@@ -478,7 +565,8 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     // get insert point
     insert = search_insert(alis.atprog_ptr, alis.nbprog, script->header.id);
 
-    alis.finprog += data_sz;
+    // v1.0 keeps scripts word aligned
+    alis.finprog += alis.platform.version == 10 ? (data_sz + 1) & ~1 : data_sz;
     alis.dernprog += 4;
     alis.nbprog ++;
 
@@ -500,7 +588,15 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     ALIS_DEBUG(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
     if (alis.platform.version == 10)
+    {
+        if (alis.platform.kind != EPlatformPC)
+            all_tochunky(alis.mem + script->data_org);
+        
+        if (alis.platform.kind == EPlatformOldAtari)
+            all_tosigned(alis.mem + script->data_org);
+        
         return script;
+    }
     
     if (alis.platform.kind == EPlatformMac)
     {
@@ -553,8 +649,6 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         
         if (alis.platform.kind == EPlatformAtari)
         {
-            u8 pixels[16];
-            
             s32 sprites = read16(data + l + 4);
             
             for (s32 i = 0; i < sprites; i++)
@@ -566,29 +660,7 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                 if (bitmap[0] == 0 || bitmap[0] == 2)
                 {
                     if ((script->type & 1) == 0)
-                    {
-                        u16 width = read16(bitmap + 2) + 1;
-                        u16 height = read16(bitmap + 4) + 1;
-                        
-                        at = 6;
-                        
-                        for (int b = 0; b < width * height; b+=16)
-                        {
-                            memset(pixels, 0, 16);
-                            for (int c = 0; c < 8; c++)
-                            {
-                                uint32_t rot = (7 - c);
-                                uint32_t mask = 1 << rot;
-                                pixels[8 + c] = (((bitmap[at + 1] & mask) >> rot) << 0) | (((bitmap[at + 3] & mask) >> rot) << 1) | (((bitmap[at + 5] & mask) >> rot) << 2) | (((bitmap[at + 7] & mask) >> rot) << 3);
-                                pixels[0 + c] = (((bitmap[at + 0] & mask) >> rot) << 0) | (((bitmap[at + 2] & mask) >> rot) << 1) | (((bitmap[at + 4] & mask) >> rot) << 2) | (((bitmap[at + 6] & mask) >> rot) << 3);
-                            }
-                            
-                            for (int d = 0; d < 8; d++)
-                            {
-                                bitmap[at++] = (pixels[d * 2 + 0] << 4) | (pixels[d * 2 + 1]);
-                            }
-                        }
-                    }
+                        tochunky(bitmap);
                 }
                 else if (bitmap[0] == 0x18 || bitmap[0] == 0x1a)
                 {
@@ -848,6 +920,8 @@ s32 get_context_size(void)
 {
     switch (alis.platform.uid)
     {
+        case EGameManhattanDealers0:
+        case EGameManhattanDealers1:
         case EGameLeFeticheMaya:
         case EGameColorado:
         case EGameStarblade:

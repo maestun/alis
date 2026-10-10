@@ -178,6 +178,8 @@ void audio_relocate(u32 lo, u32 hi, s32 delta)
     if (audio.mupnote >= lo && audio.mupnote < hi)
         audio.muflag = 0;
     move_ptr(&audio.mupnote, lo, hi, delta);
+    if (alis.platform.version == 10)
+        mv0_relocate(lo, hi, delta);
     move_ptr(&mv1a.noteptr, lo, hi, delta);
 
     for (int i = 0; i < kNumMV1Channels; i++)

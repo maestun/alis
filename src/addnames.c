@@ -172,6 +172,13 @@ static void amainti(void) {
 
 // Addname no. 22 opcode 0x2a ahimb
 static void ahimb(void) {
+    if (alis.platform.version == 10) {
+        s16 offset = xread16(alis.script->vram_org + script_read16());
+        s32 addr = xread32(alis.atent + offset) + script_read16();
+        xwrite8(addr, xread8(addr) + (u8)alis.varD7);
+        return;
+    }
+    
     ALIS_DEBUG(EDebugInfo, "MISSING: ", __FUNCTION__);
 }
 

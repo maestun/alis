@@ -302,12 +302,13 @@ void topalette(u8 *paldata, s32 duration)
     {
         selpalet();
 
-        s16 colors = paldata[1];
+        s16 colors = alis.platform.version == 10 ? 0 : paldata[1];
         if (colors == 0) // 4 bit palette
         {
             image.palc = 0;
             u8 *palptr = &paldata[2];
             
+            // Manhattan Amiga keeps the Atari 3-bit palettes
             if (alis.platform.kind == EPlatformAmiga || alis.platform.kind == EPlatformAmigaAGA)
             {
                 PAL_WRITE(image.atpalet, 0, 16, RGB12(palptr));
@@ -1346,6 +1347,95 @@ void putfin(void)
     alis.fadddes = 0;
 }
 
+void scalaire_v10(s16 scene, s16 *x, s16 *y, s16 *z)
+{
+    u32 m = alis.basemain + scene + 0x1a;
+    s16 x0 = *x, y0 = *y, z0 = *z;
+    if (get_scr_numelem(scene) < 0)
+    {
+        *x = (s8)xread8(m + 0) * x0 + (s8)xread8(m + 2) * z0;
+        if (alis.platform.kind == EPlatformPC)
+            *x += (s8)xread8(m + 1) * y0;
+        *y = (s8)xread8(m + 3) * x0 + (s8)xread8(m + 4) * y0 + (s8)xread8(m + 5) * z0;
+        *z = (s8)xread8(m + 6) * x0 + (s8)xread8(m + 7) * y0 + (s8)xread8(m + 8) * z0;
+    }
+    else
+    {
+        *y = y0 * (s8)xread8(m + 4) - z0;
+        *z = y0;
+    }
+}
+
+static void topix_v10(s16 scene, s16 *x, s16 *y, s16 *z)
+{
+    u32 m = alis.basemain + scene;
+    *x = image.oldcx - xread16(m + 0x12);
+    *y = image.oldcy - xread16(m + 0x14);
+    *z = image.oldcz - xread16(m + 0x16);
+    scalaire_v10(scene, x, y, z);
+
+    u8 sh = xread8(m + 0x18) & 0x3f;
+    *x = (*x >> sh) + xread16(m + 0xa);
+    *y = (*y >> sh) + xread16(m + 0xc);
+    *z >>= sh;
+}
+
+void picture_v10(u16 idx)
+{
+    s32 addr = adresdes(idx);
+    u8 *res = alis.mem + addr;
+    if (res[0] == 0xfe)
+    {
+        if (alis.platform.kind != EPlatformPC)
+            topalette(res, 0);
+        return;
+    }
+
+    if (!(res[0] == 0 || (alis.platform.kind == EPlatformPC && res[0] <= 2)))
+    {
+        s16 x = image.depx, y = image.depy, z = image.depz;
+        u8 invx = image.invert_x;
+        for (u8 *cur = res + 2, *end = cur + res[1] * 8; cur < end; cur += 8)
+        {
+            s16 elem = read16(cur);
+            image.depx += image.invert_x ? -read16(cur + 2) : read16(cur + 2);
+            image.depy += read16(cur + 4);
+            image.depz += read16(cur + 6);
+            if (elem < 0)
+            {
+                elem &= 0x7fff;
+                image.invert_x ^= 1;
+            }
+
+            picture_v10(elem);
+            image.depx = x;
+            image.depy = y;
+            image.depz = z;
+            image.invert_x = invx;
+        }
+        return;
+    }
+
+    sSprite pic = {0};
+    pic.data = pic.newad = addr;
+    pic.newf = image.invert_x;
+    pic.width = read16(res + 2);
+    pic.height = read16(res + 4);
+    pic.newx = alis.poldx + image.depx - (pic.width >> 1);
+    pic.newy = alis.poldy + image.depy - (pic.height >> 1);
+
+    s16 cx1 = image.clipx1, cy1 = image.clipy1, cx2 = image.clipx2, cy2 = image.clipy2;
+    image.clipx1 = 0;
+    image.clipy1 = 0;
+    image.clipx2 = alis.platform.width - 1;
+    image.clipy2 = alis.platform.height - 1;
+    destofen(&pic);
+    image.clipx1 = cx1;
+    image.clipy1 = cy1;
+    image.clipx2 = cx2;
+    image.clipy2 = cy2;
+}
+
 void putin(u16 idx)
 {
     // if there is no scene opened, there is nowhere to add sprite
@@ -1357,9 +1447,32 @@ void putin(u16 idx)
     s16 z = image.depz;
     s16 y = image.depy;
     
+    u8 *resourcedata;
+    u8 compositimg;
+    
     s32 addr = adresdes(idx);
-    u8 *resourcedata = alis.mem + addr + xread32(addr);
-    if (resourcedata[0] > 0x80)
+    if (alis.platform.version == 10)
+    {
+        resourcedata = alis.mem + addr;
+        if (alis.platform.kind == EPlatformPC)
+        {
+            compositimg = resourcedata[0] > 2;
+            if (compositimg && resourcedata[0] == 0xfe)
+                return;
+        }
+        else
+        {
+            compositimg = resourcedata[0];
+        }
+    }
+    else
+    {
+        addr += xread32(addr);
+        resourcedata = alis.mem + addr;
+        compositimg = resourcedata[0] > 0x80;
+    }
+    
+    if (compositimg)
     {
         if (resourcedata[0] == 0xfe)
         {
@@ -1457,6 +1570,24 @@ void putmapin(u16 spridx, s32 bitmap)
     sprite->data = bitmap;
     sprite->newad = 0;
     sprite->flaginvx = image.invert_x;
+
+    if (alis.platform.version == 10)
+    {
+        s16 x, y, z;
+        topix_v10(get_0x16_screen_id(alis.script->vram_org), &x, &y, &z);
+        sprite->script_ent = get_0x0e_script_ent(alis.script->vram_org);
+        sprite->clinking = -1;
+        sprite->cordspr = 0;
+        sprite->chsprite = -1;
+        sprite->creducing = 0;
+        sprite->credon_off = -1;
+        sprite->depx = x + image.depx;
+        sprite->depy = y + image.depy;
+        sprite->depz = z + image.depz;
+        putfin();
+        return;
+    }
+    
     sprite->sprite_0x28 = get_0x28_unknown(alis.script->vram_org);
     sprite->script_ent = get_0x0e_script_ent(alis.script->vram_org);
     sprite->clinking = get_0x2a_clinking(alis.script->vram_org);
@@ -1839,6 +1970,9 @@ void scalaire(s16 scene, s16 *x, s16 *y, s16 *z)
 
 void depscreen(u16 scene, u16 elemidx)
 {
+    if (alis.platform.version == 10)
+        return;
+
     set_scr_depx(scene, get_scr_depx(scene) + get_scr_unknown0x2a(scene));
     set_scr_depy(scene, get_scr_depy(scene) + get_scr_unknown0x2c(scene));
     set_scr_depz(scene, get_scr_depz(scene) + get_scr_unknown0x2e(scene));
@@ -1857,6 +1991,22 @@ void depscreen(u16 scene, u16 elemidx)
 
 void deptopix(u16 scene, u16 elemidx)
 {
+    if (alis.platform.version == 10)
+    {
+        sSprite *sprite = SPRITE_VAR(elemidx);
+        u8 *bmp = alis.mem + sprite->data;
+        image.newf = sprite->flaginvx;
+        image.newad = sprite->data;
+        image.newl = read16(bmp + 2);
+        image.newh = read16(bmp + 4);
+        image.newzoomx = 0;
+        image.newzoomy = 0;
+        image.newx = sprite->depx - (image.newl >> 1);
+        image.newy = sprite->depy - (image.newh >> 1);
+        image.newd = sprite->depz;
+        return;
+    }
+
     if ((get_scr_numelem(scene) & 2) != 0)
     {
         landtopix(alis.basemain + scene, elemidx);
@@ -2275,12 +2425,14 @@ void destofen(sSprite *sprite)
         image.wdraw = image.backmap;
 #endif
 
-    if (sprite->newad == 0 || sprite->data == 0)
+    u32 addr = sprite->newad;
+    if (addr == 0 || sprite->data == 0)
         return;
+    
+    if (alis.platform.version > 10)
+        addr += xread32(addr);
 
-    u8 *bitmap = (alis.mem + sprite->newad + xread32(sprite->newad));
-    if (*bitmap < 0)
-        return;
+    u8 *bitmap = alis.mem + addr;
 
     sRect pos = {
         .x1 = sprite->newx,
@@ -2455,7 +2607,7 @@ void destofen(sSprite *sprite)
             {
                 draw_mac_mono_0(at, &pos, &bmp, width, flip);
             }
-            else if (alis.platform.kind == EPlatformPC && alis.platform.uid == EGameMadShow)
+            else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
             {
                 draw_dos_cga_2(at, &pos, &bmp, width, flip);
             }
@@ -2807,12 +2959,13 @@ void affiscr(u16 scene, u16 screenidx)
 #endif
     }
 
+    s8 scrflags = alis.platform.version == 10 ? 0 : get_scr_numelem(scene);
     u8 draw = false;
     if (alis.platform.version == 0)
     {
         draw = alis.fswitch == 0;
     }
-    else if ((get_scr_numelem(scene) & 2) == 0)
+    else if ((scrflags & 2) == 0)
     {
         draw = true;
     }
@@ -2824,7 +2977,7 @@ void affiscr(u16 scene, u16 screenidx)
     
     if (draw)
     {
-        image.wback = (get_scr_numelem(scene) & 4) != 0;
+        image.wback = (scrflags & 4) != 0;
         image.wpag = 0;
 
         if ((get_scr_state(scene) & 0x20) != 0)
@@ -2837,7 +2990,7 @@ void affiscr(u16 scene, u16 screenidx)
             }
         }
         
-        if ((get_scr_numelem(scene) & 0x10) == 0)
+        if ((scrflags & 0x10) == 0)
         {
             while ((void)(prevspidx = spriteidx), (spriteidx = SPRITE_VAR(spriteidx)->link) != 0)
             {
@@ -3391,6 +3544,8 @@ void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
     s16 tmpx = min(x1, x2);
     x2 = max(x1, x2);
     x1 = tmpx;
+    if (!boxf_clip(&x1, &y1, &x2, &y2))
+        return;
     tmpx = x2 - x1;
 
 #if ALIS_SDL_VER < 2

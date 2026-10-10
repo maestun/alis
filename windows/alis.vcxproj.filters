@@ -95,6 +95,9 @@
     <ClCompile Include="..\src\audio\audio.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\audio\music_v0.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\audio\music_v1.c">
       <Filter>Source Files</Filter>
     </ClCompile>
