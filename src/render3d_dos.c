@@ -880,7 +880,7 @@ static void barland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 st
                 drawy = sVar4;
             }
 
-            if (((drawy <= image.dtstpix) && (image.dtstpix < (s16)(drawy + barheight))) &&
+            if (((drawy <= image.ytstpix) && (image.ytstpix < (s16)(drawy + barheight))) &&
                ((image.precx <= image.xtstpix && (image.xtstpix < (s16)(image.precx + (s16)vbarlarg))))) {
 
                 // Terrain cell reads (DOS LE: byte0=height, byte1=type)
@@ -1093,7 +1093,7 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
         drawy = sVar_clip;
     }
 
-    if (((drawy <= image.dtstpix) && (image.dtstpix < (s16)(drawy + barheight))) &&
+    if (((drawy <= image.ytstpix) && (image.ytstpix < (s16)(drawy + barheight))) &&
        ((image.precx <= image.xtstpix && (image.xtstpix < (s16)(image.precx + (s16)vbarlarg))))) {
 
         image.ntstpix = (u16)(xread16(terrain_cell) >> 8);

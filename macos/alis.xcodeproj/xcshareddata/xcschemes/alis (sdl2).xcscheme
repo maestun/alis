@@ -277,7 +277,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/requiem/dos/ -f"
+            argument = "/Users/gildor/Work/alis/data/requiem/dos/ -m"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
