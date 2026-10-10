@@ -178,7 +178,8 @@ static inline void sys_cursor_hold(int on) { (void)on; }
 #pragma mark - FILE SYSTEM
 // =============================================================================
 int     sys_fclose(FILE * fp);
-FILE *  sys_fopen(char * path, u16 mode);
+FILE *  sys_fopen(const char *path, const char * __restrict mode);
+FILE *  sys_fopen_b(char * path, u16 mode);
 u8      sys_fexists(char * path);
 
 

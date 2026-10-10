@@ -293,7 +293,7 @@ u8 is_packed(u8 packer_kind) {
 /// zero if the input file is not packed
 int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
     int ret = 0;
-    FILE *pfp = fopen(packed_file_path, "rb");
+    FILE *pfp = sys_fopen(packed_file_path, "rb");
 
     if(pfp) {
         // get packed sz

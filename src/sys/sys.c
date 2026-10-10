@@ -2053,14 +2053,46 @@ u8 io_joykey(u8 test) {
 #pragma mark - FILE SYSTEM
 // =============================================================================
 
-FILE * sys_fopen(char * path, u16 mode) {
+static char *last_path_component(char *path) {
+    
+    char *name = strrchr(path, '/');
+    char *bs = strrchr(path, '\\');
+    if (bs && (!name || bs > name))
+        name = bs;
+    return name ? name + 1 : path;
+}
+
+FILE *sys_fopen(const char *path, const char * __restrict mode) {
+
+    ALIS_DEBUG(EDebugInfo, " [%s][%s] ", path, mode);
+    FILE *fp = fopen(path, mode);
+    if (fp) {
+        return fp;
+    }
+    
+    char pathcpy[kPathMaxLen];
+    strncpy(pathcpy, path, kPathMaxLen - 1);
+    pathcpy[kPathMaxLen - 1] = 0;
+    
+    char *name = last_path_component(pathcpy);
+    strlower(name);
+    fp = fopen(pathcpy, mode);
+    if (fp) {
+        return fp;
+    }
+    
+    strupper(name);
+    return fopen(pathcpy, mode);
+}
+
+FILE *sys_fopen_b(char *path, u16 mode) {
 
     char flag[8] = "rb";
     
     if (mode & 0x100)
     {
         // create if necessary
-        strcat(flag, "wb");
+        strcpy(flag, "r+b");
     }
     
     if (mode & 0x200)
@@ -2076,21 +2108,54 @@ FILE * sys_fopen(char * path, u16 mode) {
     }
 
     ALIS_DEBUG(EDebugInfo, " [%s][%.3x] ", path, mode);
-    return fopen(strlower(path), flag);
+    FILE *fp = fopen(path, flag);
+    if (fp)
+        return fp;
+
+    char *name = last_path_component(path);
+    strlower(name);
+    fp = fopen(path, flag);
+    if (fp)
+        return fp;
+
+    strupper(name);
+    fp = fopen(path, flag);
+    if (!fp && !strcmp(flag, "r+b"))
+        fp = fopen(path, "w+b");
+
+    return fp;
 }
 
-int sys_fclose(FILE * fp) {
+int sys_fclose(FILE *fp) {
     return fclose(fp);
 }
 
-u8 sys_fexists(char * path) {
-    u8 ret = 0;
-    FILE * fp = fopen(strlower(path), "rb");
-    if(fp) {
-        ret = 1;
-        sys_fclose(fp);
+u8 sys_fexists(char *path) {
+    FILE *fp = fopen(path, "rb");
+    if (fp)
+    {
+        fclose(fp);
+        return 1;
     }
-    return ret;
+
+    char *name = last_path_component(path);
+    strlower(name);
+    fp = fopen(path, "rb");
+    if (fp)
+    {
+        fclose(fp);
+        return 1;
+    }
+
+    strupper(name);
+    fp = fopen(path, "rb");
+    if (fp)
+    {
+        fclose(fp);
+        return 1;
+    }
+
+    return 0;
 }
 
 // =============================================================================

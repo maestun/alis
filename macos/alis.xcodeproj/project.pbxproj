@@ -14,7 +14,6 @@
 		680460412B436E9E00B3A453 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B7D7B27256D40C400DAA932 /* SDL2.framework */; };
 		680460422B436E9E00B3A453 /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8B7D7B27256D40C400DAA932 /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6808EE05297069760045BA8A /* image.c in Sources */ = {isa = PBXBuildFile; fileRef = 6808EE04297069760045BA8A /* image.c */; };
-		F42A3B612373D73C43C5EF75 /* music_v0.c in Sources */ = {isa = PBXBuildFile; fileRef = D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */; };
 		6816E8042B15217600F0D314 /* music_v1.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E8032B15217600F0D314 /* music_v1.c */; };
 		6816E8072B15219400F0D314 /* music_v2.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E8062B15219400F0D314 /* music_v2.c */; };
 		681AE9AF2FA6BF0000FF5641 /* sys_atari_isr.S in Sources */ = {isa = PBXBuildFile; fileRef = 681AE9AE2FA6BF0000FF5641 /* sys_atari_isr.S */; };
@@ -35,12 +34,10 @@
 		6840F4992CF29BBC00421CAF /* opernames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBD0250B46970097F862 /* opernames.c */; };
 		6840F49A2CF29BBC00421CAF /* script.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C403A250A3E5200C947F9 /* script.c */; };
 		6840F49B2CF29BBC00421CAF /* opcodes.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4016250A247D00C947F9 /* opcodes.c */; };
-		6840F49C2CF29BBC00421CAF /* newalis.c in Sources */ = {isa = PBXBuildFile; fileRef = 687A344C2CCF11EC00334C81 /* newalis.c */; };
 		6840F49D2CF29BBC00421CAF /* escnames.c in Sources */ = {isa = PBXBuildFile; fileRef = 0981CBCF250B46970097F862 /* escnames.c */; };
 		6840F49E2CF29BBC00421CAF /* video.c in Sources */ = {isa = PBXBuildFile; fileRef = 6838DE3A2B57685B005078DD /* video.c */; };
 		6840F49F2CF29BBC00421CAF /* emu2149.c in Sources */ = {isa = PBXBuildFile; fileRef = 68A502C42B23F0E300635EEC /* emu2149.c */; };
 		6840F4A02CF29BBC00421CAF /* platform.c in Sources */ = {isa = PBXBuildFile; fileRef = 68AC2DA12A5F52B60046C6EB /* platform.c */; };
-		73C03C13920A90E25DABF02F /* music_v0.c in Sources */ = {isa = PBXBuildFile; fileRef = D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */; };
 		6840F4A12CF29BBC00421CAF /* music_v1.c in Sources */ = {isa = PBXBuildFile; fileRef = 6816E8032B15217600F0D314 /* music_v1.c */; };
 		6840F4A22CF29BBC00421CAF /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4043250A6AC200C947F9 /* debug.c */; };
 		6840F4AB2CF29C2D00421CAF /* SDL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68E591932CE55D89007595EB /* SDL.framework */; };
@@ -48,7 +45,6 @@
 		685EBE252A52033800E4F465 /* screen.c in Sources */ = {isa = PBXBuildFile; fileRef = 685EBE242A52033800E4F465 /* screen.c */; };
 		6879D5842A942A4F0067C22A /* channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5832A942A4F0067C22A /* channel.c */; };
 		6879D5932AADB5E40067C22A /* audio.c in Sources */ = {isa = PBXBuildFile; fileRef = 6879D5922AADB5E30067C22A /* audio.c */; };
-		687A344D2CCF11EC00334C81 /* newalis.c in Sources */ = {isa = PBXBuildFile; fileRef = 687A344C2CCF11EC00334C81 /* newalis.c */; };
 		689A3B8D2F66335500006594 /* render3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 689A3B8C2F66335500006594 /* render3d.c */; };
 		689A3B8E2F66335500006594 /* render3d.c in Sources */ = {isa = PBXBuildFile; fileRef = 689A3B8C2F66335500006594 /* render3d.c */; };
 		68A502C62B23F16100635EEC /* emu2149.c in Sources */ = {isa = PBXBuildFile; fileRef = 68A502C42B23F0E300635EEC /* emu2149.c */; };
@@ -61,6 +57,7 @@
 		68B507182CF409ED0061E1FB /* sys_sdl2.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B507162CF409ED0061E1FB /* sys_sdl2.c */; };
 		68B5071B2CF418160061E1FB /* sys_sdl1.c in Sources */ = {isa = PBXBuildFile; fileRef = 681881A62CE40AA000FF1567 /* sys_sdl1.c */; };
 		68B5071C2CF418240061E1FB /* sys.c in Sources */ = {isa = PBXBuildFile; fileRef = 68B507132CF3E8930061E1FB /* sys.c */; };
+		73C03C13920A90E25DABF02F /* music_v0.c in Sources */ = {isa = PBXBuildFile; fileRef = D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */; };
 		8B9C401B250A2A5B00C947F9 /* alis.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C400F250921E900C947F9 /* alis.c */; };
 		8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C4016250A247D00C947F9 /* opcodes.c */; };
 		8B9C402C250A2A8F00C947F9 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C402B250A2A8F00C947F9 /* main.c */; };
@@ -75,6 +72,7 @@
 		BB000006000000000000BB06 /* render3d_dos.c in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000BB01 /* render3d_dos.c */; };
 		BB000007000000000000BB07 /* render3d_68k.c in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000BB03 /* render3d_68k.c */; };
 		BB000008000000000000BB08 /* render3d_68k.c in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000BB03 /* render3d_68k.c */; };
+		F42A3B612373D73C43C5EF75 /* music_v0.c in Sources */ = {isa = PBXBuildFile; fileRef = D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -111,7 +109,6 @@
 		0981CBD5250B470E0097F862 /* alis_private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = alis_private.h; sourceTree = "<group>"; };
 		6808EE03297069760045BA8A /* image.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = image.h; sourceTree = "<group>"; };
 		6808EE04297069760045BA8A /* image.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = image.c; sourceTree = "<group>"; };
-		D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v0.c; sourceTree = "<group>"; };
 		6816E8032B15217600F0D314 /* music_v1.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v1.c; sourceTree = "<group>"; };
 		6816E8062B15219400F0D314 /* music_v2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v2.c; sourceTree = "<group>"; };
 		681881A62CE40AA000FF1567 /* sys_sdl1.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys_sdl1.c; sourceTree = "<group>"; };
@@ -132,7 +129,6 @@
 		6879D5832A942A4F0067C22A /* channel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = channel.c; sourceTree = "<group>"; };
 		6879D5912AADB5E30067C22A /* audio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = audio.h; sourceTree = "<group>"; };
 		6879D5922AADB5E30067C22A /* audio.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = audio.c; sourceTree = "<group>"; };
-		687A344C2CCF11EC00334C81 /* newalis.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = newalis.c; sourceTree = "<group>"; };
 		689A3B8C2F66335500006594 /* render3d.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = render3d.c; sourceTree = "<group>"; };
 		689FD7483016C9BF00F771DF /* sys_atari_dma_sound.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sys_atari_dma_sound.h; sourceTree = "<group>"; };
 		689FD7493016C9BF00F771DF /* sys_atari_dma_sound.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys_atari_dma_sound.c; sourceTree = "<group>"; };
@@ -185,6 +181,7 @@
 		BB000002000000000000BB02 /* render3d_dos.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = render3d_dos.h; sourceTree = "<group>"; };
 		BB000003000000000000BB03 /* render3d_68k.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = render3d_68k.c; sourceTree = "<group>"; };
 		BB000004000000000000BB04 /* render3d_68k.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = render3d_68k.h; sourceTree = "<group>"; };
+		D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = music_v0.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -335,7 +332,6 @@
 				8B9C402F250A2F9300C947F9 /* utils.c */,
 				6838DE3A2B57685B005078DD /* video.c */,
 				6838DE392B57685B005078DD /* video.h */,
-				687A344C2CCF11EC00334C81 /* newalis.c */,
 			);
 			name = alis;
 			path = ../src;
@@ -480,7 +476,6 @@
 				6840F4992CF29BBC00421CAF /* opernames.c in Sources */,
 				6840F49A2CF29BBC00421CAF /* script.c in Sources */,
 				6840F49B2CF29BBC00421CAF /* opcodes.c in Sources */,
-				6840F49C2CF29BBC00421CAF /* newalis.c in Sources */,
 				68B507182CF409ED0061E1FB /* sys_sdl2.c in Sources */,
 				6840F49D2CF29BBC00421CAF /* escnames.c in Sources */,
 				68B5071C2CF418240061E1FB /* sys.c in Sources */,
@@ -519,7 +514,6 @@
 				0981CBD4250B46970097F862 /* opernames.c in Sources */,
 				8B9C403B250A3E5200C947F9 /* script.c in Sources */,
 				8B9C4022250A2A5B00C947F9 /* opcodes.c in Sources */,
-				687A344D2CCF11EC00334C81 /* newalis.c in Sources */,
 				68B507172CF409ED0061E1FB /* sys_sdl2.c in Sources */,
 				68B507152CF3E8930061E1FB /* sys.c in Sources */,
 				0981CBD3250B46970097F862 /* escnames.c in Sources */,

@@ -166,7 +166,7 @@ s8 tfibo[16] = {
 void script_guess_game(const char * script_path) {
     
     alis.platform.uid = 0;
-    FILE * fp = fopen(script_path, "rb");
+    FILE * fp = sys_fopen(script_path, "rb");
     if (fp) {
         ALIS_DEBUG(EDebugInfo, "\nLoading script file: %s\n", script_path);
         
@@ -1097,7 +1097,7 @@ sAlisScriptData * script_load(const char * script_path) {
     g_lp_c2p_ticks = 0; g_lp_grow_ticks = 0; g_lp_fixup_ticks = 0;
 #endif
 
-    FILE * fp = fopen(script_path, "rb");
+    FILE * fp = sys_fopen(script_path, "rb");
     if (fp) {
         ALIS_DEBUG(EDebugInfo, "\nLoading script file: %s\n", script_path);
         
@@ -1236,7 +1236,7 @@ sAlisScriptData * script_load(const char * script_path) {
 
                         if (sys_fexists(path) == false)
                         {
-                            FILE *fp = fopen(path, "wb");
+                            FILE *fp = sys_fopen(path, "wb");
                             if (fp)
                             {
                                 fputc(0, fp);

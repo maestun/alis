@@ -1207,7 +1207,7 @@ static void cload(void) {
 #if ALIS_VM_PROFILE
         u32 _cw = sys_profile_ticks();
 #endif
-        sAlisScriptData *loaded = script_load(strlower((char *)path));
+        sAlisScriptData *loaded = script_load(path);
 #if ALIS_VM_PROFILE
         g_cload_work += sys_profile_ticks() - _cw;
 #endif

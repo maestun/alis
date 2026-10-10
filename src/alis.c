@@ -1870,7 +1870,7 @@ FILE *afopen(char *path, u16 openmode)
 {
     bool exists = sys_fexists(path);
 
-    alis.fp = sys_fopen((char *)path, openmode);
+    alis.fp = sys_fopen_b((char *)path, openmode);
     alis.typepack = 0;
     alis.openmode = openmode;
     if ((openmode & 0x100) == 0 || exists)
