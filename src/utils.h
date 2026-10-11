@@ -26,6 +26,7 @@
 char *      strlower(char * str);
 char *      strupper(char * str);
 char *      strarr(char *haystack, const char *needle, int length);
+char *      stristr(const char *haystack, const char *needle);
 int         is_host_le(void);
 
 #ifdef _MSC_VER

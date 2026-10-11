@@ -208,6 +208,7 @@ void alis_load_main(void) {
     // 22690    = header
     
     alis.nbprog = 0;
+    alis.main = NULL;
     
     // packed main script contains vm specs in the header
     FILE * fp = fopen(alis.platform.main, "rb");
@@ -278,6 +279,9 @@ void alis_load_main(void) {
 
         // load main scripts as an usual script...
         sAlisScriptData *script = script_load(alis.platform.main);
+        if (script == NULL)
+            return;
+
         alis.main = script_live(script);
         alis.basemain = alis.main->vram_org;
 
@@ -506,6 +510,9 @@ u8 alis_init(sPlatform platform) {
     
     // load main script
     alis_load_main();
+    if (alis.main == NULL)
+        return 1;
+
     ALIS_SET_SCRIPT(alis.main);
     alis.basemain = alis.main->vram_org;
     

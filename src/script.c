@@ -822,6 +822,8 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         {
             s32 a = read32(data + 0xc + l) + l + s * 4;
             s32 at = read32(data + a) + a;
+            if (at < 0 || (u32)at >= script->sz)
+                continue;
             
             u8 *sample = data + at;
             if (sample[0] == 1 || sample[0] == 2)
@@ -845,6 +847,8 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         {
             s32 a = read32(data + 0xc + l) + l + s * 4;
             s32 at = read32(data + a) + a;
+            if (at < 0 || (u32)at >= script->sz)
+                continue;
             
             u8 *sample = data + at;
             if (sample[0] == 1 || sample[0] == 2)
@@ -1119,7 +1123,8 @@ sAlisScriptData * script_load(const char * script_path) {
         
         // decrunch if needed
         alis.typepack = magic >> 24;
-        if (alis.platform.kind == EPlatformPC) {
+        // v1.1 re-release (Mad Show) marks the dictionary packer with 0xa1
+        if (alis.platform.kind == EPlatformPC && alis.platform.version != 11) {
             alis.typepack &= 0xfe;
         }
         
@@ -1202,7 +1207,8 @@ sAlisScriptData * script_load(const char * script_path) {
                (unsigned long)(g_lp_grow_bytes >> 10));
 #endif
         
-        if (unpack_sz < 0) {
+        // damaged data already set alis_fatal: let the VM stop and show it
+        if (unpack_sz < 0 && !alis_fatal) {
             ALIS_DEBUG(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
             exit(-1);
         }
@@ -1263,22 +1269,30 @@ void script_unload(sAlisScriptData * script) {
 
 bool is_delay_script(char *name) {
     
-    if (alis.platform.uid == EGameIshar_1 && strstr(name, "auteur."))
+    if (alis.platform.uid == EGameIshar_1 && stristr(name, "auteur."))
     {
         alis.unload_delay = 5000;
         return true;
     }
     else if (alis.platform.uid == EGameLeFeticheMaya)
     {
-        if (strstr(name, "abomaya."))
+        if (stristr(name, "abomaya."))
         {
             alis.load_delay = 1000;
         }
-        else if (strstr(name, "presente."))
+        else if (stristr(name, "presente."))
         {
             alis.load_delay = alis.platform.kind == EPlatformPC ? 2500 : 30000;
         }
-        else if (strstr(name, "sdivers."))
+        else if (stristr(name, "sdivers."))
+        {
+            alis.load_delay = 2500;
+        }
+        else if (alis.platform.kind == EPlatformPC && stristr(name, "charge."))
+        {
+            alis.load_delay = 2500;
+        }
+        else if (alis.platform.kind == EPlatformAmiga && stristr(name, "debuvisi."))
         {
             alis.load_delay = 2500;
         }
@@ -1287,12 +1301,33 @@ bool is_delay_script(char *name) {
     }
     else if (alis.platform.uid == EGameTarghan0 || alis.platform.uid == EGameTarghan1)
     {
-        if (strstr(name, "gen."))
+        if (stristr(name, "gen."))
         {
             alis.load_delay = alis.platform.kind == EPlatformPC || alis.platform.kind == EPlatformMac ? 2500 : 60000;
         }
 
         return true;
+    }
+    else
+    {
+        // EPlatformUnknown matches any platform
+        static const struct { s32 uid; EPlatform kind; const char *name; } loadscr[] = {
+            { EGameColorado, EPlatformPC, "neigepc." },
+            { EGameStarblade, EPlatformPC, "loading." },
+            { EGameStormMaster, EPlatformPC, "panneau." },
+            { EGameMetalMutant, EPlatformUnknown, "apolo." },
+            { EGameMetalMutant, EPlatformUnknown, "sono." },
+            { EGameIshar_2, EPlatformUnknown, "present1." },
+        };
+
+        for (int i = 0; i < sizeof(loadscr) / sizeof(*loadscr); i++)
+        {
+            if (alis.platform.uid == loadscr[i].uid && (loadscr[i].kind == EPlatformUnknown || loadscr[i].kind == alis.platform.kind) && stristr(name, loadscr[i].name))
+            {
+                alis.load_delay = 2500;
+                return true;
+            }
+        }
     }
 
     return false;

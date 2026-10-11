@@ -2434,6 +2434,12 @@ void destofen(sSprite *sprite)
 
     u8 *bitmap = alis.mem + addr;
 
+    // ST/Amiga engines skip negative types; Falcon and DOS don't test it
+    if ((s8)bitmap[0] < 0 && alis.platform.version > 10
+        && (alis.platform.kind == EPlatformAtari || alis.platform.kind == EPlatformAmiga
+            || alis.platform.kind == EPlatformAmigaAGA || alis.platform.kind == EPlatformMac))
+        return;
+
     sRect pos = {
         .x1 = sprite->newx,
         .y1 = sprite->newy,

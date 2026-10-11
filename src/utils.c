@@ -20,6 +20,9 @@
 //
 
 #include "utils.h"
+#ifndef _MSC_VER
+#include <strings.h>
+#endif
 
 char * strlower(char * str) {
     char * ptr = str;
@@ -28,6 +31,14 @@ char * strlower(char * str) {
             *ptr = tolower(*ptr);
     }
     return str;
+}
+
+char * stristr(const char *haystack, const char *needle) {
+    size_t len = strlen(needle);
+    for ( ; *haystack; haystack++)
+        if (!strncasecmp(haystack, needle, len))
+            return (char *)haystack;
+    return NULL;
 }
 
 char * strupper(char * str) {

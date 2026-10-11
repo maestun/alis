@@ -158,6 +158,10 @@ static inline s16 word(u32 value) {
 static s32 d5;
 static u8  d7;
 static u32 __unpack_counter = 0;
+static u8 *unpack_beg;
+static u8 *unpack_pend;
+static u32 unpack_over;
+static char unpack_fatal[kPathMaxLen + 96];
 
 
 // USES
@@ -176,9 +180,15 @@ static inline void decode(u8** ptr_packed, u16 bit) {
 
         // here, original code tests if we need more packed data chunks
 
-        u8 hi = *(*ptr_packed)++;
-        u8 lo = *(*ptr_packed)++;
-        u16 pack_word = (hi << 8) + lo;
+        u16 pack_word = 0;
+        if (*ptr_packed < unpack_pend) {
+            u8 hi = *(*ptr_packed)++;
+            u8 lo = *(*ptr_packed)++;
+            pack_word = (hi << 8) + lo;
+        }
+        else {
+            unpack_over++;   // streams may end early and rely on zero padding
+        }
         d5 = (d5 & 0xffff0000) + pack_word;
         d5 = swap(d5);
 
@@ -199,7 +209,8 @@ static inline void write_neg(u8** ptr_unpacked, s16 val, s16* counter) {
     s16 offset = val * -1;
     // SXX 
     do {
-        u8 c = *(*ptr_unpacked + offset - 1);
+        u8 *src = *ptr_unpacked + offset - 1;
+        u8 c = src < unpack_beg ? 0 : *src;
         *(*ptr_unpacked)++ = c;
         __unpack_counter++;
     } while(--(*counter) != -1);
@@ -214,11 +225,13 @@ static inline void count(u8** ptr_packed, u8 start, u8 stop, s16* counter) {
 
 /// @brief Unpack ALIS script
 /// @param ptr_packed   pointer to raw packed data (w/o header, specs, dictionary)
+/// @param packed_sz    packed data size
 /// @param ptr_unpacked pointer to allocated buffer for unpacked data
 /// @param unpacked_sz  unpacked data size (read from packed header)
 /// @param dictionary   dictionary (8-byte buffer read from packed header)
 /// @return length of unpacked data
 u32 unpack_new(u8* ptr_packed,
+               const u32 packed_sz,
                u8* ptr_unpacked, 
                const u32 unpacked_sz,
                u8* dictionary) {
@@ -226,6 +239,9 @@ u32 unpack_new(u8* ptr_packed,
     s16 counter = 0;
     __unpack_counter = 0;
     u8* ptr_unpacked_end = ptr_unpacked + unpacked_sz;
+    unpack_beg = ptr_unpacked;
+    unpack_pend = ptr_packed + packed_sz;
+    unpack_over = 0;
     d7 = 0;
     while(ptr_unpacked < ptr_unpacked_end) {
         // loop
@@ -282,6 +298,19 @@ u32 unpack_new(u8* ptr_packed,
 #pragma mark - Unpacker
 // ============================================================================
 
+// More zero padding than the 0xff byte buffer slack means the packed data is damaged.
+static int unpack_damaged(const char *path) {
+    if (unpack_over <= 0x7f)
+        return 0;
+
+    snprintf(unpack_fatal, sizeof(unpack_fatal), "Damaged script file: %s\nTry another copy of this file or check the original medium.", path);
+    ALIS_DEBUG(EDebugFatal, "%s\n", unpack_fatal);
+    ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+    alis_fatal = unpack_fatal;
+    alis.state = eAlisStateStopped;
+    return 1;
+}
+
 u8 is_packed(u8 packer_kind) {
     return packer_kind < 0;
 }
@@ -293,6 +322,7 @@ u8 is_packed(u8 packer_kind) {
 /// zero if the input file is not packed
 int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
     int ret = 0;
+    int damaged = 0;
     FILE *pfp = sys_fopen(packed_file_path, "rb");
 
     if(pfp) {
@@ -337,7 +367,8 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
 #if defined(ALIS_PROFILE_DRAW)
             { extern void dbglog(const char *fmt, ...); dbglog("  UNP new typepack=%02x\n", (unsigned)(u8)alis.typepack); }
 #endif
-            unpack_new(packed_buffer, unpacked_buffer, unpacked_size, dict);
+            unpack_new(packed_buffer, packed_size, unpacked_buffer, unpacked_size, dict);
+            damaged = unpack_damaged(packed_file_path);
         }
         else
         {
@@ -352,7 +383,7 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         free(dict);
         free(packed_buffer);
         packed_buffer = NULL;
-        ret = unpacked_size;
+        ret = damaged ? EUnpackErrorFormat : (int)unpacked_size;
     }
     else {
         // error
@@ -380,7 +411,8 @@ int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_size) {
             u8 *dict = malloc(kPackedDictionarySize);
             fread(dict, sizeof(u8), kPackedDictionarySize, fp);
             fread(packed_buffer, sizeof(u8), packed_size, fp);
-            unpack_new(packed_buffer, unpacked_buffer, unpacked_size, dict);
+            unpack_new(packed_buffer, packed_size, unpacked_buffer, unpacked_size, dict);
+            unpack_damaged("(data file)");
             free(dict);
         }
         else

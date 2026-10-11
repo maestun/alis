@@ -7616,10 +7616,15 @@ void shrinkprog(s32 start, s32 length, u16 id)
             while ((spridx = SPRITE_VAR(spridx)->link) != 0)
             {
                 sSprite *sprite = SPRITE_VAR(spridx);
-                if (start < sprite->newad)
+                // pending removal or pointing into the freed script: drop instead of shifting into its neighbour
+                if (sprite->state == 1 || (sprite->newad >= start && sprite->newad < start + length))
+                    sprite->newad = 0;
+                else if (start < sprite->newad)
                     sprite->newad -= length;
 
-                if (start < sprite->data)
+                if (sprite->data >= start && sprite->data < start + length)
+                    sprite->data = 0;
+                else if (start < sprite->data)
                     sprite->data -= length;
             }
         }

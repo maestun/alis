@@ -404,6 +404,9 @@ int main(int argc, char *argv[]) {
             {
                 // sys_init already took over video/GEM/vectors (incl. the Timer A ISR): unwind first.
                 sys_deinit();
+                if (alis_fatal)
+                    printf("\n%s\n", alis_fatal);
+
                 hold_screen();
                 sys_restore_desktop();   // last: repaints the desktop over our messages
                 return result;
