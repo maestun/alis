@@ -3267,18 +3267,17 @@ static int v6x3d_tri_insert(const sV6Face *fr, sV6Slot *slotbase)
 
     s16 x1 = s0->sx, x2 = s0->sx;
     if (s1->sx < x1)
-    {
         x1 = s1->sx;
-        if (s2->sx < x1)
-            x1 = s2->sx;
-    }
-    
+
+    if (s2->sx < x1)
+        x1 = s2->sx;
+
     if (s1->sx > x2)
-    {
         x2 = s1->sx;
-        if (s2->sx > x2)
-            x2 = s2->sx;
-    }
+
+    if (s2->sx > x2)
+        x2 = s2->sx;
+
     if (x2 < v6xclipx1)
         return 0;
     

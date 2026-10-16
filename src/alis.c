@@ -29,6 +29,7 @@
 #include "mem.h"
 #include "screen.h"
 #include "sys/sys.h"
+#include "deus3d.h"
 #include "rrq3d.h"
 #include "utils.h"
 #include "video.h"
@@ -954,8 +955,16 @@ void alis_load_state(void)
     sys_cursor_hold(1);
     u8 *oldmem = alis.mem;
     size_t oldmem_size = alis.platform.ram_sz;
+    u16 cur_w = alis.platform.width;
+    u16 cur_h = alis.platform.height;
     memset(&alis, 0, alis_size);
     fread(&(alis), alis_size, 1, fp);
+
+    // v6 can save in another resolution: buffers keep the current size until resized below
+    u16 save_w = alis.platform.width;
+    u16 save_h = alis.platform.height;
+    alis.platform.width = cur_w;
+    alis.platform.height = cur_h;
 
     strcpy(alis.platform.path, savepath);
     strcpy(alis.platform.main, savemain);
@@ -1162,6 +1171,18 @@ void alis_load_state(void)
     image.terrgbarows = terrgbarows;
 #endif
     
+    if (save_w != cur_w || save_h != cur_h)
+    {
+        sImage saved = image;
+        resize_screen(save_w, save_h);
+        image.logx1 = saved.logx1;
+        image.logx2 = saved.logx2;
+        image.logy1 = saved.logy1;
+        image.logy2 = saved.logy2;
+        image.loglarg = saved.loglarg;
+        image.wdraw = saved.wdraw == saved.backmap ? image.backmap : image.logic;
+    }
+
     fread(image.spritemem, kSpriteMemSize, 1, fp);
     fread(image.physic, alis.platform.width * alis.platform.height, 1, fp);
     // Single-buffered: logic == physic and only one buffer was saved (mirror alis_save_state).
@@ -1249,7 +1270,18 @@ void alis_load_state(void)
     u16 ptscreen;
     if (fread(&ptscreen, sizeof(ptscreen), 1, fp) == 1)
         screen.ptscreen = ptscreen;
-    
+
+    // 3D renderer host state is not saved: reopen the 3D screens on their saved arenas
+    if (alis.platform.version >= 60)
+    {
+        for (u16 o = screen.ptscreen; o != 0; o = xread16(alis.basemain + o + 0x5c))
+        {
+            u32 scr = alis.basemain + o;
+            if (xread8(scr + 0x5a) == 6 && !(xread8(scr + 0x58) & 0x40))
+                v6x3d_open(scr);
+        }
+    }
+
     cdtrack_load(fp);
     // v6 voices: stop first so the mixer never plays stale offsets
     {
