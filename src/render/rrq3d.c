@@ -1,32 +1,41 @@
 //
-//  render3d.c
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
-//  Created by Vadim Kindl on 04.10.2025.
-//  Copyright © 2025 Zlot. All rights reserved.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the “Software”),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
 #include "alis.h"
 #include "image.h"
 #include "mem.h"
-#include "render3d.h"
-#include "render3d_dos.h"
-#include "render3d_68k.h"
-
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-extern void rrq_ver_note(u8 kind, s16 a, s16 b, s16 c, s16 d);
-#define RRQ_NOTE(k,a,b,c,d) rrq_ver_note(k,(s16)(a),(s16)(b),(s16)(c),(s16)(d))
-#else
-#define RRQ_NOTE(k,a,b,c,d) ((void)0)
-#endif
+#include "rrq3d.h"
+#include "rrq3d_dos.h"
+#include "rrq3d_68k.h"
 
 #if ALIS_SDL_VER > 1
 // Quantize an 8-bit component to 3-bit (ST/Amiga 512-color palette)
 // Maps 0-255 → one of 8 levels: 0, 36, 73, 109, 146, 182, 219, 255
-static inline u8 quant3(u8 c) {
+static inline u8 quant3(u8 c)
+{
     return (u8)((c >> 5) * 255 / 7);
 }
-static inline u8 quant4(u8 c) {
+
+static inline u8 quant4(u8 c)
+{
     return (u8)((c >> 4) * 255 / 15);
 }
 
@@ -43,11 +52,13 @@ u32 fog_blend(u32 color)
     u32 r = (((color >> 16) & 0xFF) * it + ((fog >> 16) & 0xFF) * t) >> 8;
     u32 g = (((color >>  8) & 0xFF) * it + ((fog >>  8) & 0xFF) * t) >> 8;
     u32 b = (((color      ) & 0xFF) * it + ((fog      ) & 0xFF) * t) >> 8;
-    if (alis.platform.bpp == 4) {
+    if (alis.platform.bpp == 4)
+    {
         r = quant4((u8)r);
         g = quant4((u8)g);
         b = quant4((u8)b);
     }
+
     return 0xFF000000u | (r << 16) | (g << 8) | b;
 }
 
@@ -67,10 +78,12 @@ void vgatobuf(void)
             {
                 u8 idx = xread8(row_addr + x) & pal_mask;
                 u32 color = image.mpalet[idx] | 0xFF000000u;
-                if (ddepth && ddepth[x] > 0) {
+                if (ddepth && ddepth[x] > 0)
+                {
                     image.stripdepth = ddepth[x];
                     color = fog_blend(color | 0xFF000000u);
                 }
+
                 // Pack: RGB from color, alpha = terrain index for sprite detection
                 drow[x] = (color & 0x00FFFFFFu) | ((u32)idx << 24);
             }
@@ -118,60 +131,6 @@ u32 adresa   = 0;  // previous column terrain cell address
 u8 terrain_fill_color = 0;  // DOS: solid fill color for barlands gap fill
 s16 bartra_saved_si = 0;    // DAT_0001ab5e: terrain-type extra height from doland altitude lookup (0 for tbarland)
 s16 bottom_type_index = 0;  // DAT_0001ab64: type index for bottom section texture (set by tbarland)
-
-// Texture-footprint profiler (-DALIS_PROFILE_TEX): do the distinct terrain textures
-// fit the DSP's 1536-byte data RAM? Logs each new texture (packed w*h) + totals.
-#if defined(ALIS_PROFILE_TEX)
-#include <stdio.h>
-#if defined(ALIS_USE_NATIVE_ATARI)
-#  define TP_LOG(...) do { extern void dbglog(const char *fmt, ...); dbglog(__VA_ARGS__); } while (0)
-#else
-#  define TP_LOG(...) do { printf(__VA_ARGS__); fflush(stdout); } while (0)
-#endif
-#define TEXPROF_MAX 256
-static u32 g_tp_key[TEXPROF_MAX];              // cumulative (whole run)
-static s32 g_tp_w[TEXPROF_MAX], g_tp_h[TEXPROF_MAX];
-static int g_tp_n = 0;
-static u32 g_tp_fkey[TEXPROF_MAX];             // distinct THIS frame
-static s32 g_tp_fw[TEXPROF_MAX], g_tp_fh[TEXPROF_MAX];
-static int g_tp_fn = 0;
-static int g_tp_fmax = 0;                      // peak distinct-per-frame seen
-
-void texprof_add(u32 key, s32 w, s32 h)
-{
-    // per-frame set (the number that must fit the DSP simultaneously)
-    int seen = 0;
-    for (int i = 0; i < g_tp_fn; i++) if (g_tp_fkey[i] == key) { seen = 1; break; }
-    if (!seen && g_tp_fn < TEXPROF_MAX) { g_tp_fkey[g_tp_fn] = key; g_tp_fw[g_tp_fn] = w; g_tp_fh[g_tp_fn] = h; g_tp_fn++; }
-
-    // cumulative set (log each new texture once)
-    for (int i = 0; i < g_tp_n; i++) if (g_tp_key[i] == key) return;
-    if (g_tp_n >= TEXPROF_MAX) return;
-    g_tp_key[g_tp_n] = key; g_tp_w[g_tp_n] = w; g_tp_h[g_tp_n] = h; g_tp_n++;
-
-    u32 total = 0;
-    for (int i = 0; i < g_tp_n; i++)
-        total += (u32)(g_tp_w[i] > 0 ? g_tp_w[i] : 0) * (u32)(g_tp_h[i] > 0 ? g_tp_h[i] : 0);
-    TP_LOG("TEXPROF: NEW tex #%d key=%08x  %dx%d = %d B  |  cumulative %d textures, %u B\n",
-           g_tp_n, (unsigned)key, (int)w, (int)h, (int)(w * h), g_tp_n, (unsigned)total);
-}
-
-// Called once per terrain frame (doland entry): reports the per-frame peak — the working
-// set that must live in DSP RAM at once. 512 data words = ~512 texels fast / ~1536 packed.
-void texprof_frame_begin(void)
-{
-    if (g_tp_fn > g_tp_fmax)
-    {
-        g_tp_fmax = g_tp_fn;
-        u32 fb = 0;
-        for (int i = 0; i < g_tp_fn; i++)
-            fb += (u32)(g_tp_fw[i] > 0 ? g_tp_fw[i] : 0) * (u32)(g_tp_fh[i] > 0 ? g_tp_fh[i] : 0);
-        TP_LOG("TEXPROF: >>> per-FRAME PEAK = %d textures, %u B / %u texels  (DSP holds ~512 texels fast, ~1536 packed)\n",
-               g_tp_fn, (unsigned)fb, (unsigned)fb);
-    }
-    g_tp_fn = 0;
-}
-#endif
 
 extern u8 tabatan[];
 extern s16 *tabsin;
@@ -381,23 +340,6 @@ sCLTPResult clandtopix(s32 scene_addr, s16 rel_x, s16 rel_y, s16 rel_z)
 {
     if (alis.platform.is_little_endian)
         return clandtopix_o0(scene_addr, rel_x, rel_y, rel_z);
-#if defined(ALIS_CLANDTOPIX_VERIFY)
-    {
-        extern void dbglog(const char *fmt, ...);
-        static u32 calls, bad;
-        sCLTPResult a = clandtopix_be(scene_addr, rel_x, rel_y, rel_z);
-        sCLTPResult b = clandtopix_o0(scene_addr, rel_x, rel_y, rel_z);
-        calls++;
-        if (memcmp(&a, &b, sizeof(a))) {
-            bad++;
-            dbglog("[cltp] #%lu BAD in %d,%d,%d: x %d/%d y %d/%d z %d/%d d %d/%d\n", (unsigned long)calls,
-                   rel_x, rel_y, rel_z, a.screen_x, b.screen_x, a.screen_y, b.screen_y,
-                   a.zoom, b.zoom, a.depth, b.depth);
-        } else if ((calls & 4095) == 0)
-            dbglog("[cltp] %lu calls, %lu bad\n", (unsigned long)calls, (unsigned long)bad);
-        return b;
-    }
-#endif
     return clandtopix_be(scene_addr, rel_x, rel_y, rel_z);
 }
 
@@ -712,7 +654,8 @@ void openland(s16 scene_id)
     }
     
     // double normal draw distance
-    if (image.ddrawdist) {
+    if (image.ddrawdist)
+    {
         xwrite16(scene_addr + 0x6a, 960 * 2);
         xwrite16(scene_addr + 0x6c, 1680 * 2);
         xwrite16(scene_addr + 0x6e, 1200 * 2);
@@ -793,9 +736,13 @@ void landtopix(s32 scene_addr, u16 sprite_id)
         // DOS: sprite rotation angle is at sprite offset 0x26 (high word of u32 at 0x24 on LE)
         s16 sprite_angle;
         if (alis.platform.is_little_endian)
+        {
             sprite_angle = (s16)(sprite->sprite_0x28 >> 16);
+        }
         else
+        {
             sprite_angle = (s16)sprite->sprite_0x28;
+        }
 
         u16 norm_angle;
         for (norm_angle = (sprite_angle - xread16(scene_addr + 0x38)) + 900; -1 < (int)((u32)norm_angle << 0x10); norm_angle -= 0x168) {}
@@ -968,7 +915,6 @@ u32 skyfast(u32 tgt, u8 fill, s16 stride, s16 height)
 
 void skytofen(s32 scene_addr, s32 render_context)
 {
-    RRQ_NOTE(4, image.clipx1, image.clipl, 0, 0);
     if (image.ftstpix != 0)
     {
         return;
@@ -993,14 +939,18 @@ void skytofen(s32 scene_addr, s32 render_context)
     {
         u8 pal_mask = alis.platform.bpp == 4 ? 0x0F : 0xFF;
         u8 sky_idx;
-        if (xread8(bitmap) == 1) {
+        if (xread8(bitmap) == 1)
+        {
             // Solid color sky: use the fill color
             sky_idx = xread8(bitmap + 1) & pal_mask;
-        } else {
+        }
+        else
+        {
             // Textured sky: sample bottom-right pixel (horizon color)
             s16 data_off = (alis.platform.bpp == 4) ? 6 : 8;
             sky_idx = xread8(bitmap + (u32)(u16)(xread16(bitmap + 2) + 1) * (u32)xread16(bitmap + 4) + data_off) & pal_mask;
         }
+
         image.fogcol = image.mpalet[sky_idx] | 0xFF000000u;
     }
 #endif
@@ -1017,12 +967,15 @@ void skytofen(s32 scene_addr, s32 render_context)
         s16 tex_width = xread16(bitmap + 2) + 1;
         s16 scroll_mod = (s16)((s16)((u32)((s32)xread16(scene_addr + 0x38) * (s32)xread16(scene_addr + 0xa8)) >> 8) - image.clipx1) % tex_width;
         u16 scroll_pos = -scroll_mod;
-        if (0 < scroll_mod) {
+        if (0 < scroll_mod)
+        {
             scroll_pos = tex_width + scroll_pos;
         }
+
         image.skyposx = scroll_pos & 0xfffe;
         image.skyleft = tex_width - image.skyposx;
-        if ((s16)image.clipl < (s16)(tex_width - image.skyposx)) {
+        if ((s16)image.clipl < (s16)(tex_width - image.skyposx))
+        {
             image.skyleft = image.clipl;
         }
 
@@ -1032,8 +985,10 @@ void skytofen(s32 scene_addr, s32 render_context)
 
         // Fill top gap above sky texture
         s16 top_gap = image.skyposy - image.clipy1;
-        if (top_gap != 0 && image.clipy1 <= image.skyposy) {
-            if (image.cliph < top_gap) {
+        if (top_gap != 0 && image.clipy1 <= image.skyposy)
+        {
+            if (image.cliph < top_gap)
+            {
                 top_gap = image.cliph;
             }
 
@@ -1042,56 +997,71 @@ void skytofen(s32 scene_addr, s32 render_context)
 
         // Compute visible sky row range (clamped to clip rect)
         s16 sky_top = image.skyposy;
-        if (image.skyposy < image.clipy1) {
+        if (image.skyposy < image.clipy1)
+        {
             sky_top = image.clipy1;
         }
+
         s16 sky_bottom = xread16(bitmap + 4) + image.skyposy;
-        if (image.clipy2 < (s16)(xread16(bitmap + 4) + image.skyposy)) {
+        if (image.clipy2 < (s16)(xread16(bitmap + 4) + image.skyposy))
+        {
             sky_bottom = image.clipy2;
         }
+
         s16 row_count = sky_bottom - sky_top;
 
         // Blit sky texture rows with horizontal wrapping
-        if (row_count != 0 && sky_top <= sky_bottom) {
+        if (row_count != 0 && sky_top <= sky_bottom)
+        {
             u16 tex_stride = xread16(bitmap + 2) + 1;
             s32 src_offset = 0;
-            if ((u16)(image.clipy1 - image.skyposy) != 0 && image.skyposy <= image.clipy1) {
+            if ((u16)(image.clipy1 - image.skyposy) != 0 && image.skyposy <= image.clipy1)
+            {
                 src_offset = (u32)(u16)(image.clipy1 - image.skyposy) * (u32)tex_stride;
             }
+
             u32 row_src = (bitmap + (s16)image.skyposx + src_offset + data_offset);
             s16 half_left = (image.skyleft >> 1) - 1;
-            do {
+            do
+            {
                 u32 src_end = row_src;
                 u32 src_cur = row_src;
                 u32 dst_cur = dst;
                 s16 col_count = half_left;
 
                 // Copy left portion (from skyposx to texture edge)
-                if (-1 < half_left) {
-                    do {
+                if (-1 < half_left)
+                {
+                    do
+                    {
                         src_end = src_cur + 2;
                         dst = dst_cur + 2;
                         xwrite16(dst_cur, xread16(src_cur));
                         col_count = col_count - 1;
                         src_cur = src_end;
                         dst_cur = dst;
-                    } while (col_count != -1);
+                    }
+                    while (col_count != -1);
                 }
 
                 // Copy wrapped portion (src_end rewinds to texture start, src_cur reused as write cursor)
                 s16 wrap_total = (image.clipl >> 1) - half_left;
                 s16 wrap_count = wrap_total - 2;
-                if (1 < wrap_total) {
+                if (1 < wrap_total)
+                {
                     src_end = ((s32)src_end - (s32)(s16)tex_stride);
                     src_cur = dst;
-                    do {
+                    do
+                    {
                         dst = src_cur + 2;
                         xwrite16(src_cur, xread16(src_end));
                         wrap_count = wrap_count - 1;
                         src_end = src_end + 2;
                         src_cur = dst;
-                    } while (wrap_count != -1);
+                    }
+                    while (wrap_count != -1);
                 }
+
                 // Odd clipl: 16-bit loops wrote (clipl & ~1) bytes; advance dst past the
                 // missing last pixel so the stride_gap brings us to the correct next row.
                 if (image.clipl & 1)
@@ -1105,8 +1075,10 @@ void skytofen(s32 scene_addr, s32 render_context)
 
         // Fill bottom gap below sky texture
         s16 bottom_gap = (image.clipy2 - image.skyposy) - xread16(bitmap + 4);
-        if (bottom_gap != 0 && xread16(bitmap + 4) <= (s16)(image.clipy2 - image.skyposy)) {
-            if (image.cliph < bottom_gap) {
+        if (bottom_gap != 0 && xread16(bitmap + 4) <= (s16)(image.clipy2 - image.skyposy))
+        {
+            if (image.cliph < bottom_gap)
+            {
                 bottom_gap = image.cliph;
             }
 
@@ -1117,7 +1089,6 @@ void skytofen(s32 scene_addr, s32 render_context)
 
 void glandtopix(s32 render_context, s16 *out_x, s16 *out_y, s16 offset_x, s16 offset_y, s16 depth)
 {
-    RRQ_NOTE(3, *out_x, *out_y, offset_x, depth);
     // Rotate + FOV-scale two points through the same projection
     s32 proj_num_x = (s32)(s16)(((s32)*out_y * (s32)xread16(render_context - 0x28c) + (s32)*out_x * (s32)xread16(render_context - 0x28a)) >> 9) * (s32)xread16(render_context - 0x3aa);
     s32 proj_num_y = (s32)(s16)(((s32)offset_y * (s32)xread16(render_context - 0x28c) + (s32)offset_x * (s32)xread16(render_context - 0x28a)) >> 9) * (s32)xread16(render_context - 0x3aa);
@@ -1169,8 +1140,9 @@ void barlands(u16 drawy, s16 barheight, s16 barwidth)
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "render3d_atari_glue.h"
-/* Freeze the asm-visible offsets. If one fires, the .equ block in render3d_atari.S no
+#include "rrq3d_atari_glue.h"
+
+/* Freeze the asm-visible offsets. If one fires, the .equ block in rrq3d_atari.S no
    longer matches — fix BOTH, never just the struct. */
 #define ZM_OFF(f, o) _Static_assert(offsetof(zoomtofen_mirror_t, f) == (o), "zoomtofen_mirror." #f)
 ZM_OFF(wlogic, 0);   ZM_OFF(ztflowx, 4);  ZM_OFF(ztflowy, 8);   ZM_OFF(bitmap, 12);
@@ -1185,57 +1157,12 @@ _Static_assert(sizeof(zoomtofen_mirror_t) == 68, "zoomtofen_mirror size");
 #undef ZM_OFF
 #endif
 
-/* The C billboard scaler is needed for the pure-C build and, when the asm is
-   on, for the verify harness (byte-compares C vs asm). It is factored out of
-   zoomtofen so both paths share the exact same reference. */
-#if !(defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM) \
-    || (defined(ALIS_RRQ_ASM_ZOOM_VERIFY) && ALIS_RRQ_ASM_ZOOM_VERIFY)
-#define ZOOM_C_RENDER 1
-#endif
-
-#if defined(ZOOM_C_RENDER)
-#if defined(ALIS_MEASURE_ZOOM)
-// Billboard pixel stats per row: opaque, transparent margins (left/right), interior holes.
-static u32 zm_px, zm_op, zm_ml, zm_mr, zm_rows, zm_empty, zm_mag_px, zm_calls, zm_wide_px, zm_wide_margin;
-static void zm_row(s16 w, s16 first, s16 last, s16 op, u32 step)
-{
-    zm_px += w; zm_op += op; zm_rows++;
-    if (first < 0) { zm_empty++; zm_ml += w; }
-    else { zm_ml += first; zm_mr += w - 1 - last; }
-    if (!(step & 0xffff)) zm_mag_px += w;
-    if (w >= 16) { zm_wide_px += w; zm_wide_margin += first < 0 ? w : first + (w - 1 - last); }
-}
-static void zm_call(void)
-{
-    extern void dbglog(const char *fmt, ...);
-    if ((++zm_calls & 1023) == 0 && zm_px)
-        dbglog("[zoom] %lu calls %lu rows: px %lu opaque %lu%% margins L %lu%% R %lu%% (empty rows %lu%%) holes %lu%% | magnified px %lu%% | rows>=16px: %lu%% of px, margins %lu%% of those\n",
-               (unsigned long)zm_calls, (unsigned long)zm_rows, (unsigned long)zm_px,
-               (unsigned long)(zm_op * 100 / zm_px), (unsigned long)(zm_ml * 100 / zm_px),
-               (unsigned long)(zm_mr * 100 / zm_px), (unsigned long)(zm_empty * 100 / zm_rows),
-               (unsigned long)((zm_px - zm_op - zm_ml - zm_mr) * 100 / zm_px),
-               (unsigned long)(zm_mag_px * 100 / zm_px), (unsigned long)(zm_wide_px * 100 / zm_px),
-               (unsigned long)(zm_wide_px ? zm_wide_margin * 100 / zm_wide_px : 0));
-}
-#define ZM_ROW_BEGIN s16 zm_first = -1, zm_last = -1, zm_opq = 0
-#define ZM_PX(x) do { if (zm_first < 0) zm_first = (x); zm_last = (x); zm_opq++; } while (0)
-#define ZM_ROW_END zm_row(clipped_width, zm_first, zm_last, zm_opq, zoom_y_step)
-#else
-#define ZM_ROW_BEGIN
-#define ZM_PX(x)
-#define ZM_ROW_END
-#define zm_call()
-#endif
+#if !(defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM)
 
 /* Original zoomtofen render body (0x2373e-0x237f6 normal + 0x238a4-0x23920
    flipped). Renders directly into image.wlogic; reads/writes image.ztflow*. */
-static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
-                               s16 clipped_width, u16 clipped_height,
-                               u32 zoom_y_step, u32 zoom_y_int, u32 zoom_y_frac,
-                               u32 zoom_x_step, s16 screen_x, s16 screen_y,
-                               s16 x_orig, s16 bitmap_width)
+static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset, s16 clipped_width, u16 clipped_height, u32 zoom_y_step, u32 zoom_y_int, u32 zoom_y_frac, u32 zoom_x_step, s16 screen_x, s16 screen_y, s16 x_orig, s16 bitmap_width)
 {
-            zm_call();
             // Calculate target framebuffer address
             char *framebuffer = (char *)((s32)screen_x + (u32)(u16)(screen_y - image.wlogy1) * (u32)image.wloglarg + image.wlogic);
             image.ztflowy &= 0xffff;
@@ -1278,7 +1205,6 @@ static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
                 for (int y = 0; y < clipped_height; y++, framebuffer += line_skip)
                 {
                     zoom_y_int = concat22((s16)(image.ztflowx >> 0x10), (s16)zoom_y_frac);
-                    ZM_ROW_BEGIN;
 
                     // Render individual pixels in row, stepping backward through texture (flipped)
                     for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_int - zoom_y_step) >> 0x10), (s16)(zoom_y_int - zoom_y_step) - (u16)(zoom_y_int < zoom_y_step)))
@@ -1288,13 +1214,8 @@ static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
                             bmp_idx += 0x10000;
 
                         u8 pixel = bitmap[bmp_idx];
-#if defined(ALIS_MEASURE_OVERDRAW)
-                        { extern u32 g_zoom_px, g_zoom_opaque; g_zoom_px++; g_zoom_opaque += pixel != 0;
-                          if ((g_zoom_px & 0x3ffff) == 0) { extern void dbglog(const char *fmt, ...);
-                              dbglog("[zoom] pixels %u opaque %u%%\n", g_zoom_px, g_zoom_opaque / (g_zoom_px / 100)); } }
-#endif
-                        if (pixel != 0) {
-                            ZM_PX(x);
+                        if (pixel != 0)
+                        {
                             *framebuffer = pixel;
 #if ALIS_SDL_VER > 1
                             // Stamp sprite depth (same layer as surrounding terrain)
@@ -1309,7 +1230,6 @@ static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
                         }
                     }
 
-                    ZM_ROW_END;
                     // Step to next texture row with fixed-point arithmetic
                     carry_flag = carry4(zoom_x_step, zoom_y_frac);
                     zoom_y_frac = zoom_x_step + zoom_y_frac;
@@ -1319,6 +1239,7 @@ static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
                     }
                 }
             }
+
             // Rendering path for normal (non-flipped) sprites
             else
             {
@@ -1340,19 +1261,13 @@ static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
                 for (int y = 0; y < clipped_height; y++, framebuffer += line_skip)
                 {
                     zoom_y_int = concat22((s16)(image.ztflowx >> 0x10), (s16)zoom_y_frac);
-                    ZM_ROW_BEGIN;
 
                     // Render individual pixels in row, stepping forward through texture (normal)
                     for (int x = 0; x < clipped_width; x++, framebuffer++, zoom_y_int = concat22((s16)((zoom_y_step + zoom_y_int) >> 0x10), (s16)(zoom_y_step + zoom_y_int) + (u16)carry4(zoom_y_step, zoom_y_int)))
                     {
                         u8 pixel = bitmap[(u16)zoom_y_int + texture_y + data_offset];
-#if defined(ALIS_MEASURE_OVERDRAW)
-                        { extern u32 g_zoom_px, g_zoom_opaque; g_zoom_px++; g_zoom_opaque += pixel != 0;
-                          if ((g_zoom_px & 0x3ffff) == 0) { extern void dbglog(const char *fmt, ...);
-                              dbglog("[zoom] pixels %u opaque %u%%\n", g_zoom_px, g_zoom_opaque / (g_zoom_px / 100)); } }
-#endif
-                        if (pixel != 0) {
-                            ZM_PX(x);
+                        if (pixel != 0)
+                        {
                             *framebuffer = pixel;
 #if ALIS_SDL_VER > 1
                             // Stamp sprite depth (same layer as surrounding terrain)
@@ -1367,7 +1282,6 @@ static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
                         }
                     }
 
-                    ZM_ROW_END;
                     // Step to next texture row with fixed-point arithmetic
                     carry_flag = carry4(zoom_x_step, zoom_y_frac);
                     zoom_y_frac += zoom_x_step;
@@ -1378,7 +1292,7 @@ static void zoomtofen_render_c(sSprite *sprite, u8 *bitmap, u8 data_offset,
                 }
             }
 }
-#endif /* ZOOM_C_RENDER */
+#endif
 
 #if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM
 #if !defined(ALIS_NO_ZOOM_TRIM)
@@ -1391,7 +1305,11 @@ static zr_entry zr_tab[ZR_SIZE];
 
 void zoom_rows_flush(void)
 {
-    for (int i = 0; i < ZR_SIZE; i++) { free(zr_tab[i].rows); zr_tab[i] = (zr_entry){0}; }
+    for (int i = 0; i < ZR_SIZE; i++)
+    {
+        free(zr_tab[i].rows);
+        zr_tab[i] = (zr_entry){0};
+    }
 }
 
 static u32 *zoom_rows(const u8 *bmp, u8 data_offset)
@@ -1399,27 +1317,53 @@ static u32 *zoom_rows(const u8 *bmp, u8 data_offset)
     u16 w = read16(bmp + 2) + 1, h = read16(bmp + 4) + 1;
     u32 hash = ((uintptr_t)bmp >> 2) & (ZR_SIZE - 1);
     zr_entry *e = 0;
-    for (int i = 0; i < ZR_SIZE; i++) {
+    for (int i = 0; i < ZR_SIZE; i++)
+    {
         zr_entry *t = &zr_tab[(hash + i) & (ZR_SIZE - 1)];
-        if (t->bmp == bmp) {
-            if (t->w == w && t->h == h) return t->rows ? t->rows + 1 : NULL;
+        if (t->bmp == bmp)
+        {
+            if (t->w == w && t->h == h)
+                return t->rows ? t->rows + 1 : NULL;
+            
             free(t->rows); e = t; break;
         }
-        if (!t->bmp) { e = t; break; }
+
+        if (!t->bmp)
+        {
+            e = t;
+            break;
+        }
     }
-    if (!e) { zoom_rows_flush(); e = &zr_tab[hash]; }
+
+    if (!e)
+    {
+        zoom_rows_flush();
+        e = &zr_tab[hash];
+    }
+
     u32 *rows = malloc(((u32)h + 1) * 4);
-    if (rows) {
+    if (rows)
+    {
         const u8 *p = bmp + data_offset;
         rows[0] = h;
-        for (u16 y = 1; y <= h; y++, p += w) {
+        for (u16 y = 1; y <= h; y++, p += w)
+        {
             u16 f = 0, l = w - 1;
-            while (f < w && !p[f]) f++;
-            if (f == w) { rows[y] = 0xffff0000; continue; }
-            while (!p[l]) l--;
+            while (f < w && !p[f])
+                f++;
+            
+            if (f == w)
+            {
+                rows[y] = 0xffff0000;
+                continue;
+            }
+            while (!p[l])
+                l--;
+            
             rows[y] = (u32)f << 16 | l;
         }
     }
+
     *e = (zr_entry){ bmp, w, h, rows };
     return rows ? rows + 1 : NULL;
 }
@@ -1430,10 +1374,7 @@ static u32 *zoom_rows(const u8 *bmp, u8 data_offset)
 
 /* Load the register-contract inputs the lifted asm expects into the mirror.
    ztflowx/ztflowy are seeded from image.* (the asm clears their high word). */
-static void zoomtofen_fill_state(sSprite *sprite, u8 *bitmap, u8 data_offset,
-                                 s16 clipped_width, u16 clipped_height,
-                                 u32 zoom_y_step, u32 zoom_x_step,
-                                 s16 screen_x, s16 screen_y, s16 bitmap_width)
+static void zoomtofen_fill_state(sSprite *sprite, u8 *bitmap, u8 data_offset, s16 clipped_width, u16 clipped_height, u32 zoom_y_step, u32 zoom_x_step, s16 screen_x, s16 screen_y, s16 bitmap_width)
 {
     zoomtofen_mirror.wlogic         = image.wlogic;
     zoomtofen_mirror.ztflowx        = image.ztflowx;
@@ -1477,125 +1418,6 @@ static void zoomtofen_fill_full(sSprite *sprite, u8 *bitmap, u8 data_offset)
 }
 #endif
 
-#if defined(ALIS_RRQ_ASM_ZOOM_VERIFY) && ALIS_RRQ_ASM_ZOOM_VERIFY
-#include <string.h>
-extern void dbglog(const char *fmt, ...);
-/* Byte-compare harness (the oracle): snapshot the clipped bbox + ztflow*, run
-   the C reference into it, snapshot the C result, restore the bbox + ztflow*,
-   run the asm, and byte-compare. Leaves the asm result live (like the doland
-   harness) so divergences are also visible on screen. */
-#define ZOOM_VER_MAX (320 * 240)
-static u8 zoom_ver_in[ZOOM_VER_MAX];    /* original bbox snapshot */
-static u8 zoom_ver_c[ZOOM_VER_MAX];     /* C reference bbox       */
-static u32 zoom_ver_calls, zoom_ver_bad;
-
-static void zoomtofen_verify(sSprite *sprite, u8 *bitmap, u8 data_offset,
-                             s16 clipped_width, u16 clipped_height,
-                             u32 zoom_y_step, u32 zoom_y_int, u32 zoom_y_frac,
-                             u32 zoom_x_step, s16 screen_x, s16 screen_y,
-                             s16 x_orig, s16 bitmap_width)
-{
-    u16 bw = (u16)clipped_width;
-    u16 bh = clipped_height;
-    u32 nbytes = (u32)bw * (u32)bh;
-    s32 stride = (u16)image.wloglarg;
-    /* framebuffer top-left of the clipped bbox (matches zoomtofen_render_c) */
-    u8 *fb = (u8 *)((s32)screen_x + (u32)(u16)(screen_y - image.wlogy1) * (u32)stride + image.wlogic);
-
-    /* CD-native 0x1c/0x1e run the full asm (setup+render); loaded formats
-       0x14/0x18/0x1a (the original setup returns for them) use the render-only
-       asm fed by the C setup. */
-    int use_full = (bitmap[0] == 0x1c || bitmap[0] == 0x1e);
-
-    if (nbytes == 0 || nbytes > ZOOM_VER_MAX) {
-        /* too large to snapshot — just run the asm (still correct on screen) */
-        if (use_full) {
-            zoomtofen_fill_full(sprite, bitmap, data_offset);
-            zoomtofen_full_asm(sprite);
-        } else {
-            zoomtofen_fill_state(sprite, bitmap, data_offset, clipped_width,
-                                 clipped_height, zoom_y_step, zoom_x_step,
-                                 screen_x, screen_y, bitmap_width);
-            zoomtofen_render_asm();
-        }
-        image.ztflowx = zoomtofen_mirror.ztflowx;
-        image.ztflowy = zoomtofen_mirror.ztflowy;
-        return;
-    }
-
-    s32 ztx = image.ztflowx, zty = image.ztflowy;
-
-    /* snapshot original bbox */
-    for (u16 r = 0; r < bh; r++)
-        memcpy(zoom_ver_in + (u32)r * bw, fb + (s32)r * stride, bw);
-
-    /* seed the asm mirror from the SAME pre-render inputs before C mutates them */
-    if (use_full)
-        zoomtofen_fill_full(sprite, bitmap, data_offset);
-    else
-        zoomtofen_fill_state(sprite, bitmap, data_offset, clipped_width,
-                             clipped_height, zoom_y_step, zoom_x_step,
-                             screen_x, screen_y, bitmap_width);
-
-    /* run C reference into the buffer, snapshot the result */
-    zoomtofen_render_c(sprite, bitmap, data_offset, clipped_width, clipped_height,
-                       zoom_y_step, zoom_y_int, zoom_y_frac, zoom_x_step,
-                       screen_x, screen_y, x_orig, bitmap_width);
-    for (u16 r = 0; r < bh; r++)
-        memcpy(zoom_ver_c + (u32)r * bw, fb + (s32)r * stride, bw);
-    s32 ztx_c = image.ztflowx, zty_c = image.ztflowy;
-
-    /* restore original bbox + ztflow*, then run the asm */
-    for (u16 r = 0; r < bh; r++)
-        memcpy(fb + (s32)r * stride, zoom_ver_in + (u32)r * bw, bw);
-    image.ztflowx = ztx; image.ztflowy = zty;
-    if (use_full)
-        zoomtofen_full_asm(sprite);
-    else
-        zoomtofen_render_asm();
-    image.ztflowx = zoomtofen_mirror.ztflowx;
-    image.ztflowy = zoomtofen_mirror.ztflowy;
-
-    /* byte-compare the bbox (asm live in wlogic vs C snapshot) */
-    u32 diff = 0, first = 0xffffffff;
-    for (u16 r = 0; r < bh && diff == 0; r++) {
-        const u8 *arow = fb + (s32)r * stride;
-        const u8 *crow = zoom_ver_c + (u32)r * bw;
-        for (u16 c = 0; c < bw; c++)
-            if (arow[c] != crow[c]) { first = ((u32)r << 16) | c; diff++; break; }
-    }
-    /* count remaining diffs for the total */
-    if (diff) {
-        diff = 0;
-        for (u16 r = 0; r < bh; r++) {
-            const u8 *arow = fb + (s32)r * stride;
-            const u8 *crow = zoom_ver_c + (u32)r * bw;
-            for (u16 c = 0; c < bw; c++)
-                if (arow[c] != crow[c]) diff++;
-        }
-    }
-    /* also flag a ztflow* mismatch (persistent accumulator state) */
-    int zt_bad = (image.ztflowx != ztx_c) || (image.ztflowy != zty_c);
-
-    zoom_ver_calls++;
-    if (diff || zt_bad) {
-        zoom_ver_bad++;
-        u16 fr = (u16)(first >> 16), fc = (u16)first;
-        u8 av = (diff && first != 0xffffffff) ? fb[(s32)fr * stride + fc] : 0;
-        u8 cv = (diff && first != 0xffffffff) ? zoom_ver_c[(u32)fr * bw + fc] : 0;
-        dbglog("[rrqzoom] #%u BAD px=%u first=(%u,%u) asm=%02x C=%02x w=%d h=%d flip=%d zt(asm=%08lx/%08lx C=%08lx/%08lx)\n",
-               zoom_ver_calls, diff, fr, fc, av, cv, clipped_width, (int)clipped_height,
-               (int)(sprite->newf & 1),
-               (unsigned long)image.ztflowx, (unsigned long)image.ztflowy,
-               (unsigned long)ztx_c, (unsigned long)zty_c);
-    } else if (zoom_ver_calls <= 20 || (zoom_ver_calls & 0x3f) == 0) {
-        dbglog("[rrqzoom] #%u OK (%u bad) w=%d h=%d flip=%d\n",
-               zoom_ver_calls, zoom_ver_bad, clipped_width, (int)clipped_height,
-               (int)(sprite->newf & 1));
-    }
-}
-#endif /* ALIS_RRQ_ASM_ZOOM_VERIFY */
-
 void zoomtofen(sSprite *sprite)
 {
     // Get sprite bitmap data with offset stored in header
@@ -1603,8 +1425,7 @@ void zoomtofen(sSprite *sprite)
 
     u8 data_offset = (*bitmap == 0x18 || *bitmap == 0x1a) ? 6 : 8;
 
-#if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM \
-    && !(defined(ALIS_RRQ_ASM_ZOOM_VERIFY) && ALIS_RRQ_ASM_ZOOM_VERIFY)
+#if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM
     // The original setup handles only CD-native 0x1c/0x1e: run the whole lifted
     // path for those. Loaded formats and the ftstpix hit-test use the C setup.
     if (image.ftstpix == 0 && (*bitmap == 0x1c || *bitmap == 0x1e))
@@ -1692,12 +1513,6 @@ void zoomtofen(sSprite *sprite)
         if (image.ftstpix == 0)
         {
 #if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM
-  #if defined(ALIS_RRQ_ASM_ZOOM_VERIFY) && ALIS_RRQ_ASM_ZOOM_VERIFY
-            // Harness: run C, snapshot, restore, run asm, byte-compare (asm live)
-            zoomtofen_verify(sprite, bitmap, data_offset, clipped_width, clipped_height,
-                             zoom_y_step, zoom_y_int, zoom_y_frac, zoom_x_step,
-                             screen_x, screen_y, x_orig, bitmap_width);
-  #else
             // Lifted original render loops (0x2373e/0x238a4)
             zoomtofen_fill_state(sprite, bitmap, data_offset, clipped_width,
                                  clipped_height, zoom_y_step, zoom_x_step,
@@ -1705,14 +1520,12 @@ void zoomtofen(sSprite *sprite)
             zoomtofen_render_asm();
             image.ztflowx = zoomtofen_mirror.ztflowx;
             image.ztflowy = zoomtofen_mirror.ztflowy;
-  #endif
 #else
-            // Pure-C billboard scaler (reference)
-            zoomtofen_render_c(sprite, bitmap, data_offset, clipped_width, clipped_height,
-                               zoom_y_step, zoom_y_int, zoom_y_frac, zoom_x_step,
-                               screen_x, screen_y, x_orig, bitmap_width);
+            // Pure-C billboard scaler
+            zoomtofen_render_c(sprite, bitmap, data_offset, clipped_width, clipped_height, zoom_y_step, zoom_y_int, zoom_y_frac, zoom_x_step, screen_x, screen_y, x_orig, bitmap_width);
 #endif
         }
+
         // Collision detection path (pixel-perfect hit testing)
         else if (screen_y <= image.ytstpix && image.ytstpix < (s16)(clipped_height + screen_y) && screen_x <= image.xtstpix && image.xtstpix < (s16)(clipped_width + screen_x))
         {
@@ -1858,6 +1671,7 @@ void zoomtofenf(sSprite *sprite)
                     texture_y += zoom_y_scale;  // Step to next texture row
                 }
             }
+
             // Rendering path for normal (non-flipped) sprites
             else
             {
@@ -1890,6 +1704,7 @@ void zoomtofenf(sSprite *sprite)
                 }
             }
         }
+
         // Collision detection path (pixel-perfect hit testing)
         else if (screen_y <= image.ytstpix && image.ytstpix < (s16)(clipped_height + screen_y) && screen_x <= image.xtstpix && image.xtstpix < (s16)(clipped_width + screen_x))
         {
@@ -1927,10 +1742,6 @@ void zoomtofenf(sSprite *sprite)
 // Render a billboard sprite at a terrain cell position
 void barsprite(s32 render_context, s16 type_idx, s16 world_x, s16 world_y, s16 unused)
 {
-    RRQ_NOTE(2, type_idx, world_x, world_y, image.solh);
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-    { extern int rrq_ver_suppress; if (rrq_ver_suppress) return; }
-#endif
     sSprite *sprite = SPRITE_VAR(image.atexsprite);
     u32 tex_entry = xread32(render_context + 0x10 + type_idx);
     if (xread32(tex_entry) != 0)
@@ -2005,10 +1816,6 @@ void barsprite(s32 render_context, s16 type_idx, s16 world_x, s16 world_y, s16 u
 // Render all sprites in the depth-sorted list that are behind the current depth layer
 void spritaff(s16 depth_layer)
 {
-    RRQ_NOTE(1, depth_layer, image.spritnext, image.spritprof, 0);
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-    { extern int rrq_ver_suppress; if (rrq_ver_suppress) return; }
-#endif
     u16 idx = image.spritnext;
     while (true)
     {
@@ -2039,6 +1846,7 @@ void spritaff(s16 depth_layer)
     image.spritprof = SPRITE_VAR(idx)->newd;
     image.spritnext = idx;
 }
+
 void affiland(s32 scene)
 {
     s32 scene_addr = alis.basemain + scene;
@@ -2056,6 +1864,7 @@ void affiland(s32 scene)
         image.terrgbarows = (u32 **)malloc((vp_h + 9) * sizeof(u32 *));
         for (int y = 0; y < vp_h + 9; y++)
             image.terrgbarows[y] = image.terrgba + y * vp_w;
+        
         image.depthbuf = (u8 *)calloc(vp_w * (vp_h + 9), sizeof(u8));
         image.depthrows = (u8 **)malloc((vp_h + 9) * sizeof(u8 *));
         for (int y = 0; y < vp_h + 9; y++)
@@ -2146,15 +1955,7 @@ void affiland(s32 scene)
                 clrvga();
             }
 
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-            extern u32 sys_profile_ticks_safe(void);
-            extern void dbglog(const char *fmt, ...);
-            u32 _al_t0 = sys_profile_ticks_safe();
-#endif
             doland(scene_addr, render_context);
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-            u32 _al_t1 = sys_profile_ticks_safe();
-#endif
 
 #if ALIS_SDL_VER > 1
             // Enhanced: build terrain RGBA from 8-bit buffer with per-pixel depth fog
@@ -2168,18 +1969,7 @@ void affiland(s32 scene)
             {
                 vgatofen();
             }
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-            { u32 _al_t2 = sys_profile_ticks_safe();
-              extern u32 g_bar_ticks, g_bar_calls, g_bar_px, g_prescan_ticks, g_prescan_iters;
-              static u32 _al_n = 0;
-              if (_al_n++ < 30)
-                dbglog("affiland #%u: doland=%u(%ums) bars=%u(%ums)x%u prescan=%u(%ums)x%u iters other-geom=%u vgatofen=%u(%ums)\n",
-                       (unsigned)_al_n, (unsigned)(_al_t1-_al_t0), (unsigned)(_al_t1-_al_t0)*5,
-                       (unsigned)g_bar_ticks, (unsigned)g_bar_ticks*5, (unsigned)g_bar_calls,
-                       (unsigned)g_prescan_ticks, (unsigned)g_prescan_ticks*5, (unsigned)g_prescan_iters,
-                       (unsigned)((_al_t1-_al_t0) - g_bar_ticks - g_prescan_ticks),
-                       (unsigned)(_al_t2-_al_t1), (unsigned)(_al_t2-_al_t1)*5); }
-#endif
+
             image.landone = 1;
             image.switchland = 1;
         }
@@ -2200,6 +1990,7 @@ void affiland(s32 scene)
     image.wloglarg = image.loglarg;
     image.fenlargw = image.loglarg >> 2;
 }
+
 void pixtoland(s32 render_context)
 {
     // Inverse perspective projection: screen (x, y) + depth → world (x, y, z)
@@ -2310,7 +2101,7 @@ void render3d_init(void)
         calclan0 = calclan0_68k;
         doland = doland_68k;
 #if defined(ALIS_RRQ_ASM_DOLAND) && ALIS_RRQ_ASM_DOLAND
-        // Lifted original doland asm (render3d_atari.S); doland_68k stays the reference.
+        // Lifted original doland asm (rrq3d_atari.S); doland_68k is the C fallback.
         {
             extern void doland_asm(s32, s32);
             doland = doland_asm;

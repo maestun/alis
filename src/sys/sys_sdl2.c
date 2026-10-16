@@ -104,12 +104,28 @@ void sys_audio_callback_S8(void *userdata, u8 *stream, s32 len);
 #pragma mark - SDL2 System init
 // ============================================================================
 
-u32 sys_profile_ticks(void) { return SDL_GetTicks(); }
 u32 sys_ticks(void) { return SDL_GetTicks(); }
 void sys_delay(u32 ms) { SDL_Delay(ms); }
 u8 *sys_get_framebuffer(int index) { (void)index; return NULL; }  // VM mallocs the render buffers
 
-void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
+// Savestate load: wait out and block the audio callback
+void sys_isr_pause(int on)
+{
+    if (audio_id <= 0)
+        return;
+    
+    if (on)
+    {
+        SDL_LockAudioDevice(audio_id);
+    }
+    else
+    {
+        SDL_UnlockAudioDevice(audio_id);
+    }
+}
+
+void sys_init(sPlatform *pl, int fullscreen, int mutesound)
+{
 
     width = pl->width;
     height = pl->height;
@@ -122,7 +138,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     scale_y = scale * aspect_ratio;
     
     printf("  SDL initialization...\n");
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK)<0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK)<0)
+    {
         fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
         exit(-1);
     }
@@ -130,9 +147,11 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     extern SDL_Joystick *sys_joy_handle;
     extern SDL_JoystickID sys_joy_instance_id;
     SDL_JoystickEventState(SDL_ENABLE);
-    if (SDL_NumJoysticks() > 0) {
+    if (SDL_NumJoysticks() > 0)
+    {
         sys_joy_handle = SDL_JoystickOpen(0);
-        if (sys_joy_handle) {
+        if (sys_joy_handle)
+        {
             sys_joy_instance_id = SDL_JoystickInstanceID(sys_joy_handle);
             printf("  Joystick: %s\n", SDL_JoystickName(sys_joy_handle));
         }
@@ -141,10 +160,12 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     {
         u32 timer_ms = alis.platform.is_little_endian ? 17 : 20;
         timer_id = SDL_AddTimer(timer_ms, itroutine, NULL);
-        if (!timer_id) {
+        if (!timer_id)
+        {
             fprintf(stderr, "   Could not create timer: %s\n", SDL_GetError());
             exit(-1);
         }
+
         // 17ms → ~58.82 Hz, 20ms → 50 Hz. video.c uses this to keep FLI
         // speech rate and frame pacing locked together.
         sys_timeclock_hz = 1000 / timer_ms;
@@ -152,13 +173,15 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     
     printf("  Video initialization...\n");
     window = SDL_CreateWindow(kProgName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * scale_x, height * scale_y, SDL_WINDOW_RESIZABLE | fullscreen * SDL_WINDOW_FULLSCREEN_DESKTOP);
-    if (window == NULL) {
+    if (window == NULL)
+    {
         fprintf(stderr, "   Could not create %.0fx%.0f window: %s\n", (width * scale_x), (height * scale_y), SDL_GetError());
         exit(-1);
     }
     
     renderer = SDL_CreateRenderer(window, -1, 0);
-    if (renderer == NULL) {
+    if (renderer == NULL)
+    {
         fprintf(stderr, "   Could not create renderer: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
         exit(-1);
@@ -172,7 +195,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     memset(pixels, 0, width * height * sizeof(*pixels));
     
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
-    if (texture == NULL) {
+    if (texture == NULL)
+    {
         fprintf(stderr, "   Could not create texture: %s\n", SDL_GetError());
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
@@ -200,7 +224,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     desired_spec->userdata = NULL;
     desired_spec->size = desired_spec->samples * 2;
     
-    if ((audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, audio_spec, 0)) <= 0 ) {
+    if ((audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, audio_spec, 0)) <= 0 )
+    {
         fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
         exit(-1);
     }
@@ -232,7 +257,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     SDL_PauseAudioDevice(audio_id, mutesound);
     
     render_sem = SDL_CreateSemaphore(1);
-    if (render_sem == NULL) {
+    if (render_sem == NULL)
+    {
         fprintf(stderr, "   Could not create semaphore: %s\n", SDL_GetError());
         exit(-1);
     };
@@ -242,7 +268,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     gettimeofday(&loop_time, NULL);
 }
 
-void sys_init_timers(void) {
+void sys_init_timers(void)
+{
     
     poll_ticks = SDL_GetTicks();
     gettimeofday(&frame_time, NULL);
@@ -316,19 +343,23 @@ void sys_sleep_until_music_stops(void)
 #pragma mark - SDL2 Main system loop
 // ============================================================================
 
-u8 sys_start(void) {
+u8 sys_start(void)
+{
 
-    if (failure) return -1;
+    if (failure)
+        return -1;
 
     alis.state = eAlisStateRunning;
 
     SDL_Thread *thread = SDL_CreateThread(alis_thread, "ALIS", (void *)NULL);
-    if (thread == NULL) {
+    if (thread == NULL)
+    {
         printf("Could not create thread! %s\n", SDL_GetError());
         return 1;
     }
     
-    while (alis.state && !failure) {
+    while (alis.state && !failure)
+    {
 
         // wait so image is drawn and keyboard is polled at 120 fps
         usleep(k_event_ticks);
@@ -336,18 +367,21 @@ u8 sys_start(void) {
     }
 
     signals_info(failure);
-    if (!failure) {
+    if (!failure)
+    {
         ALIS_DEBUG(EDebugInfo, "Waiting for the VM kernel thread to finish...\n");
         SDL_WaitThread(thread, NULL);
     }
-    else {
+    else
+    {
         ALIS_DEBUG(EDebugSystem, "Ignoring the crashed VM kernel thread...\n");
     }
 
     return 0;
 }
 
-void sys_poll_event(void) {
+void sys_poll_event(void)
+{
     
     sys_render(host.pixelbuf);
     
@@ -357,132 +391,167 @@ void sys_poll_event(void) {
     float newx, newy;
     SDL_RenderWindowToLogical(renderer, mouse.x, mouse.y, &newx, &newy);
 
+    // map logical coords back to GAME pixel coords
+    int lw = 0, lh = 0;
+    SDL_RenderGetLogicalSize(renderer, &lw, &lh);
     mouse.x = newx;
-    mouse.y = newy / aspect_ratio;
+    mouse.y = (lh > 0) ? newy * (float)height / (float)lh : newy / aspect_ratio;
 
     // Drain the event queue; quick clicks latch in mouse.lb_clicked / rb_clicked.
-    while (SDL_PollEvent(&event)) {
-    switch (event.type) {
+    while (SDL_PollEvent(&event))
+    {
+        switch (event.type)
+        {
 
-        case SDL_MOUSEBUTTONDOWN:
-        {
-            if (event.button.button == SDL_BUTTON_LEFT)  { mouse.lb = 1; mouse.lb_clicked = 1; }
-            if (event.button.button == SDL_BUTTON_RIGHT) { mouse.rb = 1; mouse.rb_clicked = 1; }
-            break;
-        }
-        case SDL_MOUSEBUTTONUP:
-        {
-            if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 0;
-            if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 0;
-            break;
-        }
-        case SDL_QUIT:
-        {
-            printf("\n");
-            ALIS_DEBUG(EDebugSystem, "SDL2: Quit.\n");
-            ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
-            alis.state = eAlisStateStopped;
-            break;
-        }
-        case SDL_KEYUP:
-        {
-            switch (event.key.keysym.sym)
+            case SDL_MOUSEBUTTONDOWN:
             {
-                case SDLK_LALT:
-                    printf("\n");
-                    ALIS_DEBUG(EDebugSystem, "INTERRUPT: User debug label.\n");
-                    break;
-
-                case SDLK_F9:
+                if (event.button.button == SDL_BUTTON_LEFT)
                 {
-                    static int wav_recording = 0;
-                    if (!wav_recording)
-                    {
-                        sys_wav_export_start("alis_music.wav");
-                        wav_recording = 1;
-                    }
-                    else
-                    {
-                        sys_wav_export_stop();
-                        wav_recording = 0;
-                    }
-                    break;
+                    mouse.lb = 1;
+                    mouse.lb_clicked = 1;
                 }
 
-                case SDLK_F11:
-                    alis.state = eAlisStateSave;
-                    break;
+                if (event.button.button == SDL_BUTTON_RIGHT)
+                {
+                    mouse.rb = 1;
+                    mouse.rb_clicked = 1;
+                }
 
-                case SDLK_F12:
-                    alis.state = eAlisStateLoad;
-                    break;
-                    
-                default:
-                    break;
-            }
-
-            break;
-        }
-        case SDL_KEYDOWN:
-        {
-            if (event.key.keysym.sym == SDLK_F11 || event.key.keysym.sym == SDLK_F12)
-            {
                 break;
             }
 
-            if (event.key.keysym.sym == SDLK_PAUSE)
+            case SDL_MOUSEBUTTONUP:
+            {
+                if (event.button.button == SDL_BUTTON_LEFT)
+                    mouse.lb = 0;
+                if (event.button.button == SDL_BUTTON_RIGHT)
+                    mouse.rb = 0;
+                break;
+            }
+
+            case SDL_QUIT:
             {
                 printf("\n");
-                ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request.\n");
+                ALIS_DEBUG(EDebugSystem, "SDL2: Quit.\n");
                 ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
                 alis.state = eAlisStateStopped;
+                break;
             }
-            else
+
+            case SDL_KEYUP:
             {
-                button = event.key.keysym;
-            }
-
-            break;
-        }
-        case SDL_WINDOWEVENT:
-        {
-            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-            {
-                SDL_RenderGetScale(renderer, &scale_x, &scale_y);
-                scale_y *= aspect_ratio;
-
-                dirty_mouse = true;
-            }
-
-            break;
-        }
-        case SDL_JOYDEVICEADDED:
-        {
-            extern SDL_Joystick *sys_joy_handle;
-            extern SDL_JoystickID sys_joy_instance_id;
-            if (sys_joy_handle == NULL) {
-                sys_joy_handle = SDL_JoystickOpen(event.jdevice.which);
-                if (sys_joy_handle) {
-                    sys_joy_instance_id = SDL_JoystickInstanceID(sys_joy_handle);
-                    ALIS_DEBUG(EDebugInfo, "Joystick connected: %s\n",
-                               SDL_JoystickName(sys_joy_handle));
+                if (sys_pad3do_click(event.key.keysym.sym, 0))
+                {
+                    break;
                 }
+
+                switch (event.key.keysym.sym)
+                {
+                    case SDLK_LALT:
+                        printf("\n");
+                        ALIS_DEBUG(EDebugSystem, "INTERRUPT: User debug label.\n");
+                        break;
+
+                    case SDLK_F9:
+                    {
+                        static int wav_recording = 0;
+                        if (!wav_recording)
+                        {
+                            sys_wav_export_start("alis_music.wav");
+                            wav_recording = 1;
+                        }
+                        else
+                        {
+                            sys_wav_export_stop();
+                            wav_recording = 0;
+                        }
+
+                        break;
+                    }
+
+                    case SDLK_F11:
+                        alis.state = eAlisStateSave;
+                        break;
+
+                    case SDLK_F12:
+                        alis.state = eAlisStateLoad;
+                        break;
+                        
+                    default:
+                        break;
+                }
+
+                break;
             }
-            break;
-        }
-        case SDL_JOYDEVICEREMOVED:
-        {
-            extern SDL_Joystick *sys_joy_handle;
-            extern SDL_JoystickID sys_joy_instance_id;
-            if (sys_joy_handle && event.jdevice.which == sys_joy_instance_id) {
-                SDL_JoystickClose(sys_joy_handle);
-                sys_joy_handle = NULL;
-                sys_joy_instance_id = -1;
-                ALIS_DEBUG(EDebugInfo, "Joystick disconnected\n");
+
+            case SDL_KEYDOWN:
+            {
+                if (sys_pad3do_click(event.key.keysym.sym, 1) || event.key.keysym.sym == SDLK_F11 || event.key.keysym.sym == SDLK_F12)
+                {
+                    break;
+                }
+
+                if (event.key.keysym.sym == SDLK_PAUSE)
+                {
+                    printf("\n");
+                    ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request.\n");
+                    ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the VM queue...\n");
+                    alis.state = eAlisStateStopped;
+                }
+                else
+                {
+                    button = event.key.keysym;
+                }
+
+                break;
             }
-            break;
-        }
-    };
+
+            case SDL_WINDOWEVENT:
+            {
+                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+                {
+                    SDL_RenderGetScale(renderer, &scale_x, &scale_y);
+                    scale_y *= aspect_ratio;
+
+                    dirty_mouse = true;
+                }
+
+                break;
+            }
+
+            case SDL_JOYDEVICEADDED:
+            {
+                extern SDL_Joystick *sys_joy_handle;
+                extern SDL_JoystickID sys_joy_instance_id;
+                if (sys_joy_handle == NULL)
+                {
+                    sys_joy_handle = SDL_JoystickOpen(event.jdevice.which);
+                    if (sys_joy_handle)
+                    {
+                        sys_joy_instance_id = SDL_JoystickInstanceID(sys_joy_handle);
+                        ALIS_DEBUG(EDebugInfo, "Joystick connected: %s\n",
+                                   SDL_JoystickName(sys_joy_handle));
+                    }
+                }
+
+                break;
+            }
+
+            case SDL_JOYDEVICEREMOVED:
+            {
+                extern SDL_Joystick *sys_joy_handle;
+                extern SDL_JoystickID sys_joy_instance_id;
+                if (sys_joy_handle && event.jdevice.which == sys_joy_instance_id)
+                {
+                    SDL_JoystickClose(sys_joy_handle);
+                    sys_joy_handle = NULL;
+                    sys_joy_instance_id = -1;
+                    ALIS_DEBUG(EDebugInfo, "Joystick disconnected\n");
+                }
+
+                break;
+            }
+        };
     }   // end of SDL_PollEvent drain loop
 }
 
@@ -490,17 +559,40 @@ void sys_poll_event(void) {
 #pragma mark - SDL2 RENDER
 // ============================================================================
 
-void sys_render(pixelbuf_t buffer) {
+void sys_render(pixelbuf_t buffer)
+{
     
     SDL_SemWait(render_sem);
-    
+
+    // v6 runtime resolution switch
+    if (buffer.w != width || buffer.h != height)
+    {
+        width = buffer.w;
+        height = buffer.h;
+
+        free(pixels);
+        pixels = malloc((size_t)width * (size_t)height * sizeof(*pixels));
+        memset(pixels, 0, (size_t)width * (size_t)height * sizeof(*pixels));
+
+        if (texture)
+            SDL_DestroyTexture(texture);
+        
+        texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+        SDL_RenderSetLogicalSize(renderer, width, (width * 3) / 4);
+    }
+
     if (dirty_mouse)
     {
         dirty_mouse = false;
         sys_dirty_mouse();
     }
 
-    if (bfilm.type == eAlisVideoHAM6)
+    if (buffer.rgb)
+    {
+        memcpy(pixels, buffer.rgb, (size_t)buffer.w * buffer.h * sizeof(*pixels));
+    }
+    else if (bfilm.type == eAlisVideoHAM6)
     {
         u8 *bitmap = vgalogic_df + 0xa0;
     
@@ -534,7 +626,8 @@ void sys_render(pixelbuf_t buffer) {
                 {
                     index = (((*c0 >> bit) & 1) | ((*c1 >> bit) & 1) << 1 | ((*c2 >> bit) & 1) << 2 | ((*c3 >> bit) & 1) << 3) << 2;
                     control = ((*c4 >> bit) & 1) << 0 | ((*c5 >> bit) & 1) << 1;
-                    switch (control) {
+                    switch (control)
+                    {
                         case 0:
                             r = ham_pal[index >> 2][0];
                             g = ham_pal[index >> 2][1];
@@ -649,6 +742,7 @@ void sys_render(pixelbuf_t buffer) {
                 cur = nxt;
                 nxt = cur + stride;
             }
+
             u16 paloff = cur[2];
 
             for (int x = 0; x < buffer.w; x++)
@@ -709,7 +803,8 @@ void sys_render(pixelbuf_t buffer) {
 
     SDL_UpdateTexture(texture, NULL, pixels, width * sizeof(*pixels));
     
-    // render
+    // clear & render
+    SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
     
@@ -722,11 +817,16 @@ void sys_render(pixelbuf_t buffer) {
 
 void sys_restore_desktop(void) { }   // GEM/desktop handover: native Atari backend only
 
-void sys_deinit(void) {
+void sys_deinit(void)
+{
 
     {
         extern SDL_Joystick *sys_joy_handle;
-        if (sys_joy_handle) { SDL_JoystickClose(sys_joy_handle); sys_joy_handle = NULL; }
+        if (sys_joy_handle)
+        {
+            SDL_JoystickClose(sys_joy_handle);
+            sys_joy_handle = NULL;
+        }
     }
 
     SDL_RemoveTimer(timer_id);
@@ -749,12 +849,14 @@ void sys_deinit(void) {
 #pragma mark - SDL2 SYNC
 // =============================================================================
 
-void sys_lock_renderer(void) {
+void sys_lock_renderer(void)
+{
     
     SDL_SemWait(render_sem);
 }
 
-void sys_unlock_renderer(void) {
+void sys_unlock_renderer(void)
+{
     
     SDL_SemPost(render_sem);
 }
@@ -769,7 +871,15 @@ void sys_mouse_uncopy(void) {}
 void sys_mouse_draw(void)   {}
 void sys_flip_wait(void)    {}
 
-void sys_dirty_mouse(void) {
+void sys_dirty_mouse(void)
+{
+
+    // NOTE: engine draws its own software cursor
+    if (alis.platform.version >= 60)
+    {
+        SDL_ShowCursor(SDL_DISABLE);
+        return;
+    }
 
     if (alis.desmouse == NULL)
     {
@@ -848,6 +958,7 @@ void sys_dirty_mouse(void) {
                     pixels[px] = color == clear ? 0 : (host.pixelbuf.palette[index] | 0xFF000000u);
                 }
             }
+
             break;
         }
 

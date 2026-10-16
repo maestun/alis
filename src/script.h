@@ -81,6 +81,7 @@ typedef struct {
             u8 _dummy6: 1;
             u8 scan_clr_bit_7: 1;
         };
+
         u8 data;
     } _0x24_scan_inter;
     
@@ -171,6 +172,7 @@ typedef struct {
 
     // offset to script data
     u32             data_org;
+    u16             node;       // v6 memory node id
 } sAlisScriptData;
 
 typedef struct {
@@ -196,6 +198,18 @@ void            script_unload(sAlisScriptData * script);
 bool            is_delay_script(char * name);
 
 sAlisScriptLive *script_live(sAlisScriptData * script);
+// v6 memory nodes (DOS io_malloc / io_mfree node table)
+#define NODE_BLKHEAD    0x60
+#define NODE_BLKTAIL    0x78
+
+u16 node_take(u8 type);
+void node_free(u16 n);
+void node_setname(u16 n, const char *name);
+u16 node_find(const char *name);
+sAlisScriptData *node_prog(u16 n);
+void node_swap(u16 a, u16 b);
+void scrnode_set(u32 scr, u16 field, u16 node);
+u16 scrnode_get(u32 scr, u16 field);
 
 // read data from script, these will increase the virtual program counter.
 // In release builds these four are static-inline in alis.h (see there); the

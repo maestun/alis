@@ -45,18 +45,19 @@ const u8 kPackedDatHeaderSize = 12;
 #pragma mark - Old Silmarils unpacker
 // ============================================================================
 
-s8 old_read_byte(u8** ptr_packed, u8* ptr_packed_end) {
+s8 old_read_byte(u8** ptr_packed, u8* ptr_packed_end)
+{
     return *ptr_packed == ptr_packed_end ? 0 : *(*ptr_packed)++;
 }
 
-void old_write_byte(u8** ptr_unpacked, u8 byte, u8 inc) {
-
+void old_write_byte(u8** ptr_unpacked, u8 byte, u8 inc)
+{
     **ptr_unpacked = byte;
     *ptr_unpacked += inc;
 }
 
-void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32 unpacked_sz, s8 modpack) {
-
+void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32 unpacked_sz, s8 modpack)
+{
     u8* pp     = ptr_packed;
     u8* pp_end = ptr_packed + packed_sz;
     u8* pu     = ptr_unpacked;
@@ -64,56 +65,72 @@ void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32
     u8* pu_end = ptr_unpacked + unpacked_sz;
 
     // modpack==1: output is contiguous, so each run is one bounded memset/memcpy.
-    if (modpack == 1) {
-        while (pp < pp_end && pu < pu_end) {
+    if (modpack == 1)
+    {
+        while (pp < pp_end && pu < pu_end)
+        {
             s8 byte = (s8)*pp++;
             s32 counter = byte & 0x7f;
             s32 room = (s32)(pu_end - pu);
             s32 n = counter < room ? counter : room;     // clamp the run to pu_end
-            if (byte < 0) {
+            if (byte < 0)
+            {
                 u8 rep = (pp < pp_end) ? *pp++ : 0;       // read one byte, repeat it
                 memset(pu, rep, (size_t)n);
             }
-            else {
+            else
+            {
                 s32 avail = (s32)(pp_end - pp);           // literal bytes; 0-fill past pp_end
                 s32 real = n < avail ? n : avail;
                 memcpy(pu, pp, (size_t)real);
-                if (real < n) memset(pu + real, 0, (size_t)(n - real));
+                if (real < n)
+                    memset(pu + real, 0, (size_t)(n - real));
                 pp += real;
             }
+
             pu += n;
         }
+
         return;
     }
 
     s32 cnt = modpack;
 
-    do {
+    do
+    {
         s8 byte = (pp < pp_end) ? (s8)*pp++ : 0;
         s32 counter = byte & 0x7f;
 
-        if (byte < 0) {
+        if (byte < 0)
+        {
             // read one byte, repeat it `counter` times
             s8 rep = (pp < pp_end) ? (s8)*pp++ : 0;
-            while (counter--) {
-                if (pu >= pu_end) {
+            while (counter--)
+            {
+                if (pu >= pu_end)
+                {
                     if ((--cnt) < 1)
                         break;
                     pu = pu_beg + (modpack - cnt);
                 }
+
                 *pu = (u8)rep;
                 pu += modpack;
             }
         }
-        else {
+        else
+        {
             // copy `counter` literal bytes
-            while (counter--) {
+            while (counter--)
+            {
                 s8 b = (pp < pp_end) ? (s8)*pp++ : 0;
-                if (pu >= pu_end) {
+                if (pu >= pu_end)
+                {
                     if ((--cnt) < 1)
                         break;
                     pu = pu_beg + (modpack - cnt);
                 }
+
                 *pu = (u8)b;
                 pu += modpack;
             }
@@ -129,7 +146,8 @@ void unpack_old(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32
 /// @brief swap higher and lower words in long value
 /// @param val value to alter
 /// @return altered value
-static inline u32 swap(u32 val) {
+static inline u32 swap(u32 val)
+{
    u32 hi = val & 0xffff0000;
    u32 lo = val & 0x0000ffff;
    return lo << 16 | hi >> 16;
@@ -139,17 +157,21 @@ static inline u32 swap(u32 val) {
 /// @param shift number bits to rotate
 /// @param value value to alter
 /// @return altered value
-static inline u32 rotll(u8 shift, u32 value) {
+static inline u32 rotll(u8 shift, u32 value)
+{
     if ((shift &= sizeof(value)*8 - 1) == 0)
         return value;
+    
     return (value << shift) | (value >> (sizeof(value)*8 - shift));
 }
 
-static inline s8 byte(u32 value) {
+static inline s8 byte(u32 value)
+{
     return value & 0xff;
 }
 
-static inline s16 word(u32 value) {
+static inline s16 word(u32 value)
+{
     return value & 0xffff;
 }
 
@@ -167,12 +189,14 @@ static char unpack_fatal[kPathMaxLen + 96];
 // USES
 // io d5
 // io d7
-static inline void decode(u8** ptr_packed, u16 bit) {
+static inline void decode(u8** ptr_packed, u16 bit)
+{
     u8 b = (u8)bit;                  // only the low byte of `bit` is ever used
     d5 &= 0xffff0000;
 
     d7 = (u8)(d7 - b);
-    if((s8)d7 < 0) {
+    if((s8)d7 < 0)
+    {
         // worm
         d7 = (u8)(d7 + b);
         d5 = rotll(d7, d5);
@@ -181,14 +205,17 @@ static inline void decode(u8** ptr_packed, u16 bit) {
         // here, original code tests if we need more packed data chunks
 
         u16 pack_word = 0;
-        if (*ptr_packed < unpack_pend) {
+        if (*ptr_packed < unpack_pend)
+        {
             u8 hi = *(*ptr_packed)++;
             u8 lo = *(*ptr_packed)++;
             pack_word = (hi << 8) + lo;
         }
-        else {
+        else
+        {
             unpack_over++;   // streams may end early and rely on zero padding
         }
+
         d5 = (d5 & 0xffff0000) + pack_word;
         d5 = swap(d5);
 
@@ -198,29 +225,36 @@ static inline void decode(u8** ptr_packed, u16 bit) {
         d5 = rotll(b, d5);
         d7 = (u8)(d7 - b);
     }
-    else {
+    else
+    {
         d5 = rotll(b, d5);
     }
 }
 
-static inline void write_neg(u8** ptr_unpacked, s16 val, s16* counter) {
+static inline void write_neg(u8** ptr_unpacked, s16 val, s16* counter)
+{
     // FML - neg lower word of d5
 
     s16 offset = val * -1;
     // SXX 
-    do {
+    do
+    {
         u8 *src = *ptr_unpacked + offset - 1;
         u8 c = src < unpack_beg ? 0 : *src;
         *(*ptr_unpacked)++ = c;
         __unpack_counter++;
-    } while(--(*counter) != -1);
+    }
+    while(--(*counter) != -1);
 }
 
-static inline void count(u8** ptr_packed, u8 start, u8 stop, s16* counter) {
-    do {
+static inline void count(u8** ptr_packed, u8 start, u8 stop, s16* counter)
+{
+    do
+    {
         decode(ptr_packed, start);
         *counter += word(d5);
-    } while (word(d5) == stop);
+    }
+    while (word(d5) == stop);
 }
 
 /// @brief Unpack ALIS script
@@ -230,11 +264,8 @@ static inline void count(u8** ptr_packed, u8 start, u8 stop, s16* counter) {
 /// @param unpacked_sz  unpacked data size (read from packed header)
 /// @param dictionary   dictionary (8-byte buffer read from packed header)
 /// @return length of unpacked data
-u32 unpack_new(u8* ptr_packed,
-               const u32 packed_sz,
-               u8* ptr_unpacked, 
-               const u32 unpacked_sz,
-               u8* dictionary) {
+u32 unpack_new(u8* ptr_packed, const u32 packed_sz, u8* ptr_unpacked, const u32 unpacked_sz, u8* dictionary)
+{
 
     s16 counter = 0;
     __unpack_counter = 0;
@@ -243,25 +274,30 @@ u32 unpack_new(u8* ptr_packed,
     unpack_pend = ptr_packed + packed_sz;
     unpack_over = 0;
     d7 = 0;
-    while(ptr_unpacked < ptr_unpacked_end) {
+    while(ptr_unpacked < ptr_unpacked_end)
+    {
         // loop
         decode(&ptr_packed, 1);
-        if(byte(d5) != 0) {
+        if(byte(d5) != 0)
+        {
             counter = 0;
             
             // ZMB - get number of bytes to write to output
             count(&ptr_packed, 2, 3, &counter);
 
             // QQCH - write d2+1 unpacked bytes
-            do {
+            do
+            {
                 decode(&ptr_packed, 8);
                 *(u8*)ptr_unpacked++ = byte(d5);
                 __unpack_counter++;
-            } while(--counter != -1);
+            }
+            while(--counter != -1);
             
             // check unpack end 
             // TODO: move test to MMI ?
-            if(ptr_unpacked >= ptr_unpacked_end) {
+            if(ptr_unpacked >= ptr_unpacked_end)
+            {
                 break;
             }
         }
@@ -270,12 +306,14 @@ u32 unpack_new(u8* ptr_packed,
         decode(&ptr_packed, 3);
         u16 bit = dictionary[byte(d5)];
         d5 = (d5 & 0xffff0000) + (word(d5 & 3));
-        if(word(d5) != 0) {
+        if(word(d5) != 0)
+        {
             counter = word(d5);
             decode(&ptr_packed, bit);
             write_neg(&ptr_unpacked, word(d5), &counter);
         }
-        else {
+        else
+        {
             // SNS
             decode(&ptr_packed, bit);
             u16 save_d5w = word(d5);
@@ -290,6 +328,7 @@ u32 unpack_new(u8* ptr_packed,
             write_neg(&ptr_unpacked, word(d5), &counter);
         }
     }
+
     ALIS_DEBUG(EDebugInfo, "unpack counter=%d\n", __unpack_counter);
     return __unpack_counter;
 }
@@ -299,7 +338,8 @@ u32 unpack_new(u8* ptr_packed,
 // ============================================================================
 
 // More zero padding than the 0xff byte buffer slack means the packed data is damaged.
-static int unpack_damaged(const char *path) {
+static int unpack_damaged(const char *path)
+{
     if (unpack_over <= 0x7f)
         return 0;
 
@@ -311,7 +351,8 @@ static int unpack_damaged(const char *path) {
     return 1;
 }
 
-u8 is_packed(u8 packer_kind) {
+u8 is_packed(u8 packer_kind)
+{
     return packer_kind < 0;
 }
 
@@ -320,12 +361,14 @@ u8 is_packed(u8 packer_kind) {
 /// @param unpacked_buffer output buffer
 /// @return unpacked file size if success, a negative value if error, or
 /// zero if the input file is not packed
-int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
+int unpack_script(const char *packed_file_path, u8 *unpacked_buffer)
+{
     int ret = 0;
     int damaged = 0;
     FILE *pfp = sys_fopen(packed_file_path, "rb");
 
-    if(pfp) {
+    if(pfp)
+    {
         // get packed sz
         fseek(pfp, 0, SEEK_END);
         u32 packed_size = (u32)ftell(pfp);
@@ -339,7 +382,8 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
 
         packed_size -= kPackedHeaderSize; // size of magic + is_main
         unpacked_size -= kPackedHeaderSize; // TODO: not sure about that
-        if(is_main) {
+        if(is_main)
+        {
             // skip vm specs
             fseek(pfp, kVMSpecsSize, SEEK_CUR);
             packed_size -= kVMSpecsSize;
@@ -348,7 +392,8 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
 
         if ((alis.platform.version > 11 && (alis.typepack & 0xf0) == 0xa0)
         // TODO: a quick fix to make the MadShow re-release work
-         || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1)) {
+         || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1))
+        {
             // read dictionary
             fread(dict, sizeof(u8), kPackedDictionarySize, pfp);
             packed_size -= kPackedDictionarySize;
@@ -364,18 +409,12 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         // TODO: a quick fix to make the MadShow re-release work
          || (alis.platform.version == 11 && (alis.typepack & 0xff) == 0xa1))
         {
-#if defined(ALIS_PROFILE_DRAW)
-            { extern void dbglog(const char *fmt, ...); dbglog("  UNP new typepack=%02x\n", (unsigned)(u8)alis.typepack); }
-#endif
             unpack_new(packed_buffer, packed_size, unpacked_buffer, unpacked_size, dict);
             damaged = unpack_damaged(packed_file_path);
         }
         else
         {
             s8 modpack = alis.platform.kind == EPlatformPC ? (((u8)alis.typepack == 0x80) ? 1 : ((u8)alis.typepack == 0xa0) ? 2 : 8) : ((((u8)alis.typepack & 0x40) == 0) ? 1 : 8);
-#if defined(ALIS_PROFILE_DRAW)
-            { extern void dbglog(const char *fmt, ...); dbglog("  UNP old mp=%d typepack=%02x\n", (int)modpack, (unsigned)(u8)alis.typepack); }
-#endif
             unpack_old(packed_buffer, packed_size, unpacked_buffer, unpacked_size, modpack);
         }
 
@@ -385,18 +424,22 @@ int unpack_script(const char *packed_file_path, u8 *unpacked_buffer) {
         packed_buffer = NULL;
         ret = damaged ? EUnpackErrorFormat : (int)unpacked_size;
     }
-    else {
+    else
+    {
         // error
         ALIS_DEBUG(EDebugFatal, "Cannot open input file (%s)\n", packed_file_path);
         ret = EUnpackErrorInput;
     }
+
     return ret;
 }
 
-int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_size) {
+int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_size)
+{
     int ret = 0;
 
-    if(fp) {
+    if(fp)
+    {
 
         u32 packed_size = unpacked_size;
         
@@ -427,10 +470,12 @@ int unpack_script_fp(FILE *fp, u8 *unpacked_buffer, u32 unpacked_size) {
         free(packed_buffer);
         ret = unpacked_size;
     }
-    else {
+    else
+    {
         // error
         ALIS_DEBUG(EDebugFatal, "FP is NULL\n");
         ret = EUnpackErrorInput;
     }
+
     return ret;
 }

@@ -78,7 +78,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;$(ProjectDir)\..\src\render;$(ProjectDir)\..\src\video;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -103,7 +103,7 @@ exit /b 0</Command>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;$(ProjectDir)\..\src\render;$(ProjectDir)\..\src\video;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -126,7 +126,7 @@ exit /b 0</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;$(ProjectDir)\..\src\render;$(ProjectDir)\..\src\video;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
@@ -154,7 +154,7 @@ exit /b 0</Command>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\src;$(ProjectDir)\..\src\audio;$(ProjectDir)\..\src\emu2149;$(ProjectDir)\..\src\sys;$(ProjectDir)\..\src\render;$(ProjectDir)\..\src\video;C:\SDL2-2.26.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -178,21 +178,24 @@ exit /b 0</Command>
     <ClInclude Include="..\src\channel.h" />
     <ClInclude Include="..\src\config.h" />
     <ClInclude Include="..\src\debug.h" />
+    <ClInclude Include="..\src\render\deus3d.h" />
     <ClInclude Include="..\src\emu2149\emu2149.h" />
     <ClInclude Include="..\src\emu8950\emu8950.h" />
     <ClInclude Include="..\src\emu8950\emuadpcm.h" />
     <ClInclude Include="..\src\image.h" />
     <ClInclude Include="..\src\mem.h" />
     <ClInclude Include="..\src\platform.h" />
-    <ClInclude Include="..\src\render3d.h" />
-    <ClInclude Include="..\src\render3d_68k.h" />
-    <ClInclude Include="..\src\render3d_dos.h" />
+    <ClInclude Include="..\src\render\rrq3d.h" />
+    <ClInclude Include="..\src\render\rrq3d_68k.h" />
+    <ClInclude Include="..\src\render\rrq3d_dos.h" />
     <ClInclude Include="..\src\screen.h" />
     <ClInclude Include="..\src\script.h" />
+    <ClInclude Include="..\src\patches.h" />
     <ClInclude Include="..\src\sys\sys.h" />
     <ClInclude Include="..\src\unpack.h" />
     <ClInclude Include="..\src\utils.h" />
-    <ClInclude Include="..\src\video.h" />
+    <ClInclude Include="..\src\video\video.h" />
+    <ClInclude Include="..\src\video\cinepak.h" />
     <ClInclude Include="dirent.h" />
   </ItemGroup>
   <ItemGroup>
@@ -210,6 +213,7 @@ exit /b 0</Command>
     <ClCompile Include="..\src\audio\music_v2.c" />
     <ClCompile Include="..\src\channel.c" />
     <ClCompile Include="..\src\debug.c" />
+    <ClCompile Include="..\src\render\deus3d.c" />
     <ClCompile Include="..\src\emu2149\emu2149.c" />
     <ClCompile Include="..\src\emu8950\emu8950.c" />
     <ClCompile Include="..\src\emu8950\emuadpcm.c" />
@@ -217,21 +221,26 @@ exit /b 0</Command>
     <ClCompile Include="..\src\image.c" />
     <ClCompile Include="..\src\main.c" />
     <ClCompile Include="..\src\mem.c" />
-    <ClCompile Include="..\src\newalis.c" />
     <ClCompile Include="..\src\opcodes.c" />
     <ClCompile Include="..\src\opernames.c" />
     <ClCompile Include="..\src\platform.c" />
-    <ClCompile Include="..\src\render3d.c" />
-    <ClCompile Include="..\src\render3d_68k.c" />
-    <ClCompile Include="..\src\render3d_dos.c" />
+    <ClCompile Include="..\src\render\rrq3d.c" />
+    <ClCompile Include="..\src\render\rrq3d_68k.c" />
+    <ClCompile Include="..\src\render\rrq3d_dos.c" />
+    <ClCompile Include="..\src\render\rrq3d_3do.c" />
     <ClCompile Include="..\src\screen.c" />
     <ClCompile Include="..\src\script.c" />
+    <ClCompile Include="..\src\patches.c" />
     <ClCompile Include="..\src\storenames.c" />
     <ClCompile Include="..\src\sys\sys.c" />
     <ClCompile Include="..\src\sys\sys_sdl2.c" />
     <ClCompile Include="..\src\unpack.c" />
     <ClCompile Include="..\src\utils.c" />
-    <ClCompile Include="..\src\video.c" />
+    <ClCompile Include="..\src\video\video.c" />
+    <ClCompile Include="..\src\video\fli.c" />
+    <ClCompile Include="..\src\video\fls.c" />
+    <ClCompile Include="..\src\video\film3do.c" />
+    <ClCompile Include="..\src\video\cinepak.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

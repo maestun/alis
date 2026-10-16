@@ -118,6 +118,7 @@ void    sys_flip_wait(void);     // block until the VBL latched the last flip (n
 
 u8      io_getkey(void);
 u8      io_inkey(void);
+u8      io_keyon(u8 code);
 u8      io_shiftkey(void);
 u8      io_joy(u8 port);
 u8      io_joy_raw(void);
@@ -133,6 +134,7 @@ typedef struct {
     u8      scale;
     u8 *    data;
     u32 *   palette;
+    u32 *   rgb;            // true-colour frame (ARGB, w*h); when set, data/palette are ignored
 } pixelbuf_t;
 void    sys_render(pixelbuf_t buffer);
 
@@ -160,16 +162,16 @@ void    sys_stram_free(void *p);
 u32     sys_stram_avail(void);
 u32     sys_fastram_avail(void);
 
+// Hold off the game/audio/cursor ISRs while alis_load_state rewrites their state.
+void    sys_isr_pause(int on);
+
 #if defined(ALIS_USE_NATIVE_ATARI)
 // Startup memory pre-flight; call before sys_init so a refusal needs no video restore.
 // Returns the VM arena size in [floor, pref] that fits this machine, 0 to refuse.
 u32     sys_size_arena(const sPlatform *pl, u32 floor, u32 pref);
-// Hold off the game/audio/cursor ISRs while alis_load_state rewrites their state.
-void    sys_isr_pause(int on);
 // Savestates: take the async cursor out of the screen buffers while they are saved/replaced.
 void    sys_cursor_hold(int on);
 #else
-static inline void sys_isr_pause(int on) { (void)on; }
 static inline void sys_cursor_hold(int on) { (void)on; }
 #endif
 
@@ -180,6 +182,7 @@ static inline void sys_cursor_hold(int on) { (void)on; }
 int     sys_fclose(FILE * fp);
 FILE *  sys_fopen(const char *path, const char * __restrict mode);
 FILE *  sys_fopen_b(char * path, u16 mode);
+int     sys_pad3do_click(int sym, int down);
 u8      sys_fexists(char * path);
 
 
@@ -188,13 +191,10 @@ u8      sys_fexists(char * path);
 // =============================================================================
 void    sys_set_time(u16 h, u16 m, u16 s);
 time_t  sys_get_time(void);
+u32     sys_msec(void);
 
 // Free bytes on the drive holding `path`, capped at `cap` (0 if unknown).
 u32     sys_free_bytes(const char *path, u32 cap);
-
-// Monotonic tick counter for lightweight profiling. Units are backend-specific
-// (SDL: ms; native Atari: 200 Hz / 5 ms) — only ratios are meaningful.
-u32     sys_profile_ticks(void);
 
 u32     sys_ticks(void);          // milliseconds
 void    sys_delay(u32 ms);

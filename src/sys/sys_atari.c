@@ -72,12 +72,18 @@ static void logopen(void)
 
 static void logclose(void)
 {
-    if (logfile) { fclose(logfile); logfile = NULL; }
+    if (logfile)
+    {
+        fclose(logfile);
+        logfile = NULL;
+    }
 }
 
 void __attribute__((format(printf,1,2))) dbglog(const char *fmt, ...)
 {
-    if (!logfile) return;
+    if (!logfile)
+        return;
+    
     va_list ap;
     va_start(ap, fmt);
     vfprintf(logfile, fmt, ap);
@@ -140,9 +146,7 @@ extern u32              isr_counter;
 volatile u8 dirty_pal = 1;   // written from Timer-C ISR context (itroutine fade steps)
 u8 dirty_len = 0;
 
-static u32 start_time = 0;   // for auto-exit timeout
 static u32 render_calls = 0;
-static u32 poll_calls = 0;
 
 // ============================================================================
 #pragma mark - Video state
@@ -159,9 +163,6 @@ static u16      vdi_oldpal[256][3]; // VDI intensities, 0..1000 per component
 static int      vdi_oldncolors = 0;
 
 static short    gem_scr_w = 0, gem_scr_h = 0;   // full screen, from v_opnvwk
-
-
-
 
 static u16      machine_type;       // MCH_ST, MCH_STE, MCH_TT, MCH_FALCON
 static u16      monitor_type;       // MONITOR_VGA, MONITOR_RGB, etc.
@@ -256,12 +257,6 @@ static struct {
 #pragma mark - Timing helpers
 // ============================================================================
 
-// Profiler tick readable in user mode ($4BA faults there): counted by the Timer-C ISR,
-// Supexec $4BA fallback before it is installed (or with --no-timerc).
-volatile u32 g_prof_isr_ticks = 0;
-
-static u8 atari_timerc_installed;          // tentative decl; defined with the Timer-C state below
-
 static u32  hz200_snap;
 static long hz200_read_super(void) { hz200_snap = *HZ200_TIMER; return 0; }
 static u32  hz200_read(void) { Supexec(hz200_read_super); return hz200_snap; }
@@ -274,13 +269,6 @@ void sys_delay(u32 ms)
     while (sys_ticks() - t0 < ms) ;
 }
 
-u32 sys_profile_ticks(void)
-{
-    if (atari_timerc_installed)
-        return g_prof_isr_ticks;
-    return hz200_read();
-}
-
 // ST-RAM allocation (Blitter/VIDEL-reachable; alt-RAM is off on the target). Used by
 // both the 16bpp sprite-expansion cache and the planar sprite cache. Mode 0 = ST-RAM.
 void *sys_stram_alloc(u32 size) { long p = Mxalloc((long)size, 0); return (p > 0) ? (void *)p : (void *)0; }
@@ -290,7 +278,9 @@ void  sys_stram_free(void *p)   { if (p) Mfree((long)p); }
 u32   sys_stram_avail(void)
 {
     long p = Mxalloc(-1L, MX_STRAM);
-    if (p < 0) p = Malloc(-1L);            // no Mxalloc on this TOS -> all RAM is ST-RAM
+    if (p < 0)
+        p = Malloc(-1L);                   // no Mxalloc on this TOS -> all RAM is ST-RAM
+    
     return p > 0 ? (u32)p : 0;
 }
 
@@ -299,75 +289,6 @@ u32   sys_fastram_avail(void)
     long p = Mxalloc(-1L, MX_TTRAM);
     return p > 0 ? (u32)p : 0;             // negative = no Mxalloc, hence no alt-RAM either
 }
-
-#if defined(ALIS_PROFILE_DRAW)
-// Draw-phase profiler: always read $4BA via Supexec.
-u32 sys_profile_ticks_safe(void) { return hz200_read(); }
-
-// One-shot VIDEL throttle benchmark (ST-RAM only). With the VIDEL displaying 16bpp,
-// time writing the same number of words to the video-region ST-RAM back buffer using
-// three access granularities. If movem >> move.w the throttle is per-bus-ACCESS
-// (arbitration) and burst writes (Blitter / movem asm) beat it; if all ~equal the
-// throttle is bandwidth-bound and only fewer pixels help.
-static void fill_w(volatile u16 *p, u32 words) {   // move.w : 1 word / access
-    u16 *a = (u16 *)p, *end = a + words;
-    __asm__ volatile("1: move.w #0,(%0)+\n\t cmpa.l %1,%0\n\t blt.s 1b\n\t"
-                     : "+a"(a) : "a"(end) : "memory","cc");
-}
-static void fill_l(volatile u16 *p, u32 words) {   // move.l : 2 words / access
-    u32 *a = (u32 *)p, *end = a + words / 2;
-    __asm__ volatile("1: move.l #0,(%0)+\n\t cmpa.l %1,%0\n\t blt.s 1b\n\t"
-                     : "+a"(a) : "a"(end) : "memory","cc");
-}
-static void fill_m(volatile u16 *p, u32 words) {   // movem.l d0-d7 : 16 words / access
-    u32 *a = (u32 *)p, *end = a + words / 2;
-    __asm__ volatile(
-        "moveq #0,%%d0\n\t moveq #0,%%d1\n\t moveq #0,%%d2\n\t moveq #0,%%d3\n\t"
-        "moveq #0,%%d4\n\t moveq #0,%%d5\n\t moveq #0,%%d6\n\t moveq #0,%%d7\n\t"
-        "1: movem.l %%d0-%%d7,(%0)\n\t lea 32(%0),%0\n\t cmpa.l %1,%0\n\t blt.s 1b\n\t"
-        : "+a"(a) : "a"(end)
-        : "d0","d1","d2","d3","d4","d5","d6","d7","memory","cc");
-}
-static u32 read_w(volatile u16 *p, u32 words) {   // sequential move.w reads (add.w (a)+)
-    u16 *a = (u16 *)p, *end = a + words; u32 sum;
-    __asm__ volatile("moveq #0,%%d0\n\t 1: add.w (%1)+,%%d0\n\t cmpa.l %2,%1\n\t blt.s 1b\n\t move.l %%d0,%0\n\t"
-                     : "=d"(sum), "+a"(a) : "a"(end) : "d0","cc","memory");
-    return sum;
-}
-static u32 g_cacr_snap;
-static long cacr_read_super(void) { __asm__ volatile("movec %%cacr,%0" : "=d"(g_cacr_snap)); return 0; }
-void sys_bench_bus(void)
-{
-    extern void dbglog(const char *fmt, ...);
-    const u32 BUFW = 60000, REP = 4;       // 240000 words / test
-    const u32 total = BUFW * REP;
-    volatile u16 *buf = (volatile u16 *)image.logic;   // video-region ST-RAM (back buf, not shown)
-    u32 t0, tw = 0, tl = 0, tm = 0, tr = 0;
-    volatile u32 sink = 0;
-    if (!buf) { dbglog("BUSBENCH: image.logic null, skipped\n"); return; }
-
-    Supexec(cacr_read_super);
-    t0 = sys_profile_ticks_safe(); for (u32 r = 0; r < REP; r++) fill_w(buf, BUFW); tw = sys_profile_ticks_safe() - t0;
-    t0 = sys_profile_ticks_safe(); for (u32 r = 0; r < REP; r++) fill_l(buf, BUFW); tl = sys_profile_ticks_safe() - t0;
-    t0 = sys_profile_ticks_safe(); for (u32 r = 0; r < REP; r++) fill_m(buf, BUFW); tm = sys_profile_ticks_safe() - t0;
-    t0 = sys_profile_ticks_safe(); for (u32 r = 0; r < REP; r++) sink += read_w(buf, BUFW); tr = sys_profile_ticks_safe() - t0;
-
-    // MB/s*100 for `bytes` moved in `ticks` @200Hz (5ms/tick). bytes = total words * 2.
-    const u32 bytes = total * 2;
-    #define MBPS100(ticks) ((ticks) ? (u32)(((unsigned long long)bytes * 100000ULL) \
-                                             / ((unsigned long long)(ticks) * 5ULL * 1048576ULL)) : 0)
-    u32 rw = MBPS100(tw), rl = MBPS100(tl), rm = MBPS100(tm), rr = MBPS100(tr);
-    dbglog("BUSBENCH: %u KB/test to video ST-RAM (1 tick = 5ms)\n", bytes >> 10);
-    dbglog("  CACR=%08lx  (instr-cache EI=%lu  data-cache ED=%lu)\n",
-           (unsigned long)g_cacr_snap, (unsigned long)(g_cacr_snap & 1), (unsigned long)((g_cacr_snap >> 8) & 1));
-    dbglog("  move.w  write (1 word/acc) : %u ms  %u.%02u MB/s\n", tw * 5, rw/100, rw%100);
-    dbglog("  move.l  write (2 word/acc) : %u ms  %u.%02u MB/s\n", tl * 5, rl/100, rl%100);
-    dbglog("  movem.l write (16word/acc) : %u ms  %u.%02u MB/s\n", tm * 5, rm/100, rm%100);
-    dbglog("  move.w  READ  (seq)        : %u ms  %u.%02u MB/s\n", tr * 5, rr/100, rr%100);
-    if (tm) dbglog("  -> movem write is %u.%ux faster than move.w write\n", tw / tm, (tw * 10 / tm) % 10);
-    #undef MBPS100
-}
-#endif
 
 #if defined(ALIS_DSP_MIXER)
 // ---------------------------------------------------------------------------
@@ -421,11 +342,18 @@ void atari_timera_c_callback(void)
     u8 _psg_saved = g_psg_isr_context;
     g_psg_isr_context = 1;
     if (g_isr_paused)
+    {
         ;
+    }
     else if (atari_dma_available)
+    {
         atari_dma_sound_tick_isr();            // STE/TT: mix one 50 Hz frame into the DMA ring
+    }
     else
+    {
         dsp_mixer_tick_isr();                  // Falcon: sequencer tick + 8-voice DSP feed
+    }
+
     g_psg_isr_context = _psg_saved;
 
     __asm__ volatile("move.w %0,%%sr" : : "d"(saved_sr) : "cc", "memory");
@@ -456,17 +384,21 @@ static void falcon_clut_apply(const u32 *palette)
     volatile u32 *clut = (volatile u32 *)0xFFFF9800UL;
 #if defined(ALIS_NATIVE_PLANAR)
     extern int g_planar_nplanes;
-    if (image.flinepal && g_planar_nplanes <= 4) {
+    if (image.flinepal && g_planar_nplanes <= 4)
+    {
         // clinepal: re-pack the ×64-spaced banks into ×16 contiguous CLUT entries (see set_palette).
         for (int b = 0; b < 4; b++)
-            for (int i = 0; i < 16; i++) {
+            for (int i = 0; i < 16; i++)
+            {
                 const sColorARGB *c = (const sColorARGB *)&palette[b * 64 + i];
                 clut[b * 16 + i] = FALCON_CLUT_RGB(c);
             }
+
         return;
     }
 #endif
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         const sColorARGB *c = (const sColorARGB *)&palette[i];
         clut[i] = FALCON_CLUT_RGB(c);
     }
@@ -478,16 +410,14 @@ static void falcon_clut_apply(const u32 *palette)
 // keeps a tick that lands mid-itroutine from re-entering it.
 void atari_timerc_c_callback(void)
 {
-    // Tick for sys_profile_ticks (user mode cannot read $4BA).
-    g_prof_isr_ticks++;
-
     if (++atari_timerc_subtick < (u32)atari_timerc_clock_div)
         return;
     if (g_isr_paused)
         return;
     atari_timerc_subtick = 0;
     // Cursor mover is in the VBL queue, not here (IPL 6 blocks the ACIA).
-    if (!image.fitroutine) {
+    if (!image.fitroutine)
+    {
         // itroutine runs the game tick (music/sound triggers) from ISR context — any YM write
         // it makes must go direct, not via XBIOS Giaccess (see g_psg_isr_context).
         extern volatile u8 g_psg_isr_context;
@@ -500,7 +430,8 @@ void atari_timerc_c_callback(void)
     // Apply the palette here in the IRQ (Falcon only — TT/ST/SDL keep the main-loop set_palette).
     // itroutine just set dirty_pal if a fade step landed; push it to the CLUT now and consume it.
     extern volatile u8 dirty_pal;
-    if (dirty_pal && machine_type == MCH_FALCON && host.pixelbuf.palette) {
+    if (dirty_pal && machine_type == MCH_FALCON && host.pixelbuf.palette)
+    {
         falcon_clut_apply((const u32 *)host.pixelbuf.palette);
         dirty_pal = 0;
     }
@@ -513,6 +444,7 @@ static long atari_timerc_install_super(void)
         atari_old_etv_timer = (void *)Setexc(0x100, (long)atari_timerc_trampoline);
     return 0;
 }
+
 static long atari_timerc_uninstall_super(void)
 {
     if (atari_old_etv_timer)
@@ -533,18 +465,27 @@ static long atari_vbl_install_super(void)
 {
     s16    nvbls = *(volatile s16 *)0x454UL;   // nvbls
     void **queue = *(void ***)0x456UL;         // _vblqueue
-    for (s16 i = 0; i < nvbls; i++) {
-        if (queue[i] == NULL) {
+    for (s16 i = 0; i < nvbls; i++)
+    {
+        if (queue[i] == NULL)
+        {
             atari_vbl_slot = &queue[i];
             queue[i] = (void *)atari_mouse_vbl;
             return 1;
         }
     }
+
     return 0;                                  // queue full — cursor stays frame-locked
 }
+
 static long atari_vbl_remove_super(void)
 {
-    if (atari_vbl_slot) { *atari_vbl_slot = NULL; atari_vbl_slot = NULL; }
+    if (atari_vbl_slot)
+    {
+        *atari_vbl_slot = NULL;
+        atari_vbl_slot = NULL;
+    }
+
     return 0;
 }
 #endif
@@ -561,24 +502,28 @@ static void atari_timerc_calibrate(void)
     atari_timerc_subtick   = 0;
 
     u32 t0 = hz200_read();
-    while (hz200_read() == t0) {}        // align to a 200 Hz edge
+    while (hz200_read() == t0) {}                                // align to a 200 Hz edge
+
     t0 = hz200_read();
 
     atari_timerc_subtick = 0;
-    while (hz200_read() - t0 < 200) {}   // count ISRs over one second
+    while (hz200_read() - t0 < 200) {}                                // count ISRs over one second
+
     u32 isr_count = atari_timerc_subtick;
 
     int target_hz = atari_tick_target_hz;
     int div = ((int)isr_count + target_hz / 2) / target_hz;
-    if (div < 1)  div = 1;
-    if (div > 64) div = 64;
+    if (div < 1)
+        div = 1;
+    
+    if (div > 64)
+        div = 64;
 
     atari_timerc_clock_div = div;
     atari_timerc_subtick   = 0;
     // Measured rate, not the target (video.c and music tempo scaling read it).
     sys_timeclock_hz = (u32)isr_count / (u32)div;
-    dbglog("Timer C: %d ISRs/s -> divider %d (target %d Hz, timeclock %u Hz)\n",
-           (int)isr_count, div, target_hz, (unsigned)sys_timeclock_hz);
+    dbglog("Timer C: %d ISRs/s -> divider %d (target %d Hz, timeclock %u Hz)\n", (int)isr_count, div, target_hz, (unsigned)sys_timeclock_hz);
 }
 
 static void atari_timerc_install(void)
@@ -589,6 +534,7 @@ static void atari_timerc_install(void)
     atari_timerc_installed = 1;
     if (!atari_no_timerc)
         atari_timerc_calibrate();
+    
     dbglog("Timer C installed (itroutine @ ~50Hz), old_etv=%p\n", atari_old_etv_timer);
 #if defined(ALIS_NATIVE_16BPP) || defined(ALIS_NATIVE_PLANAR)
     dbglog("VBL cursor mover installed=%ld\n", Supexec(atari_vbl_install_super));
@@ -629,8 +575,10 @@ void atari_timerc_emergency_uninstall(void)
 #if defined(ALIS_DSP_MIXER)
     if (atari_timerc_installed)
         Supexec(atari_timerc_uninstall_super);
+    
     if (atari_timera_installed)
         Supexec(atari_timera_uninstall_super);
+    
 #endif
 #if defined(ALIS_NATIVE_16BPP) || defined(ALIS_NATIVE_PLANAR)
     Supexec(atari_vbl_remove_super);
@@ -653,7 +601,9 @@ static int gem_init(void)
     gem_vdi_handle = graf_handle(&work_out[0], &work_out[1], &work_out[2], &work_out[3]);
 
     work_in[0] = 1;
-    for (int i = 1; i < 10; i++) work_in[i] = 1;
+    for (int i = 1; i < 10; i++)
+        work_in[i] = 1;
+    
     work_in[10] = 2;
     v_opnvwk(work_in, &gem_vdi_handle, work_out);
     gem_scr_w = (short)(work_out[0] + 1);
@@ -668,16 +618,19 @@ static int gem_init(void)
     {
         int bpp = work_out[4];
         vdi_oldncolors = (bpp > 8) ? 256 : (1 << bpp);
-        if (vdi_oldncolors > 256) vdi_oldncolors = 256;
-        for (int i = 0; i < vdi_oldncolors; i++) {
+        if (vdi_oldncolors > 256)
+            vdi_oldncolors = 256;
+        
+        for (int i = 0; i < vdi_oldncolors; i++)
+        {
             short rgb[3];
             vq_color(gem_vdi_handle, i, 0, rgb);
             vdi_oldpal[i][0] = (u16)rgb[0];
             vdi_oldpal[i][1] = (u16)rgb[1];
             vdi_oldpal[i][2] = (u16)rgb[2];
         }
-        dbglog("GEM palette saved: bpp=%d colors=%d (screen %dx%d)\n",
-           bpp, vdi_oldncolors, (int)gem_scr_w, (int)gem_scr_h);
+
+        dbglog("GEM palette saved: bpp=%d colors=%d (screen %dx%d)\n", bpp, vdi_oldncolors, (int)gem_scr_w, (int)gem_scr_h);
     }
 
     return 1;
@@ -710,9 +663,9 @@ static void gem_unlock_screen(void)
 {
     int rc;
 
-    if (gem_ap_id == -1 || !gem_locked) {
-        dbglog("gem_unlock: SKIPPED (ap_id=%d locked=%d) -> no FMD_FINISH, no desktop redraw\n",
-               (int)gem_ap_id, gem_locked);
+    if (gem_ap_id == -1 || !gem_locked)
+    {
+        dbglog("gem_unlock: SKIPPED (ap_id=%d locked=%d) -> no FMD_FINISH, no desktop redraw\n", (int)gem_ap_id, gem_locked);
         return;
     }
 
@@ -726,8 +679,6 @@ static void gem_unlock_screen(void)
     gem_locked = 0;
 }
 
-
-
 // Hand the screen back to GEM. Called LAST from main(), after all console output: FMD_FINISH
 // repaints the desktop and anything printed afterwards would paint over it.
 void sys_restore_desktop(void)
@@ -739,12 +690,14 @@ void sys_restore_desktop(void)
     gem_unlock_screen();
 
     // Workstation stays open until here: gem_restore_palette() (called from sys_deinit) needs it.
-    if (gem_vdi_handle > 0) {
+    if (gem_vdi_handle > 0)
+    {
         v_clsvwk(gem_vdi_handle);
         gem_vdi_handle = 0;
     }
 
-    if (gem_ap_id != -1) {
+    if (gem_ap_id != -1)
+    {
         int rc = appl_exit();
         dbglog("sys_restore_desktop: appl_exit -> %d\n", rc);
         gem_ap_id = -1;
@@ -773,7 +726,8 @@ static void detect_machine(void)
     // Runtime flag must follow ALIS_USE_BLITTER (planar callers test g_hw_blitter).
     g_hw_blitter = (machine_type == MCH_FALCON) && ALIS_USE_BLITTER;
 
-    switch (machine_type) {
+    switch (machine_type)
+    {
         case MCH_TT:
             monitor_type = MONITOR_RGB;  // TT always RGB
             break;
@@ -791,17 +745,22 @@ static void save_video_state(void)
     old_physbase = Physbase();
     old_logbase  = Logbase();
 
-    if (machine_type == MCH_FALCON) {
+    if (machine_type == MCH_FALCON)
+    {
         old_vmode = VsetMode(-1);
         VgetRGB(0, 256, (u32 *)old_palette);
         // ST-compat desktop modes take colours from the ST palette regs, not the VIDEL CLUT.
         for (int i = 0; i < 16; i++)
             old_st_palette[i] = Setcolor(i, -1);
-    } else if (machine_type == MCH_TT) {
+    }
+    else if (machine_type == MCH_TT)
+    {
         // Not EsetShift: its TT_MED -> TT_LOW switch is buggy (SDL1 ddc3766f); use Setscreen rez.
         old_vmode = Getrez();
         EgetPalette(0, 256, (short *)old_palette);
-    } else {
+    }
+    else
+    {
         old_vmode = Getrez();
         for (int i = 0; i < 16; i++)
             ((u16 *)old_palette)[i] = Setcolor(i, -1);
@@ -815,16 +774,21 @@ static void restore_video_state(void)
         return;
 
     Vsync();
-    if (machine_type == MCH_FALCON) {
+    if (machine_type == MCH_FALCON)
+    {
         Setscreen(old_logbase, old_physbase, -1);   // BOTH bases: see old_logbase
         VsetMode(old_vmode);
         VsetRGB(0, 256, (u32 *)old_palette);        // VIDEL CLUT
         for (int i = 0; i < 16; i++)                // ST-compat palette regs (see save)
             Setcolor(i, old_st_palette[i]);
-    } else if (machine_type == MCH_TT) {
+    }
+    else if (machine_type == MCH_TT)
+    {
         Setscreen(old_logbase, old_physbase, old_vmode);   // Getrez()-style mode; BOTH bases
         EsetPalette(0, 256, (short *)old_palette);
-    } else {
+    }
+    else
+    {
         Setscreen(old_logbase, old_physbase, old_vmode);
         for (int i = 0; i < 16; i++)
             Setcolor(i, ((u16 *)old_palette)[i]);
@@ -833,15 +797,19 @@ static void restore_video_state(void)
 
 static int alloc_screen_buffers(void)
 {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 2; i++)
+    {
         screen_mem[i] = (u8 *)Mxalloc(screen_size + 256, MX_STRAM);
-        if (!screen_mem[i]) {
+        if (!screen_mem[i])
+        {
             fprintf(stderr, "Cannot allocate %d bytes for screen buffer %d\n", (int)screen_size, i);
             return 0;
         }
+
         screen_buf[i] = (u8 *)(((u32)screen_mem[i] + 255) & ~255UL);
         memset(screen_buf[i], 0, screen_size);
     }
+
     // Hardware will display screen_buf[0], so draw into screen_buf[1] first
     back_buf = 1;
     return 1;
@@ -849,16 +817,21 @@ static int alloc_screen_buffers(void)
 
 static void free_screen_buffers(void)
 {
-    for (int i = 0; i < 2; i++) {
-        if (screen_mem[i]) {
+    for (int i = 0; i < 2; i++)
+    {
+        if (screen_mem[i])
+        {
             Mfree(screen_mem[i]);
             screen_mem[i] = NULL;
         }
+
         screen_buf[i] = NULL;
-        if (compose_mem[i]) {
+        if (compose_mem[i])
+        {
             Mfree(compose_mem[i]);
             compose_mem[i] = NULL;
         }
+
         compose_buf[i] = NULL;
     }
 }
@@ -870,7 +843,8 @@ static int compute_video_geometry(void)
     // For all modes: planar pitch = (width / 8) * planes = width * planes / 8
     // 8 planes: pitch = width (320 pixels * 8 planes / 8 = 320 bytes)
     // 4 planes: pitch = width / 2 (320 pixels * 4 planes / 8 = 160 bytes)
-    if (machine_type == MCH_FALCON) {
+    if (machine_type == MCH_FALCON)
+    {
         is_doubleline = 0;
 #if ALIS_FALCON_16BPP
         video_planes = 16;
@@ -882,7 +856,9 @@ static int compute_video_geometry(void)
         // VGA: 320x240, game uses the top 200 lines. RGB/TV: 320x200.
         screen_height = (monitor_type == MONITOR_VGA) ? 240 : height;
 #endif
-    } else if (machine_type == MCH_TT) {
+    }
+    else if (machine_type == MCH_TT)
+    {
 #if ALIS_FALCON_16BPP
         // The 16bpp build renders 2 bytes/pixel — no TT video mode fits that,
         // and the planar compose buffers would be half the needed size.
@@ -893,7 +869,9 @@ static int compute_video_geometry(void)
         planar_pitch = width;
         screen_height = 480;                      // TT_LOW is 320x480, we double each line
 #endif
-    } else {
+    }
+    else
+    {
         // ST/STE: 4 planes, 16 colors
         video_planes = 4;
         is_doubleline = 0;
@@ -919,7 +897,8 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
 
     width  = pl->width;
     height = pl->height;
-    if (!compute_video_geometry()) {
+    if (!compute_video_geometry())
+    {
         printf("\nThis build cannot run on this machine's video hardware.\n");
         return 0;
     }
@@ -938,10 +917,9 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
     u32 heap_pool = fast_free + ((st_free > st_need) ? (st_free - st_need) : 0);
 
     u32 arena = heap_pool > overhead ? (heap_pool - overhead) & ~0xffffu : 0;
-#if defined(ALIS_DEBUG_ARENA_KB)
-    if (arena > ALIS_DEBUG_ARENA_KB * 1024u) arena = ALIS_DEBUG_ARENA_KB * 1024u;   // test low tiers
-#endif
-    if (arena > pref) arena = pref;
+    if (arena > pref)
+        arena = pref;
+    
     if (st_free >= st_need && arena >= floor)
         return arena;
 
@@ -959,7 +937,8 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
     printf("       Needs: %5u KB free memory\n", need_total / 1024);
     printf("  This Atari: %5u KB\n\n", free_total / 1024);
     
-    if (st_free < st_need) {
+    if (st_free < st_need)
+    {
         // Totals may look fine; hardware-addressable ST-RAM specifically is short.
         printf("ST-RAM is short: %u KB free, %u KB needed.\n\n", st_free / 1024, st_need / 1024);
     }
@@ -969,7 +948,8 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
 
 static int setup_video_mode(void)
 {
-    if (!compute_video_geometry()) {
+    if (!compute_video_geometry())
+    {
 #if ALIS_FALCON_16BPP
         if (machine_type == MCH_TT)
             fprintf(stderr, "16bpp build unsupported on TT — use the planar build\n");
@@ -977,7 +957,8 @@ static int setup_video_mode(void)
         return 0;
     }
 
-    if (machine_type == MCH_FALCON) {
+    if (machine_type == MCH_FALCON)
+    {
         u16 mode;
 #if ALIS_FALCON_16BPP
         // 16-bit truecolor (linear chunky, no planar c2p). screen_buf[] hold the
@@ -986,6 +967,7 @@ static int setup_video_mode(void)
         mode |= old_vmode & (VGA | PAL);
         if (!alloc_screen_buffers())
             return 0;
+        
         dbglog("VsetMode(BPS16 0x%x) screen_buf[0]=%p\n", (unsigned)mode, (void*)screen_buf[0]);
         Setscreen(-1, screen_buf[0], -1);
         VsetMode(mode);
@@ -1001,7 +983,9 @@ static int setup_video_mode(void)
         Setscreen(-1, screen_buf[0], -1);
         VsetMode(mode);
 #endif
-    } else if (machine_type == MCH_TT) {
+    }
+    else if (machine_type == MCH_TT)
+    {
 #if !ALIS_FALCON_16BPP
         if (!alloc_screen_buffers())
             return 0;
@@ -1010,21 +994,26 @@ static int setup_video_mode(void)
         // reads, no video-DMA contention); Mxalloc mode 3 = MX_PREFTTRAM falls
         // back to ST-RAM by itself on a TT without FastRAM.
         u32 csize = planar_pitch * height;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 2; i++)
+        {
             compose_mem[i] = (u8 *)Mxalloc((long)(csize + 256), 3);
-            if (!compose_mem[i]) {
+            if (!compose_mem[i])
+            {
                 fprintf(stderr, "Cannot allocate %d bytes for compose buffer %d\n", (int)csize, i);
                 return 0;
             }
+
             compose_buf[i] = (u8 *)(((u32)compose_mem[i] + 255) & ~255UL);
             memset(compose_buf[i], 0, csize);
         }
-        dbglog("TT compose bufs: %p %p (%lu bytes each)\n",
-               (void*)compose_buf[0], (void*)compose_buf[1], (unsigned long)csize);
+
+        dbglog("TT compose bufs: %p %p (%lu bytes each)\n", (void*)compose_buf[0], (void*)compose_buf[1], (unsigned long)csize);
 
         Setscreen(-1, screen_buf[0], TT_LOW >> 8);
 #endif
-    } else {
+    }
+    else
+    {
         // ST/STE: 4 planes, 16 colors
         if (!alloc_screen_buffers())
             return 0;
@@ -1055,8 +1044,11 @@ static long  film16_mode  = -1;   // Videl mode to restore
 
 int sys_film16_begin(u16 w, u16 h)
 {
-    if (machine_type != MCH_FALCON) return 0;   // Falcon only
-    if (g_fli16_screen) return 1;               // already 16-bit (kept across a video sequence)
+    if (machine_type != MCH_FALCON)
+        return 0;                               // Falcon only
+    
+    if (g_fli16_screen)
+        return 1;                               // already 16-bit (kept across a video sequence)
 
     // Two full-screen 16-bit surfaces (VGA doubles to 240 lines; the film fills the top h).
     // Front is displayed; keyframes decode into back off-screen then flip -> no visible wipe-in.
@@ -1064,7 +1056,12 @@ int sys_film16_begin(u16 w, u16 h)
     u32 sw = width;                              // 320 — screen row stride (pixels)
     u32 sz = sw * (u32)sh * 2;
     film16_mem = (u8 *)Mxalloc((long)(2 * sz + 256), MX_STRAM);
-    if (film16_mem == NULL || (long)film16_mem <= 0) { film16_mem = NULL; return 0; }
+    if (film16_mem == NULL || (long)film16_mem <= 0)
+    {
+        film16_mem = NULL;
+        return 0;
+    }
+
     u16 *fb = (u16 *)(((u32)film16_mem + 255) & ~255UL);
     memset(fb, 0, 2 * sz);
     film16_front = fb;
@@ -1074,7 +1071,9 @@ int sys_film16_begin(u16 w, u16 h)
     film16_base = Physbase();
     film16_mode = VsetMode(-1);
     u16 mode = (u16)(BPS16 | (film16_mode & (VGA | PAL)));
-    if (monitor_type == MONITOR_VGA) mode |= VERTFLAG;
+    if (monitor_type == MONITOR_VGA)
+        mode |= VERTFLAG;
+    
     Setscreen(-1, film16_front, -1);
     VsetMode(mode);
 
@@ -1089,13 +1088,16 @@ int sys_film16_begin(u16 w, u16 h)
 // back buffer so the wipe-in isn't visible...
 void sys_film16_keyframe(void)
 {
-    if (g_fli16_screen) g_fli16_screen = film16_back;
+    if (g_fli16_screen)
+        g_fli16_screen = film16_back;
 }
+
 // ...then flip to it on vblank and make it the new front. Subsequent deltas modify this
 // (now displayed) keyframe in place — deltas can't be double-buffered without a full copy.
 void sys_film16_present(void)
 {
-    if (!g_fli16_screen) return;
+    if (!g_fli16_screen)
+        return;
     Setscreen(-1, film16_back, -1);              // flip to the freshly-decoded keyframe
     Vsync();                                     // hold until it is actually scanned out
     u16 *t = film16_front; film16_front = film16_back; film16_back = t;   // swap
@@ -1105,17 +1107,24 @@ void sys_film16_present(void)
 // Delta frame just decoded in place: hold it one vblank before the next in-place write.
 void sys_film16_vsync(void)
 {
-    if (g_fli16_screen) Vsync();
+    if (g_fli16_screen)
+        Vsync();
 }
 
 void sys_film16_end(void)
 {
-    if (!g_fli16_screen) return;
+    if (!g_fli16_screen)
+        return;
     g_fli16_screen = NULL;                        // disarm the decoder first
     Vsync();
     Setscreen(-1, film16_base, -1);
     VsetMode((u16)film16_mode);
-    if (film16_mem) { Mfree((long)film16_mem); film16_mem = NULL; }
+    if (film16_mem)
+    {
+        Mfree((long)film16_mem);
+        film16_mem = NULL;
+    }
+
     film16_front = film16_back = NULL;
     dbglog("sys_film16_end: restored mode=0x%lx base=%p\n", film16_mode, film16_base);
 }
@@ -1145,11 +1154,13 @@ static inline u8 *vm_render_buf0(void)
 
 static void set_palette(u32 *palette, int ncolors)
 {
-    if (machine_type == MCH_FALCON) {
+    if (machine_type == MCH_FALCON)
+    {
 #if ALIS_FALCON_16BPP
         // Truecolor: no hardware CLUT — fold the palette into the RGB565 LUT the
         // chunky->16bpp expand uses. (Falcon BPS16 word = rrrrr ggggg g bbbbb.)
-        for (int i = 0; i < ncolors; i++) {
+        for (int i = 0; i < ncolors; i++)
+        {
             sColorARGB *c = (sColorARGB *)&palette[i];
             pal16[i] = (u16)(((c->r >> 3) << 11) | ((c->g >> 2) << 5) | (c->b >> 3));
         }
@@ -1158,39 +1169,54 @@ static void set_palette(u32 *palette, int ncolors)
         u32 falcon_pal[256];
 #if defined(ALIS_NATIVE_PLANAR)
         extern int g_planar_nplanes;
-        if (image.flinepal && g_planar_nplanes <= 4) {
+        if (image.flinepal && g_planar_nplanes <= 4)
+        {
             // clinepal: the per-row bank lives in framebuffer planes 4-5 (×16), so the
             // CLUT must hold each 16-colour bank contiguously at b*16. The game loads the
             // banks ×64-spaced (mpalet[b*64..]) — re-pack them to ×16 here. Only entries
             // 0..63 are indexable (max index = 3*16+15), so upload just those.
             for (int b = 0; b < 4; b++)
-                for (int i = 0; i < 16; i++) {
+            {
+                for (int i = 0; i < 16; i++)
+                {
                     sColorARGB *c = (sColorARGB *)&palette[b * 64 + i];
                     falcon_pal[b * 16 + i] = ((u32)c->r << 16) | ((u32)c->g << 8) | c->b;
                 }
+            }
+
             VsetRGB(0, 64, falcon_pal);
-        } else
+        }
+        else
 #endif
         {
-            for (int i = 0; i < ncolors; i++) {
+            for (int i = 0; i < ncolors; i++)
+            {
                 sColorARGB *c = (sColorARGB *)&palette[i];
                 falcon_pal[i] = ((u32)c->r << 16) | ((u32)c->g << 8) | c->b;
             }
+
             VsetRGB(0, ncolors, falcon_pal);
         }
 #endif
-    } else if (machine_type == MCH_TT) {
+    }
+    else if (machine_type == MCH_TT)
+    {
         // TT uses 12-bit palette: 0x0RGB (4 bits per channel)
         u16 tt_pal[256];
-        for (int i = 0; i < ncolors; i++) {
+        for (int i = 0; i < ncolors; i++)
+        {
             sColorARGB *c = (sColorARGB *)&palette[i];
             tt_pal[i] = ((c->r >> 4) << 8) | ((c->g >> 4) << 4) | (c->b >> 4);
         }
+
         EsetPalette(0, ncolors, tt_pal);
-    } else {
+    }
+    else
+    {
         // ST/STE: 12-bit palette, max 16 colors
         int n = ncolors > 16 ? 16 : ncolors;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < n; i++)
+        {
             sColorARGB *c = (sColorARGB *)&palette[i];
             u16 stcol = ((c->r >> 4) << 8) | ((c->g >> 4) << 4) | (c->b >> 4);
             Setcolor(i, stcol);
@@ -1206,12 +1232,19 @@ void sys_pal16_refresh(void)
 {
     u32 *p = (u32 *)host.pixelbuf.palette;
     u8 changed = 0;
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         sColorARGB *c = (sColorARGB *)&p[i];
         u16 v = (u16)(((c->r >> 3) << 11) | ((c->g >> 2) << 5) | (c->b >> 3));
-        if (pal16[i] != v) { pal16[i] = v; changed = 1; }
+        if (pal16[i] != v)
+        {
+            pal16[i] = v;
+            changed = 1;
+        }
     }
-    if (changed) g_pal16_gen++;
+
+    if (changed)
+        g_pal16_gen++;
 }
 #endif // ALIS_FALCON_16BPP (pal16 refresh)
 
@@ -1236,7 +1269,9 @@ static long blit_fill_super(void)
     volatile u8  *ctrl = (volatile u8  *)0xFFFF8A3CUL;
     volatile u16 *ht   = (volatile u16 *)0xFFFF8A00UL;
     while (*ctrl & 0x80) ;                          // wait out any in-flight blit
-    for (int i = 0; i < 16; i++) ht[i] = g_blt_col; // halftone = solid fill colour
+    for (int i = 0; i < 16; i++)
+        ht[i] = g_blt_col;                          // halftone = solid fill colour
+    
     *(volatile u16 *)0xFFFF8A28UL = 0xFFFF;         // endmask 1 (full word)
     *(volatile u16 *)0xFFFF8A2AUL = 0xFFFF;         // endmask 2
     *(volatile u16 *)0xFFFF8A2CUL = 0xFFFF;         // endmask 3
@@ -1256,6 +1291,7 @@ void sys_blit_fill_16(u16 *dst, int w, int h, u16 color)
 {
     if (w <= 0 || h <= 0 || w > 4096 || h > 4096)   // sanity: HOG mode hogs the bus
         return;
+    
     g_blt_dst  = (u32)dst;
     g_blt_w    = (u16)w;
     g_blt_h    = (u16)h;
@@ -1292,6 +1328,7 @@ static long blit_copy_super(void)
     *ctrl = 0xC0;                                   // BUSY | HOG
     return 0;
 }
+
 void sys_blit_copy_16(u16 *src, int src_pitch_w, u16 *dst, int w, int h)
 {
     if (w <= 0 || h <= 0 || w > 4096 || h > 4096)
@@ -1317,7 +1354,8 @@ static int g_pblt_np = 8;
 static long blit_copy_planar_super(void)
 {
     volatile u8 *ctrl = (volatile u8 *)0xFFFF8A3CUL;
-    for (int p = 0; p < g_pblt_np; p++) {
+    for (int p = 0; p < g_pblt_np; p++)
+    {
         while (*ctrl & 0x80) ;
         *(volatile s16 *)0xFFFF8A20UL = 16;                 // src x-inc = interleave stride
         *(volatile s16 *)0xFFFF8A22UL = g_pblt_syinc;       // src y-inc = src row wrap
@@ -1338,11 +1376,13 @@ static long blit_copy_planar_super(void)
     while (*ctrl & 0x80) ;                                  // wait out the last plane
     return 0;
 }
+
 // src/dst_rowbytes = bytes per scanline of each buffer; chunks_w = 16px chunks/row; h = rows.
 void sys_blit_copy_planar(u16 *src, int src_rowbytes, u16 *dst, int dst_rowbytes, int chunks_w, int h, int nplanes)
 {
     if (chunks_w <= 0 || h <= 0 || chunks_w > 4096 || h > 4096)
         return;
+    
     g_pblt_src   = (u32)src;
     g_pblt_dst   = (u32)dst;
     g_pblt_cw    = (u16)chunks_w;
@@ -1365,10 +1405,13 @@ static long blit_fill_planar_super(void)
     volatile u8  *ctrl = (volatile u8  *)0xFFFF8A3CUL;
     volatile u16 *ht   = (volatile u16 *)0xFFFF8A00UL;
     extern int g_planar_nplanes;
-    for (int p = 0; p < g_planar_nplanes; p++) {            // skip unused high planes (they stay 0)
+    for (int p = 0; p < g_planar_nplanes; p++)  // skip unused high planes (they stay 0)
+    {
         u16 pv = ((g_pflt_col >> p) & 1) ? 0xFFFF : 0x0000;
         while (*ctrl & 0x80) ;
-        for (int i = 0; i < 16; i++) ht[i] = pv;            // halftone = plane's solid value
+        for (int i = 0; i < 16; i++)
+            ht[i] = pv;                                     // halftone = plane's solid value
+        
         *(volatile u16 *)0xFFFF8A28UL = g_pflt_em1;         // endmask 1 (left edge)
         *(volatile u16 *)0xFFFF8A2AUL = 0xFFFF;             // endmask 2 (interior)
         *(volatile u16 *)0xFFFF8A2CUL = g_pflt_em3;         // endmask 3 (right edge)
@@ -1383,14 +1426,17 @@ static long blit_fill_planar_super(void)
         *ctrl = 0xC0;                                       // BUSY | HOG
     }
     while (*ctrl & 0x80) ;
+    
     return 0;
 }
+
 // dst = first chunk (plane 0); dst_rowbytes = framebuffer pitch; chunks_w/h = size; col = 8-bit
 // colour; em1/em3 = left/right boundary end-masks (0xFFFF if that edge is chunk-aligned).
 void sys_blit_fill_planar(u16 *dst, int dst_rowbytes, int chunks_w, int h, u16 col, u16 em1, u16 em3)
 {
     if (chunks_w <= 0 || h <= 0 || chunks_w > 4096 || h > 4096)
         return;
+    
     g_pflt_dst  = (u32)dst;
     g_pflt_cw   = (u16)chunks_w;
     g_pflt_ch   = (u16)h;
@@ -1414,11 +1460,13 @@ static long dcache_clear_super(void)
 
 void sys_blit_frame_sync(void)
 {
-    if (g_blt_used) {
+    if (g_blt_used)
+    {
         Supexec(dcache_clear_super);   // make Blitter writes visible to CPU reads
         g_blt_used = 0;
     }
 }
+
 #else
 void sys_blit_fill_16(u16 *dst, int w, int h, u16 color) { (void)dst; (void)w; (void)h; (void)color; }
 void sys_blit_copy_16(u16 *src, int spw, u16 *dst, int w, int h) { (void)src; (void)spw; (void)dst; (void)w; (void)h; }
@@ -1463,28 +1511,32 @@ static long ikbd_install_super(void)
     kv->joyvec          = (void *)atari_ikbd_joyvec;
     return 0;
 }
+
 static long ikbd_uninstall_super(void)
 {
     _KBDVECS *kv = Kbdvbase();
     if (ikbd_old_kbdvec)
         ((long *)kv)[-1] = (long)ikbd_old_kbdvec;
+    
     if (ikbd_old_mousevec)
         kv->mousevec = ikbd_old_mousevec;
+    
     if (ikbd_old_joyvec)
         kv->joyvec = ikbd_old_joyvec;
+    
     return 0;
 }
+
 void atari_ikbd_init(void)   { Supexec(ikbd_install_super); }
 void atari_ikbd_deinit(void) { if (ikbd_old_kbdvec) Supexec(ikbd_uninstall_super); }
-
 
 // Abnormal-termination cleanup — defined next to sys_deinit, installed at the end of sys_init.
 extern void *atari_old_etv_term;          // BSS slot in sys_atari_isr.S
 void atari_etv_term_handler(void);
 static void atari_etv_term_atexit(void);
 
-void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
-
+void sys_init(sPlatform *pl, int fullscreen, int mutesound)
+{
     logopen();
     dbglog("=== ALIS native Atari backend ===\n");
 
@@ -1500,8 +1552,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 #endif
     atari_tick_target_hz = pl->is_little_endian ? ALIS_DOS_TICK_HZ : 50;
 
-    dbglog("sys_init: requested %dx%d (tick target %d Hz)\n",
-           (int)width, (int)height, atari_tick_target_hz);
+    dbglog("sys_init: requested %dx%d (tick target %d Hz)\n", (int)width, (int)height, atari_tick_target_hz);
 
     // Before audio (picks channel count); cookie reads only.
     detect_machine();
@@ -1518,17 +1569,20 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     desired_spec->format = AUDIO_S16MSB;
     desired_spec->channels = (machine_type == MCH_ST) ? 1 : 2;
 
-    if (mutesound) {
+    if (mutesound)
+    {
         dbglog("Audio MUTED (-m).\n");
         goto audio_mute;
     }
 
     // Falcon --audio=dsp: the DSP does all mixing and owns the codec (dsp_mixer_init is
     // self-sufficient); fed at 50 Hz by the Timer-A ISR.
-    if (machine_type == MCH_FALCON && atari_audio_backend == 1) {
+    if (machine_type == MCH_FALCON && atari_audio_backend == 1)
+    {
         int dsp_rc = dsp_mixer_init();
         dbglog("DSP mixer init=%d available=%d (opt-in via --audio=dsp)\n", dsp_rc, (int)dsp_mixer_available);
-        if (dsp_mixer_available) {
+        if (dsp_mixer_available)
+        {
             audio_spec->freq = desired_spec->freq;  // keep downstream isr_step sane
             // 0 would silence music.
             audio.host_freq   = desired_spec->freq;
@@ -1537,6 +1591,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
             dbglog("Native DSP audio active (Timer-A feed).\n");
             goto audio_done;
         }
+
         dbglog("DSP init failed — falling back to DMA.\n");
     }
 
@@ -1544,7 +1599,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     // by the 50 Hz Timer-A ISR. STE/TT: 12517 Hz mono. Falcon: 8-bit mono (--audio-stereo: stereo,
     // the S8 callback duplicates the mix) at a crossbar rate 98340/(prescale+1) picked by CPU class
     // (_CPU gives family only); --audio-rate=N overrides.
-    if (machine_type == MCH_TT || machine_type == MCH_STE || machine_type == MCH_FALCON) {
+    if (machine_type == MCH_TT || machine_type == MCH_STE || machine_type == MCH_FALCON)
+    {
         const int is_fal   = (machine_type == MCH_FALCON);
         extern int atari_audio_rate;
         const int fal_auto = (cpu_family >= 60) ? 24585 : (cpu_family >= 40) ? 12292 : 8195;
@@ -1552,7 +1608,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         const int dma_rate = is_fal ? fal_rate : (atari_audio_rate > 0 ? atari_audio_rate : 12517);
         extern int atari_audio_stereo;
         const int dma_ch   = is_fal && atari_audio_stereo ? 2 : 1;
-        if (atari_dma_sound_init(dma_rate, dma_ch, is_fal) == 0) {
+        if (atari_dma_sound_init(dma_rate, dma_ch, is_fal) == 0)
+        {
             audio_spec->freq     = dma_rate;
             audio_spec->format   = AUDIO_S8;
             audio_spec->channels = dma_ch;
@@ -1561,12 +1618,13 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
             audio.host_format = AUDIO_S8;
             atari_dma_sound_set_isr_driven(1);
             Supexec(atari_timera_install_super);   // steady 50 Hz refill via MFP Timer A
-            dbglog("Native %s DMA audio active (%d Hz %s, Timer-A feed).\n",
-                   is_fal ? "Falcon" : "STE/TT", dma_rate, dma_ch == 2 ? "stereo" : "mono");
+            dbglog("Native %s DMA audio active (%d Hz %s, Timer-A feed).\n", is_fal ? "Falcon" : "STE/TT", dma_rate, dma_ch == 2 ? "stereo" : "mono");
             goto audio_done;
         }
+
         dbglog("DMA sound init failed.\n");
     }
+
     dbglog("No DSP/DMA sound — audio muted.\n");
 
 audio_mute:
@@ -1591,7 +1649,8 @@ audio_done:
     gem_lock_screen();
     dbglog("GEM locked=%d\n", gem_locked);
 
-    if (!setup_video_mode()) {
+    if (!setup_video_mode())
+    {
         dbglog("setup_video_mode FAILED\n");
         gem_unlock_screen();
         restore_video_state();
@@ -1602,11 +1661,8 @@ audio_done:
     image.pal_format = EPalARGB;
     dirty_mouse = 0;
 
-    dbglog("Video OK: %dx%d planes=%d screen_h=%d pitch=%d\n",
-         (int)width, (int)height, (int)video_planes,
-         (int)screen_height, (int)planar_pitch);
-    dbglog("screen_buf[0]=%p screen_buf[1]=%p back_buf=%d\n",
-         (void*)screen_buf[0], (void*)screen_buf[1], back_buf);
+    dbglog("Video OK: %dx%d planes=%d screen_h=%d pitch=%d\n", (int)width, (int)height, (int)video_planes, (int)screen_height, (int)planar_pitch);
+    dbglog("screen_buf[0]=%p screen_buf[1]=%p back_buf=%d\n", (void*)screen_buf[0], (void*)screen_buf[1], back_buf);
 
     sys_sfx_tick_hz = (u32)atari_tick_target_hz;
     isr_step = (sys_sfx_tick_hz << 16) / audio_spec->freq;  // 16.16 fixed-point
@@ -1636,7 +1692,8 @@ audio_done:
     dbglog("sys_init COMPLETE\n");
 }
 
-void sys_init_timers(void) {
+void sys_init_timers(void)
+{
     dbglog("sys_init_timers called\n");
     poll_ticks = sys_ticks();
     frame_time = sys_ticks();
@@ -1698,7 +1755,8 @@ void sys_sleep_until_music_stops(void) {}
 #pragma mark - Main loop
 // ============================================================================
 
-u8 sys_start(void) {
+u8 sys_start(void)
+{
     dbglog("sys_start: entering alis_thread\n");
     alis.state = eAlisStateRunning;
     alis_thread(NULL);
@@ -1710,12 +1768,8 @@ u8 sys_start(void) {
 #pragma mark - Input
 // ============================================================================
 
-void sys_poll_event(void) {
-
-    poll_calls++;
-    if (poll_calls <= 3)
-        dbglog("sys_poll_event #%d\n", (int)poll_calls);
-
+void sys_poll_event(void)
+{
     sys_sleep_until(&poll_ticks, k_frame_ticks);
 
     // itroutine runs from Timer C when installed; synchronous fallback otherwise.
@@ -1727,7 +1781,8 @@ void sys_poll_event(void) {
 #endif
 
     // Keys come from the IKBD handler (sys_atari_ikbd.S); here only the global quit key (Undo).
-    if (g_ikbd_pressed[0x61]) {
+    if (g_ikbd_pressed[0x61])
+    {
         ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request.\n");
         alis.state = eAlisStateStopped;
     }
@@ -1741,18 +1796,24 @@ void sys_poll_event(void) {
         u8 f2  = sh && g_ikbd_pressed[0x3c];
         u8 f10 = sh && g_ikbd_pressed[0x44];
 
-        if (f1 && !hk_f1) {
+        if (f1 && !hk_f1)
+        {
             ALIS_DEBUG(EDebugSystem, "INTERRUPT: Save state (Shift+F1).\n");
             alis.state = eAlisStateSave;
         }
-        if (f2 && !hk_f2) {
+
+        if (f2 && !hk_f2)
+        {
             ALIS_DEBUG(EDebugSystem, "INTERRUPT: Load state (Shift+F2).\n");
             alis.state = eAlisStateLoad;
         }
-        if (f10 && !hk_f10) {
+
+        if (f10 && !hk_f10)
+        {
             ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request (Shift+F10).\n");
             alis.state = eAlisStateStopped;
         }
+
         hk_f1 = f1; hk_f2 = f2; hk_f10 = f10;
     }
 
@@ -1766,8 +1827,12 @@ void sys_poll_event(void) {
         u8  btn = g_mouse_buttons;
         u8 lb = (btn & 2) ? 1 : 0;           // packet bit1 = left button
         u8 rb = (btn & 1) ? 1 : 0;           // packet bit0 = right button
-        if ((lb && !mouse.lb) || (down & 2)) mouse.lb_clicked = 1;
-        if ((rb && !mouse.rb) || (down & 1)) mouse.rb_clicked = 1;
+        if ((lb && !mouse.lb) || (down & 2))
+            mouse.lb_clicked = 1;
+        
+        if ((rb && !mouse.rb) || (down & 1))
+            mouse.rb_clicked = 1;
+        
         mouse.lb = lb;
         mouse.rb = rb;
     }
@@ -1790,17 +1855,6 @@ static long videl_setbase_super(void)
     *(volatile u8 *)0xFFFF8201 = (u8)(a >> 16);
     *(volatile u8 *)0xFFFF8203 = (u8)(a >> 8);
     *(volatile u8 *)0xFFFF820D = (u8)(a);
-    return 0;
-}
-
-// Read the live base back (supervisor) for the log.
-static volatile u32 g_dbg_hwbase, g_dbg_vbas;
-static long videl_readbase_super(void)
-{
-    g_dbg_hwbase = ((u32)*(volatile u8 *)0xFFFF8201 << 16)
-                 | ((u32)*(volatile u8 *)0xFFFF8203 << 8)
-                 |  (u32)*(volatile u8 *)0xFFFF820D;
-    g_dbg_vbas   = *(volatile u32 *)0x44EUL;
     return 0;
 }
 
@@ -1831,9 +1885,11 @@ static void cursor_restore_into(u16 *fb, int bi)
     s16 cx0 = cursor_save[bi].x, oy = cursor_save[bi].y;
     s16 nw = cursor_save[bi].w * 8, h = cursor_save[bi].h;
     const u16 *bg = cursor_save[bi].bg;
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
         u16 *drow = fb + (s32)(oy + y) * pw + (s32)cx0 * 8;
-        for (int c = 0; c < nw; c++) drow[c] = *bg++;
+        for (int c = 0; c < nw; c++)
+            drow[c] = *bg++;
     }
 #else
     int pitch = host.pixelbuf.w;
@@ -1864,9 +1920,11 @@ void sys_mouse_erase(void)
     g_cursor_lock = 1;
     if (image.logic == NULL)
         return;
+    
     int L = (image.logic == vm_render_buf0()) ? 0 : 1;
     if (!cursor_save[L].drawn)
         return;
+    
     cursor_restore_into((u16 *)image.logic, L);
     cursor_save[L].drawn = 0;
 }
@@ -1881,10 +1939,12 @@ void sys_mouse_uncopy(void)
     if (is_doubleline)
         return;   // TT: see sys_mouse_erase (lock was never taken)
 #endif
-    if (image.logic == NULL) {
+    if (image.logic == NULL)
+    {
         g_cursor_lock = 0;
         return;
     }
+
     int P = (image.physic == vm_render_buf0()) ? 0 : 1;
     if (cursor_save[P].drawn)
         cursor_restore_into((u16 *)image.logic, P);
@@ -1903,12 +1963,18 @@ static void cursor_draw_into(u16 *fb, int bi, s16 mx, s16 my, s16 fb_h, int doub
     int pitch = host.pixelbuf.w;
     s16 mw = cursor_w, mh = cursor_h;
     s16 rows = doubled ? (s16)(mh * 2) : mh;
-    if (mx + mw > pitch)   mw = pitch - mx;
-    if (my + rows > fb_h)  rows = fb_h - my;
-    if (mx < 0 || my < 0 || mw <= 0 || rows <= 0) {
+    if (mx + mw > pitch)
+        mw = pitch - mx;
+    
+    if (my + rows > fb_h)
+        rows = fb_h - my;
+    
+    if (mx < 0 || my < 0 || mw <= 0 || rows <= 0)
+    {
         cursor_save[bi].drawn = 0;
         return;
     }
+
     mh = rows;    // from here on, mh = SCREEN rows written (2x cursor rows if doubled)
     int L = bi;   // keep the body's existing slot naming
 #if defined(ALIS_NATIVE_PLANAR)
@@ -1918,33 +1984,61 @@ static void cursor_draw_into(u16 *fb, int bi, s16 mx, s16 my, s16 fb_h, int doub
     int s   = mx & 15;
     int cx0 = mx >> 4, cx1 = (mx + mw - 1) >> 4, nch = cx1 - cx0 + 1;
     u16 *bg = cursor_save[L].bg;
-    for (int y = 0; y < mh; y++) {
+    for (int y = 0; y < mh; y++)
+    {
         u16 *drow = fb + (s32)(my + y) * pw + (s32)cx0 * 8;
         const u16 *cw = cursor_planar[doubled ? (y >> 1) : y];
-        for (int c = 0; c < nch * 8; c++) *bg++ = drow[c];        // save bg (plane-words)
+        for (int c = 0; c < nch * 8; c++)
+            *bg++ = drow[c];                                      // save bg (plane-words)
+        
         u16 un0 = 0, dl[8];
-        for (int p = 0; p < 8; p++) { dl[p] = (u16)(cw[p] >> s); un0 |= dl[p]; }
-        if (un0) { u16 nm = (u16)~un0;
-            for (int p = 0; p < 8; p++) drow[p] = (u16)((drow[p] & nm) | dl[p]); }
-        if (nch == 2) {                                          // spill into the next chunk
+        for (int p = 0; p < 8; p++)
+        {
+            dl[p] = (u16)(cw[p] >> s);
+            un0 |= dl[p];
+        }
+
+        if (un0)
+        {
+            u16 nm = (u16)~un0;
+            for (int p = 0; p < 8; p++)
+                drow[p] = (u16)((drow[p] & nm) | dl[p]);
+        }
+
+        if (nch == 2)  // spill into the next chunk
+        {
             u16 un1 = 0, dt[8]; u16 *dc = drow + 8;
-            for (int p = 0; p < 8; p++) { dt[p] = (u16)(cw[p] << (16 - s)); un1 |= dt[p]; }
-            if (un1) { u16 nm = (u16)~un1;
-                for (int p = 0; p < 8; p++) dc[p] = (u16)((dc[p] & nm) | dt[p]); }
+            for (int p = 0; p < 8; p++)
+            {
+                dt[p] = (u16)(cw[p] << (16 - s));
+                un1 |= dt[p];
+            }
+
+            if (un1)
+            {
+                u16 nm = (u16)~un1;
+                for (int p = 0; p < 8; p++)
+                    dc[p] = (u16)((dc[p] & nm) | dt[p]);
+            }
         }
     }
+
     cursor_save[L].x = (s16)cx0; cursor_save[L].y = my;
     cursor_save[L].w = (s16)nch; cursor_save[L].h = mh;
 #else
     const u8 *src = mouse_pixels;
-    for (int y = 0; y < mh; y++) {
-        for (int x = 0; x < mw; x++) {
+    for (int y = 0; y < mh; y++)
+    {
+        for (int x = 0; x < mw; x++)
+        {
             u16 *dst = &fb[(my + y) * pitch + (mx + x)];
             cursor_save[L].bg[y * 16 + x] = *dst;
             u8 idx = src[y * cursor_w + x];
-            if (idx) *dst = pal16[idx];
+            if (idx)
+                *dst = pal16[idx];
         }
     }
+
     cursor_save[L].x = mx; cursor_save[L].y = my;
     cursor_save[L].w = mw; cursor_save[L].h = mh;
 #endif
@@ -1961,9 +2055,11 @@ void sys_mouse_draw(void)
 #endif
     if (image.logic == NULL)
         return;
+    
     int L = (image.logic == vm_render_buf0()) ? 0 : 1;
 
-    if (!mouse.enabled) {
+    if (!mouse.enabled)
+    {
         cursor_save[L].drawn = 0;
         return;
     }
@@ -1977,12 +2073,15 @@ void sys_mouse_draw(void)
 // buffers, forget the saved backgrounds and keep the ISR off them; off: let it draw again.
 void sys_cursor_hold(int on)
 {
-    if (!on) {
+    if (!on)
+    {
         g_cursor_lock = 0;
         return;
     }
+
     g_cursor_lock = 1;
-    for (int s = 0; s < 2; s++) {
+    for (int s = 0; s < 2; s++)
+    {
         u8 *fb = sys_get_framebuffer(s);
 #if defined(ALIS_NATIVE_PLANAR)
         if (is_doubleline)
@@ -2000,52 +2099,55 @@ void sys_cursor_hold(int on)
 // (b) erases/redraws the cursor on the FRONT buffer. draw() holds g_cursor_lock
 // around the oldfen-copy/uncopy window and the flip; the handler skips those ticks.
 // ---------------------------------------------------------------------------
-// Gate diagnostics, dumped from sys_render (dbglog is not ISR-safe).
-volatile u32 g_mcur_tick, g_mcur_lock, g_mcur_nofront, g_mcur_gate, g_mcur_same, g_mcur_draw;
-
 static void atari_mouse_vbl(void)
 {
-    g_mcur_tick++;
     // (a) integrate deltas at tick rate
     static s16 seen_x, seen_y;
     s16 ax = g_mouse_dx, ay = g_mouse_dy;      // single s16 reads — atomic vs IKBD ISR
     s16 dx = (s16)(ax - seen_x), dy = (s16)(ay - seen_y);
     seen_x = ax; seen_y = ay;
-    if (dx || dy) {
+    if (dx || dy)
+    {
         mouse.x += dx;
         mouse.y += dy;
-        if (mouse.x < 0) mouse.x = 0;
-        if (mouse.y < 0) mouse.y = 0;
-        if (mouse.x >= host.pixelbuf.w) mouse.x = host.pixelbuf.w - 1;
-        if (mouse.y >= host.pixelbuf.h) mouse.y = host.pixelbuf.h - 1;
+        if (mouse.x < 0)
+            mouse.x = 0;
+        
+        if (mouse.y < 0)
+            mouse.y = 0;
+        
+        if (mouse.x >= host.pixelbuf.w)
+            mouse.x = host.pixelbuf.w - 1;
+        
+        if (mouse.y >= host.pixelbuf.h)
+            mouse.y = host.pixelbuf.h - 1;
     }
 
     // (b) move the on-screen cursor
-    if (g_cursor_lock || g_isr_paused) {
-        g_mcur_lock++;
+    if (g_cursor_lock || g_isr_paused)
         return;
-    }
+    
     u8 *front = g_cursor_front;
-    if (front == NULL) {
-        g_mcur_nofront++;
+    if (front == NULL)
         return;
-    }
-    if (!mouse.enabled || alis.fswitch == 0) {
-        g_mcur_gate++;
+    
+    if (!mouse.enabled || alis.fswitch == 0)
         return;
-    }
+    
     // TT: the front is a line-doubled 320x480 SCREEN buffer (slots indexed by
     // screen_buf, absolute screen row = border + 2*game_y). Falcon: the front is
     // a 320x200 compose/screen buffer (slots indexed by the vm bufs).
     int F, dbl;
     s16 sy, fbh;
 #if defined(ALIS_NATIVE_PLANAR)
-    if (is_doubleline) {
+    if (is_doubleline)
+    {
         dbl = 1;
         F   = (front == screen_buf[0]) ? 0 : 1;
         sy  = (s16)(((screen_height - 2 * height) / 2) + mouse.y * 2);
         fbh = (s16)screen_height;
-    } else
+    }
+    else
 #endif
     {
         dbl = 0;
@@ -2053,16 +2155,17 @@ static void atari_mouse_vbl(void)
         sy  = mouse.y;
         fbh = (s16)host.pixelbuf.h;
     }
-    if (cursor_save[F].drawn && g_cursor_drawn_x[F] == mouse.x && g_cursor_drawn_y[F] == mouse.y) {
-        g_mcur_same++;
+
+    if (cursor_save[F].drawn && g_cursor_drawn_x[F] == mouse.x && g_cursor_drawn_y[F] == mouse.y)
         return;                                 // already drawn there
-    }
-    if (cursor_save[F].drawn) {
+    
+    if (cursor_save[F].drawn)
+    {
         cursor_restore_into((u16 *)front, F);
         cursor_save[F].drawn = 0;
     }
+
     cursor_draw_into((u16 *)front, F, mouse.x, sy, fbh, dbl);
-    g_mcur_draw++;
     g_cursor_drawn_x[F] = mouse.x;
     g_cursor_drawn_y[F] = mouse.y;
 }
@@ -2163,7 +2266,8 @@ static u8  film_prev_valid = 0;
 static void s512_build_luts(void)
 {
     // Quantise the ST 3-3-3 colour to RGB 2-3-3 (matches sys_sdl1.c lut9.p8).
-    for (int c = 0; c < 512; c++) {
+    for (int c = 0; c < 512; c++)
+    {
         u8 r2 = (c >> 7) & 3, g3 = (c >> 3) & 7, b3 = c & 7;
         s512_lut9[c] = (u8)((r2 << 6) | (g3 << 3) | b3);
     }
@@ -2171,11 +2275,15 @@ static void s512_build_luts(void)
     // Palette-change columns: pi = (seed + col*102) >> 10 becomes k at the first column where
     // seed + col*102 >= k*1024. Precomputed so the render walks pixel-runs between changes
     // instead of recomputing pi (a variable asr) every pixel. seed 408 = left half, 510 = right.
-    for (int s = 0; s < 2; s++) {
+    for (int s = 0; s < 2; s++)
+    {
         int seed = s ? 510 : 408;
-        for (int k = 0; k <= 17; k++) {
+        for (int k = 0; k <= 17; k++)
+        {
             int x = 0; long thr = (long)k * 1024;
-            while (x < 160 && (seed + (long)x * 102) < thr) x++;
+            while (x < 160 && (seed + (long)x * 102) < thr)
+                x++;
+            
             s512_seg[s][k] = (u8)x;
         }
     }
@@ -2188,23 +2296,33 @@ static int s512_build_luts16(void)
 {
     if (s512_pal2565)
         return 1;
+    
     u16 *blk = (u16 *)malloc(4096 * sizeof(u16) + 256 * sizeof(u32));
     if (!blk)
         return 0;
+    
     // ST 3-3-3 colour (9-bit index) -> RGB565: expand each component to 5/6 bits.
     u16 lut16[512];
-    for (int c = 0; c < 512; c++) {
+    for (int c = 0; c < 512; c++)
+    {
         u8 r = (c >> 6) & 7, g = (c >> 3) & 7, b = c & 7;
         u16 r5 = (r << 2) | (r >> 1), g6 = (g << 3) | g, b5 = (b << 2) | (b >> 1);
         lut16[c] = (u16)((r5 << 11) | (g6 << 5) | b5);
     }
+
     u32 *spread = (u32 *)(blk + 4096);
-    for (int v = 0; v < 4096; v++) blk[v] = lut16[ST_PAL9(v)];   // folds ST_PAL9 in
-    for (int b = 0; b < 256; b++) {
+    for (int v = 0; v < 4096; v++)
+        blk[v] = lut16[ST_PAL9(v)];                              // folds ST_PAL9 in
+    
+    for (int b = 0; b < 256; b++)
+    {
         u32 s = 0;
-        for (int k = 0; k < 8; k++) if (b & (1 << k)) s |= 1u << ((7 - k) * 4);
+        for (int k = 0; k < 8; k++)
+            if (b & (1 << k))
+                s |= 1u << ((7 - k) * 4);
         spread[b] = s;                             // bit k (pixel 7-k in the byte) -> nibble (7-k)
     }
+
     s512_spread = spread;
     s512_pal2565 = blk;
     return 1;
@@ -2226,7 +2344,8 @@ static void s512_free_luts16(void)
 static void s512_clear_high_planes(u8 *buf)
 {
     u32 *p = (u32 *)buf;
-    for (u32 i = 0; i < 16000; i += 4) {   // 64000 bytes / 4 = 16000 longs, 4 longs per group
+    for (u32 i = 0; i < 16000; i += 4)  // 64000 bytes / 4 = 16000 longs, 4 longs per group
+    {
         p[i + 2] = 0;                      // planes 4,5
         p[i + 3] = 0;                      // planes 6,7
     }
@@ -2248,19 +2367,24 @@ static long s512_clut_super(void)
 // (matches sys_sdl1.c hicolor8_palette). Built into buffer.palette + applied once.
 static void s512_set_clut(pixelbuf_t buffer)
 {
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         sColorARGB *c = (sColorARGB *)&buffer.palette[i];
         c->a = 0;
         c->r = (u8)(i & 0xC0);
         c->g = (u8)((i & 0x38) << 2);
         c->b = (u8)((i & 0x07) << 5);
     }
+
     // VIDEL CLUT is supervisor-only: Supexec. Not falcon_clut_apply (its clinepal branch would
     // re-pack a flat RGB233 CLUT). TT/ST: XBIOS.
-    if (machine_type == MCH_FALCON) {
+    if (machine_type == MCH_FALCON)
+    {
         g_s512_clut_src = (const u32 *)buffer.palette;
         Supexec(s512_clut_super);
-    } else {
+    }
+    else
+    {
         set_palette(buffer.palette, 256);
     }
 }
@@ -2270,7 +2394,8 @@ static void s512_set_clut(pixelbuf_t buffer)
 static void s512_render_planar(u8 *back)
 {
     extern u8 *vgalogic_df;
-    if (!s512_luts_ready) s512_build_luts();
+    if (!s512_luts_ready)
+        s512_build_luts();
 
     u8  *bitmap  = vgalogic_df + 0xA0;
     // 17+ entries: pi reaches 16 on the last pixels of a half-line (written, never read for output).
@@ -2278,82 +2403,111 @@ static void s512_render_planar(u8 *back)
     memcpy(curpal, vgalogic_df + 32000, 32);
     u16 *palette = (u16 *)(vgalogic_df + 32000 + 32);
     u8   llut[24];
-    for (int c = 0; c < 16; c++) llut[c] = s512_lut9[ST_PAL9(curpal[c])];
+    for (int c = 0; c < 16; c++)
+        llut[c] = s512_lut9[ST_PAL9(curpal[c])];
 
     // FLS films leave bfilm.height at 0 (the ST format doesn't set it); the frame is always the
     // full 200-line screen (SDL uses buffer.h, not bfilm.height).
     s32 h = bfilm.height > 0 ? bfilm.height : 200;
-    if (h > 200) h = 200;
+    if (h > 200)
+        h = 200;
+    
     u32 at = 0;
-    for (s32 y = 0; y < h; y++, palette += 16) {
+    for (s32 y = 0; y < h; y++, palette += 16)
+    {
         u8 halves = fls_dirty_lines[y] | fls_prev_dirty[y];
-        if (!halves) {                                  // whole line unchanged: advance palette state
+        if (!halves)  // whole line unchanged: advance palette state
+        {
             at += 160; palette += 32;
             memcpy(curpal, palette, 32);
-            for (int c = 0; c < 16; c++) llut[c] = s512_lut9[ST_PAL9(curpal[c])];
+            for (int c = 0; c < 16; c++)
+                llut[c] = s512_lut9[ST_PAL9(curpal[c])];
+            
             continue;
         }
+
         u16 *pw = (u16 *)(back + (u32)y * planar_pitch);
         s32 palcntr, prev_pi;
 
         // Left half — columns 0..159 (10 chunks of 16 px). palcntr seed 408.
-        if (halves & 1) {
+        if (halves & 1)
+        {
             palcntr = 408; prev_pi = -1;
-            for (int ch = 0; ch < 10; ch++, at += 8, pw += 8) {
+            for (int ch = 0; ch < 10; ch++, at += 8, pw += 8)
+            {
                 u16 pl[4];
                 pl[0]=(bitmap[at]  <<8)|bitmap[at+1]; pl[1]=(bitmap[at+2]<<8)|bitmap[at+3];
                 pl[2]=(bitmap[at+4]<<8)|bitmap[at+5]; pl[3]=(bitmap[at+6]<<8)|bitmap[at+7];
                 u8 idx[16], out8[16];
                 s512_planar_to_chunky16(pl, idx);
-                for (int i = 0; i < 16; i++) {
+                for (int i = 0; i < 16; i++)
+                {
                     s32 pi = palcntr >> 10;
-                    if (pi != prev_pi) {
+                    if (pi != prev_pi)
+                    {
                         curpal[pi] = palette[pi];
                         llut[pi] = s512_lut9[ST_PAL9(curpal[pi])];
                         prev_pi = pi;
                     }
+
                     out8[i] = llut[idx[i]];
                     palcntr += 102;
                 }
+
                 s512_chunky16_to_planar(out8, pw);
             }
-        } else {
+        }
+        else
+        {
             at += 80; pw += 80;
             memcpy(curpal, palette, 32);
-            for (int c = 0; c < 16; c++) llut[c] = s512_lut9[ST_PAL9(curpal[c])];
+            for (int c = 0; c < 16; c++)
+                llut[c] = s512_lut9[ST_PAL9(curpal[c])];
         }
+
         palette += 16;
 
         // Right half — columns 160..319 (10 chunks). palcntr seed 510.
-        if (halves & 2) {
+        if (halves & 2)
+        {
             palcntr = 510; prev_pi = -1;
-            for (int ch = 0; ch < 10; ch++, at += 8, pw += 8) {
+            for (int ch = 0; ch < 10; ch++, at += 8, pw += 8)
+            {
                 u16 pl[4];
                 pl[0]=(bitmap[at]  <<8)|bitmap[at+1]; pl[1]=(bitmap[at+2]<<8)|bitmap[at+3];
                 pl[2]=(bitmap[at+4]<<8)|bitmap[at+5]; pl[3]=(bitmap[at+6]<<8)|bitmap[at+7];
                 u8 idx[16], out8[16];
                 s512_planar_to_chunky16(pl, idx);
-                for (int i = 0; i < 16; i++) {
+                for (int i = 0; i < 16; i++)
+                {
                     s32 pi = palcntr >> 10;
-                    if (pi != prev_pi) {
+                    if (pi != prev_pi)
+                    {
                         curpal[pi] = palette[pi];
                         llut[pi] = s512_lut9[ST_PAL9(curpal[pi])];
                         prev_pi = pi;
                     }
+
                     out8[i] = llut[idx[i]];
                     palcntr += 102;
                 }
+
                 s512_chunky16_to_planar(out8, pw);
             }
-        } else {
+        }
+        else
+        {
             at += 80;
             memcpy(curpal, palette, 32);
-            for (int c = 0; c < 16; c++) llut[c] = s512_lut9[ST_PAL9(curpal[c])];
+            for (int c = 0; c < 16; c++)
+                llut[c] = s512_lut9[ST_PAL9(curpal[c])];
         }
+
         palette += 16;
 
         memcpy(curpal, palette, 32);
-        for (int c = 0; c < 16; c++) llut[c] = s512_lut9[ST_PAL9(curpal[c])];
+        for (int c = 0; c < 16; c++)
+            llut[c] = s512_lut9[ST_PAL9(curpal[c])];
     }
 
     memcpy(fls_prev_dirty, fls_dirty_lines, 200);
@@ -2376,7 +2530,8 @@ static void s512_render_planar(u8 *back)
 // Reload all 16 base palette entries (line-start / not-dirty state) via the direct pal->565 LUT.
 static inline void s512_rebuild(u16 *llut16, const u16 *palette)
 {
-    for (int c = 0; c < 16; c++) llut16[c] = s512_pal2565[palette[c] & 0xfff];
+    for (int c = 0; c < 16; c++)
+        llut16[c] = s512_pal2565[palette[c] & 0xfff];
 }
 
 // Fused half-line: transpose 10 planar chunks to chunky nibbles via s512_spread (kept in
@@ -2388,17 +2543,33 @@ static inline void s512_emit_half(const u8 *bm, u16 *scr, const u16 *palette,
                                   const u8 *sg, u16 *llut16)
 {
     int col = 0, next_k = 0, bound = sg[0];
-    for (int ch = 0; ch < 10; ch++) {
+    for (int ch = 0; ch < 10; ch++)
+    {
         u16 p0=(bm[0]<<8)|bm[1], p1=(bm[2]<<8)|bm[3], p2=(bm[4]<<8)|bm[5], p3=(bm[6]<<8)|bm[7];
         bm += 8;
         u32 hi = s512_spread[p0>>8]   | (s512_spread[p1>>8]<<1)   | (s512_spread[p2>>8]<<2)   | (s512_spread[p3>>8]<<3);
         u32 lo = s512_spread[p0&0xff] | (s512_spread[p1&0xff]<<1) | (s512_spread[p2&0xff]<<2) | (s512_spread[p3&0xff]<<3);
-        for (int p = 0; p < 8; p++) {
-            while (col == bound) { llut16[next_k] = s512_pal2565[palette[next_k] & 0xfff]; next_k++; bound = sg[next_k]; }
+        for (int p = 0; p < 8; p++)
+        {
+            while (col == bound)
+            {
+                llut16[next_k] = s512_pal2565[palette[next_k] & 0xfff];
+                next_k++;
+                bound = sg[next_k];
+            }
+
             scr[col++] = llut16[hi & 0xf]; hi >>= 4;
         }
-        for (int p = 0; p < 8; p++) {
-            while (col == bound) { llut16[next_k] = s512_pal2565[palette[next_k] & 0xfff]; next_k++; bound = sg[next_k]; }
+
+        for (int p = 0; p < 8; p++)
+        {
+            while (col == bound)
+            {
+                llut16[next_k] = s512_pal2565[palette[next_k] & 0xfff];
+                next_k++;
+                bound = sg[next_k];
+            }
+
             scr[col++] = llut16[lo & 0xf]; lo >>= 4;
         }
     }
@@ -2406,8 +2577,11 @@ static inline void s512_emit_half(const u8 *bm, u16 *scr, const u16 *palette,
 
 static S512_16_ATTR void s512_render_16(u16 *screen, u32 stride)
 {
-    if (!s512_luts_ready) s512_build_luts();
-    if (!s512_build_luts16()) return;
+    if (!s512_luts_ready)
+        s512_build_luts();
+    
+    if (!s512_build_luts16())
+        return;
 
     u8 *bitmap = vgalogic_df + 0xA0;
     u16 llut16[24];                                    // [16] tolerated (pi reaches 16); never read for output
@@ -2415,33 +2589,45 @@ static S512_16_ATTR void s512_render_16(u16 *screen, u32 stride)
     const u16 *palette = (const u16 *)(vgalogic_df + 32000 + 32);
 
     s32 h = bfilm.height > 0 ? bfilm.height : 200;
-    if (h > 200) h = 200;
+    if (h > 200)
+        h = 200;
     u32 at = 0;
-    for (s32 y = 0; y < h; y++, palette += 16) {
+    for (s32 y = 0; y < h; y++, palette += 16)
+    {
         u8 halves = fls_dirty_lines[y] | fls_prev_dirty[y];
-        if (!halves) {                                 // whole line unchanged: advance palette state
+        if (!halves)  // whole line unchanged: advance palette state
+        {
             at += 160; palette += 32;
             s512_rebuild(llut16, palette);
             continue;
         }
+
         u16 *row = screen + (u32)y * stride;
 
-        if (halves & 1) {                              // left half — columns 0..159, seed 408
+        if (halves & 1)  // left half — columns 0..159, seed 408
+        {
             s512_emit_half(bitmap + at, row, palette, s512_seg[0], llut16);
             at += 80;
-        } else {
+        }
+        else
+        {
             at += 80;
             s512_rebuild(llut16, palette);
         }
+
         palette += 16;
 
-        if (halves & 2) {                              // right half — columns 160..319, seed 510
+        if (halves & 2)  // right half — columns 160..319, seed 510
+        {
             s512_emit_half(bitmap + at, row + 160, palette, s512_seg[1], llut16);
             at += 80;
-        } else {
+        }
+        else
+        {
             at += 80;
             s512_rebuild(llut16, palette);
         }
+
         palette += 16;
 
         s512_rebuild(llut16, palette);
@@ -2465,7 +2651,8 @@ static S512_16_ATTR void s512_render_16(u16 *screen, u32 stride)
 static void ham6_render_planar(u8 *back)
 {
     extern u8 *vgalogic_df;
-    if (!s512_luts_ready) s512_build_luts();
+    if (!s512_luts_ready)
+        s512_build_luts();
 
     u8 *bitmap = vgalogic_df + 0xA0;
     u32 planesize = (320u * 200u) >> 3;                 // 8000 bytes per Amiga bitplane
@@ -2479,29 +2666,49 @@ static void ham6_render_planar(u8 *back)
     for (int i = 0; i < 16; i++)
         pal233[i] = (u8)(((ham_pal[i][0] >> 6) << 6) | ((ham_pal[i][1] >> 5) << 3) | (ham_pal[i][2] >> 5));
 
-    for (s32 y = 0; y < 200; y++) {
-        if (!(fls_dirty_lines[y] | fls_prev_dirty[y])) continue;   // clean row (2-frame catch-up) → keep back buffer's copy
+    for (s32 y = 0; y < 200; y++)
+    {
+        if (!(fls_dirty_lines[y] | fls_prev_dirty[y]))
+            continue;                                    // clean row (2-frame catch-up) → keep back buffer's copy
+        
         u8 cur = 0;                                      // packed RGB233, resets each row (HAM start)
         u16 *pw = (u16 *)(back + (u32)y * planar_pitch);
         u32 off = (u32)y * 40;                           // 40 bytes/row per bitplane
-        for (int ch = 0; ch < 20; ch++, off += 2, pw += 8) {
+        for (int ch = 0; ch < 20; ch++, off += 2, pw += 8)
+        {
             u16 pi[4] = { (u16)((c0[off]<<8)|c0[off+1]), (u16)((c1[off]<<8)|c1[off+1]),
                           (u16)((c2[off]<<8)|c2[off+1]), (u16)((c3[off]<<8)|c3[off+1]) };
             u16 pc[4] = { (u16)((c4[off]<<8)|c4[off+1]), (u16)((c5[off]<<8)|c5[off+1]), 0, 0 };
             u8 idx[16], ctl[16], out8[16];
             s512_planar_to_chunky16(pi, idx);            // 4 index planes  -> 16 indices
             s512_planar_to_chunky16(pc, ctl);            // 2 control planes -> 16 ctrl (0..3)
-            for (int i = 0; i < 16; i++) {
+            for (int i = 0; i < 16; i++)
+            {
                 u8 c = ctl[i], id = idx[i];
-                if      (c == 0) cur = pal233[id];               // set from palette
-                else if (c == 1) cur = (u8)((cur & 0xF8) | (id >> 1));         // modify B (3-bit)
-                else if (c == 2) cur = (u8)((cur & 0x3F) | ((id >> 2) << 6));  // modify R (2-bit)
-                else             cur = (u8)((cur & 0xC7) | ((id >> 1) << 3));  // modify G (3-bit)
+                if      (c == 0)
+                {
+                    cur = pal233[id];                            // set from palette
+                }
+                else if (c == 1)
+                {
+                    cur = (u8)((cur & 0xF8) | (id >> 1));                      // modify B (3-bit)
+                }
+                else if (c == 2)
+                {
+                    cur = (u8)((cur & 0x3F) | ((id >> 2) << 6));               // modify R (2-bit)
+                }
+                else
+                {
+                    cur = (u8)((cur & 0xC7) | ((id >> 1) << 3));               // modify G (3-bit)
+                }
+
                 out8[i] = cur;
             }
+
             s512_chunky16_to_planar(out8, pw);
         }
     }
+
     memcpy(fls_prev_dirty, fls_dirty_lines, 200);
 }
 #endif // ALIS_NATIVE_PLANAR
@@ -2514,16 +2721,10 @@ static u8 g_flip_pending;
 // before the first write into the new back buffer, so it is usually a no-op.
 void sys_flip_wait(void)
 {
-    if (g_flip_pending) {
+    if (g_flip_pending)
+    {
         g_flip_pending = 0;
-#if defined(ALIS_PROFILE_DRAW)
-        extern u32 g_prof_frame_vsync;
-        u32 _pf_v0 = sys_profile_ticks_safe();
         Vsync();
-        g_prof_frame_vsync += sys_profile_ticks_safe() - _pf_v0;
-#else
-        Vsync();
-#endif
     }
 }
 
@@ -2639,10 +2840,20 @@ static u8      tt_pend_full[2] = { 1, 1 };    // first publish of each buffer = 
 
 static void tt_pend_add(s16 x, s16 y, s16 w, s16 h)
 {
-    if (w <= 0 || h <= 0) return;
-    for (int b = 0; b < 2; b++) {
-        if (tt_pend_full[b]) continue;
-        if (tt_pend_n[b] >= TT_PEND_MAX) { tt_pend_full[b] = 1; continue; }
+    if (w <= 0 || h <= 0)
+        return;
+    
+    for (int b = 0; b < 2; b++)
+    {
+        if (tt_pend_full[b])
+            continue;
+        
+        if (tt_pend_n[b] >= TT_PEND_MAX)
+        {
+            tt_pend_full[b] = 1;
+            continue;
+        }
+
         tt_pend[b][tt_pend_n[b]++] = (tt_rect){ x, y, w, h };
     }
 }
@@ -2653,16 +2864,21 @@ static void tt_pend_add(s16 x, s16 y, s16 w, s16 h)
 // position.
 static void tt_pend_frame(void)
 {
-    if (dirty_len == 0xff) {
+    if (dirty_len == 0xff)
+    {
         tt_pend_full[0] = tt_pend_full[1] = 1;
-    } else {
+    }
+    else
+    {
         for (int i = 0; i < dirty_len; i++)
             tt_pend_add(dirty_rects[i].x, dirty_rects[i].y, dirty_rects[i].w, dirty_rects[i].h);
     }
+    
 #if defined(ALIS_NATIVE_PLANAR)
     for (int s = 0; s < 2; s++)   // planar cursor_save: x = chunk index, w = chunks
         if (cursor_save[s].drawn)
             tt_pend_add(cursor_save[s].x * 16, cursor_save[s].y, cursor_save[s].w * 16, cursor_save[s].h);
+    
     if (mouse.enabled)
         tt_pend_add(mouse.x, mouse.y, cursor_w ? cursor_w : 16, cursor_h ? cursor_h : 16);
 #endif
@@ -2675,21 +2891,37 @@ typedef struct { s16 c0, c1, y0, y1; } chunk_rect;
 // Keeps *area (chunk-aligned pixels) in sync. Returns the new count.
 static int chunk_rect_add(chunk_rect *q, int n, u32 *area, s16 x, s16 y, s16 w, s16 h)
 {
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
-    if (x + w > 320)         w = 320 - (s32)x;
-    if (y + h > (s16)height) h = (s16)height - y;
-    if (w <= 0 || h <= 0) return n;
+    if (x < 0)
+    {
+        w += x;
+        x = 0;
+    }
+
+    if (y < 0)
+    {
+        h += y;
+        y = 0;
+    }
+
+    if (x + w > 320)
+        w = 320 - (s32)x;
+    if (y + h > (s16)height)
+        h = (s16)height - y;
+    if (w <= 0 || h <= 0)
+        return n;
 
     s16 c0 = x >> 4, c1 = (s16)(x + w - 1) >> 4, y1 = (s16)(y + h - 1);
-    for (int j = 0; j < n; j++) {
+    for (int j = 0; j < n; j++)
+    {
         if (c0 >= q[j].c0 && c1 <= q[j].c1 && y >= q[j].y0 && y1 <= q[j].y1)
             return n;
-        if (q[j].c0 >= c0 && q[j].c1 <= c1 && q[j].y0 >= y && q[j].y1 <= y1) {
+        if (q[j].c0 >= c0 && q[j].c1 <= c1 && q[j].y0 >= y && q[j].y1 <= y1)
+        {
             *area -= (u32)(q[j].c1 - q[j].c0 + 1) * 16u * (u32)(q[j].y1 - q[j].y0 + 1);
             q[j--] = q[--n];
         }
     }
+
     q[n] = (chunk_rect){ c0, c1, y, y1 };
     *area += (u32)(c1 - c0 + 1) * 16u * (u32)(y1 - y + 1);
     return n + 1;
@@ -2701,17 +2933,33 @@ static int chunk_rect_add(chunk_rect *q, int n, u32 *area, s16 x, s16 y, s16 w, 
 // mint movem-based one; the second read of src costs little (TT-RAM).
 static void tt_line_double_rect(const u8 *src, u8 *dst, s16 x, s16 y, s16 w, s16 h)
 {
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
-    if (x + w > 320)        w = 320 - (s32)x;
-    if (y + h > (s16)height) h = (s16)height - y;
-    if (w <= 0 || h <= 0) return;
+    if (x < 0)
+    {
+        w += x;
+        x = 0;
+    }
+
+    if (y < 0)
+    {
+        h += y;
+        y = 0;
+    }
+
+    if (x + w > 320)
+        w = 320 - (s32)x;
+    
+    if (y + h > (s16)height)
+        h = (s16)height - y;
+    
+    if (w <= 0 || h <= 0)
+        return;
 
     s16 c0 = x >> 4, c1 = (s16)(x + w - 1) >> 4;
     u32 wb = (u32)(c1 - c0 + 1) * 16u;
     const u8 *s = src + (u32)y * 320u + (u32)c0 * 16u;
     u8 *d = dst + (u32)y * 640u + (u32)c0 * 16u;
-    for (s16 r = 0; r < h; r++, s += 320u, d += 640u) {
+    for (s16 r = 0; r < h; r++, s += 320u, d += 640u)
+    {
         memcpy(d, s, wb);
         memcpy(d + 320, s, wb);
     }
@@ -2725,10 +2973,12 @@ static void tt_line_double_rect(const u8 *src, u8 *dst, s16 x, s16 y, s16 w, s16
 // above and below the doubled 400 stay black from the alloc-time memset.
 static u8 *tt_publish(u8 *composed, int full)
 {
-    if (g_flip_pending) {
+    if (g_flip_pending)
+    {
         g_flip_pending = 0;
         Vsync();
     }
+
     u8 *base = screen_buf[back_buf];
     u8 *dst  = base + (u32)((screen_height - 2 * height) / 2) * planar_pitch;
 
@@ -2738,7 +2988,8 @@ static u8 *tt_publish(u8 *composed, int full)
     // caller holds g_cursor_lock; film callers set g_cursor_front = NULL first.
     {
         int ts = (base == screen_buf[0]) ? 0 : 1;
-        if (cursor_save[ts].drawn) {
+        if (cursor_save[ts].drawn)
+        {
             cursor_restore_into((u16 *)base, ts);
             cursor_save[ts].drawn = 0;
         }
@@ -2748,7 +2999,8 @@ static u8 *tt_publish(u8 *composed, int full)
     // Half-res TT film frame: `composed` holds height/2 rows (even source lines);
     // quad-copy each to 4 screen rows to fill the same centered 400-line region.
     // Full copy (dirty-publish is moot for the full-motion cutscenes this targets).
-    if (g_tt_film_hr) {
+    if (g_tt_film_hr)
+    {
         g_tt_film_hr = 0;
 #if defined(ALIS_FLI_TT_SCANLINE)
         tt_line_scanline_copy(composed, dst, (u32)height >> 1);   // 2 of 4 rows; gaps pre-blacked
@@ -2761,34 +3013,47 @@ static u8 *tt_publish(u8 *composed, int full)
 #endif
 
 #if TT_DIRTY_PUBLISH
-    if (full) {
+    if (full)
+    {
         tt_pend_full[0] = tt_pend_full[1] = 1;   // both buffers need the full frame
-    } else {
+    }
+    else
+    {
         tt_pend_frame();                          // append this frame's rects to both
     }
-    if (tt_pend_full[back_buf]) {
+
+    if (tt_pend_full[back_buf])
+    {
         tt_line_double_copy(composed, dst, height);
-    } else {
+    }
+    else
+    {
         // Absorb contained rects: the 2-frame accumulation otherwise copies an
         // every-frame 3D viewport twice.
         chunk_rect q[TT_PEND_MAX];
         int n = 0;
         u32 area = 0;
-        for (int i = 0; i < tt_pend_n[back_buf]; i++) {
+        for (int i = 0; i < tt_pend_n[back_buf]; i++)
+        {
             tt_rect *r = &tt_pend[back_buf][i];
             n = chunk_rect_add(q, n, &area, r->x, r->y, r->w, r->h);
         }
+
         // Area gate: past ~70% of the frame the sequential unrolled-movem full
         // copy beats scattered per-rect memcpy rows (and bounds any remaining
         // partial-overlap double-copy).
-        if (area >= (u32)(320 * (s32)height * 7 / 10)) {
+        if (area >= (u32)(320 * (s32)height * 7 / 10))
+        {
             tt_line_double_copy(composed, dst, height);
-        } else {
+        }
+        else
+        {
             for (int i = 0; i < n; i++)
                 tt_line_double_rect(composed, dst, (s16)(q[i].c0 * 16), q[i].y0,
                                     (s16)((q[i].c1 - q[i].c0 + 1) * 16), (s16)(q[i].y1 - q[i].y0 + 1));
         }
     }
+
     tt_pend_full[back_buf] = 0;
     tt_pend_n[back_buf] = 0;
 #else
@@ -2815,20 +3080,23 @@ static void canvas_publish(void)
     chunk_rect q[256];
     int n = 0;
     u32 area = 0, bytes = 0;
-    if (!full) {
+    if (!full)
+    {
         for (int i = 0; i < dirty_len; i++)
             n = chunk_rect_add(q, n, &area, dirty_rects[i].x, dirty_rects[i].y, dirty_rects[i].w, dirty_rects[i].h);
         full = area >= (u32)(320 * (s32)height * 7 / 10);
     }
 
-    if (full) {
+    if (full)
+    {
         n = 0;
         q[n++] = (chunk_rect){ 0, 319 >> 4, 0, (s16)height - 1 };
     }
 
     // trsfen moves only the planes in use (and uses the Blitter on big aligned rects).
     s16 fx1 = image.fenx1, fy1 = image.feny1, fx2 = image.fenx2, fy2 = image.feny2;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         image.fenx1 = q[i].c0 * 16;
         image.fenx2 = q[i].c1 * 16 + 15;
         image.feny1 = q[i].y0;
@@ -2836,20 +3104,11 @@ static void canvas_publish(void)
         trsfen(src, dst);
         bytes += (u32)(q[i].c1 - q[i].c0 + 1) * 16 * (u32)(q[i].y1 - q[i].y0 + 1);
     }
+
     image.fenx1 = fx1; image.feny1 = fy1; image.fenx2 = fx2; image.feny2 = fy2;
 
-#if defined(ALIS_PROFILE_DRAW)
+    if (last_shown != screen_buf[0])
     {
-        static u32 frames, fulls, rects, copied;
-        frames++; fulls += full; rects += n; copied += bytes;
-        if (frames == 100) {
-            dbglog("canvas/100f: full=%u rects=%u KB=%u\n", fulls, rects, copied / 1024);
-            frames = fulls = rects = copied = 0;
-        }
-    }
-#endif
-
-    if (last_shown != screen_buf[0]) {
         g_flip_base = screen_buf[0];
         Supexec(videl_setbase_super);
         g_cursor_front = screen_buf[0];
@@ -2858,48 +3117,13 @@ static void canvas_publish(void)
 }
 #endif
 
-void sys_render(pixelbuf_t buffer) {
+void sys_render(pixelbuf_t buffer)
+{
 
     render_calls++;
 
-#if defined(ALIS_MEM_WATCH)
-    // Free-RAM low-water mark (largest free block per pool), logged when it drops.
-    if ((render_calls % 25) == 0) {
-        static u32 st_min = 0xffffffffu, fast_min = 0xffffffffu;
-        u32 st = sys_stram_avail(), fast = sys_fastram_avail();
-        if (st < st_min || fast < fast_min) {
-            if (st < st_min) st_min = st;
-            if (fast < fast_min) fast_min = fast;
-            dbglog("memwatch: frame %d ST free %u KB (min %u)  fast free %u KB (min %u)\n",
-                   (int)render_calls, st / 1024, st_min / 1024, fast / 1024, fast_min / 1024);
-        }
-    }
-#endif
-
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_BENCH_BUS)
-    { extern void sys_bench_bus(void); static u8 _bench_done = 0;
-      if (!_bench_done && render_calls > 3) { _bench_done = 1; sys_bench_bus(); } }
-#endif
-
-    if (render_calls <= 5)
-        dbglog("render #%d: dirty_len=%d dirty_pal=%d buf=%p\n",
-             (int)render_calls, (int)dirty_len, (int)dirty_pal, (void*)buffer.data);
-
-#if defined(ALIS_NATIVE_16BPP) || defined(ALIS_NATIVE_PLANAR)
-    // Async-cursor gate diagnostics (see atari_mouse_vbl).
+    if (dirty_mouse)
     {
-        extern volatile u32 g_mcur_tick, g_mcur_lock, g_mcur_nofront, g_mcur_gate, g_mcur_same, g_mcur_draw;
-        static u32 _mc_last; static int _mc_n;
-        if (_mc_n < 20 && g_mcur_tick - _mc_last >= 250) {   // ~every 5s of ticks
-            _mc_last = g_mcur_tick; _mc_n++;
-            dbglog("[mcur] ticks=%u lock=%u nofront=%u gate=%u same=%u draw=%u (fswitch=%d en=%d front=%p)\n",
-                   g_mcur_tick, g_mcur_lock, g_mcur_nofront, g_mcur_gate, g_mcur_same, g_mcur_draw,
-                   (int)alis.fswitch, (int)mouse.enabled, (void *)g_cursor_front);
-        }
-    }
-#endif
-
-    if (dirty_mouse) {
         dirty_mouse = false;
         sys_dirty_mouse();
     }
@@ -2919,8 +3143,7 @@ void sys_render(pixelbuf_t buffer) {
         // 16-bit mode persists across a video sequence (gaps hold the last frame instead of
         // flashing a stale planar buffer); the deferred restore below returns to planar on the
         // first real game draw. A planar-only film type must restore planar now.
-        if (g_fli16_screen && bfilm.type != eAlisVideoNone
-            && bfilm.type != eAlisVideoFLIC && bfilm.type != eAlisVideoCleanup
+        if (g_fli16_screen && bfilm.type != eAlisVideoNone && bfilm.type != eAlisVideoFLIC && bfilm.type != eAlisVideoCleanup
 #if defined(ALIS_S512_FALCON16)
             && bfilm.type != eAlisVideoS512     // S512 has its own 16-bit fused path — keep 16-bit mode
 #endif
@@ -2929,12 +3152,17 @@ void sys_render(pixelbuf_t buffer) {
 #endif
 
         // S512 / FLS films (ST 4-bit videos) — own decoder (per-scanline palette morph).
-        if (bfilm.type == eAlisVideoS512) {
+        if (bfilm.type == eAlisVideoS512)
+        {
 #if defined(ALIS_S512_FALCON16)
             // Falcon 16-bit fused path: render RGB565 into the off-screen FLIC 16-bit surface, flip.
-            if (machine_type == MCH_FALCON) {
-                if (!g_fli16_screen) sys_film16_begin(width, height);
-                if (g_fli16_screen) {
+            if (machine_type == MCH_FALCON)
+            {
+                if (!g_fli16_screen)
+                    sys_film16_begin(width, height);
+                
+                if (g_fli16_screen)
+                {
                     extern u8 g_s512_ending;
                     // No s512_was_active: planar buffers untouched, no high-plane clear needed.
                     s512_render_16(film16_back, g_fli16_stride);   // dirty|prev-dirty lines, 2-frame catch-up
@@ -2945,33 +3173,30 @@ void sys_render(pixelbuf_t buffer) {
                     g_fli16_screen = film16_front;                 // keep armed (deferred restore ends it)
                     g_cursor_front = NULL;
                     dirty_len = 0;
-                    if (g_s512_ending) { bfilm.type = eAlisVideoNone; g_s512_ending = 0; }
+                    if (g_s512_ending)
+                    {
+                        bfilm.type = eAlisVideoNone;
+                        g_s512_ending = 0;
+                    }
+
                     return;
                 }
             }
 #endif
-            if (film_shown == NULL) film_shown = image.physic;
+            if (film_shown == NULL)
+                film_shown = image.physic;
+            
             u8 *back = (film_shown == image.physic) ? image.logic : image.physic;
             s512_was_active = 1;
-#if defined(ALIS_PROFILE_DRAW)
-            u32 _s5_0 = sys_profile_ticks_safe();
-#endif
             s512_render_planar(back);                  // writes dirty|prev-dirty lines only
             // CLUT after rendering, right before the flip: the slow first frame would otherwise
             // show the previous image under the new palette.
-            if (!s512_clut_set) { s512_set_clut(buffer); s512_clut_set = 1; }
-#if defined(ALIS_PROFILE_DRAW)
+            if (!s512_clut_set)
             {
-                extern u32 g_flic_decode;
-                static u32 s5_n, s5_dec, s5_dec0;
-                s5_dec += sys_profile_ticks_safe() - _s5_0;
-                if (++s5_n >= 50) {
-                    dbglog("S512/50f: render=%u ticks(%ums) decode=%u(%ums)\n",
-                           s5_dec, s5_dec * 5, g_flic_decode - s5_dec0, (g_flic_decode - s5_dec0) * 5);
-                    s5_n = s5_dec = 0; s5_dec0 = g_flic_decode;
-                }
+                s512_set_clut(buffer);
+                s512_clut_set = 1;
             }
-#endif
+
             g_cursor_front = NULL;   // films own the screen; no ISR cursor until the game flips again
             g_flip_base = is_doubleline ? tt_publish(back, 1) : back;   // films: full frame
             Supexec(videl_setbase_super);
@@ -2981,56 +3206,77 @@ void sys_render(pixelbuf_t buffer) {
             // Final frame flushed (runfilm hit end-of-data): now drop to None so the game resumes.
             // The film-end reset below (next call) does the ping-pong reset + deferred plane clear.
             { extern u8 g_s512_ending;
-              if (g_s512_ending) { bfilm.type = eAlisVideoNone; g_s512_ending = 0; } }
+              if (g_s512_ending)
+              {
+                  bfilm.type = eAlisVideoNone;
+                  g_s512_ending = 0;
+              }
+            }
             return;
         }
 
         // HAM6 / Amiga Hold-And-Modify films. Same fixed RGB233 CLUT + ping-pong/flip as S512;
         // the decoder renders the whole frame (no usable per-line dirty), so no catch-up needed.
-        if (bfilm.type == eAlisVideoHAM6) {
+        if (bfilm.type == eAlisVideoHAM6)
+        {
             extern u8 g_s512_ending;
             static s16 last_ham_frame = -1;
-            if (film_shown == NULL) { film_shown = image.physic; last_ham_frame = -1; }
+            if (film_shown == NULL)
+            {
+                film_shown = image.physic;
+                last_ham_frame = -1;
+            }
+
             u8 *back = (film_shown == image.physic) ? image.logic : image.physic;
             // Full HAM decode is expensive; don't repeat it when the film frame hasn't advanced
             // (the game keeps calling sys_render between crunfilm ticks). Keep the current display.
-            if (bfilm.frame == last_ham_frame && !g_s512_ending) { dirty_len = 0; return; }
+            if (bfilm.frame == last_ham_frame && !g_s512_ending)
+            {
+                dirty_len = 0;
+                return;
+            }
+
             int _h6_first = (last_ham_frame < 0);        // first render of this film
             last_ham_frame = bfilm.frame;
             s512_was_active = 1;
             // First frame: force every row (both ping-pong buffers get a full frame over 2 frames via
             // the catch-up), so no never-dirtied row is left showing stale buffer content.
-            if (_h6_first) memset(fls_dirty_lines, 3, 200);
-            { static int _h6_dbg = 0;
-              if (_h6_dbg < 40) { dbglog("HAM6 render: frame=%d back=%p film_shown=%p pal0=%d,%d,%d\n",
-                    (int)bfilm.frame, (void*)back, (void*)film_shown,
-                    bfilm.ham_pal[0][0], bfilm.ham_pal[0][1], bfilm.ham_pal[0][2]); _h6_dbg++; } }
-#if defined(ALIS_PROFILE_DRAW)
-            u32 _h6_0 = sys_profile_ticks_safe();
-#endif
+            if (_h6_first)
+                memset(fls_dirty_lines, 3, 200);
+            
             ham6_render_planar(back);
-            if (!s512_clut_set) { s512_set_clut(buffer); s512_clut_set = 1; }
-#if defined(ALIS_PROFILE_DRAW)
-            { static u32 h6_n, h6_r; h6_r += sys_profile_ticks_safe() - _h6_0;
-              if (++h6_n >= 50) { dbglog("HAM6/50f: render=%u ticks(%ums)\n", h6_r, h6_r*5); h6_n = h6_r = 0; } }
-#endif
+            if (!s512_clut_set)
+            {
+                s512_set_clut(buffer);
+                s512_clut_set = 1;
+            }
+
             g_cursor_front = NULL;   // films own the screen; no ISR cursor until the game flips again
             g_flip_base = is_doubleline ? tt_publish(back, 1) : back;   // films: full frame
             Supexec(videl_setbase_super);
             Vsync();
             film_shown = back;
             { extern u8 g_s512_ending;
-              if (g_s512_ending) { bfilm.type = eAlisVideoNone; g_s512_ending = 0; } }
+              if (g_s512_ending)
+              {
+                  bfilm.type = eAlisVideoNone;
+                  g_s512_ending = 0;
+              }
+            }
             dirty_len = 0;
             return;
         }
 
-        if (bfilm.type == eAlisVideoFLIC || bfilm.type == eAlisVideoCleanup) {
+        if (bfilm.type == eAlisVideoFLIC || bfilm.type == eAlisVideoCleanup)
+        {
 #if defined(ALIS_FLI_FALCON16)
             // 16-bit fused path: fli_decomp16 already wrote the screen. Cleanup frame: retire
             // the film but stay 16-bit (see the deferred restore).
-            if (g_fli16_screen) {
-                if (bfilm.type == eAlisVideoCleanup) bfilm.type = eAlisVideoNone;
+            if (g_fli16_screen)
+            {
+                if (bfilm.type == eAlisVideoCleanup)
+                    bfilm.type = eAlisVideoNone;
+                
                 dirty_len = 0;
                 return;
             }
@@ -3040,10 +3286,12 @@ void sys_render(pixelbuf_t buffer) {
             // point the VIDEL at it. Because the back buffer sat out the previous frame, apply BOTH
             // the previous and current frame's dirty rows (2-frame catch-up) so it's coherent; a
             // keyframe (dirty_len==0xff) marks all rows.
-            if (film_shown == NULL) {
+            if (film_shown == NULL)
+            {
                 film_shown = image.physic;   // physic is live when a film starts
 #if defined(ALIS_FLI_TT_SCANLINE)
-                if (is_doubleline) {
+                if (is_doubleline)
+                {
                     // Scanline mode never writes the "off" rows, so black the whole video
                     // region in BOTH screen buffers once now -> the gaps stay black.
                     u32 _off = (u32)((screen_height - 2 * height) / 2) * planar_pitch;
@@ -3053,6 +3301,7 @@ void sys_render(pixelbuf_t buffer) {
                 }
 #endif
             }
+
             u8 *back = (film_shown == image.physic) ? image.logic : image.physic;
 
 #if defined(ALIS_FLI_SPAN_C2P)
@@ -3062,131 +3311,139 @@ void sys_render(pixelbuf_t buffer) {
              * spans is harmless. */
             s32 cpr = (w + 15) >> 4;
             static u16 cur_c0[256], cur_c1[256];
-            if (dirty_len == 0xff) {
-                for (s32 y = 0; y < hc; y++) { cur_c0[y] = 0; cur_c1[y] = (u16)cpr; }
-            } else {
-                for (s32 y = 0; y < hc; y++) { cur_c0[y] = (u16)cpr; cur_c1[y] = 0; }  // empty span
-                for (int i = 0; i < (int)dirty_len; i++) {
+            if (dirty_len == 0xff)
+            {
+                for (s32 y = 0; y < hc; y++)
+                {
+                    cur_c0[y] = 0;
+                    cur_c1[y] = (u16)cpr;
+                }
+            }
+            else
+            {
+                for (s32 y = 0; y < hc; y++)
+                {
+                    cur_c0[y] = (u16)cpr;
+                    cur_c1[y] = 0;
+                }                                                                      // empty span
+
+                for (int i = 0; i < (int)dirty_len; i++)
+                {
                     s32 ry = dirty_rects[i].y - image.feny1;
-                    if (ry < 0 || ry >= hc) continue;
+                    if (ry < 0 || ry >= hc)
+                        continue;
+                    
                     s32 rx0 = dirty_rects[i].x - image.fenx1;
                     s32 rx1 = rx0 + dirty_rects[i].w;
-                    if (rx0 < 0) rx0 = 0;
-                    if (rx1 > w) rx1 = w;
-                    if (rx1 <= rx0) continue;
+                    if (rx0 < 0)
+                        rx0 = 0;
+                    
+                    if (rx1 > w)
+                        rx1 = w;
+                    
+                    if (rx1 <= rx0)
+                        continue;
+                    
                     u16 c0 = (u16)(rx0 >> 4);
                     u16 c1 = (u16)((rx1 + 15) >> 4);
-                    if (c1 > (u16)cpr) c1 = (u16)cpr;
-                    if (c0 < cur_c0[ry]) cur_c0[ry] = c0;
-                    if (c1 > cur_c1[ry]) cur_c1[ry] = c1;
+                    if (c1 > (u16)cpr)
+                        c1 = (u16)cpr;
+                    
+                    if (c0 < cur_c0[ry])
+                        cur_c0[ry] = c0;
+                    
+                    if (c1 > cur_c1[ry])
+                        cur_c1[ry] = c1;
                 }
             }
-#if defined(ALIS_PROFILE_DRAW)
-            u32 _fp_rows = 0, _fp_c0 = sys_profile_ticks_safe();
-#endif
 #if defined(ALIS_FLI_TT_HALFRES)
-            if (is_doubleline) {
+            if (is_doubleline)
+            {
                 // TT half-res: c2p only EVEN source rows into the top half of the compose
                 // buffer (row k = source row 2k); tt_publish quad-copies them to screen.
-                for (s32 k = 0, y = 0; y < hc; k++, y += 2) {
+                for (s32 k = 0, y = 0; y < hc; k++, y += 2)
+                {
                     s32 a0 = cur_c0[y], a1 = cur_c1[y];
-                    if (film_prev_valid) {
-                        if (film_prev_c0[y] < a0) a0 = film_prev_c0[y];
-                        if (film_prev_c1[y] > a1) a1 = film_prev_c1[y];
+                    if (film_prev_valid)
+                    {
+                        if (film_prev_c0[y] < a0)
+                            a0 = film_prev_c0[y];
+                        
+                        if (film_prev_c1[y] > a1)
+                            a1 = film_prev_c1[y];
                     }
-                    if (a1 > a0) {
+
+                    if (a1 > a0)
+                    {
                         s32 px0 = a0 * 16;
                         s32 pxend = a1 * 16; if (pxend > w) pxend = w;
-                        chunky8_to_planar(vgalogic + (u32)y * w + px0, pxend - px0, 1, 0,
-                                          back + (u32)k * planar_pitch + px0);
-#if defined(ALIS_PROFILE_DRAW)
-                        _fp_rows++;
-#endif
+                        chunky8_to_planar(vgalogic + (u32)y * w + px0, pxend - px0, 1, 0, back + (u32)k * planar_pitch + px0);
                     }
                 }
+
                 g_tt_film_hr = 1;   // tt_publish: quad-copy hc/2 compose rows for this frame
-            } else
+            }
+            else
 #endif
-            for (s32 y = 0; y < hc; y++) {
+            for (s32 y = 0; y < hc; y++)
+            {
                 s32 a0 = cur_c0[y], a1 = cur_c1[y];
-                if (film_prev_valid) {
-                    if (film_prev_c0[y] < a0) a0 = film_prev_c0[y];
-                    if (film_prev_c1[y] > a1) a1 = film_prev_c1[y];
+                if (film_prev_valid)
+                {
+                    if (film_prev_c0[y] < a0)
+                        a0 = film_prev_c0[y];
+                    
+                    if (film_prev_c1[y] > a1)
+                        a1 = film_prev_c1[y];
                 }
-                if (a1 > a0) {
+
+                if (a1 > a0)
+                {
                     s32 px0 = a0 * 16;
                     s32 pxend = a1 * 16; if (pxend > w) pxend = w;
-                    chunky8_to_planar(vgalogic + (u32)y * w + px0, pxend - px0, 1, 0,
-                                      back + (u32)y * planar_pitch + px0);
-#if defined(ALIS_PROFILE_DRAW)
-                    _fp_rows++;
-#endif
+                    chunky8_to_planar(vgalogic + (u32)y * w + px0, pxend - px0, 1, 0, back + (u32)y * planar_pitch + px0);
                 }
             }
-#if defined(ALIS_PROFILE_DRAW)
-            u32 _fp_c2p = sys_profile_ticks_safe() - _fp_c0;
-            int _fp_full = (dirty_len == 0xff);
-#endif
-#if defined(ALIS_FLI_SPAN_VERIFY)
-            /* Oracle: a correct span+catch-up must leave `back` byte-identical to a
-             * full-frame conversion of the current vgalogic. Any mismatch = a stale
-             * chunk (coverage/catch-up bug or a dirty-rect the decoder missed). */
-            {
-                static u8 flispan_ref[64000];
-                static u32 flispan_calls = 0, flispan_bad = 0;
-                s32 sz = planar_pitch * hc;
-                if (sz > (s32)sizeof(flispan_ref)) sz = sizeof(flispan_ref);
-                for (s32 y = 0; y < hc; y++)
-                    chunky8_to_planar(vgalogic + (u32)y * w, w, 1, 0, flispan_ref + (u32)y * planar_pitch);
-                u32 diff = 0; s32 firstoff = -1;
-                for (s32 i = 0; i < sz; i++)
-                    if (flispan_ref[i] != back[i]) { if (firstoff < 0) firstoff = i; diff++; }
-                flispan_calls++;
-                if (diff) { flispan_bad++;
-                    dbglog("[flispan] BAD call=%lu frame=%d diff=%lu firstoff=%ld dl=%u\n",
-                           (unsigned long)flispan_calls, (int)bfilm.frame, (unsigned long)diff,
-                           (long)firstoff, (unsigned)dirty_len); }
-                else if ((flispan_calls & 0x3f) == 0)
-                    dbglog("[flispan] OK %lu calls (bad=%lu)\n", (unsigned long)flispan_calls, (unsigned long)flispan_bad);
-            }
-#endif
+
             memcpy(film_prev_c0, cur_c0, (size_t)hc * sizeof(u16));
             memcpy(film_prev_c1, cur_c1, (size_t)hc * sizeof(u16));
             film_prev_valid = 1;
 #else /* whole-row c2p (original) */
             u8 cur_drow[256];
-            if (dirty_len == 0xff) {
+            if (dirty_len == 0xff)
+            {
                 memset(cur_drow, 1, (size_t)hc);
-            } else {
+            }
+            else
+            {
                 memset(cur_drow, 0, (size_t)hc);
-                for (int i = 0; i < (int)dirty_len; i++) {
+                for (int i = 0; i < (int)dirty_len; i++)
+                {
                     s32 ry = dirty_rects[i].y - image.feny1;
-                    if (ry >= 0 && ry < hc) cur_drow[ry] = 1;
+                    if (ry >= 0 && ry < hc)
+                        cur_drow[ry] = 1;
                 }
             }
-#if defined(ALIS_PROFILE_DRAW)
-            u32 _fp_rows = 0, _fp_c0 = sys_profile_ticks_safe();
-#endif
+
             for (s32 y = 0; y < hc; y++)
-                if (cur_drow[y] || (film_prev_valid && film_prev_drow[y])) {
+            {
+                if (cur_drow[y] || (film_prev_valid && film_prev_drow[y]))
+                {
                     chunky8_to_planar(vgalogic + (u32)y * w, w, 1, 0, back + (u32)y * planar_pitch);
-#if defined(ALIS_PROFILE_DRAW)
-                    _fp_rows++;
-#endif
                 }
-#if defined(ALIS_PROFILE_DRAW)
-            u32 _fp_c2p = sys_profile_ticks_safe() - _fp_c0;
-            int _fp_full = (dirty_len == 0xff);
-#endif
+            }
+            
             memcpy(film_prev_drow, cur_drow, (size_t)hc);
             film_prev_valid = 1;
 #endif /* ALIS_FLI_SPAN_C2P */
 
             // Palette: fli_palette already aliased image.mpalet into buffer.palette (via ampalet).
-            if (image.ftopal) {
+            if (image.ftopal)
+            {
                 image.ftopal = 0;
                 dirty_pal = 1;
-                if (machine_type != MCH_FALCON || !atari_timerc_installed) {
+                if (machine_type != MCH_FALCON || !atari_timerc_installed)
+                {
                     set_palette(buffer.palette, 256);   // ST/TT (Timer-C ISR does the Falcon CLUT)
                     dirty_pal = 0;
                 }
@@ -3196,34 +3453,18 @@ void sys_render(pixelbuf_t buffer) {
             g_cursor_front = NULL;   // films own the screen; no ISR cursor until the game flips again
             g_flip_base = is_doubleline ? tt_publish(back, 1) : back;   // films: full frame
             Supexec(videl_setbase_super);
-#if defined(ALIS_PROFILE_DRAW)
-            u32 _fp_v0 = sys_profile_ticks_safe();
-#endif
             Vsync();
             film_shown = back;
 
-#if defined(ALIS_PROFILE_DRAW)
+            if (bfilm.type == eAlisVideoCleanup)
             {
-                extern u32 g_flic_decode;                // RLE-decode ticks accumulated in runfilm
-                static u32 fp_n, fp_rows, fp_c2p, fp_vs, fp_full, fp_dec0;
-                fp_c2p += _fp_c2p;  fp_rows += _fp_rows;  fp_full += _fp_full;
-                fp_vs  += sys_profile_ticks_safe() - _fp_v0;
-                if (++fp_n >= 50) {
-                    dbglog("FLIC/50f: rows=%u/f c2p=%u ticks(%ums) vsync=%u(%ums) decode=%u(%ums) full=%u\n",
-                           fp_rows / 50, fp_c2p, fp_c2p * 5, fp_vs, fp_vs * 5,
-                           g_flic_decode - fp_dec0, (g_flic_decode - fp_dec0) * 5, fp_full);
-                    fp_n = fp_rows = fp_c2p = fp_vs = fp_full = 0; fp_dec0 = g_flic_decode;
-                }
-            }
-#endif
-
-            if (bfilm.type == eAlisVideoCleanup) {
                 bfilm.type = eAlisVideoNone;
                 film_shown = NULL; film_prev_valid = 0; s512_clut_set = 0;   // reset for next film
                 last_shown = NULL;      // re-anchor the ping-pong (see declaration)
                 image.fphytolog = 1;    // equalise both buffers before the game repaints
                 vgalogic_free();
             }
+
             dirty_len = 0;
             return;                                    // film owns the frame — skip normal flip/render
         }
@@ -3232,21 +3473,30 @@ void sys_render(pixelbuf_t buffer) {
 #if defined(ALIS_FLI_FALCON16)
     // Deferred restore: still 16-bit with no film (gap between videos, or game resumed).
     // Hold the last frame until the game draws, then restore planar and publish below.
-    if (g_fli16_screen && bfilm.type == eAlisVideoNone) {
-        if (dirty_len == 0) return;      // idle (between videos) -> stay 16-bit (hold last frame)
-        sys_film16_end();                 // first real game draw -> restore planar, publish below
+    if (g_fli16_screen && bfilm.type == eAlisVideoNone)
+    {
+        if (dirty_len == 0)
+            return;                         // idle (between videos) -> stay 16-bit (hold last frame)
+        
+        sys_film16_end();                   // first real game draw -> restore planar, publish below
     }
 #endif
 
     // A film just ended (S512 has no Cleanup frame): reset the ping-pong and CLUT. The high-plane
     // clear waits for the first game draw (the last video frame is still on screen).
-    if (bfilm.type == eAlisVideoNone && film_shown != NULL) {
+    if (bfilm.type == eAlisVideoNone && film_shown != NULL)
+    {
         film_shown = NULL; film_prev_valid = 0; s512_clut_set = 0;
         // Publish selector is stale (film moved the base): force a publish, and copy
         // physic->logic so the buffer not painted during the film can't alternate into view.
         last_shown = NULL;
         image.fphytolog = 1;
-        if (s512_was_active) { s512_pending_clear = 1; s512_was_active = 0; }
+        if (s512_was_active)
+        {
+            s512_pending_clear = 1;
+            s512_was_active = 0;
+        }
+
         vgalogic_free();
 #if defined(ALIS_S512_FALCON16)
         s512_free_luts16();
@@ -3255,7 +3505,8 @@ void sys_render(pixelbuf_t buffer) {
 
     // First game draw after an S512 film: zero the high planes both buffers inherited from the
     // 8-plane video.
-    if (s512_pending_clear && dirty_len != 0) {
+    if (s512_pending_clear && dirty_len != 0)
+    {
         s512_clear_high_planes(image.physic);
         s512_clear_high_planes(image.logic);
         s512_pending_clear = 0;
@@ -3274,7 +3525,9 @@ void sys_render(pixelbuf_t buffer) {
     // compose buffer must be re-published whenever new content landed in it.
     if (is_doubleline && dirty_len != 0)
         publish = 1;
-    if (publish) {
+    
+    if (publish)
+    {
         // Falcon/ST: bare base write. TT: tt_publish line-doubles the compose buffer first.
         g_cursor_lock = 1;   // front is about to change under the cursor ISR
         g_flip_base = is_doubleline ? tt_publish(image.physic, 0) : image.physic;
@@ -3286,13 +3539,6 @@ void sys_render(pixelbuf_t buffer) {
         // new base; sys_flip_wait() blocks on that only when draw() first writes it.
         g_flip_pending = 1;
         last_shown = image.physic;
-
-        if (render_calls <= 8) {
-            Supexec(videl_readbase_super);   // read the live base after the latch
-            dbglog("render #%d: physic=%p logic=%p hwbase=%06lx v_bas=%06lx\n",
-                   (int)render_calls, (void*)image.physic, (void*)image.logic,
-                   (unsigned long)g_dbg_hwbase, (unsigned long)g_dbg_vbas);
-        }
     }
 
     if (dirty_len == 0 && dirty_pal == 0)
@@ -3302,14 +3548,16 @@ void sys_render(pixelbuf_t buffer) {
         dirty_len = 1;
 
     // Update hardware palette
-    if (dirty_pal) {
+    if (dirty_pal)
+    {
 #if defined(ALIS_NATIVE_16BPP)
         set_palette(buffer.palette, 256);
         // 16bpp: draw() consumes dirty_pal (it must re-blit with the fresh pal16).
 #else
         // Falcon: the Timer-C ISR writes the CLUT (atari_timerc_c_callback). Here only for
         // TT/ST or Falcon with --no-timerc.
-        if (machine_type != MCH_FALCON || !atari_timerc_installed) {
+        if (machine_type != MCH_FALCON || !atari_timerc_installed)
+        {
             set_palette(buffer.palette, 256);
             dirty_pal = 0;
         }
@@ -3317,12 +3565,6 @@ void sys_render(pixelbuf_t buffer) {
     }
 
     dirty_len = 0;
-
-#if ALIS_NATIVE_PLANAR
-    // Planar blitter call counts
-    extern void planar_dump_profile(void);
-    planar_dump_profile();
-#endif
 }
 
 // ============================================================================
@@ -3338,6 +3580,7 @@ void atari_etv_term_handler(void)
 {
     if (atari_etv_term_fired)
         return;
+    
     atari_etv_term_fired = 1;
 
     // Take our entry out of the chain first, so a fault below falls through to the next handler
@@ -3345,10 +3588,12 @@ void atari_etv_term_handler(void)
     void *old_term = atari_old_etv_term;
     atari_old_etv_term = NULL;
 
-    if (atari_cleanup_done) {
+    if (atari_cleanup_done)
+    {
         // Normal shutdown already did everything; repeating it here would risk faulting.
         if (old_term)
             Setexc(0x102, (long)old_term);
+        
         return;
     }
 
@@ -3358,10 +3603,15 @@ void atari_etv_term_handler(void)
 #if defined(ALIS_DSP_MIXER)
     if (atari_timera_installed)
         Supexec(atari_timera_uninstall_super);   // MFP Timer A ($134): the audio feed
+    
     if (atari_dma_available)
+    {
         atari_dma_sound_close();                 // stop the DMA chip reading our ST-RAM ring
+    }
     else if (dsp_mixer_available)
+    {
         dsp_mixer_close();
+    }
 #endif
     sys_deinit_psg();                            // YM latches its registers; silence it explicitly
 
@@ -3386,7 +3636,8 @@ static void atari_etv_term_atexit(void)
         atari_etv_term_handler();
 }
 
-void sys_deinit(void) {
+void sys_deinit(void)
+{
 
 #if defined(ALIS_DSP_MIXER)
     if (atari_timerc_installed)
@@ -3403,10 +3654,15 @@ void sys_deinit(void) {
 #if defined(ALIS_DSP_MIXER)
     if (atari_timera_installed)
         Supexec(atari_timera_uninstall_super);   // stop the 50 Hz feed ISR first
+    
     if (atari_dma_available)
+    {
         atari_dma_sound_close();   // STE/TT: stop the DMA loop + free the ST-RAM ring
+    }
     else if (dsp_mixer_available)
+    {
         dsp_mixer_close();     // hand the codec/DSP back before tearing down audio
+    }
 #endif
 
     sys_deinit_psg();
@@ -3416,9 +3672,7 @@ void sys_deinit(void) {
     restore_video_state();
     // Did the restore actually land? Compare against the "Saved video state" line at startup.
     dbglog("video restored: physbase=%p logbase=%p mode=0x%lx (saved base=%p mode=0x%lx)\n",
-           (void *)Physbase(), (void *)Logbase(),
-           (machine_type == MCH_FALCON) ? (unsigned long)VsetMode(-1) : 0UL,
-           old_physbase, (unsigned long)old_vmode);
+           (void *)Physbase(), (void *)Logbase(), (machine_type == MCH_FALCON) ? (unsigned long)VsetMode(-1) : 0UL, old_physbase, (unsigned long)old_vmode);
     Vsync();                 // SDL1 order: restoreMode -> vsync -> palette
     gem_restore_palette();   // VDI logical palette, while the workstation is still open
     free_screen_buffers();
@@ -3436,7 +3690,8 @@ void sys_deinit(void) {
 
 // Decode alis.desmouse into mouse_pixels[] (color indices; 0 = transparent).
 // Ported from sys_sdl1.c sys_dirty_mouse.
-void sys_dirty_mouse(void) {
+void sys_dirty_mouse(void)
+{
 
     if (alis.desmouse == NULL)
         return;
@@ -3444,8 +3699,12 @@ void sys_dirty_mouse(void) {
     u8  type   = alis.desmouse[0];
     u16 width  = read16(alis.desmouse + 2) + 1;
     u16 height = read16(alis.desmouse + 4) + 1;
-    if (width > 16)  width = 16;
-    if (height > 16) height = 16;
+    if (width > 16)
+        width = 16;
+    
+    if (height > 16)
+        height = 16;
+    
     cursor_w = width;
     cursor_h = height;
 
@@ -3454,18 +3713,22 @@ void sys_dirty_mouse(void) {
     // layout the word-at-a-time draw wants: copy its leftmost chunk. Per-resource test: on DOS
     // data only some scripts are converted; others take the decode below.
     { extern int sprite_is_planar(const u8 *bitmap);
-    if (sprite_is_planar(alis.desmouse)) {
+    if (sprite_is_planar(alis.desmouse))
+    {
         const u16 *pd = (const u16 *)(alis.desmouse + 8);
         s32 cpr = (cursor_w + 15) >> 4;          // = 1 for a <=16px cursor
         // sp plane-words/chunk (4 for a 16-colour game, else 8); zero-fill the rest.
         int sp = (alis.desmouse[6] == 4) ? 4 : 8;
         int hh = cursor_h > 16 ? 16 : cursor_h;  // cursor_planar is [16][8] — never overrun it
-        for (int y = 0; y < hh; y++) {
+        for (int y = 0; y < hh; y++)
+        {
             for (int p = 0; p < sp; p++)
                 cursor_planar[y][p] = pd[(s32)y * cpr * sp + p];
+            
             for (int p = sp; p < 8; p++)
                 cursor_planar[y][p] = 0;
         }
+
         return;
     } }
 #endif
@@ -3476,25 +3739,34 @@ void sys_dirty_mouse(void) {
         case 0x02:
         {
             s8 palidx = 0;
-            if (image.flinepal) {
+            if (image.flinepal)
+            {
                 s16 *palentry = image.firstpal;
-                for (int i = 0; i < 3; i++) {
-                    if (palentry[0] == 0xff) break;
+                for (int i = 0; i < 3; i++)
+                {
+                    if (palentry[0] == 0xff)
+                        break;
+                    
                     palidx = palentry[2];
                     palentry += 2 + (sizeof(u8 *) >> 1);
                 }
             }
+
             u8 clear = type == 0 ? 0 : (u8)-1;
             u8 *at = alis.desmouse + 6;
             s32 px = 0;
             for (s32 h = 0; h < height; h++)
-                for (s32 w = 0; w < width; w++, px++) {
+            {
+                for (s32 w = 0; w < width; w++, px++)
+                {
                     u8 color = *(at + (w / 2) + h * (width / 2));
                     color = (w % 2 == 0) ? ((color & 0xf0) >> 4) : (color & 0x0f);
                     mouse_pixels[px] = color == clear ? 0 : color + palidx;
                 }
+            }
             break;
         }
+
         case 0x10:
         case 0x12:
         {
@@ -3503,39 +3775,52 @@ void sys_dirty_mouse(void) {
             u8 *at = alis.desmouse + 8;
             s32 px = 0;
             for (s32 h = 0; h < height; h++)
-                for (s32 w = 0; w < width; w++, px++) {
+            {
+                for (s32 w = 0; w < width; w++, px++)
+                {
                     u8 color = *(at + (w / 2) + h * (width / 2));
                     color = (w % 2 == 0) ? ((color & 0xf0) >> 4) : (color & 0x0f);
                     mouse_pixels[px] = color == clear ? 0 : color + palidx;
                 }
+            }
             break;
         }
+
         case 0x14:
         case 0x16:
         {
             u8 clear = 0;
             if (alis.platform.uid == EGameIshar_2)
                 clear = alis.desmouse[0] == 0x14 ? alis.desmouse[7] : (u8)-1;
+            
             u8 *at = alis.desmouse + 8;
-            for (int px = 0; px < width * height; px++) {
+            for (int px = 0; px < width * height; px++)
+            {
                 u8 color = at[px];
                 mouse_pixels[px] = color == clear ? 0 : color;
             }
+
             break;
         }
+
         default:
             break;
     }
 
 #if defined(ALIS_NATIVE_PLANAR)
     // Pre-convert the decoded cursor to 8-plane words (drawn word-at-a-time by sys_mouse_draw).
-    for (int y = 0; y < cursor_h; y++) {
+    for (int y = 0; y < cursor_h; y++)
+    {
         u16 cw[8] = { 0 };
-        for (int x = 0; x < cursor_w; x++) {
+        for (int x = 0; x < cursor_w; x++)
+        {
             u8 idx = mouse_pixels[y * cursor_w + x];
-            for (int p = 0; p < 8; p++) cw[p] |= (u16)(((idx >> p) & 1) << (15 - x));
+            for (int p = 0; p < 8; p++)
+                cw[p] |= (u16)(((idx >> p) & 1) << (15 - x));
         }
-        for (int p = 0; p < 8; p++) cursor_planar[y][p] = cw[p];
+
+        for (int p = 0; p < 8; p++)
+            cursor_planar[y][p] = cw[p];
     }
 #endif
 }

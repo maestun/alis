@@ -84,11 +84,13 @@ static void mv0_wmix(int i)
     u8 f = c->vflags | c->pflags;
     if (f & 1)
         m &= ~(1 << i);
+    
     if (f & 2)
     {
         m &= ~(8 << i);
         sys_write_psg(6, c->period >> 7);
     }
+
     sys_write_psg(7, m);
 }
 
@@ -100,6 +102,7 @@ static void mv0_canal(int i)
         c->vol += c->vdelta;
         if (c->vol & 0x80)
             c->vol = 0;
+        
         if (--c->vnum == 0)
         {
             const u8 *r = mv0_tabins + c->venv;
@@ -109,6 +112,7 @@ static void mv0_canal(int i)
             c->vnum = r[3];
             c->venv += 4;
         }
+
         c->vcnt = c->vrate;
         sys_write_psg(8 + i, ((c->vol * (mv0a.curvol + 1)) >> 4) & 0xf);
         mv0_wmix(i);
@@ -146,11 +150,18 @@ static u32 mv0_tie(u32 p, sMV0Channel *c)
         if (b & 0x80)
         {
             if (b == 0x80 || b == 0x84)
+            {
                 q += 2;
+            }
             else if (b == 0x81 || b == 0x83 || b == 0x85)
+            {
                 q++;
+            }
             else if (b != 0x82 && b != 0x86)
+            {
                 break;
+            }
+
             continue;
         }
 
@@ -187,6 +198,7 @@ static u32 mv0_note(u32 p, u8 cmd)
         while (i < 3 && mv0a.ch[i].busy != 2)
             i++;
     }
+
     if (i == 3)
         i = mv0a.rr < 2 ? mv0a.rr : 2;
 
@@ -321,6 +333,7 @@ static void mv0_tick(void)
                 mv0a.curvol++;
             mv0a.step = mv0a.rate;
         }
+
         mv0a.fadein--;
     }
     else if (mv0a.sustain)
@@ -336,6 +349,7 @@ static void mv0_tick(void)
                 mv0a.curvol--;
             mv0a.step = mv0a.rate;
         }
+
         if (--mv0a.fadeout == 0)
         {
             mv0_end();
@@ -359,6 +373,7 @@ static void mv0_tick(void)
                 }
             }
         }
+
         if (ended)
             mv0_events();
         mv0a.count = mv0a.divider;
@@ -436,6 +451,7 @@ void mv0_relocate(u32 lo, u32 hi, s32 delta)
         a = mv0a.loopptr[i];
         mv0a.loopptr[i] = a < lo ? a : a < hi ? 0 : a + delta;
     }
+
     if (mv0a.songptr == 0)
     {
         mv0a.playing = mv0a.pending = 0;

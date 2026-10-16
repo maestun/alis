@@ -54,7 +54,105 @@ PACK_PUSH typedef struct PACK_ATTR {
     s16 height;             // 0x2a
     u16 newzoomx;           // 0x2c
     u16 newzoomy;           // 0x2e
+    u16 unknown0x30;        // 0x30
+    u16 unknown0x32;        // 0x32
+    u16 prev;               // 0x34  z-list backward link
 } sSprite; PACK_POP
+
+#define SPRITE_SZ 0x36      // sprite record size / free-pool stride (was 0x30 before `prev` at 0x34)
+#define V6_SLOT_STRIDE  0x50
+
+static inline u32  v6el_prev(u32 e)               { return xread32(e + 0x00); }
+static inline u32  v6el_next(u32 e)               { return xread32(e + 0x04); }
+static inline void v6el_set_prev(u32 e, u32 v)    { xwrite32(e + 0x00, v); }
+static inline void v6el_set_next(u32 e, u32 v)    { xwrite32(e + 0x04, v); }
+static inline u32  v6sp_parent(u32 sp)            { return xread32(sp + 0x08); }
+static inline void v6sp_set_parent(u32 sp, u32 v) { xwrite32(sp + 0x08, v); }
+static inline s32  v6sp_depx(u32 sp)              { return xread32(sp + 0x0c); }
+static inline s32  v6sp_depy(u32 sp)              { return xread32(sp + 0x10); }
+static inline s32  v6sp_depz(u32 sp)              { return xread32(sp + 0x14); }
+static inline void v6sp_set_depx(u32 sp, s32 v)   { xwrite32(sp + 0x0c, v); }
+static inline void v6sp_set_depy(u32 sp, s32 v)   { xwrite32(sp + 0x10, v); }
+static inline void v6sp_set_depz(u32 sp, s32 v)   { xwrite32(sp + 0x14, v); }
+static inline s16  v6sp_angx(u32 sp)              { return xread16(sp + 0x18); }
+static inline s16  v6sp_angy(u32 sp)              { return xread16(sp + 0x1a); }
+static inline s16  v6sp_angz(u32 sp)              { return xread16(sp + 0x1c); }
+static inline void v6sp_set_angx(u32 sp, s16 v)   { xwrite16(sp + 0x18, v); }
+static inline void v6sp_set_angy(u32 sp, s16 v)   { xwrite16(sp + 0x1a, v); }
+static inline void v6sp_set_angz(u32 sp, s16 v)   { xwrite16(sp + 0x1c, v); }
+static inline u16  v6sp_scale(u32 sp)             { u16 s = xread16(sp + 0x1e); return s || alis.platform.uid != EGameRobinsonsRequiem3DO ? s : 0x100; }
+static inline void v6sp_set_scale(u32 sp, u16 v)  { xwrite16(sp + 0x1e, v); }
+static inline u8   v6sp_state(u32 sp)             { return xread8(sp + 0x22); }
+static inline void v6sp_set_state(u32 sp, u8 v)   { xwrite8(sp + 0x22, v); }
+static inline u8   v6sp_flags(u32 sp)             { return xread8(sp + 0x23); }
+static inline void v6sp_set_flags(u32 sp, u8 v)   { xwrite8(sp + 0x23, v); }
+static inline u8   v6sp_invert(u32 sp)            { return xread8(sp + 0x25); }
+static inline void v6sp_set_invert(u32 sp, u8 v)  { xwrite8(sp + 0x25, v); }
+static inline u16  v6sp_width(u32 sp)             { return xread16(sp + 0x26); }
+static inline u16  v6sp_height(u32 sp)            { return xread16(sp + 0x28); }
+static inline void v6sp_set_width(u32 sp, u16 v)  { xwrite16(sp + 0x26, v); }
+static inline void v6sp_set_height(u32 sp, u16 v) { xwrite16(sp + 0x28, v); }
+static inline u16  v6sp_screen(u32 sp)            { return xread16(sp + 0x2c); }
+static inline void v6sp_set_screen(u32 sp, u16 v) { xwrite16(sp + 0x2c, v); }
+static inline u8   v6sp_count(u32 sp)             { return xread8(sp + 0x33); }
+static inline void v6sp_set_count(u32 sp, u8 v)   { xwrite8(sp + 0x33, v); }
+static inline u32  v6sp_prev(u32 sp)              { return xread32(sp + 0x34); }
+static inline u32  v6sp_next(u32 sp)              { return xread32(sp + 0x38); }
+static inline void v6sp_set_prev(u32 sp, u32 v)   { xwrite32(sp + 0x34, v); }
+static inline void v6sp_set_next(u32 sp, u32 v)   { xwrite32(sp + 0x38, v); }
+static inline u32  v6sp_desc(u32 sp)              { return xread32(sp + 0x3c); }
+static inline void v6sp_set_desc(u32 sp, u32 v)   { xwrite32(sp + 0x3c, v); }
+
+typedef struct {
+    u8  fadddes;        // 1 = append to the elem's existing sprites
+    u8  frommain;       // resolve forms from the main script's table
+    u32 basesprite;     // elem slot-array base for the current put
+    u32 desc;           // resolved descriptor handle (0 = no form)
+    s32 depx;
+    s32 depy;
+    s32 depz;
+    s16 angx;
+    s16 angy;
+    s16 angz;
+    u8  numcreated;     // sprites created by this put so far
+    u8  ftext;          // text-put mode (desc = inline string offset)
+    u16 invert;         // bit 0 = x-flip
+    u8  textattr;       // text attribute (cnumput 4th operand)
+    u8  defstate;       // state byte for form-less/plain descriptors
+    u16 scale;          // 0x100 default; preset 0 = read rot/scale operands
+    u16 rotate;
+    u8  rotb1;
+    u8  rotb2;
+    u32 parent;         // entity vram or parent sprite slot
+    u32 limit;          // end of the elem's slot array (perror 0x26)
+    u8  aborted;        // C port of the perror(0x26) error-vector trap in FUN_0000761f
+} sV6Put;
+
+extern sV6Put v6put;
+
+void v6ips_measure(void);
+void v6x_defmouse(u32 desc);
+void v6x_focangle(u32 scr);
+extern u16 v6x_mousew, v6x_mouseh;
+extern u8 v6x_mousebuf[0x400];
+extern u16 v6x_mousergb[0x400];
+extern u32 v6ips_warm;
+int  v6ts_push(u16 id, u32 mat);    // found-entity stack push
+extern s16 v6xclipx1, v6xclipy1, v6xclipx2, v6xclipy2;  // v6 clip set
+extern u8  v6xdirty;            // v6 whole-frame dirty flag
+
+// v6 put chain
+void put_v6(u32 elem);          // orchestrator
+void soundatten_v6(u32 sp);     // recompute a slot's sound attenuation
+u32  putin_v6(u32 sp);          // dispatcher
+s32  v6anim_step(u32 slot);     // canim tween stepper
+void killsprite_v6(u32 sp);     // unlink slot + post redraw rect
+void eraselem_v6(u32 elem);     // tail: unlink elem + kill its sprites
+void killallelem_v6(u32 vram);  // kill every elem of an entity
+u32  v6_elemhead(u32 vram);     // entity elem-list head node
+void v6_dirtyelems(u32 vram);
+u32  v6_elemtail(u32 vram);     // entity elem-list tail node
+void v6x_textput(const u8 *str);// graphic text put into the primed elem
 
 typedef struct {
     s32 x;
@@ -138,6 +236,8 @@ typedef struct {
     u8 *backmap;            // background-cache render target (chunky: full-screen 8bpp shadow)
     u8 *bgcache_alloc;      // raw malloc base of the 8bpp shadow (for free); NULL when no cache
     u8 *wdraw;             // current sprite-blit destination: image.logic, or backmap while capturing
+    u32 *rgblogic;         // true-colour (ARGB) logic/physic for 3DO; NULL for 8-bit games
+    u32 *rgbphysic;
 
     s32 basesprite;
     u16 libsprit;
@@ -368,20 +468,48 @@ void putmapin(u16 spridx, s32 bitmap);
 void scalaire_v10(s16 scene, s16 *x, s16 *y, s16 *z);
 void picture_v10(u16 idx);
 
-// clamp a filled box (x2 exclusive, y2 inclusive) to the screen, 0 when nothing is left
+// clamp a filled box (x1 <= x2, y2 inclusive) to the screen, 0 when nothing is left
 static inline int boxf_clip(s16 *x1, s16 *y1, s16 *x2, s16 *y2)
 {
-    if (*y1 > *y2) { s16 t = *y1; *y1 = *y2; *y2 = t; }
-    if (*x1 < 0) *x1 = 0;
-    if (*y1 < 0) *y1 = 0;
-    if (*x2 > alis.platform.width) *x2 = alis.platform.width;
-    if (*y2 >= alis.platform.height) *y2 = alis.platform.height - 1;
+    // x2 is inclusive in the originals
+    if (alis.platform.kind != EPlatformMac)
+        (*x2)++;
+    
+    if (*y1 > *y2)
+    {
+        s16 t = *y1;
+        *y1 = *y2;
+        *y2 = t;
+    }
+
+    if (*x1 < 0)
+        *x1 = 0;
+    
+    if (*y1 < 0)
+        *y1 = 0;
+    
+    if (*x2 > alis.platform.width)
+        *x2 = alis.platform.width;
+    
+    if (*y2 >= alis.platform.height)
+        *y2 = alis.platform.height - 1;
+    
     return *x1 < *x2 && *y1 <= *y2;
 }
+
 void destofen(sSprite *sprite);
 
 u32 itroutine(u32 interval, void *param);
 void draw(void);
+void resize_screen(s16 w, s16 h);
+void rgb_alloc(s32 w, s32 h);
+u16 *cel_decode(u32 descr, s32 *w, s32 *h);
+void r3do_land(u32 scr);
+void r3do_flush(u32 scr);
+void r3do_polar(u32 vram, s32 dx, s32 dy, s32 dz);
+s32 r3do_maptest(u32 scr, s32 X, s32 Y, const s32 mn[3], const s32 mx[3], int walking, u32 *mat);
+u16 r3do_cellat(u32 vram, s32 dx, s32 dy, s32 dz, u32 L, int mode);
+u32 r3do_pick(u32 scr, s32 x, s32 y, s32 w3[3], u32 *aux, u32 *img);
 
 void draw_pixel(s16 x0, s16 y0);
 void draw_line(s16 x0, s16 y0, s16 x1, s16 y1);
@@ -414,13 +542,6 @@ void selpalet(void);
 void setmpalet(void);
 
 void setlinepalet(void);
-
-#if defined(ALIS_TRACE_PAL)
-void pal_trace(const char *op, s32 a, s32 b);   // debug: palette opcodes + bank/line-palette state
-#define PAL_TRACE(op, a, b) pal_trace(op, a, b)
-#else
-#define PAL_TRACE(op, a, b) ((void)0)
-#endif
 
 s16 debprotf(s16 d2w);
 u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3);
@@ -543,5 +664,5 @@ void planar_tab_flush(void);   // drop cached flipped sprites (sprite_planar.c)
 void sprite_cache_flush(void); // drop cached expanded sprites (image_draw_16.c)
 #endif
 #if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM && !defined(ALIS_NO_ZOOM_TRIM)
-void zoom_rows_flush(void);    // drop cached billboard row spans (render3d.c)
+void zoom_rows_flush(void);    // drop cached billboard row spans (rrq3d.c)
 #endif

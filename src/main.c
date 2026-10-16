@@ -49,12 +49,8 @@ static void hold_screen(void)
 #if !defined(ALIS_USE_NATIVE_ATARI)
 void __attribute__((format(printf,1,2))) dbglog(const char *fmt, ...)
 {
-    // TEMP diagnostic: also mirror to macdbg.log, diff-able against the native alis_dbg.log.
-    static FILE *lf = NULL; static int tried = 0;
-    if (!tried) { tried = 1; lf = fopen("/Users/gildor/work/macdbg.log", "w"); }
     va_list ap;
     va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap);
-    if (lf) { va_start(ap, fmt); vfprintf(lf, fmt, ap); va_end(ap); fflush(lf); }
 }
 #endif
 
@@ -76,7 +72,8 @@ void __attribute__((format(printf,1,2))) dbglog(const char *fmt, ...)
 int disalis = DEBUG_SCRIPT;
 int authormode = 0;
 
-void usage(void) {
+void usage(void)
+{
 
     printf("%s ver. %s\n\n"
             "Usage:\n"
@@ -144,8 +141,8 @@ void usage(void) {
     fflush(stdout);
 }
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[])
+{
     u8 result = 0;
 
     {
@@ -157,11 +154,7 @@ int main(int argc, char *argv[]) {
         int show_usage = 0;
 
         int opt_far = 0;
-#if defined(ALIS_DEBUG_NO_MEM_CHECK)
-        int opt_no_mem_check = 1;   // debug builds launched by hrdb can't pass --no-mem-check
-#else
         int opt_no_mem_check = 0;
-#endif
 #if ALIS_SDL_VER > 1
         int opt_fog = 0;
         int opt_fog_start = -1;
@@ -219,26 +212,47 @@ int main(int argc, char *argv[]) {
             {
                 opt_no_mem_check = 1;
             }
-            else if (strcmp(cmd, "--opl-capture") == 0) {
+            else if (strcmp(cmd, "--opl-capture") == 0)
+            {
                 extern int opl_capture_flag;
                 opl_capture_flag = 1;   // dump OPL register stream to opl_capture.bin
             }
-            else if (strcmp(cmd, "--1x") == 0) { extern int opt_scale; opt_scale = 1; }
-            else if (strcmp(cmd, "--2x") == 0) { extern int opt_scale; opt_scale = 2; }
-            else if (strcmp(cmd, "--3x") == 0) { extern int opt_scale; opt_scale = 3; }
-            else if (strcmp(cmd, "--4x") == 0) { extern int opt_scale; opt_scale = 4; }
+            else if (strcmp(cmd, "--1x") == 0)
+            {
+                extern int opt_scale;
+                opt_scale = 1;
+            }
+            else if (strcmp(cmd, "--2x") == 0)
+            {
+                extern int opt_scale;
+                opt_scale = 2;
+            }
+            else if (strcmp(cmd, "--3x") == 0)
+            {
+                extern int opt_scale;
+                opt_scale = 3;
+            }
+            else if (strcmp(cmd, "--4x") == 0)
+            {
+                extern int opt_scale;
+                opt_scale = 4;
+            }
 #if ALIS_SDL_VER == 1
-            else if (strcmp(cmd, "--no-timerc") == 0) {
+            else if (strcmp(cmd, "--no-timerc") == 0)
+            {
                 extern int atari_no_timerc;
                 atari_no_timerc = 1;
             }
+
             // --audio=dsp|dma (Falcon): DSP mixer or CPU-mixed DMA (default). STE/TT: DMA only.
             // 0=auto(→DMA), 1=force DSP, 2=force DMA.
-            else if (strcmp(cmd, "--audio=dsp") == 0) {
+            else if (strcmp(cmd, "--audio=dsp") == 0)
+            {
                 extern int atari_audio_backend;
                 atari_audio_backend = 1;
             }
-            else if (strcmp(cmd, "--audio=dma") == 0) {
+            else if (strcmp(cmd, "--audio=dma") == 0)
+            {
                 extern int atari_audio_backend;
                 atari_audio_backend = 2;
             }
@@ -251,15 +265,19 @@ int main(int argc, char *argv[]) {
             else if (strncmp(cmd, "--fog-start=", 12) == 0)
             {
                 int v = atoi(cmd + 12);
-                if (v < 0) v = 0;
-                if (v > 255) v = 255;
+                if (v < 0)
+                    v = 0;
+                if (v > 255)
+                    v = 255;
                 opt_fog_start = v;
             }
             else if (strncmp(cmd, "--fog-end=", 10) == 0)
             {
                 int v = atoi(cmd + 10);
-                if (v < 0) v = 0;
-                if (v > 255) v = 255;
+                if (v < 0)
+                    v = 0;
+                if (v > 255)
+                    v = 255;
                 opt_fog_end = v;
             }
 #endif
@@ -285,21 +303,7 @@ int main(int argc, char *argv[]) {
         static char base_path[1024];
         if (path == NULL)
         {
-#if defined(ALIS_DEBUG_DATA_PATH) && (defined(__atarist__) || defined(__TOS__))
-            // Debug builds launched by hrdb (no TTP args): 1 = Colorado, 2 = RRQ Falcon, 3 = RRQ DOS CD,
-            // 4 = Ishar 1 ST, 5 = Ishar 2 ST, 6 = Arborea, 7 = Boston Bomb Club, 8 = Bunny Bricks,
-            // 9 = Targhan, 10 = Metal Mutant (ST data).
-            path = ALIS_DEBUG_DATA_PATH == 10 ? "C:\\ALIS\\DATA\\METALMUTANT\\ATARI\\"
-                 : ALIS_DEBUG_DATA_PATH == 9 ? "C:\\ALIS\\DATA\\TARGHAN\\ATARI\\"
-                 : ALIS_DEBUG_DATA_PATH == 8 ? "C:\\ALIS\\DATA\\BUNNYBRICKS\\ATARI\\"
-                 : ALIS_DEBUG_DATA_PATH == 7 ? "C:\\ALIS\\DATA\\BOSTON\\ATARI\\"
-                 : ALIS_DEBUG_DATA_PATH == 6 ? "C:\\ALIS\\DATA\\ARBOREA\\ATARI\\"
-                 : ALIS_DEBUG_DATA_PATH == 5 ? "C:\\ALIS\\DATA\\ISHAR2\\ATARI\\"
-                 : ALIS_DEBUG_DATA_PATH == 4 ? "C:\\ALIS\\DATA\\ISHAR\\ATARI\\"
-                 : ALIS_DEBUG_DATA_PATH == 3 ? "C:\\ALIS\\DATA\\REQUIEM\\DOS_CD\\"
-                 : ALIS_DEBUG_DATA_PATH == 2 ? "C:\\ALIS\\DATA\\REQUIEM\\FALCON\\"
-                                             : "C:\\ALIS\\DATA\\COLORADO\\ATARI\\";
-#elif ALIS_SDL_VER >= 2
+#if ALIS_SDL_VER >= 2
             char *bp = SDL_GetBasePath();
             if (bp)
             {
@@ -313,12 +317,15 @@ int main(int argc, char *argv[]) {
             const char *sep = strrchr(exe, '/');
 #if defined(_WIN32) || defined(__atarist__) || defined(__TOS__)
             const char *bs = strrchr(exe, '\\');
-            if (bs && (!sep || bs > sep)) sep = bs;
+            if (bs && (!sep || bs > sep))
+                sep = bs;
 #endif
             if (sep)
             {
                 size_t len = (size_t)(sep - exe) + 1;
-                if (len >= sizeof(base_path)) len = sizeof(base_path) - 1;
+                if (len >= sizeof(base_path))
+                    len = sizeof(base_path) - 1;
+                
                 memcpy(base_path, exe, len);
                 base_path[len] = 0;
                 path = base_path;
@@ -412,11 +419,18 @@ int main(int argc, char *argv[]) {
                 return result;
             }
 
-            if (opt_far)          image.ddrawdist = 1;
+            if (opt_far)
+                image.ddrawdist = 1;
 #if ALIS_SDL_VER > 1
-            if (opt_fog)          image.emode = 1;
-            if (opt_fog_start >= 0) image.fogbeg = (u8)opt_fog_start;
-            if (opt_fog_end   >= 0) image.fogend   = (u8)opt_fog_end;
+            if (opt_fog)
+                image.emode = 1;
+            
+            if (opt_fog_start >= 0)
+                image.fogbeg = (u8)opt_fog_start;
+            
+            if (opt_fog_end   >= 0)
+                image.fogend   = (u8)opt_fog_end;
+            
 #endif
             
             printf("#############################\n");
@@ -434,7 +448,8 @@ int main(int argc, char *argv[]) {
             printf("#############################\n");
             sys_deinit();
 
-            if (alis_fatal) {
+            if (alis_fatal)
+            {
                 printf("\n%s\n", alis_fatal);
                 hold_screen();
             }
@@ -450,9 +465,11 @@ int main(int argc, char *argv[]) {
             sys_restore_desktop();
 
         }
-        else {
+        else
+        {
             ALIS_DEBUG(EDebugFatal, "Platform '%s' is not supported.\n", pl->desc);
         }
     }
+
     return result;
 }

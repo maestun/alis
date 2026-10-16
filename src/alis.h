@@ -29,6 +29,8 @@
 #include "sys/sys.h"
 #include "utils.h"
 
+#include <setjmp.h>
+
 #ifndef max
 # define max(a,b)            (((a) > (b)) ? (a) : (b))
 #endif
@@ -50,15 +52,18 @@
 
 extern const u32 kVirtualRAMSize;
 
-#define MAX_SCRIPTS     256
+#define MAX_SCRIPTS     512
 
 #define SPRITEMEM_PTR image.spritemem + image.basesprite
 
-#define SPRITE_VAR(x) (x ? (sSprite *)(SPRITEMEM_PTR + x) : NULL)
+// u16: indices >= 0x8000 held in s16 must not go negative
+#define SPRITE_VAR(x) ((x) ? (sSprite *)(SPRITEMEM_PTR + (u16)(x)) : NULL)
 
 #define ELEMIDX(x) ((((x - 0x78) / 0x30) * 0x28) + 0x8078) // return comparable number to what we see in ST debugger
 
-#define ENTSCR(x) alis.live_scripts[x / sizeof(sScriptLoc)]
+// entity id = byte offset into atent; v6 uses 0x18-byte memory nodes (DOS io_malloc table)
+#define ENT_STRIDE (alis.platform.version >= 60 ? 0x18 : (int)sizeof(sScriptLoc))
+#define ENTSCR(x) alis.live_scripts[(x) / ENT_STRIDE]
 
 #define ALIS_SCR_WCX    0
 #define ALIS_SCR_WCY    (alis.platform.version >= 30 ? 8 : 2)
@@ -150,30 +155,21 @@ register sAlisScriptLive * vm_script __asm__ ("a5");
 // register (if any) stays in sync with the struct member.
 #define ALIS_SET_SCRIPT(x)  do { alis.script = (x); VM_SYNC_SCRIPT(); } while(0)
 
+// Version-specific dispatch tables, set by alis_init (v6 overrides the pre-v6 ones).
+extern const sAlisOpcode *tab_opcodes, *tab_codesc1, *tab_opernames, *tab_storenames, *tab_addnames;
+void readexec_opcode_v6(void);
+
 // Fast inline dispatch macros for NDEBUG builds.
 // Avoids function call overhead and 1KB struct copy per opcode.
 #ifdef NDEBUG
-# define READEXEC_FAST(table)  do { \
-        (table)[*(VMEM + VSCRIPT->pc++)].fptr(); \
-    } while(0)
-// Operand-histogram hook (profiler): count which opernames dominate expression
-// evaluation. Defined in alis.c; no-op unless -DALIS_VM_PROFILE=1.
-#if defined(ALIS_VM_PROFILE) && ALIS_VM_PROFILE
-extern u32 g_oper_count[256];
-extern u32 g_oper_total;
-extern u32 g_cload_sleep, g_cload_work, g_cload_calls;
-extern u32 g_prof_c2p;
-# define PROF_OPER()  (g_oper_count[VMEM[VSCRIPT->pc]]++, g_oper_total++)
-#else
-# define PROF_OPER()  ((void)0)
-#endif
-# define readexec_opcode()          READEXEC_FAST(opcodes)
-# define readexec_codesc1name()     READEXEC_FAST(codesc1names)
+# define READEXEC_FAST(table)       do { (table)[*(VMEM + VSCRIPT->pc++)].fptr(); } while(0)
+# define readexec_opcode()          do { if (alis.platform.version >= 60) readexec_opcode_v6(); else READEXEC_FAST(opcodes); } while(0)
+# define readexec_codesc1name()     READEXEC_FAST(tab_codesc1)
 # define readexec_codesc2name()     READEXEC_FAST(codesc2names)
 # define readexec_codesc3name()     READEXEC_FAST(codesc3names)
-# define readexec_opername()        do { PROF_OPER(); READEXEC_FAST(opernames); } while(0)
-# define readexec_storename()       READEXEC_FAST(storenames)
-# define readexec_addname()         READEXEC_FAST(addnames)
+# define readexec_opername()        do { READEXEC_FAST(tab_opernames); if (alis.platform.version < 60) alis.varD7 = (s16)alis.varD7; } while(0)
+# define readexec_storename()       READEXEC_FAST(tab_storenames)
+# define readexec_addname()         READEXEC_FAST(tab_addnames)
 
 # define readexec_addname_swap() do { \
         char *_tmp = alis.sd7; alis.sd7 = alis.oldsd7; alis.oldsd7 = _tmp; \
@@ -274,7 +270,6 @@ typedef struct {
     // On atari it's ($22400 + ($3c * 4)) ==> $224f0
     // $224f0
     sScriptLoc *    atent_ptr;
-    u32 *           atprog_ptr;
 
     u8              automode;
             
@@ -306,6 +301,16 @@ typedef struct {
     s32             maxent;
     s16             nbent;
     s16             dernent;
+    u16             nodefree;   // v6 node free list head / tail (DOS fac / fb0)
+    u16             nodetail;
+    u16             filmnode;   // DOS film buffer node (DAT_0005403c +0x50)
+    u8              videomode;  // DOS DAT_00053ef3: 0 VGA, 1 SVGA
+    struct {
+        u16 scr;
+        u16 field;
+        u16 node;
+        u32 handle;
+    } scrnode[16];  // screen +0xb4/+0xbc buffers
             
     u32             finmem;     // 0xf6e98
     u16             memclass;   // omodel memory class for a reduced arena (0 = legacy value)
@@ -325,6 +330,24 @@ typedef struct {
     s16             prevkey;
 
     s16             theconfig;
+    s32             v6ips;
+    s32             v6soundseq;
+    s32             v6focstep;
+    s32             v6tstdx;
+    s32             v6tstdy;
+    s32             v6tstdz;
+    u16             v6tstmask;
+    u8              v6tstflag;
+    s32             v6tstarg;
+    u8              v6tstpolar;
+    u8              v6walkmode;
+    s32             v6walkc4;
+    s32             v6walkcc;
+    s32             v6walkd0;
+    u8              v6walkd8;
+    s32             v6walkb8;
+    jmp_buf         ofin_jmp;
+    int             ofin_active;
     
     s16             wcx;
     s16             wcy;
@@ -339,9 +362,9 @@ typedef struct {
     // true if vm is running
     eAlisState      state;
     
-    // virtual 16-bit accumulator (A4)
-    s16 *           acc;
-    s16 *           acc_org;
+    // virtual 16-bit (v6 32-bit) accumulator (A4)
+    s32 *           acc;
+    s32 *           acc_org;
     
     // MEMORY
     u8 *            mem; // host: system memory (hardware)
@@ -371,8 +394,8 @@ typedef struct {
     sAlisScriptLive * main;
         
     // virtual registers
-    s16             varD6;
-    s16             varD7;
+    s32             varD6;
+    s32             varD7;
     
     // running script id
     u16             varD5;
@@ -407,6 +430,46 @@ typedef struct {
     u8              folarg;
     u8              fohaut;
     u16             fomax;
+
+    struct {
+        s16 foasc;
+        s16 fonum;
+        s16 fomax;
+        u8 folarg;
+        u8 fohaut;
+        u8 mode;
+        u8 valid;
+        u8 usemain;
+    } v6fonts[64];
+    
+    struct {
+        s32 id;
+        u32 glyphslot;
+        s32 foasc;
+        s32 count;
+        s32 spacing;
+        s32 height;
+        u8 valid;
+        u8 op2;             // +0x04
+        u16 owner;          // +0x1c owner entity id
+        s16 form;           // +0x1e
+        u8 ownername[8];    // +0x20 owner script name
+    } v6xfonts[64];
+
+    u8              fomain;
+    s8              talign;
+    u8              v6fontnum;
+    u8              v6x;
+    u32             v6tabcell;
+    u32             texmap;         // 3DO etexmap slot table (0x3a254)
+    u16             texcur;         // 3DO current texture id (0x3a384)
+    u16             fog3do;         // 3DO cscdark fog level (screen +0x136, 0x34d68)
+    u16             v6kforgx;
+    u16             v6kforgy;
+    u16             v6kforgz;
+    u8              ftextfield;
+    s16             textfx;
+    s16             textfy;
 
     u32             cdspeed;
 
@@ -456,6 +519,11 @@ typedef struct {
     s32             load_delay;
     s32             unload_delay;
 
+    u8 *            text_data;
+    u32             text_sz;
+    char            text_name[16];
+    struct { u16 node; u32 sz; u8 *data; } v6texts[8];  // resident v6 .to blocks (type 0xc)
+
 } sAlisVM;
 
 typedef struct {
@@ -465,6 +533,13 @@ typedef struct {
 } sHost;
 
 extern sAlisVM alis;
+
+// PC CGA art: 4-colour sprites and the fixed CGA palette (not the 16-colour re-release)
+#define PL_CGA()        (alis.platform.kind == EPlatformPC && alis.platform.version <= 11 && !alis.platform.ega)
+
+// program table at atprog: data_org of each loaded program, game byte order
+#define ATPROG(i)       ((u32)xread32(alis.atprog + (u32)(i) * 4))
+#define ATPROG_SET(i, v) xwrite32(alis.atprog + (u32)(i) * 4, (v))
 extern u32 alis_arena_size;
 extern const char *alis_fatal; // set to stop the VM with a message shown after shutdown
     // set by the native memory pre-flight; 0 = preferred tier
@@ -517,6 +592,14 @@ static inline u32 get_0x14_script_org_offset(u32 vram)                { return x
 static inline u16 get_0x10_script_id(u32 vram)                        { return xread16(vram - 0x10); }
 static inline u16 get_0x0e_script_ent(u32 vram)                       { return xread16(vram - 0xe); }
 static inline s16 get_0x0c_vacc_offset(u32 vram)                      { return xread16(vram - 0xc); }
+// v6 casleepfar "far asleep" flag (DOS ctx [-0x1] bit 1, 3DO [r6-1] bit 1): set by casleepfar
+// when the entity is beyond the radius, cleared (with a wake message) when it comes back in.
+// The DOS scheduler skips such an entity entirely (moteur1 0000538a). Our ctx byte at -0x65 is
+// otherwise unused (see the v6 context map in script.c get_context_size).
+#define V6_FARSLEEP(vram) ((vram) - 0x65)
+#define V6_DORMANT 8      // same byte, DOS ctx -1 bit 3 (cunload mode 2)
+// v6 clinking register (DOS / 3DO ctx -0x14): own id at live, clinking 0x83 sets it, put copies it to slot +0x4e
+#define V6_CLINKING(vram) ((vram) - 0x7a)
 static inline s16 get_0x0a_vacc_offset(u32 vram)                      { return xread16(vram - 0xa); }
 static inline u32 get_0x08_script_ret_offset(u32 vram)                { return xread32(vram - 0x8); }
 static inline u8 get_0x04_cstart_csleep(u32 vram)                     { return xread8(vram - 0x4); }
@@ -570,6 +653,8 @@ u8              alis_init(sPlatform platform);
 int             alis_thread(void *data);
 void            alis_deinit(void);
 
+u16             alis_first_ent(void);
+
 void            alis_save_state(void);
 void            alis_load_state(void);
 
@@ -585,6 +670,9 @@ int             adresmus(s32 idx);
 int             adresform(s16 idx);
 
 s32             tabint(u32 address);
+s32             v6_tabcell(u32 address, int shift);
+u32             read_vaddr(void);
+void            v6_scdark_precalc(u32 scr);
 s32             tabchar(u32 address);
 s32             tabstring(u32 address);
 

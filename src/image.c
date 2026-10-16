@@ -23,12 +23,15 @@
 
 #include <stdbool.h>
 
+#include <sys/stat.h>
 #include "alis.h"
 #include "alis_private.h"
+#include "audio.h"
 #include "debug.h"
 #include "mem.h"
+#include "deus3d.h"
 #include "video.h"
-#include "render3d.h"
+#include "rrq3d.h"
 #include "screen.h"
 #include "utils.h"
 
@@ -37,20 +40,6 @@
 extern volatile u8 dirty_pal;   // set from the Timer-C ISR (itroutine) on native
 extern SDL_Rect dirty_rects[256];
 extern u8 dirty_len;
-#endif
-
-#if defined(ALIS_PROFILE_DRAW)
-// Lightweight per-phase wall-clock profiler (sys_profile_ticks units: 200 Hz /
-// 5 ms on native Atari). Accumulate over a run; dump every PROF_DUMP_FRAMES
-// frames. g_prof_frame_vsync is added by sys_render (the flip+Vsync wait).
-u32 g_prof_frame_oldfen, g_prof_frame_affiscr, g_prof_frame_drawtot, g_prof_frame_vsync;
-u32 g_prof_frame_frames, g_prof_frame_remap;
-// Overdraw accounting per destofen blit: drawn pixels, opaque/transparent split,
-// blit count, "big" (Blitter-worthy) pixel total.
-u32 g_od_pix, g_od_pix_op, g_od_pix_tr, g_od_blits, g_od_big;
-u32 g_prof_frame_depscreen;   // time in depscreen() (the per-element list re-link) within affiscr
-#define OD_BIG_AREA 2048      // a blit counts as "big" (Blitter-worthy) above this
-#define PROF_DUMP_FRAMES 100
 #endif
 
 u16 moduly;
@@ -170,7 +159,8 @@ typedef struct {
 #pragma pack(pop) // Restore default alignment
 
 // Function to save an 8-bit grayscale bitmap as a BMP file
-int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path) {
+int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path)
+{
     FILE *file;
     s32 rowSize = (width + 3) & ~3; // BMP row size must be a multiple of 4 bytes
     s32 dataSize = rowSize * height;
@@ -202,7 +192,8 @@ int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path) {
 
     // Open file for writing
     file = fopen(path, "wb");
-    if (!file) {
+    if (!file)
+    {
         printf("Error opening file %s\n", path);
         return -1;
     }
@@ -212,19 +203,22 @@ int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path) {
     fwrite(&infoHeader, sizeof(BMPInfoHeader), 1, file);
 
     // Write grayscale palette (256 shades of gray)
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         u8 color[4] = {i, i, i, 0}; // R, G, B, Reserved (0)
         fwrite(color, sizeof(color), 1, file);
     }
 
     // Write pixel data (row-by-row, ensuring 4-byte alignment)
     u8 *row = (u8 *)malloc(rowSize);
-    if (!row) {
+    if (!row)
+    {
         fclose(file);
         return -1;
     }
 
-    for (int y = 0; y < height; y++) {
+    for (int y = 0; y < height; y++)
+    {
         memcpy(row, data + y * width, width);
         memset(row + width, 0, rowSize - width); // Padding bytes
         fwrite(row, rowSize, 1, file);
@@ -241,7 +235,7 @@ int save_bitmap_as_bmp(u8 *data, s32 width, s32 height, const char *path) {
 
 
 // Entries one palette bank spans: banks are 64 apart for <8bpp data (thepalet*64), one bank for 8bpp.
-static int pal_bank_len(void) { return alis.platform.bpp != 8 ? 64 : 256; }
+static int pal_bank_len(void) { return alis.platform.bpp < 8 ? 64 : 256; }
 
 void topalet(void)
 {
@@ -255,7 +249,8 @@ void topalet(void)
     }
     else
     {
-        switch (image.pal_format) {
+        switch (image.pal_format)
+        {
             case EPalARGB:
                 TOPALET_INTERP_LOOP(sColorARGB, image.mpalet, image.tpalet);
                 break;
@@ -289,9 +284,10 @@ void topalette(u8 *paldata, s32 duration)
             PAL_WRITE_RGB(image.atpalet, i, 255, 255, 255);
             PAL_WRITE_RGB(image.ampalet, i, 255, 255, 255);
         }
+
         image.ftopal = 0xff;
     }
-    else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
+    else if (PL_CGA())
     {
         u8 *addr = cga_palette;
         PAL_WRITE(image.atpalet, 0, 4, RGB32(addr));
@@ -302,40 +298,55 @@ void topalette(u8 *paldata, s32 duration)
     {
         selpalet();
 
-        s16 colors = alis.platform.version == 10 ? 0 : paldata[1];
-        if (colors == 0) // 4 bit palette
+        if (alis.platform.version >= 60)
         {
             image.palc = 0;
-            u8 *palptr = &paldata[2];
-            
-            // Manhattan Amiga keeps the Atari 3-bit palettes
-            if (alis.platform.kind == EPlatformAmiga || alis.platform.kind == EPlatformAmigaAGA)
-            {
-                PAL_WRITE(image.atpalet, 0, 16, RGB12(palptr));
-            }
-            else
-            {
-                PAL_WRITE(image.atpalet, 0, 16, RGB9(palptr));
-            }
+            u16 count = swap16(paldata + 8);
+            u8 first = (u8)swap16(paldata + 10);
+            u8 *palptr = &paldata[0xc];
+
+            if (first + count > 256)
+                count = 256 - first;
+
+            PAL_WRITE(image.atpalet, first, count, RGB24(palptr));
         }
-        else // 8 bit palette
+        else
         {
-            if (alis.platform.kind == EPlatformAmiga)
+            s16 colors = alis.platform.version == 10 ? 0 : paldata[1];
+            if (colors == 0) // 4 bit palette
             {
                 image.palc = 0;
                 u8 *palptr = &paldata[2];
-                PAL_WRITE(image.atpalet, 0, 32, RGB12(palptr));
+                
+                // Manhattan Amiga keeps the Atari 3-bit palettes
+                if (alis.platform.kind == EPlatformAmiga || alis.platform.kind == EPlatformAmigaAGA)
+                {
+                    PAL_WRITE(image.atpalet, 0, 16, RGB12(palptr));
+                }
+                else
+                {
+                    PAL_WRITE(image.atpalet, 0, 16, RGB9(palptr));
+                }
             }
-            else
+            else // 8 bit palette
             {
-                image.palc = 0;
-                u8 offset = paldata[2];
+                if (alis.platform.kind == EPlatformAmiga)
+                {
+                    image.palc = 0;
+                    u8 *palptr = &paldata[2];
+                    PAL_WRITE(image.atpalet, 0, 32, RGB12(palptr));
+                }
+                else
+                {
+                    image.palc = 0;
+                    u8 offset = paldata[2];
 
-                paldata+=4;
-                PAL_WRITE(image.atpalet, offset, colors + 1, RGB24(paldata));
+                    paldata+=4;
+                    PAL_WRITE(image.atpalet, offset, colors + 1, RGB24(paldata));
+                }
             }
         }
-        
+
         if (image.fdarkpal && image.thepalet == 0)
         {
             u16 *dkpalptr = (u16 *)image.dkpalet;
@@ -358,11 +369,12 @@ void topalette(u8 *paldata, s32 duration)
 
         if (duration != 0)
         {
-            switch (image.pal_format) {
-            case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
-            case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
-            case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
-            case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
+            switch (image.pal_format)
+            {
+                case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
+                case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
+                case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
+                case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
             }
 
             image.palt = 1;
@@ -404,11 +416,12 @@ void toblackpal(s16 duration)
     }
     else
     {
-        switch (image.pal_format) {
-        case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
-        case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
-        case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
-        case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
+        switch (image.pal_format)
+        {
+            case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
+            case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
+            case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
+            case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
         }
 
         image.palt = 1;
@@ -452,11 +465,12 @@ void restorepal(s16 mode, s32 duration)
     }
     else
     {
-        switch (image.pal_format) {
-        case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
-        case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
-        case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
-        case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
+        switch (image.pal_format)
+        {
+            case EPalARGB: PAL_DELTA_LOOP(sColorARGB, image.mpalet, image.tpalet, duration); break;
+            case EPalABGR: PAL_DELTA_LOOP(sColorABGR,   image.mpalet, image.tpalet, duration); break;
+            case EPalRGBA32: PAL_DELTA_LOOP(sColorRGBA32, image.mpalet, image.tpalet, duration); break;
+            case EPal565: PAL_DELTA_LOOP(sColor565,  (u16 *)image.mpalet, (u16 *)image.tpalet, duration); break;
         }
 
         topalet();
@@ -489,7 +503,8 @@ static int dos_pal_family(void)
     if (alis.platform.kind != EPlatformPC)
         return DPAL_NONE;
 
-    switch (alis.platform.uid) {
+    switch (alis.platform.uid)
+    {
         case EGameColorado:             return DPAL_C16;
         case EGameBunnyBricks:          return DPAL_BUNNY;
         case EGameIshar_1:
@@ -536,9 +551,13 @@ static void dpal_chase(void)
 
         dpal.ftopal = 1;
         if (t > m)
+        {
             dpal.mpal[i] = m + dpal.step < t ? m + dpal.step : t;
+        }
         else
+        {
             dpal.mpal[i] = m - dpal.step > t ? m - dpal.step : t;
+        }
     }
 }
 
@@ -562,7 +581,9 @@ static int dpal_steps(s16 dur, int inc)
     else
     {
         s32 q = dur / 63 + inc;
-        if (q > 127) q = 127;
+        if (q > 127)
+            q = 127;
+        
         dpal.reload = (u8)q;
         dpal.counter = (s8)q;
     }
@@ -587,6 +608,7 @@ static void dpal_apply(int fade)
         if (dos_pal_family() != DPAL_B32)
             dpal_upload();
     }
+
     dpal.lock = 0;
     dpal_mirror_target();
 }
@@ -601,9 +623,14 @@ static void dpal_load16(u8 *words, int first)
         for (int k = 0; k < 3; k++)
         {
             if (fam == DPAL_B32)    // expanded to 8 bits, then the normal >>2 load
+            {
                 c[k] = c[k] ? (u8)(((c[k] >> 3) << 5 | 0x1f) >> 2) : 0;
+            }
             else if (fam != DPAL_C16 && c[k])
+            {
                 c[k] |= 7;
+            }
+
             dpal.tpal[(first + i) * 3 + k] = c[k];
         }
     }
@@ -625,6 +652,7 @@ static void dpal_load_dark(u8 *rgb8, int first, int n)
         u8 r = rgb8[i * 3], g = rgb8[i * 3 + 1], b = rgb8[i * 3 + 2];
         if (!r && !g && !b && (dk[e * 3] > 0x100 || dk[e * 3 + 1] > 0x100 || dk[e * 3 + 2] > 0x100))
             r = g = b = 2;
+        
         dpal.tpal[e * 3]     = dpal_dark(r, dk[e * 3]);
         dpal.tpal[e * 3 + 1] = dpal_dark(g, dk[e * 3 + 1]);
         dpal.tpal[e * 3 + 2] = dpal_dark(b, dk[e * 3 + 2]);
@@ -641,6 +669,7 @@ static void dpal_topalette(u8 *res, s16 dur)
     {
         if (res)
             dpal_load16(res + 2, 0);
+        
         dpal_apply(0);
         return;
     }
@@ -660,10 +689,14 @@ static void dpal_topalette(u8 *res, s16 dur)
                 n = 256 - first;
 
             if (fam == DPAL_B32 && image.fdarkpal)
+            {
                 dpal_load_dark(res + 4, first, n);
+            }
             else
+            {
                 for (int k = 0; k < n * 3; k++)
                     dpal.tpal[first * 3 + k] = res[4 + k] >> 2;
+            }
         }
     }
 
@@ -712,6 +745,7 @@ void dos_cpalette(s16 idx, u8 *res)
         if (fam != DPAL_B32 && fam != DPAL_C16)
             dpal.ftopal = 1;
     }
+
     dpal.skip = 0;
 }
 
@@ -735,6 +769,7 @@ void dos_ctopalet(s16 idx, s16 dur, u8 *res)
             dpal_topalette(res, dur);
         }
     }
+
     dpal.skip = 0;
 }
 
@@ -755,6 +790,7 @@ void dos_ctoblack(s16 dur)
         dpal.counter = dpal.reload = 0;
         memset(dpal.mpal, 0, sizeof(dpal.mpal));
     }
+
     dpal_chase();
     dpal.ftopal = 1;
     dpal.lock = 0;
@@ -770,7 +806,8 @@ void dos_cselpalet(s16 val)
 
 void dos_cdefcolor(s16 idx, u16 val)
 {
-    switch (dos_pal_family()) {
+    switch (dos_pal_family())
+    {
         case DPAL_C16:
             if (idx >= 0 && idx < 16)
             {
@@ -779,6 +816,7 @@ void dos_cdefcolor(s16 idx, u16 val)
                 memcpy(&dpal.mpal[idx * 3], &dpal.tpal[idx * 3], 3);
                 dpal_upload();
             }
+
             break;
         case DPAL_BUNNY:
         case DPAL_ISHAR:
@@ -789,6 +827,7 @@ void dos_cdefcolor(s16 idx, u16 val)
                 dpal.mpal[idx * 2 + 1] = (u8)val;
                 dpal_upload();
             }
+
             break;
         default:
             break;
@@ -802,9 +841,13 @@ void dos_csavepal(s16 idx)
         return;
 
     if (idx == -1)
+    {
         memcpy(dpal.sav1, dpal.tpal, sizeof(dpal.tpal));
+    }
     else if (idx == -2)
+    {
         memcpy(dpal.sav2, dpal.tpal, sizeof(dpal.tpal));
+    }
 }
 
 // 0xFE resource drawn with put: unreachable in the originals (their path crashes); set it now.
@@ -829,13 +872,16 @@ int dos_film_palette(u8 *addr)
         u16 len = *addr++;
         if (len == 0)
             len = 256;
+        
         if (index + len > 256)
         {
             len = 256 - index;
             packets = 1;
         }
+
         for (int k = 0; k < len * 3; k++)
             dpal.mpal[index * 3 + k] = addr[k] & 0x3f;
+        
         addr += len * 3;
         index += len;
     }
@@ -889,33 +935,15 @@ void dos_pal_sync_from_image(void)
         PAL_READ_RGB(image.tpalet, i, r, g, b);
         dpal.tpal[i * 3] = r >> 2; dpal.tpal[i * 3 + 1] = g >> 2; dpal.tpal[i * 3 + 2] = b >> 2;
     }
+
     dpal.counter = dpal.reload = 0;
     dpal.step = 1;
     dpal.ftopal = 1;
 }
 
-#if defined(ALIS_TRACE_PAL)
-void pal_trace(const char *op, s32 a, s32 b)
-{
-    printf("PAL %-10s %5d %5d  [%s] sel=%d flinepal=%d tl:", op, (int)a, (int)b,
-           alis.script ? alis.script->name : "?", (int)image.thepalet, (int)image.flinepal);
-    for (int i = 0; i < 8 && image.tlinepal[i * 2] < 0xff; i++)
-        printf(" %d:%d", image.tlinepal[i * 2], image.tlinepal[i * 2 + 1]);
-    // Colours 1..3 of bank 0 and bank 2: shown (m) and target (t).
-    printf("  m0=%06x,%06x,%06x m2=%06x,%06x,%06x t0=%06x,%06x,%06x t2=%06x,%06x,%06x palc=%d",
-           image.mpalet[1] & 0xffffff, image.mpalet[2] & 0xffffff, image.mpalet[3] & 0xffffff,
-           image.mpalet[129] & 0xffffff, image.mpalet[130] & 0xffffff, image.mpalet[131] & 0xffffff,
-           image.tpalet[1] & 0xffffff, image.tpalet[2] & 0xffffff, image.tpalet[3] & 0xffffff,
-           image.tpalet[129] & 0xffffff, image.tpalet[130] & 0xffffff, image.tpalet[131] & 0xffffff,
-           (int)image.palc);
-    printf("\n");
-    fflush(stdout);
-}
-#endif
-
 void selpalet(void)
 {
-    if (alis.platform.bpp != 8)
+    if (alis.platform.bpp < 8)
     {
         s16 offset = image.thepalet * 64;
         image.ampalet = image.mpalet + offset;
@@ -971,8 +999,8 @@ extern void planar_linepal_disable(void);
 #define PLANAR_LINEPAL_DISABLE() ((void)0)
 #endif
 
-void setlinepalet(void) {
-
+void setlinepalet(void)
+{
     if (alis.varD7 < 0)
     {
         image.flinepal = 0;
@@ -1091,13 +1119,10 @@ void inisprit(void)
     image.libsprit = 0xa8;
     cursprit += 0xa8;
     
-    sSprite *sprite = SPRITE_VAR(cursprit);
-    for (; cursprit < image.finsprit; sprite = SPRITE_VAR(cursprit), cursprit += 0x30)
-    {
-        sprite->to_next = cursprit + 0x30;
-    }
+    for (; cursprit + SPRITE_SZ < image.finsprit; cursprit += SPRITE_SZ)
+        SPRITE_VAR(cursprit)->to_next = cursprit + SPRITE_SZ;
 
-    sprite->to_next = 0;
+    SPRITE_VAR(cursprit)->to_next = 0;
 }
 
 u8 searchelem(u16 *curidx, u16 *previdx)
@@ -1209,8 +1234,24 @@ void createlem(u16 *curidx, u16 *previdx)
         cursprvar->state = -1;
         cursprvar->numelem = image.numelem;
         cursprvar->screen_id = get_0x16_screen_id(alis.script->vram_org);
+
+        if (alis.ftextfield)
+        {
+            cursprvar->unknown0x30 = (u16)alis.textfx;
+            cursprvar->unknown0x32 = (u16)alis.textfy;
+        }
+        else
+        {
+            cursprvar->unknown0x30 = 0x8000;
+            cursprvar->unknown0x32 = 0x8000;
+        }
+
         cursprvar->to_next = *curidx;
         cursprvar->link = scrnsprvar->link;
+        cursprvar->prev = scrnidx;
+        if (cursprvar->link != 0)
+            SPRITE_VAR(cursprvar->link)->prev = sprit;
+
         scrnsprvar->link = sprit;
 
         *curidx = sprit;
@@ -1239,13 +1280,15 @@ void delprec(u16 elemidx)
     if (tmpsprvar != NULL)
     {
         tmpsprvar->link = cursprvar->link;
+        if (cursprvar->link != 0)
+            SPRITE_VAR(cursprvar->link)->prev = spridx;
     }
 }
 
 void killelem(u16 *curidx, u16 *previdx)
 {
     sSprite *cursprvar = SPRITE_VAR(*curidx);
-    
+
     if (alis.ferase == 0 && -1 < cursprvar->state)
     {
         cursprvar->state = 1;
@@ -1285,6 +1328,15 @@ void killelem(u16 *curidx, u16 *previdx)
     *curidx = SPRITE_VAR(*previdx)->to_next;
 }
 
+static inline int textfield_match(u16 idx)
+{
+    if (!alis.ftextfield)
+        return 1;
+
+    sSprite *s = SPRITE_VAR(idx);
+    return (s16)s->unknown0x30 == alis.textfx && (s16)s->unknown0x32 == alis.textfy;
+}
+
 void getelem(u16 *newidx, u16 *oldidx)
 {
     u8 ret = searchelem(newidx, oldidx);
@@ -1292,17 +1344,17 @@ void getelem(u16 *newidx, u16 *oldidx)
     {
         do
         {
-            if (SPRITE_VAR(*newidx)->state == 0)
+            if (SPRITE_VAR(*newidx)->state == 0 && textfield_match(*newidx))
             {
                 SPRITE_VAR(*newidx)->state = 2;
                 return;
             }
-            
+
             ret = nextnum(newidx, oldidx);
         }
         while (ret);
     }
-    
+
     createlem(newidx, oldidx);
 }
 
@@ -1314,7 +1366,6 @@ void put(u16 idx)
 
 void putfin(void)
 {
-    // kill leftover sprite elements after composite processing
     if (alis.fmuldes == 0)
     {
         u16 newidx = 0;
@@ -1324,7 +1375,7 @@ void putfin(void)
         {
             do
             {
-                while (SPRITE_VAR(newidx)->state == 0)
+                while (SPRITE_VAR(newidx)->state == 0 && textfield_match(newidx))
                 {
                     killelem(&newidx, &oldidx);
                     if (newidx == 0)
@@ -1343,7 +1394,7 @@ void putfin(void)
             while (nextnum(&newidx, &oldidx));
         }
     }
-    
+
     alis.fadddes = 0;
 }
 
@@ -1356,6 +1407,7 @@ void scalaire_v10(s16 scene, s16 *x, s16 *y, s16 *z)
         *x = (s8)xread8(m + 0) * x0 + (s8)xread8(m + 2) * z0;
         if (alis.platform.kind == EPlatformPC)
             *x += (s8)xread8(m + 1) * y0;
+        
         *y = (s8)xread8(m + 3) * x0 + (s8)xread8(m + 4) * y0 + (s8)xread8(m + 5) * z0;
         *z = (s8)xread8(m + 6) * x0 + (s8)xread8(m + 7) * y0 + (s8)xread8(m + 8) * z0;
     }
@@ -1388,6 +1440,7 @@ void picture_v10(u16 idx)
     {
         if (alis.platform.kind != EPlatformPC)
             topalette(res, 0);
+        
         return;
     }
 
@@ -1413,6 +1466,7 @@ void picture_v10(u16 idx)
             image.depz = z;
             image.invert_x = invx;
         }
+
         return;
     }
 
@@ -1471,18 +1525,74 @@ void putin(u16 idx)
         resourcedata = alis.mem + addr;
         compositimg = resourcedata[0] > 0x80;
     }
-    
+
+    if (alis.platform.version >= 60 && resourcedata[0] == 2)
+    {
+        s16 count = read16(resourcedata + 8);
+        u8 *entry = resourcedata + 0xc;
+        for (s16 i = 0; i < count; i++)
+        {
+            u8 op = entry[0];
+            if (op != 0 && op != 1)
+            {
+                ALIS_DEBUG(EDebugWarning, "putin v6 composite: unhandled sub-op 0x%x (form idx %u)", op, idx);
+                break;
+            }
+
+            s16 form = read16(entry + 2);
+            s32 dx = read32(entry + 4);
+            s32 dy = read32(entry + 8);
+            s32 dz = read32(entry + 0xc);
+
+            u8 invx   = image.invert_x;
+            u8 muldes = alis.fmuldes;
+
+            if (op == 1)
+                image.invert_x ^= 1;
+            
+            if (image.invert_x)
+                dx = -dx;
+
+            image.depx = x + (s16)dx;
+            image.depy = y + (s16)dy;
+            image.depz = z + (s16)dz;
+
+            if (form >= 0)
+            {
+                alis.fmuldes = 1;
+                putin((u16)form);
+            }
+
+            image.depx = x;
+            image.depy = y;
+            image.depz = z;
+            image.invert_x = invx;
+            alis.fmuldes = muldes;
+
+            entry += 16;
+        }
+
+        alis.fmuldes = 0;
+        putfin();
+        return;
+    }
+
     if (compositimg)
     {
         if (resourcedata[0] == 0xfe)
         {
             if (dos_pal_active())
+            {
                 dos_putin_palette(resourcedata);
+            }
             else
+            {
                 topalette(resourcedata, 0);
+            }
+
             return;
         }
-        
+
         // handle composit images
         
         s16 rsrccount = resourcedata[1];
@@ -1632,6 +1742,792 @@ void putmapin(u16 spridx, s32 bitmap)
     putfin();
 }
 
+sV6Put v6put = {0};
+
+u32 v6_elemhead(u32 vram) { return vram - 0x78; }   // DOS ctx -0x2c (node: prev@0, next@4)
+
+void v6_dirtyelems(u32 vram)
+{
+    for (u32 g = xread32(v6_elemhead(vram) + 4); g && g != xread32(g + 4); g = xread32(g + 4))
+    {
+        u32 e = g;
+        for (u8 n = xread8(g + 0x33); n; n--, e += V6_SLOT_STRIDE)
+            v6sp_set_flags(e, v6sp_flags(e) | 1);
+    }
+}
+
+u32 v6_elemtail(u32 vram) { return vram - 0x70; }   // DOS ctx -0x24
+
+static u32 putleaf_v6(u32 sp);
+static u32 putlist_v6(u32 sp, u32 entry, s32 count, u32 *cursor_out);
+u32 putin_v6(u32 sp);
+
+void soundatten_v6(u32 sp)
+{
+    if (xread8(sp + 0x25) & 0x40)
+        return;
+
+    const s32 range = 300;
+    u8 cl = 0x20;
+    if (xread8(sp + 0x25) & 0x10)
+        cl |= 0x50;
+
+    u32 node = sp;
+    s32 possum = 0;
+    int first = 1;
+    for (;;)
+    {
+        if (!first)
+        {
+            if (possum != 0)
+            {
+                cl &= 0xef;
+                if (cl == 0)
+                    break;
+            }
+        }
+
+        first = 0;
+
+        u8 st = xread8(node + 0x22);
+        if (st == 0x30 || st == 0x10)
+        {
+            if ((u16)range <= (u16)xread16(node + 0x40))
+            {
+                cl &= 0xdf;
+                if (cl == 0)
+                    break;
+            }
+
+            s32 b = (s16)xread16(node + 0x42);
+            if (b < 0)
+                b = -b;
+            s32 t = (s16)xread16(node + 0x44);
+            if (t < 0)
+                t = -t;
+            b += t;
+            t = (s16)xread16(node + 0x46);
+            if (t < 0)
+                t = -t;
+            b += t;
+            if (b != 0)
+            {
+                cl &= 0xef;
+                if (cl == 0)
+                    break;
+                if ((u32)range <= (u32)b)
+                {
+                    cl &= 0xdf;
+                    if (cl == 0)
+                        break;
+                }
+            }
+        }
+
+        if (xread32(node + 0x18) != 0 ||
+            xread16(node + 0x1c) != 0)
+        {
+            cl &= 0xaf;
+            if (cl == 0)
+                break;
+        }
+
+        if (xread32(node + 0x8) != 0)
+        {
+            s32 v = xread32(node + 0xc);
+            possum = (v < 0) ? -v : v;
+            v = xread32(node + 0x10);
+            possum += (v < 0) ? -v : v;
+            v = xread32(node + 0x14);
+            possum += (v < 0) ? -v : v;
+            if ((u32)possum >= (u32)range)
+            {
+                cl &= 0xdf;
+                if (cl == 0)
+                    break;
+            }
+        }
+
+        node = (u32)xread32(node + 0x8);
+        if (node == 0)
+            break;
+    }
+
+    v6sp_set_flags(sp, v6sp_flags(sp) | cl);
+}
+
+static u32 putleaf_v6(u32 sp)
+{
+    u32 vram = alis.script->vram_org;
+
+    if (v6sp_prev(sp) == 0)
+    {
+        u16 world = get_0x16_screen_id(vram);
+        v6sp_set_screen(sp, world);
+        u32 wbase = alis.basemain + world;
+        u32 oldhead = xread32(wbase + 0x38);
+        xwrite32(wbase + 0x38, sp);
+        xwrite32(oldhead + 0x34, sp);
+        v6sp_set_prev(sp, wbase);
+        v6sp_set_next(sp, oldhead);
+        v6sp_set_parent(sp, v6put.parent);
+        v6sp_set_flags(sp, 0x80);
+    }
+
+    xwrite16(sp + 0x2a, xread16(vram + 0x3a));
+    v6sp_set_depx(sp, v6put.depx);
+    v6sp_set_depy(sp, v6put.depy);
+    v6sp_set_depz(sp, v6put.depz);
+    v6sp_set_angx(sp, v6put.angx);
+    v6sp_set_angy(sp, v6put.angy);
+    v6sp_set_angz(sp, v6put.angz);
+    v6sp_set_invert(sp, (u8)v6put.invert);
+    if (alis.platform.uid != EGameRobinsonsRequiem3DO)
+        v6sp_set_scale(sp, v6put.scale);
+    
+    v6sp_set_desc(sp, v6put.desc);
+
+    if (v6put.desc == 0)
+    {
+        v6sp_set_state(sp, v6put.defstate);
+    }
+    else if (v6put.ftext)
+    {
+        v6sp_set_height(sp, 0);
+        v6sp_set_width(sp, 0);
+        xwrite16(sp + 0x4e, xread16(V6_CLINKING(vram)));
+        v6sp_set_state(sp, 0x38);
+        xwrite8(sp + 0x51, xread8(vram - 0x66));
+        xwrite8(sp + 0x52, v6put.textattr);
+    }
+    else
+    {
+        u32 data = v6put.desc + xread32(v6put.desc);
+        u8 type = xread8(data);
+        switch (type)
+        {
+            case 1:
+                v6sp_set_state(sp, 0x32);
+                if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+                    xwrite32(sp + 0x50, 0);
+                    
+            common_0x32:
+                    
+                xwrite16(sp + 0x4e, xread16(V6_CLINKING(vram)));
+                v6sp_set_height(sp, xread16(data + 0xa));
+                v6sp_set_width(sp, xread16(data + 0x8));
+                xwrite8(sp + 0x51, v6put.rotb1);
+                xwrite8(sp + 0x54, v6put.rotb2);
+                xwrite16(sp + 0x52, v6put.rotate);
+                break;
+
+            case 5:
+                v6sp_set_state(sp, 0x34);
+                v6sp_set_height(sp, xread16(data + 0xa));
+                v6sp_set_width(sp, xread16(data + 0x8));
+                xwrite8(sp + 0x50, xread8(data + 0x1c));
+                xwrite8(sp + 0x51, v6put.rotb1);
+                xwrite8(sp + 0x54, v6put.rotb2);
+                xwrite16(sp + 0x52, v6put.rotate);
+                goto common_0x32;
+
+            case 4:
+                v6sp_set_state(sp, 0x35);
+                v6sp_set_height(sp, xread16(data + 0xa));
+                v6sp_set_width(sp, xread16(data + 0x8));
+                xwrite32(sp + 0x40, (s16)xread16(data + 0xc));
+                xwrite32(sp + 0x44, (s16)xread16(data + 0xe));
+                xwrite32(sp + 0x48, (s16)xread16(data + 0x10));
+                xwrite32(sp + 0x4c, (s16)xread16(data + 0x12));
+                xwrite32(sp + 0x50, (s16)xread16(data + 0x14));
+                xwrite32(sp + 0x54, (s16)xread16(data + 0x16));
+                break;
+
+            case 8:
+                v6sp_set_state(sp, 0x30);
+                v6sp_set_height(sp, xread16(data + 0xa));
+                v6sp_set_width(sp, xread16(data + 0x8));
+                xwrite16(sp + 0x42, xread16(data + 0xc));
+                xwrite16(sp + 0x44, xread16(data + 0xe));
+                xwrite16(sp + 0x46, xread16(data + 0x10));
+                xwrite16(sp + 0x40, xread16(data + 0x12));
+                if (alis.platform.uid == EGameRobinsonsRequiem3DO && v6put.parent != vram)
+                    break;
+                    
+                v6sp_set_depx(sp, v6sp_depx(sp) + xread32(data + 0x14));
+                v6sp_set_depy(sp, v6sp_depy(sp) + xread32(data + 0x18));
+                v6sp_set_depz(sp, v6sp_depz(sp) + xread32(data + 0x1c));
+                if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+                    break;
+                    
+                v6sp_set_angx(sp, v6sp_angx(sp) + xread16(data + 0x8a));
+                v6sp_set_angy(sp, v6sp_angy(sp) + xread16(data + 0x8e));
+                v6sp_set_angz(sp, v6sp_angz(sp) + xread16(data + 0x92));
+                xwrite32(sp + 0x50, data + 0x88);
+                xwrite16(sp + 0x48, 0);
+                xwrite16(sp + 0x4a, 0);
+                xwrite16(sp + 0x4c, 0);
+                if (v6put.parent == vram)
+                {
+                    xwrite16(sp + 0x48, (s16)v6put.depx);
+                    xwrite16(sp + 0x4a, (s16)v6put.depy);
+                    xwrite16(sp + 0x4c, (s16)v6put.depz);
+                }
+
+                soundatten_v6(sp);
+                break;
+
+            case 7:
+                v6sp_set_height(sp, xread16(data + 0xa));
+                v6sp_set_width(sp, xread16(data + 0x8));
+                xwrite16(sp + 0x42, xread16(data + 0xc));
+                xwrite16(sp + 0x44, xread16(data + 0xe));
+                xwrite16(sp + 0x46, xread16(data + 0x10));
+                xwrite16(sp + 0x40, xread16(data + 0x12));
+                {
+                    u8 sub = xread8(data + 0x18);
+                    if (sub == 1 || sub == 3)
+                    {
+                        xwrite8(sp + 0x56, sub == 3 ? 1 : 0);
+                        v6sp_set_state(sp, 0x10);
+                        xwrite16(sp + 0x48, xread8(data + 0x1b));
+                        xwrite16(sp + 0x54, xread16(data + 0x38));
+                        xwrite8(sp + 0x50, xread8(data + 0x34));
+                        xwrite8(sp + 0x51, xread8(data + 0x35));
+                        xwrite8(sp + 0x52, xread8(data + 0x36));
+                        xwrite8(sp + 0x53, xread8(data + 0x37));
+                    }
+                    else if (sub == 2)
+                    {
+                        v6sp_set_state(sp, 0x13);
+                    }
+                    else
+                    {
+                        v6sp_set_state(sp, 0x33);
+                    }
+                }
+
+                soundatten_v6(sp);
+                break;
+
+            default:
+                v6sp_set_state(sp, v6put.defstate);
+                break;
+        }
+    }
+
+    v6sp_set_flags(sp, v6sp_flags(sp) | 1);
+    v6put.numcreated++;
+    return sp + V6_SLOT_STRIDE;
+}
+
+static u32 putlist_v6(u32 sp, u32 entry, s32 count, u32 *cursor_out)
+{
+    while (count-- && !v6put.aborted)
+    {
+        u8 op = xread8(entry);
+        u8 flip = 0;
+
+        switch (op)
+        {
+            case 0x05:
+                entry += 16;
+                goto out;
+
+            case 0x0b:
+                entry += (xread32(entry + 4) << 4) + 16;
+                goto out;
+
+            case 0x03:
+            {
+                u8 base = xread8(entry + 1);
+                u32 tgt = (base == 0xff) ? alis.script->vram_org : v6put.basesprite + base * V6_SLOT_STRIDE;
+                alis.v6kforgx = xread16(tgt + 0x48);
+                alis.v6kforgy = xread16(tgt + 0x4a);
+                alis.v6kforgz = xread16(tgt + 0x4c);
+                if (v6sp_desc(tgt) == 0 && v6sp_parent(tgt) == alis.script->vram_org)
+                    tgt = alis.script->vram_org;
+                
+                v6sp_set_depx(tgt, xread32(entry + 0x4));
+                v6sp_set_depy(tgt, xread32(entry + 0x8));
+                v6sp_set_depz(tgt, xread32(entry + 0xc));
+                break;
+            }
+
+            case 0x04:
+            {
+                u8 base = xread8(entry + 1);
+                u32 tgt = (base == 0xff) ? alis.script->vram_org : v6put.basesprite + base * V6_SLOT_STRIDE;
+                if (v6sp_desc(tgt) == 0 && v6sp_parent(tgt) == alis.script->vram_org)
+                    tgt = alis.script->vram_org;
+                
+                v6sp_set_angx(tgt, (s16)xread32(entry + 0x4));
+                v6sp_set_angy(tgt, (s16)xread32(entry + 0x8));
+                v6sp_set_angz(tgt, (s16)xread32(entry + 0xc));
+                break;
+            }
+
+            case 0x08:
+            {
+                u8 base = xread8(entry + 1);
+                u32 tgt = (base == 0xff) ? alis.script->vram_org : v6put.basesprite + base * V6_SLOT_STRIDE;
+                v6sp_set_depx(tgt, v6sp_depx(tgt) + xread32(entry + 0x4));
+                v6sp_set_depy(tgt, v6sp_depy(tgt) + xread32(entry + 0x8));
+                v6sp_set_depz(tgt, v6sp_depz(tgt) + xread32(entry + 0xc));
+                break;
+            }
+
+            case 0x09:
+            {
+                u8 base = xread8(entry + 1);
+                u32 tgt = (base == 0xff) ? alis.script->vram_org : v6put.basesprite + base * V6_SLOT_STRIDE;
+                v6sp_set_angx(tgt, v6sp_angx(tgt) + (s16)xread32(entry + 0x4));
+                v6sp_set_angy(tgt, v6sp_angy(tgt) + (s16)xread32(entry + 0x8));
+                v6sp_set_angz(tgt, v6sp_angz(tgt) + (s16)xread32(entry + 0xc));
+                break;
+            }
+
+            case 0x0a:
+            {
+                u8 base = xread8(entry + 1);
+                if (base == 0xff)
+                    break;
+
+                u32 tgt = v6put.basesprite + base * V6_SLOT_STRIDE;
+                u32 payload = entry + 4;
+                u8  progress = xread8(sp + 0x40);
+                u32 oldkf = xread32(tgt + 0x50);
+
+                if (progress == 0 || oldkf == 0)
+                {
+                    xwrite32(tgt + 0x50, payload);
+                    alis.v6kforgx = xread16(tgt + 0x48);
+                    alis.v6kforgy = xread16(tgt + 0x4a);
+                    alis.v6kforgz = xread16(tgt + 0x4c);
+                    if (v6sp_desc(tgt) == 0 && v6sp_parent(tgt) == alis.script->vram_org)
+                        tgt = alis.script->vram_org;
+                    
+                    u8 sh = xread8(payload - 1) + 1;
+                    v6sp_set_depx(tgt, ((s32)(s16)xread16(payload + 0x0) << sh) + (s16)alis.v6kforgx);
+                    v6sp_set_angx(tgt, xread16(payload + 0x2));
+                    v6sp_set_depy(tgt, ((s32)(s16)xread16(payload + 0x4) << sh) + (s16)alis.v6kforgy);
+                    v6sp_set_angy(tgt, xread16(payload + 0x6));
+                    v6sp_set_depz(tgt, ((s32)(s16)xread16(payload + 0x8) << sh) + (s16)alis.v6kforgz);
+                    v6sp_set_angz(tgt, xread16(payload + 0xa));
+                }
+                else
+                {
+                    alis.v6kforgx = xread16(tgt + 0x48);
+                    alis.v6kforgy = xread16(tgt + 0x4a);
+                    alis.v6kforgz = xread16(tgt + 0x4c);
+                    if (v6sp_desc(tgt) == 0 && v6sp_parent(tgt) == alis.script->vram_org)
+                        tgt = alis.script->vram_org;
+                    
+                    u8 osh = xread8(oldkf - 1) + 1;
+                    u8 nsh = xread8(payload - 1) + 1;
+                    s32 ov, nv;
+                    #define V6KF_POS(oidx, nidx, org, setter) \
+                        ov = ((s32)(s16)xread16(oldkf + (oidx)) << osh) + (s16)(org); \
+                        nv = ((s32)(s16)xread16(payload + (nidx)) << nsh) + (s16)(org); \
+                        setter(tgt, ov + (((nv - ov) * progress) >> 8));
+                    #define V6KF_ANG(oidx, nidx, setter) { \
+                        s16 oa = xread16(oldkf + (oidx)); \
+                        s16 na = xread16(payload + (nidx)); \
+                        s32 d = (s16)(na - oa); \
+                        setter(tgt, oa + (s16)((d * progress) >> 8)); }
+                    V6KF_POS(0x0, 0x0, alis.v6kforgx, v6sp_set_depx)
+                    V6KF_ANG(0x2, 0x2, v6sp_set_angx)
+                    V6KF_POS(0x4, 0x4, alis.v6kforgy, v6sp_set_depy)
+                    V6KF_ANG(0x6, 0x6, v6sp_set_angy)
+                    V6KF_POS(0x8, 0x8, alis.v6kforgz, v6sp_set_depz)
+                    V6KF_ANG(0xa, 0xa, v6sp_set_angz)
+                    #undef V6KF_POS
+                    #undef V6KF_ANG
+                }
+
+                break;
+            }
+
+            case 0x01:
+            default:
+                flip = 1;
+            case 0x00:
+            {
+                u16 sinvert = v6put.invert;
+                s32 sdepx = v6put.depx, sdepy = v6put.depy, sdepz = v6put.depz;
+
+                v6put.parent = alis.script->vram_org;
+
+                u8 base = xread8(entry + 1);
+                if (base != 0xff)
+                {
+                    u32 tgt = v6put.basesprite + base * V6_SLOT_STRIDE;
+                    if (tgt != sp)
+                    {
+                        v6put.parent = tgt;
+                        v6put.depx = v6put.depy = v6put.depz = 0;
+                        v6put.angx = v6put.angy = v6put.angz = 0;
+                    }
+                }
+
+                s16 form = (s16)xread16(entry + 2);
+                if (form < 0)
+                {
+                    v6put.desc = 0;
+                    v6put.defstate = 0;
+                }
+                else
+                {
+                    s32 slot = adresdes(form);
+                    v6put.desc = (u32)slot;
+                }
+
+                s32 dx = xread32(entry + 4);
+                if (v6put.invert & 1)
+                    dx = -dx;
+                
+                v6put.depx += dx;
+                v6put.depy += xread32(entry + 8);
+                v6put.depz += xread32(entry + 0xc);
+                v6put.invert ^= flip;
+
+                sp = putin_v6(sp);
+
+                v6put.depz = sdepz;
+                v6put.depy = sdepy;
+                v6put.depx = sdepx;
+                v6put.invert = sinvert;
+                break;
+            }
+        }
+
+        entry += 16;
+    }
+
+out:
+    if (cursor_out)
+        *cursor_out = entry;
+    return sp;
+}
+
+static u32 putin_3do(u32 sp, u32 data)
+{
+    u8 type = xread8(data);
+    if (type == 2)
+        return putlist_v6(sp, data + 0xc, xread16(data + 8), NULL);
+    
+    if (type != 6)
+    {
+        u32 next = putleaf_v6(sp);
+        if (type == 1)
+            xwrite32(sp + 0x50, 0);
+        
+        return next;
+    }
+
+    u32 tab = v6put.desc, e = data + 0xc;
+    u32 img = tab + (s16)xread16(e + 2) * 4;
+    if (xread8(img + xread32(img)) != 1)
+        return sp;
+    
+    u8 sinv = v6put.invert;
+    v6put.invert ^= xread8(e) == 1;
+    v6put.desc = img;
+    u32 next = putleaf_v6(sp);
+    s16 hx = (s16)xread32(e + 4);
+    xwrite32(sp + 0x50, tab);
+    xwrite16(sp + 0x54, (v6put.invert & 1) ? -hx : hx);
+    xwrite16(sp + 0x56, (s16)xread32(e + 0xc));
+    v6put.invert = sinv;
+    v6put.desc = tab;
+    return next;
+}
+
+u32 putin_v6(u32 sp)
+{
+    if (v6put.aborted)
+        return sp;
+
+    if (sp >= v6put.limit)
+    {
+        ALIS_DEBUG(EDebugError, "putin_v6: elem slot array overrun (perror 0x26)\n");
+        v6put.aborted = 1;
+        return sp;
+    }
+
+    if (v6put.desc == 0)
+        return putleaf_v6(sp);
+    
+    if (v6put.ftext)
+        return putleaf_v6(sp);
+
+    u32 data = v6put.desc + xread32(v6put.desc);
+    if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+        return putin_3do(sp, data);
+    
+    if (xread8(data) != 2)
+        return putleaf_v6(sp);
+
+    u16 count = xread16(data + 8);
+    return putlist_v6(sp, data + 0xc, count, NULL);
+}
+
+static void v6anim_park(u32 entry)
+{
+    for (;;)
+    {
+        u8 op = xread8(entry);
+        if (op == 0x0a)
+        {
+            u8 id = xread8(entry + 1);
+            if (id != 0xff)
+                xwrite32(v6put.basesprite + id * V6_SLOT_STRIDE + 0x50,
+                         entry + 4);
+            entry += 0x10;
+        }
+        else if (op == 0x05)
+        {
+            return;
+        }
+        else if (op == 0x0b)
+        {
+            return;
+        }
+        else
+        {
+            entry += 0x11;
+        }
+    }
+}
+
+s32 v6anim_step(u32 slot)
+{
+    u32 esi;
+    s32 target = xread32(slot + 0x48);
+    if (xread32(slot + 0x40) == -1 || target == 0 || target == -1)
+    {
+        u32 desc = xread32(slot + 0x3c);
+        u32 rec = desc + xread32(desc);
+        if (xread8(rec) != 2)
+            goto epilogue;
+        
+        s32 total = (s32)(u16)xread16(rec + 0xa) << 8;
+        xwrite32(slot + 0x4c, total);
+        if (target == -1)
+        {
+            if (xread32(slot + 0x44) == 0)
+                goto epilogue;
+            
+            target = total - 0x100;
+        }
+        else if (xread32(slot + 0x40) != -1 && xread8(slot + 0x40) != 0)
+        {
+            target = (target & ~0xff) | xread8(slot + 0x40);
+            xwrite32(slot + 0x48, target);
+            xwrite32(slot + 0x40, target);
+            xwrite32(slot + 0x50, rec + 0xc);
+            goto stepping;
+        }
+
+        target += xread32(slot + 0x44);
+        xwrite32(slot + 0x48, target);
+        xwrite32(slot + 0x40, target);
+        s32 cnt = (u16)xread16(rec + 8);
+        esi = rec + 0xc;
+        s32 frames = (target >> 8) - 1;
+        if (frames > 0)
+        {
+            for (;;)
+            {
+                u8 op = xread8(esi);
+                if (op == 0x0b)
+                    break;
+                
+                esi += 0x10;
+                if (op == 0x05)
+                {
+                    if (--frames == 0)
+                        break;
+                }
+                else if (--cnt == 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        xwrite32(slot + 0x50, esi);
+    }
+
+stepping:;
+
+    esi = xread32(slot + 0x50);
+    for (int iters = 0;; iters++)
+    {
+        if (iters == 300)
+            ALIS_DEBUG(EDebugWarning, "v6anim_step: slot %x spinning (cur=%x tgt=%x step=%d cursor=%x)\n", slot, xread32(slot + 0x40), xread32(slot + 0x48), xread32(slot + 0x44), esi);
+        s32 cur = xread32(slot + 0x40) >> 8;
+        if (cur == (xread32(slot + 0x48) >> 8))
+        {
+            xwrite32(slot + 0x40, xread32(slot + 0x48));
+            putlist_v6(slot, esi, 0x7fffffff, &esi);
+            if (xread8(slot + 0x40) == 0)
+                xwrite32(slot + 0x50, esi);
+            break;
+        }
+
+        xwrite32(slot + 0x40, (cur + 1) << 8);
+        putlist_v6(slot, esi, 0x7fffffff, &esi);
+        xwrite32(slot + 0x50, esi);
+        if (xread32(slot + 0x48) == xread32(slot + 0x40))
+            break;
+    }
+
+epilogue:;
+
+    s32 acc = xread32(slot + 0x48) + xread32(slot + 0x44);
+    xwrite32(slot + 0x48, acc);
+    s32 ret = acc;
+    if (acc < 0)
+        ret = xread32(slot + 0x4c);
+    
+    if ((u32)ret > (u32)xread32(slot + 0x4c))
+    {
+        if (xread8(slot + 0x40) != 0)
+        {
+            xwrite32(slot + 0x40, ret);
+            u32 cursor = xread32(slot + 0x50);
+            if (cursor != 0)
+                v6anim_park(cursor);
+        }
+
+        ret = 0;
+    }
+
+    return ret;
+}
+
+void put_v6(u32 elem)
+{
+    u32 vram = alis.script->vram_org;
+
+    v6put.parent = vram;
+    v6put.numcreated = 0;
+    v6put.aborted = 0;
+
+    if (v6sp_count(elem) != 0)
+    {
+        u32 prev = v6el_prev(elem);
+        u32 next = v6el_next(elem);
+        v6el_set_next(prev, next);
+        v6el_set_prev(next, prev);
+    }
+
+    u32 sp = elem;
+    if (v6put.fadddes)
+    {
+        u8 count = v6sp_count(elem);
+        v6put.numcreated = count;
+        sp += (u32)count * V6_SLOT_STRIDE;
+    }
+
+    sp = putin_v6(sp);
+
+    s16 leftover = (s16)v6sp_count(elem) - (s16)v6put.numcreated;
+    if (leftover > 0)
+    {
+        for (s16 i = 0; i < leftover; i++)
+        {
+            killsprite_v6(sp);
+            sp += V6_SLOT_STRIDE;
+        }
+    }
+
+    v6sp_set_count(elem, v6put.numcreated);
+    if (v6put.numcreated != 0)
+    {
+        u32 head = v6_elemhead(vram);
+        u32 first = v6el_next(head);
+        v6el_set_next(head, elem);
+        v6el_set_prev(first, elem);
+        v6el_set_prev(elem, head);
+        v6el_set_next(elem, first);
+    }
+}
+
+void killsprite_v6(u32 sp)
+{
+    u32 prev = v6sp_prev(sp);
+    u32 next = v6sp_next(sp);
+    if (prev != 0)
+        xwrite32(prev + 0x38, next);
+    if (next != 0)
+        xwrite32(next + 0x34, prev);
+
+    u8 state = v6sp_state(sp);
+    u8 flags = v6sp_flags(sp);
+    if (alis.ferase && !(flags & 0x80) && (state == 0x32 || state == 0x34 || state == 0x38 || state == 0x39))
+    {
+        u32 world = alis.basemain + v6sp_screen(sp);
+        (void)world;
+    }
+
+    xwrite16(sp + 0x2e, 0);
+    v6sp_set_state(sp, 0);
+    v6sp_set_prev(sp, 0);
+    v6sp_set_next(sp, 0);
+}
+
+void eraselem_v6(u32 elem)
+{
+    u8 count = v6sp_count(elem);
+    if (count != 0)
+    {
+        u32 prev = v6el_prev(elem);
+        u32 next = v6el_next(elem);
+        if (prev == 0 || prev >= alis.platform.ram_sz || next == 0 || next >= alis.platform.ram_sz)
+        {
+            ALIS_DEBUG(EDebugError, "eraselem_v6: elem %x has corrupt links (prev=%x next=%x) - skipping unlink\n", elem, prev, next);
+        }
+        else
+        {
+            v6el_set_next(prev, next);
+            v6el_set_prev(next, prev);
+        }
+
+        u32 sp = elem;
+        for (u8 i = 0; i < count; i++)
+        {
+            killsprite_v6(sp);
+            sp += V6_SLOT_STRIDE;
+        }
+
+        v6sp_set_count(elem, 0);
+    }
+}
+
+void killallelem_v6(u32 vram)
+{
+    u32 head = v6_elemhead(vram);
+    u32 e = head;
+    for (int guard = 0; guard < MAX_SCRIPTS * 64; guard++)
+    {
+        e = (u32)v6el_next(e);
+        if (e == 0 || e >= alis.platform.ram_sz)
+        {
+            ALIS_DEBUG(EDebugWarning, "killallelem_v6: elem chain of vram %x left memory (node %x) - aborting\n", vram, e);
+            return;
+        }
+
+        if ((u32)v6el_next(e) == e)
+            return;
+        
+        eraselem_v6(e);
+    }
+
+    ALIS_DEBUG(EDebugWarning, "killallelem_v6: elem chain of vram %x did not terminate - aborting\n", vram);
+}
+
 void put_char(s8 character)
 {
     if (alis.charmode == 0)
@@ -1669,7 +2565,7 @@ void put_char(s8 character)
                 s16 charidx = ((s16)character) - alis.foasc;
                 if ((-1 < charidx) && ((s16)(charidx - alis.fomax) < 0))
                 {
-                    alis.flagmain = 1;
+                    alis.flagmain = (alis.platform.version >= 60) ? alis.fomain : 1;
                     image.invert_x = 0;
                     alis.fadddes = 1;
                     put(charidx + alis.fonum);
@@ -1684,14 +2580,57 @@ void put_char(s8 character)
 void put_string(void)
 {
 #ifndef NDEBUG
-    if (disalis) {
-       ALIS_DEBUG(EDebugInfo, " [\"%s\"]", alis.sd7);
+    if (disalis)
+    {
+        ALIS_DEBUG(EDebugInfo, " [\"%s\"]", alis.sd7);
     }
 #endif
+
+    u8 saved_ftext = alis.ftextfield;
+    if (alis.platform.version >= 60 && alis.charmode == 2)
+    {
+        alis.ftextfield = 1;
+        alis.textfx = image.depx;
+        alis.textfy = image.depz;
+        
+        if (alis.talign != 0)
+        {
+            s16 w = 0, maxw = 0;
+            for (char *p = alis.sd7; *p; p++)
+            {
+                if (*p == '\n')
+                {
+                    if (w > maxw)
+                        maxw = w;
+                    
+                    w = 0;
+                }
+                else if (*p != '\r')
+                {
+                    w += alis.folarg;
+                }
+            }
+            
+            if (w > maxw)
+                maxw = w;
+            
+            if ((u8)alis.talign == 0xff)
+            {
+                image.depx -= maxw;
+            }
+            else
+            {
+                image.depx -= maxw >> 1;
+            }
+        }
+    }
+
     for (char *strptr = alis.sd7; *strptr; strptr++)
     {
         put_char(*strptr);
     }
+
+    alis.ftextfield = saved_ftext;
 }
 
 u32 tprintd0[] = { 0x3b9aca00, 0x05f5e100, 0x00989680, 0x000f4240, 0x000186a0, 0x00002710, 0x000003e8, 0x00000064, 0x0000000a, 0x00000001 };
@@ -1827,8 +2766,12 @@ u8 calcfen(u16 elemidx1, u16 elemidx3)
         {
             s16 ax1 = image.fenx1 & ~15;
             s16 ax2 = (image.fenx2 | 15);
-            if (ax1 < 0) ax1 = 0;
-            if (ax2 > alis.platform.width - 1) ax2 = alis.platform.width - 1;
+            if (ax1 < 0)
+                ax1 = 0;
+            
+            if (ax2 > alis.platform.width - 1)
+                ax2 = alis.platform.width - 1;
+            
             image.fenx1 = ax1;
             image.fenx2 = ax2;
         }
@@ -1916,6 +2859,53 @@ u16 rangesprite(u16 elemidx1, u16 elemidx2, u16 elemidx3)
     return (elemidx2 == elemidx3) ? elemidx1 : elemidx2;
 }
 
+void rangesprite_v6(u16 elemidx1, u16 head)
+{
+    sSprite *sprite1 = SPRITE_VAR(elemidx1);
+
+    // unlink elemidx1 from its current position
+    u16 p = sprite1->prev;
+    u16 n = sprite1->link;
+    if (p != 0)
+        SPRITE_VAR(p)->link = n;
+    
+    if (n != 0)
+        SPRITE_VAR(n)->prev = p;
+
+    s16 newd1    = sprite1->newd;
+    s8  cordspr1 = sprite1->cordspr;
+    s8  numelem1 = sprite1->numelem;
+    if (image.wback != 0 && elemidx1 != image.backsprite && image.backprof <= newd1)
+        image.pback = 1;
+
+    // find the insertion point
+    u16 previdx = head;
+    sSprite *sprite3 = SPRITE_VAR(head);
+    while (sprite3->link != 0)
+    {
+        u16 li = sprite3->link;
+        sSprite *linksprite = SPRITE_VAR(li);
+        if (-1 < linksprite->state && linksprite->newd <= newd1 &&
+            (linksprite->newd < newd1 ||
+            (linksprite->cordspr <= cordspr1 &&
+            (linksprite->cordspr < cordspr1 ||
+            (linksprite->numelem <= numelem1 &&
+            (linksprite->numelem < numelem1 || -1 == sprite1->state))))))
+            break;
+        previdx = li;
+        sprite3 = linksprite;
+    }
+
+    // insert elemidx1 between previdx and its successor, maintaining prev links
+    sprite1->state = 0;
+    u16 succ = sprite3->link;
+    sprite1->link = succ;
+    sprite1->prev = previdx;
+    sprite3->link = elemidx1;
+    if (succ != 0)
+        SPRITE_VAR(succ)->prev = elemidx1;
+}
+
 void tstjoints(u16 elemidx)
 {
     sSprite *sprvar = SPRITE_VAR(elemidx);
@@ -1973,10 +2963,13 @@ void depscreen(u16 scene, u16 elemidx)
     if (alis.platform.version == 10)
         return;
 
-    set_scr_depx(scene, get_scr_depx(scene) + get_scr_unknown0x2a(scene));
-    set_scr_depy(scene, get_scr_depy(scene) + get_scr_unknown0x2c(scene));
-    set_scr_depz(scene, get_scr_depz(scene) + get_scr_unknown0x2e(scene));
-    
+    if (alis.platform.version < 60)
+    {
+        set_scr_depx(scene, get_scr_depx(scene) + get_scr_unknown0x2a(scene));
+        set_scr_depy(scene, get_scr_depy(scene) + get_scr_unknown0x2c(scene));
+        set_scr_depz(scene, get_scr_depz(scene) + get_scr_unknown0x2e(scene));
+    }
+
     for (sSprite *sprite = SPRITE_VAR(elemidx); sprite; sprite = SPRITE_VAR(sprite->link))
     {
         if (-1 < (s8)sprite->chsprite && sprite->state == 0)
@@ -2018,64 +3011,102 @@ void deptopix(u16 scene, u16 elemidx)
         scene = elemsprvar->screen_id;
         image.newf = elemsprvar->flaginvx;
 
-        s16 tmpdepx = elemsprvar->depx - get_scr_depx(scene);
-        s16 tmpdepy = elemsprvar->depy - get_scr_depy(scene);
-        s16 tmpdepz = elemsprvar->depz - get_scr_depz(scene);
-
-        scalaire(scene, &tmpdepx, &tmpdepy, &tmpdepz);
-
+        s16 tmpdepx, tmpdepy, tmpdepz;
         s16 offset = 0;
-        u8 cred = get_scr_creducing(scene);
-        if (-1 < (s8)cred && -1 < (s8)elemsprvar->credon_off)
-        {
-            if (tmpdepz == 0)
-            {
-                tmpdepz = 1;
-            }
-            
-            tmpdepx = (s16)(((s32)tmpdepx << (cred & 0x3f)) / tmpdepz);
-            tmpdepy = (s16)(((s32)tmpdepy << (cred & 0x3f)) / tmpdepz);
 
-            offset = (tmpdepz >> (elemsprvar->credon_off & 0x3f)) + (s8)elemsprvar->creducing;
-            if (offset < 0)
+        if (alis.platform.version >= 60)
+        {
+            s16 x = elemsprvar->depx - get_scr_depx(scene);
+            s16 y = elemsprvar->depy - get_scr_depy(scene);
+            s16 z = elemsprvar->depz - get_scr_depz(scene);
+
+            u8 mode = xread8(alis.basemain + scene + 0x5a);
+            switch (mode)
             {
-                offset = 0;
+                case 1:  tmpdepx = x; tmpdepy = -z; tmpdepz = y; break;
+                default: tmpdepx = x; tmpdepy = y;  tmpdepz = z; break;
             }
-            else
-            {
-                // NOTE: must be byte read - 16-bit read includes next field, gives wrong
-                // values on big-endian. May need s16 for v3.0+ games in the future.
-                int clink = (s8)xread8(alis.basemain + scene + 0x1e);
-                if (clink < offset)
-                {
-                    offset = clink;
-                }
-                
-                offset <<= 2;
-            }
+
+            tmpdepx += get_scr_unknown0x0a(scene);
+            tmpdepy += get_scr_unknown0x0c(scene);
         }
-        
-        tmpdepx = (tmpdepx >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0a(scene);
-        tmpdepy = (tmpdepy >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0c(scene);
+        else
+        {
+            tmpdepx = elemsprvar->depx - get_scr_depx(scene);
+            tmpdepy = elemsprvar->depy - get_scr_depy(scene);
+            tmpdepz = elemsprvar->depz - get_scr_depz(scene);
+
+            scalaire(scene, &tmpdepx, &tmpdepy, &tmpdepz);
+
+            u8 cred = get_scr_creducing(scene);
+            if (-1 < (s8)cred && -1 < (s8)elemsprvar->credon_off)
+            {
+                if (tmpdepz == 0)
+                {
+                    tmpdepz = 1;
+                }
+
+                tmpdepx = (s16)(((s32)tmpdepx << (cred & 0x3f)) / tmpdepz);
+                tmpdepy = (s16)(((s32)tmpdepy << (cred & 0x3f)) / tmpdepz);
+
+                offset = (tmpdepz >> (elemsprvar->credon_off & 0x3f)) + (s8)elemsprvar->creducing;
+                if (offset < 0)
+                {
+                    offset = 0;
+                }
+                else
+                {
+                    // NOTE: must be byte read - 16-bit read includes next field, gives wrong
+                    // values on big-endian. May need s16 for v3.0+ games in the future.
+                    int clink = (s8)xread8(alis.basemain + scene + 0x1e);
+                    if (clink < offset)
+                    {
+                        offset = clink;
+                    }
+
+                    offset <<= 2;
+                }
+            }
+
+            tmpdepx = (tmpdepx >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0a(scene);
+            tmpdepy = (tmpdepy >> (get_scr_credon_off(scene) & 0x3f)) + get_scr_unknown0x0c(scene);
+        }
 
         image.newad = elemsprvar->data + offset;
-        
+
         u8 *spritedata = (alis.mem + image.newad + xread32(image.newad));
-        if (spritedata[0] == 3)
+
+        s16 anchorx;
+        s16 anchory;
+
+        if (alis.platform.version >= 60)
         {
-            tmpdepx += (elemsprvar->flaginvx ? -1 : 1) * read16(spritedata + 4);
-            tmpdepy += read16(spritedata + 6);
-            if (spritedata[1] != 0)
-            {
-                image.newf ^= 1;
-            }
-            
-            image.newad += (s16)(read16(spritedata + 2) << 2);
-            spritedata = alis.mem + image.newad + xread32(image.newad);
+            image.newl = read16(spritedata + 0x10) - 1;
+            image.newh = read16(spritedata + 0x12) - 1;
+            anchorx = read16(spritedata + 0x14);
+            anchory = read16(spritedata + 0x16);
         }
-        
-        image.newl = read16(spritedata + 2);
-        image.newh = read16(spritedata + 4);
+        else
+        {
+            if (spritedata[0] == 3)
+            {
+                tmpdepx += (elemsprvar->flaginvx ? -1 : 1) * read16(spritedata + 4);
+                tmpdepy += read16(spritedata + 6);
+                if (spritedata[1] != 0)
+                {
+                    image.newf ^= 1;
+                }
+
+                image.newad += (s16)(read16(spritedata + 2) << 2);
+                spritedata = alis.mem + image.newad + xread32(image.newad);
+            }
+
+            image.newl = read16(spritedata + 2);
+            image.newh = read16(spritedata + 4);
+            anchorx = image.newl >> 1;
+            anchory = image.newh >> 1;
+        }
+
         image.newzoomx = 0;
         image.newzoomy = 0;
         
@@ -2085,8 +3116,8 @@ void deptopix(u16 scene, u16 elemidx)
             mac_update_pos(&tmpdepx, &tmpdepy);
         }
         
-        image.newx = tmpdepx - (image.newl >> 1);
-        image.newy = tmpdepy - (image.newh >> 1);
+        image.newx = tmpdepx - anchorx;
+        image.newy = tmpdepy - anchory;
         image.newd = tmpdepz;
     }
 }
@@ -2096,7 +3127,7 @@ void waitphysic(void)
     do {} while (image.fphysic != 0);
 }
 
-#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
+#if !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
 void trsfen(u8 *src, u8 *tgt)
 {
     s16 fx1 = image.fenx1;
@@ -2105,10 +3136,17 @@ void trsfen(u8 *src, u8 *tgt)
     s16 fy2 = image.feny2;
 
     // Clamp to screen bounds
-    if (fx1 < 0) fx1 = 0;
-    if (fy1 < 0) fy1 = 0;
-    if (fx2 >= alis.platform.width)  fx2 = alis.platform.width - 1;
-    if (fy2 >= alis.platform.height) fy2 = alis.platform.height - 1;
+    if (fx1 < 0)
+        fx1 = 0;
+    
+    if (fy1 < 0)
+        fy1 = 0;
+    
+    if (fx2 >= alis.platform.width)
+        fx2 = alis.platform.width - 1;
+    
+    if (fy2 >= alis.platform.height)
+        fy2 = alis.platform.height - 1;
 
     if (fx2 < fx1 || fy2 < fy1)
         return;
@@ -2172,6 +3210,135 @@ void oldfen(void)
         image.feny1 = tabptr[2];
         image.feny2 = tabptr[3];
         tvtofen();
+    }
+}
+
+#define V6_DIRTY_MAX 200
+typedef struct { s16 x1, y1, x2, y2; u32 area; s16 id; u16 scene; } sV6Dirty;
+static sV6Dirty v6dirty[V6_DIRTY_MAX];
+static s16 v6dirty_tail = 0;
+
+static s16 v6win_x1, v6win_y1, v6win_x2, v6win_y2;
+static s16 v6clip_valid, v6clip_x1, v6clip_y1, v6clip_x2, v6clip_y2, v6clip_w, v6clip_h;
+
+void v6dirty_reset(void)  { v6dirty_tail = 0; }
+s16  v6dirty_count(void)  { return v6dirty_tail; }
+
+void v6dirty_set_window(s16 x1, s16 y1, s16 x2, s16 y2)
+{
+    v6win_x1 = x1; v6win_y1 = y1; v6win_x2 = x2; v6win_y2 = y2;
+}
+
+static void v6clip(s16 x1, s16 y1, s16 x2, s16 y2)
+{
+    v6clip_valid = 0;
+    if (x1 > v6win_x2)
+        return;
+    
+    if (y1 > v6win_y2)
+        return;
+    
+    if (x2 < v6win_x1)
+        return;
+    
+    if (y2 < v6win_y1)
+        return;
+    
+    if (x1 < v6win_x1)
+        x1 = v6win_x1;
+    
+    if (y1 < v6win_y1)
+        y1 = v6win_y1;
+    
+    if (x2 > v6win_x2)
+        x2 = v6win_x2;
+    
+    if (y2 > v6win_y2)
+        y2 = v6win_y2;
+    
+    x1 &= (s16)0xfff0;
+    x2 |= 0x000f;
+    if (x1 < 0)
+        x1 = 0;
+    
+    if (x2 >= alis.platform.width)
+        x2 = alis.platform.width  - 1;
+    
+    v6clip_x1 = x1; v6clip_y1 = y1; v6clip_x2 = x2; v6clip_y2 = y2;
+    v6clip_w = (x2 - x1) + 1; v6clip_h = (y2 - y1) + 1;
+    v6clip_valid = 1;
+}
+
+void v6dirty_add(s16 x1, s16 y1, s16 x2, s16 y2, s16 id, u16 scene)
+{
+    v6clip(x1, y1, x2, y2);
+    if (!v6clip_valid)
+        return;
+
+    s16 nx1 = v6clip_x1, ny1 = v6clip_y1, nx2 = v6clip_x2, ny2 = v6clip_y2;
+    int target = v6dirty_tail;
+
+    if (id > 0)
+    {
+        for (int i = 0; i < v6dirty_tail; i++)
+        {
+            if (v6dirty[i].id == id)
+            {
+                target = i;
+                break;
+            }
+        }
+    }
+    else if (v6dirty_tail > 0)
+    {
+        u32 newarea = (u32)(u16)(nx2 - nx1) * (u16)(ny2 - ny1);
+        u32 best = 0xffffffffu;
+        for (int i = 0; i < v6dirty_tail; i++)
+        {
+            s16 ux1 = nx1 < v6dirty[i].x1 ? nx1 : v6dirty[i].x1;
+            s16 ux2 = nx2 > v6dirty[i].x2 ? nx2 : v6dirty[i].x2;
+            s16 uy1 = ny1 < v6dirty[i].y1 ? ny1 : v6dirty[i].y1;
+            s16 uy2 = ny2 > v6dirty[i].y2 ? ny2 : v6dirty[i].y2;
+            u32 uarea = (u32)(u16)(ux2 - ux1) * (u16)(uy2 - uy1);
+            if (uarea < best && uarea <= (u32)v6dirty[i].area + newarea)
+            {
+                best = uarea;
+                target = i;
+            }
+        }
+    }
+
+    if (target != v6dirty_tail)
+    {
+        if (v6dirty[target].x1 < nx1)
+            nx1 = v6dirty[target].x1;
+
+        if (v6dirty[target].x2 > nx2)
+            nx2 = v6dirty[target].x2;
+
+        if (v6dirty[target].y1 < ny1)
+            ny1 = v6dirty[target].y1;
+
+        if (v6dirty[target].y2 > ny2)
+            ny2 = v6dirty[target].y2;
+    }
+
+    v6dirty[target].x1 = nx1; v6dirty[target].y1 = ny1;
+    v6dirty[target].x2 = nx2; v6dirty[target].y2 = ny2;
+    v6dirty[target].area  = (u32)(u16)(nx2 - nx1) * (u16)(ny2 - ny1);
+    v6dirty[target].id    = id;
+    v6dirty[target].scene = scene;
+
+    if (target == v6dirty_tail)
+    {
+        if (v6dirty_tail < V6_DIRTY_MAX - 1)
+        {
+            v6dirty_tail++;
+        }
+        else
+        {
+            ALIS_DEBUG(EDebugError, "v6 dirty ring overflow (>%d)\n", V6_DIRTY_MAX);
+        }
     }
 }
 
@@ -2339,7 +3506,7 @@ u16 iefflink(u16 elemidx1, u16 elemidx2)
     return elemidx2;
 }
 
-#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
+#if !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
 void clrfen(void)
 {
     s16 fx1 = image.fenx1 < 0 ? 0 : image.fenx1;
@@ -2391,8 +3558,7 @@ void destofen(sSprite *sprite)
 #if !defined(ALIS_NATIVE_16BPP)
     // Background cache: the backsprite copies the flattened background from the shadow
     // (laid out like image.logic) to the screen as a clipped rect copy over the back rect.
-    if (image.sback != 0 && image.backmap != NULL
-        && sprite == SPRITE_VAR(image.backsprite))
+    if (image.sback != 0 && image.backmap != NULL && sprite == SPRITE_VAR(image.backsprite))
     {
         s16 bx1 = image.clipx1 > image.backx1 ? image.clipx1 : image.backx1;
         s16 by1 = image.clipy1 > image.backy1 ? image.clipy1 : image.backy1;
@@ -2408,18 +3574,18 @@ void destofen(sSprite *sprite)
             s32 c0 = (bx1 >> 4) * 16;
             s32 nb = (((bx2 >> 4) - (bx1 >> 4)) + 1) * 16;
             for (s16 y = by1; y <= by2; y++)
-                memcpy(image.logic + (s32)y * w + c0,
-                       image.backmap + (s32)y * w + c0, nb);
+                memcpy(image.logic + (s32)y * w + c0, image.backmap + (s32)y * w + c0, nb);
 #else
             // Chunky: one byte per pixel.
             s32 span = (s32)(bx2 - bx1) + 1;
             for (s16 y = by1; y <= by2; y++)
-                memcpy(image.logic + (s32)y * w + bx1,
-                       image.backmap + (s32)y * w + bx1, span);
+                memcpy(image.logic + (s32)y * w + bx1, image.backmap + (s32)y * w + bx1, span);
 #endif
         }
+
         return;
     }
+
     // While fenetre has wlogic pointed at the cache, composite behind-sprites into the shadow.
     if (image.backmap != NULL && image.wlogic == image.backmap)
         image.wdraw = image.backmap;
@@ -2433,6 +3599,77 @@ void destofen(sSprite *sprite)
         addr += xread32(addr);
 
     u8 *bitmap = alis.mem + addr;
+
+    if (alis.platform.version >= 60)
+    {
+        u8 desctype = bitmap[0];
+        if (desctype != 1 && desctype != 5)
+        {
+            return;
+        }
+
+        s8   v6flip   = sprite->newf;
+        s32  v6width  = sprite->width + 1;
+        s32  v6height = sprite->height + 1;
+
+        sRect pos = { .x1 = sprite->newx, .y1 = sprite->newy, .x2 = sprite->newx + sprite->width, .y2 = sprite->newy + sprite->height };
+        if (image.clipx2 < pos.x1 || image.clipy2 < pos.y1 || pos.x2 < image.clipx1 || pos.y2 < image.clipy1)
+            return;
+
+        image.blocx1 = pos.x1 < image.clipx1 ? image.clipx1 : pos.x1;
+        image.blocy1 = pos.y1 < image.clipy1 ? image.clipy1 : pos.y1;
+        image.blocx2 = image.clipx2 < pos.x2 ? image.clipx2 : pos.x2;
+        image.blocy2 = image.clipy2 < pos.y2 ? image.clipy2 : pos.y2;
+
+        if (desctype == 5)
+        {
+            // solid fill of the clipped rect with the descriptors colour byte
+            u8  fillcol = bitmap[0x1c];
+            s32 w = host.pixelbuf.w;
+            s32 x1 = image.blocx1 < 0 ? 0 : image.blocx1;
+            s32 y1 = image.blocy1 < 0 ? 0 : image.blocy1;
+            s32 x2 = image.blocx2 >= w ? w - 1 : image.blocx2;
+            s32 y2 = image.blocy2 >= host.pixelbuf.h ? host.pixelbuf.h - 1 : image.blocy2;
+            for (s32 yy = y1; yy <= y2; yy++)
+            {
+                u8 *row = image.logic + x1 + yy * w;
+                for (s32 xx = x1; xx <= x2; xx++)
+                    *row++ = fillcol;
+            }
+
+            return;
+        }
+
+        sRect bmp = { .x1 = 0, .y1 = 0, .x2 = v6width, .y2 = v6height };
+
+        if (image.blocx1 > pos.x1)
+        {
+            bmp.x1 += (image.blocx1 - pos.x1);
+            bmp.x2 -= (image.blocx1 - pos.x1);
+        }
+
+        if (image.blocx2 <= pos.x2)
+        {
+            bmp.x2 -= (pos.x2 - image.blocx2);
+        }
+
+        if (image.blocy1 > pos.y1)
+        {
+            bmp.y1 += (image.blocy1 - pos.y1);
+            bmp.y2 -= (image.blocy1 - pos.y1);
+        }
+
+        if (image.blocy2 < pos.y2)
+        {
+            bmp.y2 -= (pos.y2 - image.blocy2);
+        }
+
+        bmp.x2 += bmp.x1;
+        bmp.y2 += bmp.y1;
+
+        draw_8bit_0(bitmap + 0x1e, &pos, &bmp, v6width, v6flip);
+        return;
+    }
 
     // ST/Amiga engines skip negative types; Falcon and DOS don't test it
     if ((s8)bitmap[0] < 0 && alis.platform.version > 10
@@ -2527,20 +3764,6 @@ void destofen(sSprite *sprite)
     }
 #endif
     
-#if defined(ALIS_PROFILE_DRAW)
-    {   // overdraw accounting: bmp.x2/y2 are still the clipped width/height here
-        extern u32 g_od_pix, g_od_pix_op, g_od_pix_tr, g_od_blits, g_od_big;
-        s32 area = (s32)bmp.x2 * (s32)bmp.y2;
-        if (area > 0) {
-            u8 fmt = bitmap[0];
-            int opaque = (fmt == 0x02 || fmt == 0x12 || fmt == 0x16);
-            g_od_pix += area; g_od_blits++;
-            if (opaque) g_od_pix_op += area; else g_od_pix_tr += area;
-            if (area >= 2048) g_od_big += area;
-        }
-    }
-#endif
-
     bmp.x2 += bmp.x1;
     bmp.y2 += bmp.y1;
 
@@ -2553,18 +3776,29 @@ void destofen(sSprite *sprite)
     }
 #endif
 
-#if ALIS_DEBUG_PLANAR || defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
+#if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
     // Sprites planarized in place at load (convert_sprites_inplace); flips use a lazily
     // mirrored copy. Per-resource test: on DOS data only some scripts are planarized
     // (byte 6 = plane count, 0 = chunky). Others fall through to the chunky blitters.
     {
         extern int sprite_is_planar(const u8 *bitmap);
-        if (sprite_is_planar(bitmap)) {
+        if (sprite_is_planar(bitmap))
+        {
             extern u16 *planar_tab_get_flip(const u8 *bitmap);
             extern void destofen_planar(const u8 *bitmap, u16 *data, sRect *pos, sRect *bmp);
-            if (!flip) { destofen_planar(bitmap, (u16 *)(bitmap + 8), &pos, &bmp); return; }
+            if (!flip)
+            {
+                destofen_planar(bitmap, (u16 *)(bitmap + 8), &pos, &bmp);
+                return;
+            }
+
             u16 *_fd = planar_tab_get_flip(bitmap);
-            if (_fd) { destofen_planar(bitmap, _fd, &pos, &bmp); return; }
+            if (_fd)
+            {
+                destofen_planar(bitmap, _fd, &pos, &bmp);
+                return;
+            }
+
             return;   // OOM building the flip — skip rather than draw garbage
         }
     }
@@ -2578,7 +3812,7 @@ void destofen(sSprite *sprite)
             {
                 draw_mac_rect(&pos, &bmp, bitmap[1]);
             }
-            else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
+            else if (PL_CGA())
             {
                 draw_rect(&pos, &bmp, bitmap[1] % 4);
             }
@@ -2586,6 +3820,7 @@ void destofen(sSprite *sprite)
             {
                 draw_rect(&pos, &bmp, bitmap[1]);
             }
+
             break;
         }
             
@@ -2595,7 +3830,7 @@ void destofen(sSprite *sprite)
             {
                 draw_mac_mono_0(at, &pos, &bmp, width, flip);
             }
-            else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
+            else if (PL_CGA())
             {
                 draw_dos_cga_0(at, &pos, &bmp, width, flip);
             }
@@ -2613,7 +3848,7 @@ void destofen(sSprite *sprite)
             {
                 draw_mac_mono_0(at, &pos, &bmp, width, flip);
             }
-            else if (alis.platform.kind == EPlatformPC && alis.platform.version <= 11)
+            else if (PL_CGA())
             {
                 draw_dos_cga_2(at, &pos, &bmp, width, flip);
             }
@@ -2649,6 +3884,7 @@ void destofen(sSprite *sprite)
             {
                 draw_4to8bit_2(at + 2, &pos, &bmp, width, flip, at[0]);
             }
+
             break;
         }
             
@@ -2723,13 +3959,7 @@ void fentotv(void)
         return;
     }
 
-#if ALIS_VM_PROFILE
-    u32 _c2p0 = sys_profile_ticks();
-#endif
     trsfen(image.logic, image.physic);
-#if ALIS_VM_PROFILE
-    g_prof_c2p += sys_profile_ticks() - _c2p0;
-#endif
 }
 
 void fenetre(u16 scene, u16 elemidx1, u16 elemidx3, u16 prevspidx)
@@ -2947,22 +4177,9 @@ void affiscr(u16 scene, u16 screenidx)
         folscreen(scene);
     }
 
-#if defined(ALIS_FORCE_LAND_REDRAW)
-    // Profiling: redraw 3D scenes every frame as if the camera moved.
-    if (alis.platform.version != 0 && (get_scr_numelem(scene) & 2) != 0)
-        set_scr_state(scene, get_scr_state(scene) | 0x80);
-#endif
-
     if ((image.fremap != 0) || ((s8)get_scr_state(scene) < 0))
     {
-#if defined(ALIS_PROFILE_DRAW)
-        extern u32 sys_profile_ticks_safe(void); extern u32 g_prof_frame_depscreen;
-        u32 _dp0 = sys_profile_ticks_safe();
         depscreen(scene, screenidx);
-        g_prof_frame_depscreen += sys_profile_ticks_safe() - _dp0;
-#else
-        depscreen(scene, screenidx);
-#endif
     }
 
     s8 scrflags = alis.platform.version == 10 ? 0 : get_scr_numelem(scene);
@@ -3199,6 +4416,283 @@ void affiscr(u16 scene, u16 screenidx)
     }
 }
 
+void affiscr_v6(u16 scene, u16 screenidx)
+{
+    u16 spriteidx = screenidx;
+    u16 prevspidx;
+    u16 linkidx;
+
+    if (alis.platform.version >= 30 && xread8(alis.basemain + scene + 0x84) != 0)
+    {
+        folscreen(scene);
+    }
+
+    if ((image.fremap != 0) || ((s8)get_scr_state(scene) < 0))
+    {
+        depscreen(scene, screenidx);
+    }
+    
+    u8 draw = false;
+    if (alis.platform.version == 0)
+    {
+        draw = alis.fswitch == 0;
+    }
+    else if ((get_scr_numelem(scene) & 2) == 0)
+    {
+        draw = true;
+    }
+    else
+    {
+        affiland(scene);
+        draw = (get_scr_state(scene) & 0x80) == 0;
+    }
+    
+    if (draw)
+    {
+        image.wback = (get_scr_numelem(scene) & 4) != 0;
+        image.wpag = 0;
+
+        if ((get_scr_state(scene) & 0x20) != 0)
+        {
+            image.wpag = 1;
+            image.spag --;
+            if (image.spag == 0)
+            {
+                image.wpag = -1;
+            }
+        }
+
+        if ((get_scr_numelem(scene) & 0x10) == 0)
+        {
+            while ((void)(prevspidx = spriteidx), (spriteidx = SPRITE_VAR(spriteidx)->link) != 0)
+            {
+                s8 state = SPRITE_VAR(spriteidx)->state;
+                if (state != 0)
+                {
+                    image.joints = 0;
+                    image.pback = 0;
+                    if (state == 2)
+                    {
+                        linkidx = inilink(spriteidx);
+                        if (linkidx >= 0)
+                        {
+                            spriteidx = iremplink(scene, spriteidx, prevspidx, screenidx);
+                            suitlin1(scene, spriteidx, prevspidx, screenidx, linkidx);
+                        }
+                        else
+                        {
+                            sSprite *sprite = SPRITE_VAR(spriteidx);
+
+                            u8 isback = image.wback == 0;
+                            if (!isback)
+                            {
+                                isback = image.backprof == sprite->newd;
+                                if (image.backprof <= sprite->newd)
+                                {
+                                    image.pback = 1;
+                                    isback = false;
+                                }
+                            }
+                            
+                            deptopix(scene, spriteidx);
+                            tstjoints(spriteidx);
+                            
+                            if (image.joints == 0)
+                            {
+                                SPRITE_VAR(prevspidx)->link = sprite->link;
+                                fenetre(scene, spriteidx, screenidx, prevspidx);
+                            }
+                            else
+                            {
+                                SPRITE_VAR(prevspidx)->link = sprite->link;
+                            }
+                            
+                            sprite->newad = image.newad;
+                            sprite->newx = image.newx;
+                            sprite->newy = image.newy;
+                            sprite->newd = image.newd;
+                            sprite->newf = image.newf;
+                            sprite->width = image.newl;
+                            sprite->height = image.newh;
+                            sprite->newzoomx = image.newzoomx;
+                            sprite->newzoomy = image.newzoomy;
+                            
+                            prevspidx = rangesprite(spriteidx, prevspidx, screenidx);
+                        }
+                    }
+                    else
+                    {
+                        linkidx = inilink(spriteidx);
+                        
+                        if (state == -1)
+                        {
+                            spriteidx = inouvlink(scene, spriteidx, prevspidx, screenidx);
+                        }
+                        else
+                        {
+                            spriteidx = iefflink(spriteidx, prevspidx);
+                        }
+                        
+                        if (linkidx < 0)
+                        {
+                            image.joints = 1;
+                        }
+                        else
+                        {
+                            suitlin1(scene, spriteidx, prevspidx, screenidx, linkidx);
+                        }
+                    }
+                    
+                    fenetre(scene, spriteidx, screenidx, prevspidx);
+                    spriteidx = prevspidx;
+                }
+            }
+        }
+        else
+        {
+            image.fenx1 = get_scr_newx(scene);
+            image.feny1 = get_scr_newy(scene);
+            image.fenx2 = image.fenx1 + get_scr_width(scene);
+            image.feny2 = image.feny1 + get_scr_height(scene);
+            image.clipl = (image.fenx2 - image.fenx1) + 1;
+            image.cliph = (image.feny2 - image.feny1) + 1;
+            
+            image.clipx1 = image.fenx1;
+            image.clipy1 = image.feny1;
+            image.clipx2 = image.fenx2;
+            image.clipy2 = image.feny2;
+            
+            if ((get_scr_numelem(scene) & 0x40) == 0)
+            {
+                clrfen();
+            }
+            
+            while ((void)(prevspidx = spriteidx), (spriteidx = SPRITE_VAR(spriteidx)->link) != 0)
+            {
+                sSprite *psprite = SPRITE_VAR(prevspidx);
+                sSprite *csprite = SPRITE_VAR(spriteidx);
+                if (csprite->state != 0)
+                {
+                    if (csprite->state == 1)
+                    {
+                        psprite->link = csprite->link;
+                        csprite->to_next = image.libsprit;
+                        image.libsprit = spriteidx;
+                        spriteidx = prevspidx;
+                    }
+                    else
+                    {
+                        deptopix(scene, spriteidx);
+                        psprite->link = csprite->link;
+                        csprite->newad = image.newad;
+                        csprite->newx = image.newx;
+                        csprite->newy = image.newy;
+                        csprite->newd = image.newd;
+                        csprite->newf = image.newf;
+                        csprite->width = image.newl;
+                        csprite->height = image.newh;
+                        csprite->newzoomx = image.newzoomx;
+                        csprite->newzoomy = image.newzoomy;
+                        spriteidx = rangesprite(spriteidx, prevspidx, screenidx);
+                    }
+                }
+            }
+            
+            for (spriteidx = screen.ptscreen; spriteidx; spriteidx = get_scr_to_next(spriteidx))
+            {
+                if (((get_scr_state(spriteidx) & 0x40) == 0) && ((prevspidx = get_scr_screen_id(spriteidx)) != 0))
+                {
+                    clipfen(SPRITE_VAR(prevspidx));
+                    
+                    if (image.fclip != 0)
+                    {
+                        while ((prevspidx = SPRITE_VAR(prevspidx)->link) != 0)
+                        {
+                            if (-1 < SPRITE_VAR(prevspidx)->state && -1 < SPRITE_VAR(prevspidx)->newf && -1 < SPRITE_VAR(prevspidx)->newd)
+                            {
+                                destofen(SPRITE_VAR(prevspidx));
+                                image.switchgo = 1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ((alis.fswitch == 0) && (image.wpag == 0))
+            {
+                fentotv();
+            }
+        }
+    }
+    else
+    {
+        for (spriteidx = get_scr_to_next(scene); spriteidx; spriteidx = get_scr_to_next(spriteidx))
+        {
+            if (((get_scr_state(spriteidx) & 0x40) == 0) && ((prevspidx = get_scr_screen_id(spriteidx)) != 0))
+            {
+                clipfen(SPRITE_VAR(prevspidx));
+                
+                if (image.fclip != 0)
+                {
+                    while ((prevspidx = SPRITE_VAR(prevspidx)->link) != 0)
+                    {
+                        if (-1 < SPRITE_VAR(prevspidx)->state && -1 < SPRITE_VAR(prevspidx)->newf && -1 < SPRITE_VAR(prevspidx)->newd)
+                        {
+                            destofen(SPRITE_VAR(prevspidx));
+                            image.switchgo = 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ((alis.fswitch == 0) && (image.wpag == 0))
+        {
+            fentotv();
+        }
+    }
+    
+    if (image.wpag < 0)
+    {
+        set_scr_state(scene, get_scr_state(scene) & 0xdf);
+        image.fenx1 = get_scr_newx(scene);
+        image.feny1 = get_scr_newy(scene);
+        image.fenx2 = get_scr_newx(scene) + get_scr_width(scene);
+        image.feny2 = get_scr_newy(scene) + get_scr_height(scene);
+        scrolpage();
+    }
+    
+    // TODO: fix this hack
+    // following 'if ()' is needed to draw rails under train on minimap in Transarctica
+    if (alis.platform.uid != EGameTransarctica)
+    {
+        set_scr_state(scene, get_scr_state(scene) & 0x7f);
+    }
+}
+
+u32 v6ips_warm;
+static u32 v6ips_ring[8];
+static u32 v6ips_slot;
+
+void v6ips_measure(void)
+{
+    u32 now = alis.timeclock;
+    u32 el = now - v6ips_ring[v6ips_slot];
+    if (el == 0)
+        el = 1;
+    
+    v6ips_ring[v6ips_slot] = now;
+    v6ips_slot = (v6ips_slot + 1) & 7;
+    if (v6ips_warm != 0)
+    {
+        v6ips_warm--;
+    }
+    else
+    {
+        alis.v6ips = (s32)(((u32)(0x3c << 3)) / el + 1);
+    }
+}
+
 u32 itroutine(u32 interval, void *param)
 {
     u8 prevtiming = image.vtiming;
@@ -3229,32 +4723,1032 @@ u32 itroutine(u32 interval, void *param)
     return alis.platform.is_little_endian ? 17 : 20;
 }
 
+void rgb_alloc(s32 w, s32 h)
+{
+    free(image.rgblogic);
+    free(image.rgbphysic);
+    image.rgblogic = image.rgbphysic = NULL;
+    if (w > 0 && h > 0 && alis.platform.uid == EGameRobinsonsRequiem3DO)
+    {
+        image.rgblogic  = (u32 *)calloc((size_t)w * h, sizeof(u32));
+        image.rgbphysic = (u32 *)calloc((size_t)w * h, sizeof(u32));
+    }
+
+    host.pixelbuf.rgb = image.rgbphysic;
+}
+
+void resize_screen(s16 w, s16 h)
+{
+    if (w <= 0 || h <= 0)
+        return;
+    if (w == alis.platform.width && h == alis.platform.height)
+        return;
+
+    sys_lock_renderer();
+
+    u8 *oldphys = image.physic_alloc;
+    u8 *oldlog  = image.logic_alloc;
+
+    u32 off = (u32)host.pixelbuf.surface_h * (u32)w;
+    image.buffer_alloc_size = (u32)w * ((u32)h + 2 * host.pixelbuf.surface_h) + (u32)w + 2;
+    image.physic_alloc = (u8 *)calloc(1, image.buffer_alloc_size);
+    image.logic_alloc  = alis.platform.dbl_buf ? (u8 *)calloc(1, image.buffer_alloc_size) : image.physic_alloc;
+    image.physic = image.physic_alloc + off;
+    image.logic  = image.logic_alloc + off;
+
+    if (oldlog != oldphys)
+        free(oldlog);
+    
+    free(oldphys);
+
+    if (image.bgcache_alloc)
+    {
+        free(image.bgcache_alloc);
+        image.bgcache_alloc = (u8 *)calloc(1, image.buffer_alloc_size);
+        image.backmap = image.bgcache_alloc ? image.bgcache_alloc + off : NULL;
+        image.backlarg = w;
+        if (image.backmap == NULL)
+            image.sback = 0;
+    }
+
+    alis.platform.width  = w;
+    alis.platform.height = h;
+    rgb_alloc(w, h);
+
+    image.logx1 = 0;
+    image.logx2 = w - 1;
+    image.logy1 = 0;
+    image.logy2 = h - 1;
+    image.loglarg = w >> 1;
+
+    host.pixelbuf.w = w;
+    host.pixelbuf.h = h;
+    host.pixelbuf.data = image.physic;
+
+    sys_unlock_renderer();
+
+    ALIS_DEBUG(EDebugInfo, "resize_screen: %dx%d\n", w, h);
+}
+
+static u8  v6xdrawinv;
+s16 v6xclipx1, v6xclipy1, v6xclipx2, v6xclipy2;
+u8  v6xdirty;
+static s16 v6x_textwalk(u32 sp, int draw, s16 *outh);
+
+static void v6x_depscreen(u32 s)
+{
+    u32 node = xread32(s + 0x5e);
+    if (node == 0)
+        return;
+    u32 sp = xread32(node + 0x38);
+    while (sp != 0 && sp != xread32(sp + 0x38))
+    {
+        v6sp_set_flags(sp, v6sp_flags(sp) | 1);
+        sp = xread32(sp + 0x38);
+    }
+}
+
+static void v6x_deptopix(u32 s, u32 sp)
+{
+    v6xdrawinv = v6sp_invert(sp);
+
+    s32 x = v6sp_depx(sp);
+    s32 y = v6sp_depy(sp);
+    s32 z = v6sp_depz(sp);
+    for (u32 p = v6sp_parent(sp); p != 0; p = v6sp_parent(p))
+    {
+        x += v6sp_depx(p);
+        y += v6sp_depy(p);
+        z += v6sp_depz(p);
+    }
+
+    x -= xread32(s + 0x0c);
+    y -= xread32(s + 0x10);
+    z -= xread32(s + 0x14);
+
+    s16 ax = (s16)x, bx = (s16)y, cx = (s16)z;
+    switch (xread8(s + 0x5a))
+    {
+        case 1:
+        {
+            s16 t = cx;
+            cx = bx;
+            bx = (s16)-t;
+            break;
+        }
+
+        case 2:
+        {
+            bx = (s16)-bx;
+            cx = (s16)-cx;
+            break;
+        }
+            
+        case 3:
+        {
+            s16 t = cx;
+            cx = bx;
+            bx = (s16)(-t - bx);
+            break;
+        }
+
+        case 4:
+        {
+            s16 t = cx;
+            cx = (s16)(ax + bx);
+            ax = (s16)(ax - bx);
+            bx = (s16)-(t + cx);
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+
+    xwrite16(sp + 0x4c, cx);
+    u16 scale = v6sp_scale(sp);
+    if (scale != 0x100)
+    {
+        ax = (s16)(((s32)ax * (s16)scale) >> 8);
+        bx = (s16)(((s32)bx * (s16)scale) >> 8);
+    }
+
+    ax += (s16)xread16(s + 0x62);
+    bx += (s16)xread16(s + 0x64);
+
+    u8 st = v6sp_state(sp);
+    s16 w, h;
+    if (st == 0x38)
+    {
+        xwrite16(sp + 0x44, ax);
+        xwrite16(sp + 0x46, bx);
+        xwrite16(sp + 0x48, ax);
+        xwrite16(sp + 0x4a, bx);
+        s16 th = 0;
+        s16 tw = v6x_textwalk(sp, 0, &th);
+        xwrite16(sp + 0x40, tw);
+        xwrite16(sp + 0x42, th);
+        u8 align = xread8(sp + 0x52);
+        if (align != 0)
+        {
+            ax -= (align == 0xff) ? tw : (s16)(tw / 2);
+            xwrite16(sp + 0x44, ax);
+            xwrite16(sp + 0x48, ax);
+        }
+
+        xwrite16(sp + 0x48, (s16)(ax + tw - 1));
+        xwrite16(sp + 0x4a, (s16)(bx + th - 1));
+        return;
+    }
+
+    if (st == 0x39 || st == 0x7f)
+    {
+        w = xread16(sp + 0x40);
+        h = xread16(sp + 0x42);
+    }
+    else
+    {
+        u32 d = v6sp_desc(sp);
+        if (d == 0)
+        {
+            w = 0; h = 0;
+            xwrite16(sp + 0x40, 0);
+            xwrite16(sp + 0x42, 0);
+        }
+        else
+        {
+            u32 descr = d + xread32(d);
+            if (scale != 0x100)
+            {
+                ax -= (s16)(((s32)(s16)xread16(descr + 0x14) * (s16)scale) >> 8);
+                bx -= (s16)(((s32)(s16)xread16(descr + 0x16) * (s16)scale) >> 8);
+                w = (s16)(((s32)(s16)xread16(descr + 0x10) * (s16)scale) >> 8);
+                h = (s16)(((s32)(s16)xread16(descr + 0x12) * (s16)scale) >> 8);
+            }
+            else
+            {
+                ax -= (s16)xread16(descr + 0x14);
+                bx -= (s16)xread16(descr + 0x16);
+                w = (s16)xread16(descr + 0x10);
+                h = (s16)xread16(descr + 0x12);
+            }
+
+            xwrite16(sp + 0x40, w);
+            xwrite16(sp + 0x42, h);
+        }
+    }
+
+    xwrite16(sp + 0x44, ax);
+    xwrite16(sp + 0x48, (s16)(ax + w - 1));
+    xwrite16(sp + 0x46, bx);
+    xwrite16(sp + 0x4a, (s16)(bx + h - 1));
+}
+
+static void v6x_rangesprite(u32 s, u32 sp)
+{
+    u32 prev = v6sp_prev(sp);
+    u32 next = v6sp_next(sp);
+    xwrite32(next + 0x34, prev);
+    xwrite32(prev + 0x38, next);
+
+    s16 key = (s16)xread16(sp + 0x4c);
+    s8  ord = (s8)xread8(sp + 0x32);
+    u32 cand = xread32(s + 0x5e);
+    u32 before;
+    for (;;)
+    {
+        before = cand;
+        cand = xread32(cand + 0x38);
+        if (cand == xread32(cand + 0x38))
+            break;
+        
+        if (v6sp_flags(cand) & 0x80)
+            continue;
+        
+        u8 ct = v6sp_state(cand);
+        if (ct != 0x32 && ct != 0x38 && ct != 0x39 && ct != 0x34 && ct != 0x7f)
+            continue;
+        
+        s16 ckey = (s16)xread16(cand + 0x4c);
+        if (key < ckey)
+            continue;
+        
+        if (key > ckey)
+            break;
+        
+        s8 cord = (s8)xread8(cand + 0x32);
+        if (ord < cord)
+            continue;
+        
+        if (ord > cord)
+            break;
+        
+        if (sp < cand)
+            continue;
+        
+        break;
+    }
+
+    xwrite32(before + 0x38, sp);
+    xwrite32(cand + 0x34, sp);
+    v6sp_set_prev(sp, before);
+    v6sp_set_next(sp, cand);
+}
+
+static inline u32 pal_argb(u8 idx)
+{
+    return host.pixelbuf.palette[idx] | 0xff000000u;
+}
+
+static inline u32 rgb555(u16 c)
+{
+    u32 r = (c >> 10) & 0x1f, g = (c >> 5) & 0x1f, b = c & 0x1f;
+    return 0xff000000u | ((r << 3 | r >> 2) << 16) | ((g << 3 | g >> 2) << 8) | (b << 3 | b >> 2);
+}
+
+static void cel_blit(u32 descr, s32 x1, s32 y1, s32 x2, s32 cx1, s32 cy1, s32 cx2, s32 cy2, int flip);
+
+static void v6x_glyphblit(u32 sp, u32 glyph, s16 x, s16 y)
+{
+    s16 gw = (s16)xread16(glyph + 0x10);
+    s16 gh = (s16)xread16(glyph + 0x12);
+    if (gw <= 0 || gh <= 0)
+        return;
+    
+    s32 W = alis.platform.width, H = alis.platform.height;
+    s32 cx1 = x < v6xclipx1 ? v6xclipx1 : x;
+    s32 cy1 = y < v6xclipy1 ? v6xclipy1 : y;
+    s32 cx2 = (x + gw - 1) > v6xclipx2 ? v6xclipx2 : (x + gw - 1);
+    s32 cy2 = (y + gh - 1) > v6xclipy2 ? v6xclipy2 : (y + gh - 1);
+    if (cx1 < 0)
+        cx1 = 0;
+    
+    if (cy1 < 0)
+        cy1 = 0;
+    
+    if (cx2 >= W)
+        cx2 = W - 1;
+    
+    if (cy2 >= H)
+        cy2 = H - 1;
+    
+    if (cx1 > cx2 || cy1 > cy2)
+        return;
+    
+    u8 opaque = xread8(glyph + 0x1b) & 1;
+    u8 flip = xread8(sp + 0x25) & 1;
+    if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+    {
+        cel_blit(glyph, x, y, x + gw - 1, cx1, cy1, cx2, cy2, flip);
+        return;
+    }
+
+    u8 *src = alis.mem + glyph + 0x20;
+    for (s32 yy = cy1; yy <= cy2; yy++)
+    {
+        u8 *dst = image.logic + yy * W + cx1;
+        s32 sy = yy - y;
+        for (s32 xx = cx1; xx <= cx2; xx++, dst++)
+        {
+            s32 sx = flip ? (x + gw - 1 - xx) : (xx - x);
+            u8 pix = src[sy * gw + sx];
+            if (pix == 0 && !opaque)
+                continue;
+            
+            if (image.rgblogic)
+            {
+                image.rgblogic[yy * W + xx] = pal_argb(pix);
+            }
+            else
+            {
+                *dst = pix;
+            }
+        }
+    }
+}
+
+static s16 v6x_textwalk(u32 sp, int draw, s16 *outh)
+{
+    u8 fontno = xread8(sp + 0x51);
+    if (fontno >= 64 || !alis.v6xfonts[fontno].valid)
+    {
+        if (outh)
+            *outh = 0;
+        
+        return 8;
+    }
+
+    s32 first   = alis.v6xfonts[fontno].foasc;
+    s32 count   = alis.v6xfonts[fontno].count;
+    s32 spacing = alis.v6xfonts[fontno].spacing;
+    u32 tab     = alis.v6xfonts[fontno].glyphslot;
+    s32 propor  = (alis.v6xfonts[fontno].id == 2);
+
+    s16 x0 = (s16)xread16(sp + 0x44);
+    s16 x = x0;
+    s16 y = (s16)xread16(sp + 0x46);
+    u32 str = sp + xread32(sp + 0x3c);
+
+    for (;;)
+    {
+        u8 c = xread8(str++);
+        if (c == 0)
+            break;
+        
+        if (c < 0x20)
+            continue;
+        
+        if (c != 0x20)
+        {
+            s32 idx = (s32)c - first;
+            if (idx >= 0 && idx < count)
+            {
+                if (tab == 0)
+                    break;
+                
+                u32 entry = tab + (u32)idx * 4;
+                u32 glyph = entry + xread32(entry);
+                if (xread8(glyph) == 1 && draw)
+                    v6x_glyphblit(sp, glyph, x, y);
+                
+                if (propor)
+                    x += (s16)xread16(glyph + 0x10) - (s16)(u8)xread8(glyph + 0x1a);
+            }
+        }
+
+        x += (s16)spacing;
+    }
+
+    if (outh)
+        *outh = (s16)alis.v6xfonts[fontno].height;
+    
+    return (s16)(x - x0 + 8);
+}
+
+void v6x_textput(const u8 *str)
+{
+    u32 elem = v6put.basesprite;
+    if ((s32)elem <= 0)
+        return;
+    
+    u32 limit = v6put.limit;
+    s32 len = 0;
+    while (str[len] != 0)
+        len++;
+    
+    len++;
+
+    u32 dst;
+    if (xread32(elem + 0x3c) != 0)
+    {
+        dst = elem + xread32(elem + 0x3c);
+        while (xread8(dst) != 0)
+            dst++;
+    }
+    else
+    {
+        dst = elem + 0x53;
+    }
+
+    s32 room = (s32)limit - (s32)dst;
+    if (room <= 0)
+    {
+        ALIS_DEBUG(EDebugError, "v6x_textput: elem buffer full (perror 0x25)\n");
+        return;
+    }
+
+    if (room < len)
+    {
+        ALIS_DEBUG(EDebugError, "v6x_textput: string truncated (perror 0x25)\n");
+        len = room;
+    }
+
+    for (s32 i = 0; i < len; i++)
+        xwrite8(dst + i, str[i]);
+
+    v6put.ftext = 1;
+    v6put.desc = 0x53;
+    put_v6(elem);
+    v6put.ftext = 0;
+    v6put.desc = 0;
+}
+
+static void v6x_affiscr(u32 s)
+{
+    xwrite16(s + 0x20, 0);
+    if (xread8(s + 0x80) != 0)
+        v6x_folscreen(s);
+    
+    if (xread8(s + 0x58) & 0x80)
+        v6x_depscreen(s);
+    
+    if (xread8(s + 0x5a) == 6)
+    {
+        v6x_mode6(s);
+        xwrite8(s + 0x58, xread8(s + 0x58) & 0x7f);
+        return;
+    }
+
+    if (xread8(s + 0x5a) == 5 && alis.platform.uid == EGameRobinsonsRequiem3DO)
+    {
+        r3do_land(s);
+        v6xdirty = 1;
+        xwrite8(s + 0x58, xread8(s + 0x58) & 0x7f);
+        return;
+    }
+
+    v6xclipx1 = (s16)xread16(s + 0x66);
+    v6xclipy1 = (s16)xread16(s + 0x68);
+    v6xclipx2 = (s16)xread16(s + 0x6a);
+    v6xclipy2 = (s16)xread16(s + 0x6c);
+
+    u32 node = xread32(s + 0x5e);
+    if (node != 0)
+    {
+        u32 sp = xread32(node + 0x38);
+        for (;;)
+        {
+            u32 cur = sp;
+            if (cur == 0)
+                break;
+            
+            sp = xread32(cur + 0x38);
+            if (cur == sp)
+                break;
+            
+            u8 fl = v6sp_flags(cur);
+            if ((fl & 0x81) == 0)
+                continue;
+            
+            if (v6sp_state(cur) == 0x35)
+                continue;
+            
+            if (xread8(cur + 0x24) & 0x40)
+                continue;
+            
+            if (v6sp_state(cur) == 0x20)
+            {
+                v6snd_step(cur);
+                continue;
+            }
+
+            v6x_deptopix(s, cur);
+            v6x_rangesprite(s, cur);
+            v6sp_set_flags(cur, v6sp_flags(cur) & 0x7e);
+            v6xdirty = 1;
+        }
+    }
+
+    xwrite8(s + 0x58, xread8(s + 0x58) & 0x7f);
+}
+
+static void rgb_fillrect(s32 x1, s32 y1, s32 x2, s32 y2, u32 c)
+{
+    s32 W = alis.platform.width;
+    for (s32 yy = y1; yy <= y2; yy++)
+    {
+        u32 *d = image.rgblogic + yy * W;
+        for (s32 xx = x1; xx <= x2; xx++)
+            d[xx] = c;
+    }
+}
+
+static void cel_row(const u8 *p, const u8 *end, const u16 *plut, u16 *px, int w)
+{
+    int x = 0;
+    while (x < w && p < end)
+    {
+        u8 c = *p++;
+        int n = (c & 0x3f) + 1;
+        u8 type = c >> 6;
+        if (type == 0)
+            return;
+        
+        if (type == 2)
+        {
+            x += n;
+            continue;
+        }
+
+        for (int i = 0; i < n && x < w; i++)
+        {
+            u16 v = plut ? plut[p[0] & 0x1f] : (u16)(p[0] << 8 | p[1]);
+            px[x++] = 0x8000 | v;
+            if (type == 1 || i == n - 1)
+                p += plut ? 1 : 2;
+        }
+    }
+}
+
+u16 *cel_decode(u32 descr, s32 *pw, s32 *ph)
+{
+    const u8 *base = alis.mem + descr;
+    s32 w = (s16)read16(base + 0x10);
+    s32 h = (s16)read16(base + 0x12);
+    *pw = w;
+    *ph = h;
+    if (w <= 0 || h <= 0)
+        return NULL;
+    
+    u8 flags = base[0x1b];
+    u16 plut[32];
+    const u8 *row = base + 0x20;
+    if (flags & 2)
+    {
+        for (int i = 0; i < 32; i++)
+            plut[i] = (u16)(row[i * 2] << 8 | row[i * 2 + 1]);
+        
+        row += 64;
+    }
+
+    const u8 *end = base + read32(base + 4);
+    u16 *px = (u16 *)calloc((size_t)w * h, sizeof(u16));
+    for (s32 y = 0; y < h && row < end; y++)
+    {
+        const u8 *next = row + (((row[0] << 8 | row[1]) & 0x3ff) + 2) * 4;
+        cel_row(row + 2, next, (flags & 2) ? plut : NULL, px + y * w, w);
+        row = next;
+    }
+
+    return px;
+}
+
+static void cel_blit(u32 descr, s32 x1, s32 y1, s32 x2, s32 cx1, s32 cy1, s32 cx2, s32 cy2, int flip)
+{
+    s32 w, h;
+    u16 *px = cel_decode(descr, &w, &h);
+    if (!px)
+        return;
+    
+    s32 W = alis.platform.width;
+    for (s32 yy = cy1 > y1 ? cy1 : y1; yy <= cy2 && yy < y1 + h; yy++)
+    {
+        const u16 *src = px + (yy - y1) * w;
+        u32 *d = image.rgblogic + yy * W;
+        for (s32 xx = cx1; xx <= cx2; xx++)
+        {
+            s32 sx = flip ? (x2 - xx) : (xx - x1);
+            if (sx >= 0 && sx < w && src[sx])
+                d[xx] = rgb555(src[sx] & 0x7fff);
+        }
+    }
+
+    free(px);
+}
+
+// solid fill of the current clip window in the logic buffer
+static void v6x_fill(u8 col)
+{
+    s32 W = alis.platform.width, H = alis.platform.height;
+    s32 x1 = v6xclipx1 < 0 ? 0 : v6xclipx1;
+    s32 y1 = v6xclipy1 < 0 ? 0 : v6xclipy1;
+    s32 x2 = v6xclipx2 >= W ? W - 1 : v6xclipx2;
+    s32 y2 = v6xclipy2 >= H ? H - 1 : v6xclipy2;
+    if (image.rgblogic)
+    {
+        rgb_fillrect(x1, y1, x2, y2, pal_argb(col));
+        return;
+    }
+
+    for (s32 yy = y1; yy <= y2; yy++)
+        memset(image.logic + yy * W + x1, col, x2 - x1 + 1);
+}
+
+// blit sprite into logic
+static void v6x_blit(u32 sp)
+{
+    s16 x1 = (s16)xread16(sp + 0x44);
+    s16 y1 = (s16)xread16(sp + 0x46);
+    s16 x2 = (s16)xread16(sp + 0x48);
+    s16 y2 = (s16)xread16(sp + 0x4a);
+    if (x1 > v6xclipx2 || y1 > v6xclipy2 || x2 < v6xclipx1 || y2 < v6xclipy1)
+        return;
+
+    s32 W = alis.platform.width, H = alis.platform.height;
+    s32 cx1 = x1 < v6xclipx1 ? v6xclipx1 : x1;
+    s32 cy1 = y1 < v6xclipy1 ? v6xclipy1 : y1;
+    s32 cx2 = x2 > v6xclipx2 ? v6xclipx2 : x2;
+    s32 cy2 = y2 > v6xclipy2 ? v6xclipy2 : y2;
+    if (cx1 < 0)
+        cx1 = 0;
+    
+    if (cy1 < 0)
+        cy1 = 0;
+    
+    if (cx2 >= W)
+        cx2 = W - 1;
+    
+    if (cy2 >= H)
+        cy2 = H - 1;
+    
+    if (cx1 > cx2 || cy1 > cy2)
+        return;
+
+    u8 st = v6sp_state(sp);
+    if (st == 0x34 || st == 0x39)
+    {
+        u8 col = xread8(sp + 0x50);
+        if (image.rgblogic)
+        {
+            u16 w = xread16(sp + 0x26);
+            rgb_fillrect(cx1, cy1, cx2, cy2, w == 0x1c20 && alis.platform.uid == EGameRobinsonsRequiem3DO ? rgb555(w) : pal_argb(col));
+            return;
+        }
+
+        for (s32 yy = cy1; yy <= cy2; yy++)
+            memset(image.logic + yy * W + cx1, col, cx2 - cx1 + 1);
+        return;
+    }
+
+    if (st == 0x38)
+    {
+        v6x_textwalk(sp, 1, NULL);
+        return;
+    }
+
+    if (st == 0x7f)
+    {
+        static int warned = 0;
+        if (!warned++)
+            ALIS_DEBUG(EDebugWarning, "v6x_blit: map blit (FUN_00047665) not yet ported\n");
+        return;
+    }
+
+    if (st != 0x32)
+        return;
+
+    u32 d = v6sp_desc(sp);
+    if (d == 0)
+        return;
+    
+    u32 descr = d + xread32(d);
+    if (v6sp_scale(sp) != 0x100)
+    {
+        static int warned = 0;
+        if (!warned++)
+            ALIS_DEBUG(EDebugWarning, "v6x_blit: zoom blit (LAB_0004716a) not yet ported\n");
+        return;
+    }
+
+    if (xread8(descr) != 1)
+        return;
+
+    u8 flip = xread8(sp + 0x25) & 1;
+    if (image.rgblogic)
+    {
+        cel_blit(descr, x1, y1, x2, cx1, cy1, cx2, cy2, flip);
+        return;
+    }
+
+    s16 bw = (s16)xread16(descr + 0x10);
+    u8 opaque = xread8(descr + 0x1b) & 1;
+    u8 *src = alis.mem + descr + 0x20;
+
+    for (s32 yy = cy1; yy <= cy2; yy++)
+    {
+        u8 *dst = image.logic + yy * W + cx1;
+        s32 sy = yy - y1;
+        for (s32 xx = cx1; xx <= cx2; xx++, dst++)
+        {
+            s32 sx = flip ? (x2 - xx) : (xx - x1);
+            u8 pix = src[sy * bw + sx];
+            if (pix != 0 || opaque)
+                *dst = pix;
+        }
+    }
+}
+
+static void v6x_composite(void)
+{
+    for (u16 id = screen.ptscreen; id != 0; id = xread16(alis.basemain + id + 0x5c))
+    {
+        u32 s = alis.basemain + id;
+        if (xread8(s + 0x58) & 0x40)
+            continue;
+
+        if (xread8(s + 0x5a) == 6)
+        {
+            v6xclipx1 = (s16)xread16(s + 0x66);
+            v6xclipy1 = (s16)xread16(s + 0x68);
+            v6xclipx2 = (s16)xread16(s + 0x6a);
+            v6xclipy2 = (s16)xread16(s + 0x6c);
+            if (xread16(s + 0x116) != 0)
+            {
+                v6x_skyfill(s);
+            }
+            else if (!(xread8(s + 0x59) & 0x40))
+            {
+                v6x_fill(xread8(s + 0x13b));
+            }
+
+            v6x3d_flush(s);
+            continue;
+        }
+
+        if (xread8(s + 0x5a) == 5 && alis.platform.uid == EGameRobinsonsRequiem3DO)
+        {
+            r3do_flush(s);
+            continue;
+        }
+
+        v6xclipx1 = (s16)xread16(s + 0x66);
+        v6xclipy1 = (s16)xread16(s + 0x68);
+        v6xclipx2 = (s16)xread16(s + 0x6a);
+        v6xclipy2 = (s16)xread16(s + 0x6c);
+
+        if (!(xread8(s + 0x59) & 0x40) && alis.platform.uid != EGameRobinsonsRequiem3DO)
+            v6x_fill(xread8(s + 0x13b));
+        
+        u32 node = xread32(s + 0x5e);
+        if (node == 0)
+            continue;
+        
+        int nblit = 0, nskip = 0;
+        u32 sp = xread32(node + 0x38);
+        while (sp != 0 && sp != xread32(sp + 0x38))
+        {
+            if ((s16)xread16(sp + 0x4c) >= 0 && !(v6sp_flags(sp) & 0x80) && !(xread8(sp + 0x24) & 0x40))
+            {
+                v6x_blit(sp);
+                nblit++;
+            }
+            else
+            {
+                nskip++;
+            }
+
+            sp = xread32(sp + 0x38);
+        }
+    }
+
+    memcpy(image.physic, image.logic, (size_t)((u32)alis.platform.width * (u32)alis.platform.height));
+    if (image.rgblogic)
+        memcpy(image.rgbphysic, image.rgblogic, (size_t)alis.platform.width * alis.platform.height * sizeof(u32));
+
+    if (alis.desmouse != NULL && v6x_mouseh > 0)
+    {
+        mouse_t mouse = sys_get_mouse();
+        if (!mouse.enabled)
+            goto nocursor;
+        
+        s32 W = alis.platform.width, H = alis.platform.height;
+        s32 mx = mouse.x, my = mouse.y;
+        s32 rows = v6x_mouseh;
+        if (my >= H - rows)
+            rows = H - my;
+        
+        s32 cols = v6x_mousew;
+        if (mx >= W - cols)
+            cols = W - mx;
+        
+        if (rows > 0 && cols > 0 && mx >= 0 && my >= 0)
+        {
+            for (s32 yy = 0; yy < rows; yy++)
+            {
+                if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+                {
+                    for (s32 xx = 0; xx < cols; xx++)
+                    {
+                        if (v6x_mousergb[yy * 0x20 + xx])
+                            image.rgbphysic[(my + yy) * W + mx + xx] = rgb555(v6x_mousergb[yy * 0x20 + xx] & 0x7fff);
+                    }
+                    continue;
+                }
+                
+                const u8 *row = v6x_mousebuf + yy * 0x20;
+                u8 *dst = image.physic + (my + yy) * W + mx;
+                for (s32 xx = 0; xx < cols; xx++)
+                {
+                    if (row[xx] != 0)
+                    {
+                        if (image.rgbphysic)
+                        {
+                            image.rgbphysic[(my + yy) * W + mx + xx] = pal_argb(row[xx]);
+                        }
+                        else
+                        {
+                            dst[xx] = row[xx];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+nocursor:;
+}
+
+u8  v6x_mousebuf[0x400];
+u16 v6x_mousew, v6x_mouseh;
+u16 v6x_mousergb[0x400];
+
+void v6x_defmouse(u32 desc)
+{
+    if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+    {
+        s32 w, h;
+        u16 *px = cel_decode(desc, &w, &h);
+        memset(v6x_mousergb, 0, sizeof(v6x_mousergb));
+        v6x_mousew = w > 0x20 ? 0x20 : (w < 0 ? 0 : w);
+        v6x_mouseh = h > 0x20 ? 0x20 : (h < 0 ? 0 : h);
+        for (s32 y = 0; px && y < v6x_mouseh; y++)
+            memcpy(v6x_mousergb + y * 0x20, px + y * w, v6x_mousew * sizeof(u16));
+        free(px);
+        return;
+    }
+
+    memset(v6x_mousebuf, 0, sizeof(v6x_mousebuf));
+    u16 chunks = read16(alis.mem + desc + 0x10);
+    u16 clen   = read16(alis.mem + desc + 0x12);
+    v6x_mousew = chunks;
+    v6x_mouseh = clen;
+    u32 src = desc + 0x20;
+    u16 n = chunks > 0x20 ? 0x20 : chunks;
+    u16 l = clen > 0x20 ? 0x20 : clen;
+    for (u16 i = 0; i < n; i++)
+    {
+        for (u16 j = 0; j < l; j++)
+            v6x_mousebuf[i * 0x20 + j] = xread8(src + (u32)i * clen + j);
+    }
+}
+
+static void v6x_draw(void)
+{
+    static int frame = 0;
+    frame++;
+
+    v6x3d_tick++;
+    v6ips_measure();
+    for (u16 id = screen.ptscreen; id != 0; id = xread16(alis.basemain + id + 0x5c))
+    {
+        u32 s = alis.basemain + id;
+        if (xread8(s + 0x58) & 0x40)
+            continue;
+        
+        v6x_affiscr(s);
+    }
+
+    {
+        static s32 lastmx = -1, lastmy = -1;
+        mouse_t mouse = sys_get_mouse();
+        if (mouse.x != lastmx || mouse.y != lastmy)
+        {
+            lastmx = mouse.x;
+            lastmy = mouse.y;
+            if (alis.desmouse != NULL)
+                v6xdirty = 1;
+        }
+    }
+
+    if (v6xdirty)
+    {
+        v6xdirty = 0;
+        v6x_composite();
+    }
+}
+
+void affiscr_v6_record(u16 scene, u16 head)
+{
+    if ((s8)get_scr_state(scene) < 0)
+        depscreen(scene, head);
+
+    // dirty-rect clip window
+    s16 wx1 = get_scr_newx(scene), wy1 = get_scr_newy(scene);
+    v6dirty_set_window(wx1, wy1, wx1 + get_scr_width(scene), wy1 + get_scr_height(scene));
+
+    // Walk the z-list tracking predecessor. Unlinking a deleted or moved sprite must use the walks predecessor, not the sprite's stored `prev` field
+    u16 prevspidx = head;
+    u16 cur = SPRITE_VAR(head)->link;
+    while (cur != 0)
+    {
+        sSprite *cs = SPRITE_VAR(cur);
+        s8 st = cs->state;
+        if (st == 0)
+        {
+            prevspidx = cur;
+            cur = cs->link;
+            continue;
+        }
+
+        cs->prev = prevspidx;
+
+        if (st == 1)
+        {
+            v6dirty_add(cs->newx, cs->newy, cs->newx + cs->width, cs->newy + cs->height, -1, scene);
+            u16 n = cs->link;
+            SPRITE_VAR(prevspidx)->link = n;
+            if (n != 0)
+                SPRITE_VAR(n)->prev = prevspidx;
+            cs->to_next = image.libsprit;
+            image.libsprit = cur;
+            cur = n;
+        }
+        else
+        {
+            if (st != -1)
+                v6dirty_add(cs->newx, cs->newy, cs->newx + cs->width, cs->newy + cs->height, -1, scene);
+            
+            deptopix(scene, cur);
+            cs->newad = image.newad; cs->newx = image.newx; cs->newy = image.newy;
+            cs->newd = image.newd; cs->newf = image.newf; cs->width = image.newl;
+            cs->height = image.newh; cs->newzoomx = image.newzoomx; cs->newzoomy = image.newzoomy;
+            rangesprite_v6(cur, head);
+            v6dirty_add(cs->newx, cs->newy, cs->newx + cs->width, cs->newy + cs->height, -1, scene);
+            cur = SPRITE_VAR(prevspidx)->link;
+        }
+    }
+
+    set_scr_state(scene, get_scr_state(scene) & 0x7f);
+}
+
+void compositor_v6(void)
+{
+    for (s16 scn = screen.ptscreen; scn != 0; scn = get_scr_to_next(scn))
+    {
+        if ((get_scr_state(scn) & 0x40) != 0)
+            continue;
+        
+        u16 h = get_scr_screen_id(scn);
+        if (h == 0)
+            continue;
+
+        s16 sx1 = get_scr_newx(scn), sy1 = get_scr_newy(scn);
+        image.clipx1 = sx1; image.clipy1 = sy1;
+        image.clipx2 = sx1 + get_scr_width(scn);
+        image.clipy2 = sy1 + get_scr_height(scn);
+
+        u16 sp = h;
+        while ((sp = SPRITE_VAR(sp)->link) != 0)
+        {
+            sSprite *s = SPRITE_VAR(sp);
+            if (s->state >= -1 && s->newf >= -1 && s->newd >= -1)
+                destofen(s);
+        }
+    }
+
+    // publish fully-composited logic frame to the display buffer
+    image.fenx1 = image.logx1; image.feny1 = image.logy1;
+    image.fenx2 = image.logx2; image.feny2 = image.logy2;
+    trsfen(image.logic, image.physic);
+}
+
 void draw(void)
 {
     sys_delay_frame();
 
     // Render time excludes the frame-cap sleep.
-#if ALIS_VM_PROFILE
-    extern u32 g_prof_draw;
-    extern void prof_frame_end(void);
-    u32 _pd0 = sys_profile_ticks();
-#endif
-
     sys_lock_renderer();
+
+    u8 v6def = alis.platform.version >= 60;
 
 #if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
     // During a film the native FLIC/FLS path owns both screen buffers.
-    if (bfilm.type != eAlisVideoNone) {
+    if (bfilm.type != eAlisVideoNone)
+    {
         sys_unlock_renderer();
         return;
     }
-#endif
-
-#if defined(ALIS_PROFILE_DRAW)
-    extern void dbglog(const char *fmt, ...);
-    extern u32 sys_profile_ticks_safe(void);   // supervisor-safe $4BA read
-    u32 _pf_draw0 = sys_profile_ticks_safe();
-    u32 _fr_oldfen = 0, _fr_affiscr = 0;
 #endif
 
 #if defined(ALIS_NATIVE_16BPP)
@@ -3265,13 +5759,15 @@ void draw(void)
     // 16-bit bakes RGB at draw time: on a palette change rebuild pal16 and set fremap
     // so depscreen() re-flags sprites for redraw.
     int _was_dirty_pal = dirty_pal;
-    if (dirty_pal) {
+    if (dirty_pal)
+    {
         // Clear before consuming: the Timer-C ISR may set it again mid-refresh.
         dirty_pal = 0;
         extern void sys_pal16_refresh(void);
         sys_pal16_refresh();
         image.fremap = 1;
     }
+
     // Sprite cache is bypassed while the palette is moving (fades).
     {
         extern u32 g_pal16_gen; extern u8 g_pal16_fading;
@@ -3279,49 +5775,32 @@ void draw(void)
         g_pal16_fading = (g_pal16_gen != _spc_last_palgen);
         _spc_last_palgen = g_pal16_gen;
     }
-    {
-        extern void dbglog(const char *fmt, ...);
-        static int _pal_dbg = 0;
-        if (_pal_dbg < 120) {
-            dbglog("draw #%d: dirty_pal=%d dirty_len=%d fswitch=%d fremap=%d clip=[%d,%d..%d,%d]\n",
-                   _pal_dbg, _was_dirty_pal, (int)dirty_len, (int)alis.fswitch, (int)image.fremap,
-                   (int)image.clipx1, (int)image.clipy1, (int)image.clipx2, (int)image.clipy2);
-            _pal_dbg++;
-        }
-    }
 #endif
 
     // Last flip was non-blocking: wait for the VBL latch before writing image.logic.
     sys_flip_wait();
 
-    if ((alis.fswitch != 0) && (image.fphytolog != 0))
+    if (!v6def && (alis.fswitch != 0) && (image.fphytolog != 0))
     {
         image.fphytolog = 0;
         phytolog();
     }
-    
+
     image.vtiming = 0;
-    
-    if (alis.fswitch != 0)
+
+    if (!v6def && alis.fswitch != 0)
     {
         // Remove image.logic's own cursor (from when it was front) before oldfen.
         sys_mouse_erase();
 
-#if defined(ALIS_PROFILE_DRAW)
-        u32 _pf_o0 = sys_profile_ticks_safe();
         oldfen();
-        _fr_oldfen = sys_profile_ticks_safe() - _pf_o0;
-        g_prof_frame_oldfen += _fr_oldfen;
-#else
-        oldfen();
-#endif
 
         // oldfen copied the front cursor into image.logic; remove it.
         sys_mouse_uncopy();
 
         image.ptabfen = image.tabfen;
     }
-    
+
     image.switchgo = 0;
     image.wlogic = image.logic;
     image.wlogx1 = image.logx1;
@@ -3333,31 +5812,57 @@ void draw(void)
     s16 scnidx = screen.ptscreen;
     u8 *oldphys = image.physic;
 
-#if defined(ALIS_PROFILE_DRAW)
-    u32 _pf_a0b = sys_profile_ticks_safe();
-#endif
+    if (v6def)
+    {
+        v6x_draw();
+        image.fremap = 0;
+        setphysic();
+        sys_unlock_renderer();
+        return;
+    }
+
     while (scnidx != 0)
     {
         if ((get_scr_state(scnidx) & 0x40) == 0)
         {
-            affiscr(scnidx, get_scr_screen_id(scnidx));
+            u16 screen_id = get_scr_screen_id(scnidx);
+
+            if (alis.platform.version >= 60 && screen_id == 0)
+            {
+                scnidx = get_scr_to_next(scnidx);
+                continue;
+            }
+
+            if (v6def)
+            {
+                affiscr_v6_record(scnidx, screen_id);
+            }
+            else
+            {
+                affiscr(scnidx, screen_id);
+            }
         }
 
         scnidx = get_scr_to_next(scnidx);
     }
-#if defined(ALIS_PROFILE_DRAW)
-    _fr_affiscr = sys_profile_ticks_safe() - _pf_a0b;
-    g_prof_frame_affiscr += _fr_affiscr;
-    if (image.fremap) g_prof_frame_remap++;
-#endif
 
-#if ALIS_DEBUG_PLANAR || defined(ALIS_NATIVE_16BPP) || defined(ALIS_NATIVE_PLANAR)
+#if defined(ALIS_NATIVE_16BPP) || defined(ALIS_NATIVE_PLANAR)
     // Invalidate the 030 data cache if the Blitter wrote this frame.
     sys_blit_frame_sync();
 #endif
 
+    if (v6def)
+    {
+        compositor_v6();
+        v6dirty_reset();
+    }
+
     image.fremap = 0;
-    if (alis.fswitch != 0)
+    if (v6def)
+    {
+        setphysic();
+    }
+    else if (alis.fswitch != 0)
     {
         // Draw the cursor before the swap so the presented frame contains it.
         sys_mouse_draw();
@@ -3368,63 +5873,7 @@ void draw(void)
         setphysic();
     }
 
-#if defined(ALIS_PROFILE_DRAW)
-    u32 _fr_draw = sys_profile_ticks_safe() - _pf_draw0;
-    g_prof_frame_drawtot += _fr_draw;
-    // Per-frame overdraw deltas + worst-frame capture.
-    static u32 _pp_pix, _pp_op, _pp_tr, _pp_blits;
-    u32 _fp = g_od_pix - _pp_pix, _fop = g_od_pix_op - _pp_op, _ftr = g_od_pix_tr - _pp_tr, _fb = g_od_blits - _pp_blits;
-    _pp_pix = g_od_pix; _pp_op = g_od_pix_op; _pp_tr = g_od_pix_tr; _pp_blits = g_od_blits;
-    static u32 _mx_draw, _mx_old, _mx_aff, _mx_pix, _mx_op, _mx_tr, _mx_blits;
-    if (_fr_draw > _mx_draw) {
-        _mx_draw = _fr_draw; _mx_old = _fr_oldfen; _mx_aff = _fr_affiscr;
-        _mx_pix = _fp; _mx_op = _fop; _mx_tr = _ftr; _mx_blits = _fb;
-    }
-    if (++g_prof_frame_frames >= PROF_DUMP_FRAMES) {
-        extern void dbglog(const char *fmt, ...);
-        dbglog("PROF %u frames (%u remap): draw=%u oldfen=%u affiscr=%u vsync=%u ticks "
-               "[per-frame: draw=%u.%02u oldfen=%u.%02u affiscr=%u.%02u vsync=%u.%02u]\n",
-               g_prof_frame_frames, g_prof_frame_remap,
-               g_prof_frame_drawtot, g_prof_frame_oldfen, g_prof_frame_affiscr, g_prof_frame_vsync,
-               g_prof_frame_drawtot / g_prof_frame_frames, (g_prof_frame_drawtot * 100 / g_prof_frame_frames) % 100,
-               g_prof_frame_oldfen / g_prof_frame_frames, (g_prof_frame_oldfen * 100 / g_prof_frame_frames) % 100,
-               g_prof_frame_affiscr / g_prof_frame_frames, (g_prof_frame_affiscr * 100 / g_prof_frame_frames) % 100,
-               g_prof_frame_vsync / g_prof_frame_frames, (g_prof_frame_vsync * 100 / g_prof_frame_frames) % 100);
-        u32 nf = PROF_DUMP_FRAMES;
-        dbglog("  OVERDRAW/frame: pixels=%u (op=%u tr=%u) blits=%u big_pix=%u  "
-               "[viewport~36000 -> overdraw x%u.%02u; opaque=%u%% big=%u%%]\n",
-               g_od_pix / nf, g_od_pix_op / nf, g_od_pix_tr / nf, g_od_blits / nf, g_od_big / nf,
-               (g_od_pix / nf) / 36000, (((g_od_pix / nf) * 100) / 36000) % 100,
-               g_od_pix ? (g_od_pix_op * 100 / g_od_pix) : 0,
-               g_od_pix ? (g_od_big * 100 / g_od_pix) : 0);
-        dbglog("  WORST frame: draw=%u oldfen=%u affiscr=%u ticks (%ums); pixels=%u (op=%u tr=%u) blits=%u\n",
-               _mx_draw, _mx_old, _mx_aff, _mx_draw * 5, _mx_pix, _mx_op, _mx_tr, _mx_blits);
-        dbglog("  SPLIT: depscreen=%u ticks (%u%% of affiscr) -> blit-loop=%u ticks  [affiscr=%u]\n",
-               g_prof_frame_depscreen, g_prof_frame_affiscr ? (g_prof_frame_depscreen * 100 / g_prof_frame_affiscr) : 0,
-               g_prof_frame_affiscr > g_prof_frame_depscreen ? g_prof_frame_affiscr - g_prof_frame_depscreen : 0, g_prof_frame_affiscr);
-#if defined(ALIS_NATIVE_16BPP)
-        {
-            extern u32 g_spc_hit, g_spc_exp, g_spc_skip; extern u16 g_spc_skipfmt;
-            dbglog("  SPRITE-CACHE: hit=%u expand=%u skip=%u (last skipped fmt=0x%02x)\n",
-                   g_spc_hit, g_spc_exp, g_spc_skip, (unsigned)g_spc_skipfmt);
-            g_spc_hit = g_spc_exp = g_spc_skip = 0;
-        }
-#endif
-        g_prof_frame_oldfen = g_prof_frame_affiscr = g_prof_frame_drawtot = g_prof_frame_vsync = 0;
-        g_prof_frame_frames = g_prof_frame_remap = 0;
-        g_od_pix = g_od_pix_op = g_od_pix_tr = g_od_blits = g_od_big = 0;
-        _pp_pix = _pp_op = _pp_tr = _pp_blits = 0;
-        g_prof_frame_depscreen = 0;
-        _mx_draw = _mx_old = _mx_aff = _mx_pix = _mx_op = _mx_tr = _mx_blits = 0;
-    }
-#endif
-
     sys_unlock_renderer();
-
-#if ALIS_VM_PROFILE
-    g_prof_draw += sys_profile_ticks() - _pd0;
-    prof_frame_end();
-#endif
 }
 
 // TODO: move to script.c
@@ -3439,7 +5888,7 @@ s16 debprotf(s16 target_id)
     do
     {
         mid = (end + start) >> 1;
-        current_id = read16((alis.mem + alis.atprog_ptr[mid]));
+        current_id = read16((alis.mem + ATPROG(mid)));
         if (current_id == target_id)
         {
             return mid;
@@ -3466,7 +5915,7 @@ s16 debprotf(s16 target_id)
 // Native (ALIS_NATIVE_PLANAR) provides planar-optimized versions of all the
 // draw_* / trsfen / clrfen routines in image_draw_planar.c; exclude the generic
 // versions here to avoid duplicate-symbol link errors. SDL1 builds use these.
-#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)
+#if !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)
 
 void draw_pixel(s16 x0, s16 y0)
 {
@@ -3538,7 +5987,7 @@ void draw_box(s16 x1,s16 y1,s16 x2,s16 y2)
     draw_line(x1, y2, x1, y1);
 }
 
-#if ALIS_DEBUG_PLANAR || !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
+#if !defined(ALIS_NATIVE_PLANAR) && !defined(ALIS_NATIVE_16BPP)   // native: image_draw_planar.c
 void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
 {
     if (alis.platform.kind == EPlatformMac)
@@ -3576,15 +6025,21 @@ void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
 void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
 {
     u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
-    if (color == 15) {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = (w + h) % 2;
+    if (color == 15)
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+                tgt[w] = (w + h) % 2;
         }
     }
-    else {
+    else
+    {
         color = !color;
-        for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = color;
+        for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+                tgt[w] = color;
         }
     }
 }
@@ -3592,8 +6047,10 @@ void draw_mac_rect(sRect *pos, sRect *bmp, u8 color)
 void draw_rect(sRect *pos, sRect *bmp, u8 color)
 {
     u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
-    for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w) {
-        for (s32 w = bmp->x1; w < bmp->x2; w++) tgt[w] = color;
+    for (s32 h = bmp->y1; h < bmp->y2; h++, tgt+=host.pixelbuf.w)
+    {
+        for (s32 w = bmp->x1; w < bmp->x2; w++)
+            tgt[w] = color;
     }
 }
 
@@ -3603,9 +6060,12 @@ void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u16 swadd = width >> 2;
     u8 *src = at + bmp->y1 * swadd;
     u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
-    if (flip) {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    if (flip)
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 index = 3 - w % 4;
                 color = (src[(width - (w + 1)) >> 2] & masks[index]) >> rots[index];
                 if (!(color & 2))
@@ -3613,9 +6073,12 @@ void draw_mac_mono_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
             }
         }
     }
-    else {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    else
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 index = w % 4;
                 color = (src[w >> 2] & masks[index]) >> rots[index];
                 if (!(color & 2))
@@ -3631,17 +6094,23 @@ void draw_mac_mono_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u16 swadd = width >> 2;
     u8 *src = at + bmp->y1 * swadd;
     u8 *tgt = image.wdraw + pos->x1 + ((bmp->y1 + pos->y1) * host.pixelbuf.w);
-    if (flip) {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    if (flip)
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 index = 3 - w % 4;
                 tgt[w] = !(((src[(width - (w + 1)) >> 2] & masks[index]) >> rots[index]) & 1);
             }
         }
     }
-    else {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    else
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 index = w % 4;
                 tgt[w] = !(((src[w >> 2] & masks[index]) >> rots[index]) & 1);
             }
@@ -3657,9 +6126,12 @@ void draw_dos_cga_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 index;
     s16 wh;
 
-    if (flip) {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    if (flip)
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 wh = ((width - (w + 1)) >> 2) << 1;
                 index = 3 - w % 4;
                 if (!((src[wh] & masks[index]) >> rots[index]))
@@ -3667,9 +6139,12 @@ void draw_dos_cga_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
             }
         }
     }
-    else {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    else
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 wh = (w >> 2) << 1;
                 index = w % 4;
                 if (!((src[wh] & masks[index]) >> rots[index]))
@@ -3686,17 +6161,23 @@ void draw_dos_cga_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 *tgt = image.wdraw + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
     u8 index;
 
-    if (flip) {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    if (flip)
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 index = 3 - w % 4;
                 tgt[w] = (src[(width - (w + 1)) >> 2] & masks[index]) >> rots[index];
             }
         }
     }
-    else {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++) {
+    else
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++)
+            {
                 index = w % 4;
                 tgt[w] = (src[w >> 2] & masks[index]) >> rots[index];
             }
@@ -3711,73 +6192,98 @@ void draw_st_4bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 *src = at + bmp->y1 * swadd;
     u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-    if (flip) {
-        if (bmp->x1 % 2 == 1) {
+    if (flip)
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
             u8 *tptr = bmp->x1 + pos->x1 + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr >> 4)) *tptr = color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr >> 4))
+                    *tptr = color;
             }
 
             bmp->x1++;
         }
 
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr & 0b00001111)) *tptr = color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr & 0b00001111))
+                    *tptr = color;
             }
 
             bmp->x2--;
         }
 
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = swadd - 1 + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                    if ((color = sptr[-w] & 0b00001111)) tptr[0] = color;
-                    if ((color = sptr[-w] >> 4)) tptr[1] = color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
+                    if ((color = sptr[-w] & 0b00001111))
+                        tptr[0] = color;
+                    if ((color = sptr[-w] >> 4))
+                        tptr[1] = color;
                 }
             }
         }
     }
-    else {
-        if (bmp->x1 % 2 == 1) {
+    else
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = (bmp->x1 >> 1) + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr & 0b00001111)) *tptr = color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr & 0b00001111))
+                    *tptr = color;
             }
 
             bmp->x1++;
         }
 
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             bmp->x2--;
             u8 *sptr = (bmp->x2 >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr >> 4)) *tptr = color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr >> 4))
+                    *tptr = color;
             }
         }
 
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                    if ((color = sptr[w] >> 4)) tptr[0] = color;
-                    if ((color = sptr[w] & 0b00001111)) tptr[1] = color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
+                    if ((color = sptr[w] >> 4))
+                        tptr[0] = color;
+                    
+                    if ((color = sptr[w] & 0b00001111))
+                        tptr[1] = color;
                 }
             }
         }
@@ -3790,71 +6296,87 @@ void draw_st_4bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 *src = at + bmp->y1 * swadd;
     u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-    if (flip) {
-        if (bmp->x1 % 2 == 1) {
+    if (flip)
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
             u8 *tptr = bmp->x1 + pos->x1 + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = *sptr >> 4;
             }
 
             bmp->x1++;
         }
 
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = *sptr & 0b00001111;
             }
 
             bmp->x2--;
         }
 
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = swadd - 1 + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
                     tptr[0] = sptr[-w] & 0b00001111;
                     tptr[1] = sptr[-w] >> 4;
                 }
             }
         }
     }
-    else {
-        if (bmp->x1 % 2 == 1) {
+    else
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = (bmp->x1 >> 1) + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = *sptr & 0b00001111;
             }
 
             bmp->x1++;
         }
 
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             bmp->x2--;
             u8 *sptr = (bmp->x2 >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = *sptr >> 4;
             }
         }
 
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
                     tptr[0] = sptr[w] >> 4;
                     tptr[1] = sptr[w] & 0b00001111;
                 }
@@ -3875,7 +6397,8 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
     u16 src = bmp->y1 * swadd;
     u8 *tgt = image.wdraw + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
 
-    if (flip) {
+    if (flip)
+    {
         s16 x1 = (bmp->x1 >> 3) << 3;
         if (x1 != bmp->x1)
         {
@@ -3885,10 +6408,12 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
             u8 *tptr = tgt;
             s32 w = bmp->x1;
             wh = width - (w + 1);
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1)
+            {
                 idx = (wh + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b < to; b++, w++) {
+                for (s32 b = fr; b < to; b++, w++)
+                {
                     if ((color = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4))
                         tptr[w] = color;
                 }
@@ -3907,10 +6432,12 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
             u8 *tptr = tgt;
             s32 w = x1;
             wh = width - (w + 1);
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1)
+            {
                 idx = (wh + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b < to; b++, w++) {
+                for (s32 b = fr; b < to; b++, w++)
+                {
                     if ((color = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4))
                         tptr[w] = color;
                 }
@@ -3920,19 +6447,23 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
         }
 
         src = bmp->y1 * swadd;
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; ) {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; )
+            {
                 wh = width - (w + 1);
                 idx = (wh + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = 0; b < 8; b++, w++) {
+                for (s32 b = 0; b < 8; b++, w++)
+                {
                     if ((color = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4))
                         tgt[w] = color;
                 }
             }
         }
     }
-    else {
+    else
+    {
         s16 x1 = (bmp->x1 >> 3) << 3;
         if (x1 != bmp->x1)
         {
@@ -3941,10 +6472,12 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
 
             u8 *tptr = tgt;
             s32 w = bmp->x1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1)
+            {
                 idx = (x1 + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b > to; b--, w++) {
+                for (s32 b = fr; b > to; b--, w++)
+                {
                     if ((color = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4))
                         tptr[w] = color;
                 }
@@ -3962,10 +6495,12 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
             src = bmp->y1 * swadd;
             u8 *tptr = tgt;
             s32 w = x1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1)
+            {
                 idx = (x1 + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b > to; b--, w++) {
+                for (s32 b = fr; b > to; b--, w++)
+                {
                     if ((color = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4))
                         tptr[w] = color;
                 }
@@ -3975,11 +6510,14 @@ void draw_ami_5bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
         }
 
         src = bmp->y1 * swadd;
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; ) {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; )
+            {
                 idx = (w + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = 7; b > -1; b--, w++) {
+                for (s32 b = 7; b > -1; b--, w++)
+                {
                     if ((color = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4))
                         tgt[w] = color;
                 }
@@ -4000,7 +6538,8 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
     u16 src = bmp->y1 * swadd;
     u8 *tgt = image.wdraw + pos->x1 + ((pos->y1 + bmp->y1) * host.pixelbuf.w);
 
-    if (flip) {
+    if (flip)
+    {
         s16 x1 = (bmp->x1 >> 3) << 3;
         if (x1 != bmp->x1)
         {
@@ -4010,10 +6549,12 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
             u8 *tptr = tgt;
             s32 w = bmp->x1;
             wh = width - (w + 1);
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1)
+            {
                 idx = (wh + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b < to; b++, w++) {
+                for (s32 b = fr; b < to; b++, w++)
+                {
                     tptr[w] = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4;
                 }
             }
@@ -4031,10 +6572,12 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
             u8 *tptr = tgt;
             s32 w = x1;
             wh = width - (w + 1);
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1)
+            {
                 idx = (wh + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b < to; b++, w++) {
+                for (s32 b = fr; b < to; b++, w++)
+                {
                     tptr[w] = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4;
                 }
             }
@@ -4043,18 +6586,22 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
         }
 
         src = bmp->y1 * swadd;
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; ) {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; )
+            {
                 wh = width - (w + 1);
                 idx = (wh + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = 0; b < 8; b++, w++) {
+                for (s32 b = 0; b < 8; b++, w++)
+                {
                     tgt[w] = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4;
                 }
             }
         }
     }
-    else {
+    else
+    {
         s16 x1 = (bmp->x1 >> 3) << 3;
         if (x1 != bmp->x1)
         {
@@ -4063,10 +6610,12 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
 
             u8 *tptr = tgt;
             s32 w = bmp->x1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = bmp->x1)
+            {
                 idx = (x1 + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b > to; b--, w++) {
+                for (s32 b = fr; b > to; b--, w++)
+                {
                     tptr[w] = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4;
                 }
             }
@@ -4083,10 +6632,12 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
             src = bmp->y1 * swadd;
             u8 *tptr = tgt;
             s32 w = x1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tptr+=host.pixelbuf.w, w = x1)
+            {
                 idx = (x1 + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = fr; b > to; b--, w++) {
+                for (s32 b = fr; b > to; b--, w++)
+                {
                     tptr[w] = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4;
                 }
             }
@@ -4095,11 +6646,14 @@ void draw_ami_5bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s16 height, s8 f
         }
 
         src = bmp->y1 * swadd;
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w) {
-            for (s32 w = bmp->x1; w < bmp->x2; ) {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src+=swadd, tgt+=host.pixelbuf.w)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; )
+            {
                 idx = (w + src) >> 3;
                 c0 = at[idx]; c1 = at[idx += planesize]; c2 = at[idx += planesize]; c3 = at[idx += planesize]; c4 = at[idx += planesize];
-                for (s32 b = 7; b > -1; b--, w++) {
+                for (s32 b = 7; b > -1; b--, w++)
+                {
                     tgt[w] = ((c0 >> b) & 1) | ((c1 >> b) & 1) << 1 | ((c2 >> b) & 1) << 2 | ((c3 >> b) & 1) << 3 | ((c4 >> b) & 1) << 4;
                 }
             }
@@ -4114,73 +6668,99 @@ void draw_4to8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip, u8 pal_o
     u8 *src = at + bmp->y1 * swadd;
     u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-    if (flip) {
-        if (bmp->x1 % 2 == 1) {
+    if (flip)
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
             u8 *tptr = bmp->x1 + pos->x1 + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr >> 4)) *tptr = pal_offset + color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr >> 4))
+                    *tptr = pal_offset + color;
             }
 
             bmp->x1++;
         }
         
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr & 0b00001111)) *tptr = pal_offset + color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr & 0b00001111))
+                    *tptr = pal_offset + color;
             }
 
             bmp->x2--;
         }
 
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = swadd - 1 + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                    if ((color = sptr[-w] & 0b00001111)) tptr[0] = pal_offset + color;
-                    if ((color = sptr[-w] >> 4)) tptr[1] = pal_offset + color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
+                    if ((color = sptr[-w] & 0b00001111))
+                        tptr[0] = pal_offset + color;
+                    
+                    if ((color = sptr[-w] >> 4))
+                        tptr[1] = pal_offset + color;
                 }
             }
         }
     }
-    else {
-        if (bmp->x1 % 2 == 1) {
+    else
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = (bmp->x1 >> 1) + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr & 0b00001111)) *tptr = pal_offset + color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr & 0b00001111))
+                    *tptr = pal_offset + color;
             }
             
             bmp->x1++;
         }
 
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             bmp->x2--;
             u8 *sptr = (bmp->x2 >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
-                if ((color = *sptr >> 4)) *tptr = pal_offset + color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
+                if ((color = *sptr >> 4))
+                    *tptr = pal_offset + color;
             }
         }
         
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
-                    if ((color = sptr[w] >> 4)) tptr[0] = pal_offset + color;
-                    if ((color = sptr[w] & 0b00001111)) tptr[1] = pal_offset + color;
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
+                    if ((color = sptr[w] >> 4))
+                        tptr[0] = pal_offset + color;
+                    
+                    if ((color = sptr[w] & 0b00001111))
+                        tptr[1] = pal_offset + color;
                 }
             }
         }
@@ -4193,71 +6773,87 @@ void draw_4to8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip, u8 pal_o
     u8 *src = at + bmp->y1 * swadd;
     u8 *tgt = image.wdraw + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-    if (flip) {
-        if (bmp->x1 % 2 == 1) {
+    if (flip)
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = swadd - 1 - (bmp->x1 >> 1) + src;
             u8 *tptr = bmp->x1 + pos->x1 + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = pal_offset + (*sptr >> 4);
             }
 
             bmp->x1++;
         }
         
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             u8 *sptr = swadd - 1 - ((bmp->x2) >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1 - 1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = pal_offset + (*sptr & 0b00001111);
             }
 
             bmp->x2--;
         }
 
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = swadd - 1 + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
                     tptr[0] = pal_offset + (sptr[-w] & 0b00001111);
                     tptr[1] = pal_offset + (sptr[-w] >> 4);
                 }
             }
         }
     }
-    else {
-        if (bmp->x1 % 2 == 1) {
+    else
+    {
+        if (bmp->x1 % 2 == 1)
+        {
             u8 *sptr = (bmp->x1 >> 1) + src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = pal_offset + (*sptr & 0b00001111);
             }
             
             bmp->x1++;
         }
 
-        if ((bmp->x2 - 1) % 2 == 0) {
+        if ((bmp->x2 - 1) % 2 == 0)
+        {
             bmp->x2--;
             u8 *sptr = (bmp->x2 >> 1) + src;
             u8 *tptr = (bmp->x2 + pos->x1) + tgt;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += host.pixelbuf.w)
+            {
                 *tptr = pal_offset + (*sptr >> 4);
             }
         }
         
-        if (bmp->x1 != bmp->x2) {
+        if (bmp->x1 != bmp->x2)
+        {
             u8 *sptr = src;
             u8 *tptr = (bmp->x1 + pos->x1) + tgt;
             u16 twadd = host.pixelbuf.w - (bmp->x2 - bmp->x1);
 
             bmp->x1>>=1;
             bmp->x2>>=1;
-            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd) {
-                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2) {
+            for (s32 h = bmp->y1; h < bmp->y2; h++, sptr += swadd, tptr += twadd)
+            {
+                for (s32 w = bmp->x1; w < bmp->x2; w++, tptr+=2)
+                {
                     tptr[0] = pal_offset + (sptr[w] >> 4);
                     tptr[1] = pal_offset + (sptr[w] & 0b00001111);
                 }
@@ -4273,17 +6869,23 @@ void draw_8bit_0(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 *src = (flip ? width - 1: 0) + at + 2 + bmp->y1 * width;
     u8 *tgt = image.wdraw + (bmp->x1 + pos->x1) + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-    if (flip) {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++, tgt++) {
+    if (flip)
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++, tgt++)
+            {
                 if ((color = *(src - w)) != 0)
                     *tgt = color;
             }
         }
     }
-    else {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd) {
-            for (s32 w = bmp->x1; w < bmp->x2; w++, tgt++) {
+    else
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd)
+        {
+            for (s32 w = bmp->x1; w < bmp->x2; w++, tgt++)
+            {
                 if ((color = *(src + w)) != 0)
                     *tgt = color;
             }
@@ -4297,14 +6899,18 @@ void draw_8bit_2(u8 *at, sRect *pos, sRect *bmp, s16 width, s8 flip)
     u8 *src = (flip ? width - 1: 0) + at + 2 + bmp->y1 * width;
     u8 *tgt = image.wdraw + (bmp->x1 + pos->x1) + (pos->y1 + bmp->y1) * host.pixelbuf.w;
 
-    if (flip) {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd) {
+    if (flip)
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd)
+        {
             for (s32 w = bmp->x1; w < bmp->x2; w++, tgt++)
                 *tgt = *(src - w);
         }
     }
-    else {
-        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd) {
+    else
+    {
+        for (s32 h = bmp->y1; h < bmp->y2; h++, src += width, tgt += wadd)
+        {
             for (s32 w = bmp->x1; w < bmp->x2; w++, tgt++)
                 *tgt = *(src + w);
         }
@@ -4361,11 +6967,21 @@ u8 chartpdeco(u32 src)
 // Plot one pixel into the 8-plane framebuffer (the RRQ map is drawn per-pixel through a mask).
 static inline void planar_plot(u8 *buf, s32 x, s32 y, u8 c)
 {
-    if ((u32)x >= (u32)alis.platform.width || (u32)y >= (u32)alis.platform.height) return;
+    if ((u32)x >= (u32)alis.platform.width || (u32)y >= (u32)alis.platform.height)
+        return;
+    
     u16 *chunk = (u16 *)(buf + (u32)y * alis.platform.width + (x & ~15));
     u16 m = (u16)(0x8000u >> (x & 15));
-    for (int k = 0; k < 8; k++) {
-        if ((c >> k) & 1) chunk[k] |= m; else chunk[k] &= (u16)~m;
+    for (int k = 0; k < 8; k++)
+    {
+        if ((c >> k) & 1)
+        {
+            chunk[k] |= m;
+        }
+        else
+        {
+            chunk[k] &= (u16)~m;
+        }
     }
 }
 #endif
@@ -4409,8 +7025,14 @@ static void chartpixel(u8 *tgt, u32 src, u32 type_table_base, u16 xdc, u16 ydc, 
     u8 height_nibble = (cell & 0xFF) >> 4;
     u8 normal_x2 = ((cell >> 14) & 3) << 1;
     s16 shade = ((-(s8)normal_x2 + (s8)alis.basedark) >> 1) + height_nibble;
-    if (shade < 0) shade = 0;
-    else if (shade > 15) shade = 15;
+    if (shade < 0)
+    {
+        shade = 0;
+    }
+    else if (shade > 15)
+    {
+        shade = 15;
+    }
 
     // 2D palette lookup via darkness table, write directly to framebuffer
 #if defined(ALIS_NATIVE_PLANAR) && ALIS_NATIVE_PLANAR
@@ -4555,6 +7177,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             {
                 bitmap_base = xread32(xread32(mapdata));
             }
+
             u32 bitmap_src = bitmap_base + col_groups_bm * bitmap_stride + adj_row_bm * 2;
 
             // Entity source pointer (terrain cell data from entity_data)
@@ -4562,9 +7185,11 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             s16 y_log_diff = xread16(mapdata - 0x3be) - xread16(entity_data - 0x3be);
 
             s32 col_groups_ent = col_groups_bm;
-            if (x_log_diff > 0) col_groups_ent <<= x_log_diff;
+            if (x_log_diff > 0)
+                col_groups_ent <<= x_log_diff;
             s32 adj_row_ent = adj_row_bm;
-            if (y_log_diff > 0) adj_row_ent <<= y_log_diff;
+            if (y_log_diff > 0)
+                adj_row_ent <<= y_log_diff;
 
             u32 entity_stride = (u32)(u16)xread16(entity_data - 0x3c4);
             u32 entity_base = entity_data;
@@ -4572,6 +7197,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             {
                 entity_base = xread32(xread32(entity_data));
             }
+
             u32 entity_src = entity_base + col_groups_ent * entity_stride + adj_row_ent * 2;
 
             // Per-pixel and per-group strides
@@ -4626,6 +7252,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                             {
                                 chartpixel(tgt, entity_src, type_table_base, xdeschart, ydeschart, sx);
                             }
+
                             tgt++;
                             sx++;
                             xdeschart++;
@@ -4659,6 +7286,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             {
                 bitmap_base = xread32(xread32(mapdata));
             }
+
             u32 bitmap_src = bitmap_base + col_groups_bm * bitmap_stride + adj_row_bm * 2;
 
             // Entity source setup
@@ -4678,9 +7306,12 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
             s32 row_advance = y_log_diff > 0 ? 2 << y_log_diff : 2;
 
             s32 col_groups_ent = col_groups_bm;
-            if (x_log_diff > 0) col_groups_ent <<= x_log_diff;
+            if (x_log_diff > 0)
+                col_groups_ent <<= x_log_diff;
+            
             s32 adj_row_ent = adj_row_bm;
-            if (y_log_diff > 0) adj_row_ent <<= y_log_diff;
+            if (y_log_diff > 0)
+                adj_row_ent <<= y_log_diff;
 
             u32 entity_src = src + col_groups_ent * src_stride + adj_row_ent * 2;
 
@@ -4706,8 +7337,10 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                         case 0x4:  chartproc = &chartpalti4; break;
                         default:   chartproc = &chartpalti; break;
                     }
+
                     break;
                 }
+
                 case 2:
                     chartproc = &chartpdeco;
                     break;
@@ -4756,6 +7389,7 @@ void draw_requiem_map(sSprite *sprite, u32 bitmap)
                                 *tgt = (*chartproc)(entity_src);
 #endif
                             }
+
                             tgt++;
                             xdeschart++;
                             entity_src += pixel_stride;
@@ -4891,6 +7525,7 @@ void draw_transarctica_map(sSprite *sprite, u32 mapaddr, sRect lim)
                                     *tgt = color;
                                 }
                             }
+
                             break;
                         }
                             

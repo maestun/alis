@@ -1,10 +1,31 @@
 //
-// render3d_atari_glue.h — contract between the C side and the lifted original
-// Robinson's Requiem renderer asm (render3d_atari.S).
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the “Software”), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+// and/or sell copies of the Software, and to permit persons to whom the 
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, 
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+
+//
+// rrq3d_atari_glue.h — contract between the C side and the lifted original
+// Robinson's Requiem renderer asm (rrq3d_atari.S).
 //
 // The struct layouts are FROZEN (append-only): the .S addresses fields as
 // SYM(mirror)+OFF via hand-maintained .equ blocks; _Static_asserts lock every
-// offset (zoom: render3d.c, doland: render3d_atari_glue.c).
+// offset (zoom: rrq3d.c, doland: rrq3d_atari_glue.c).
 // See tools/asm_lift/conversion_notes.md §4.
 //
 #pragma once
@@ -44,10 +65,10 @@ typedef struct {
     s16  clipx2;         /* +60  horizontal clip right                      */
     s16  clipl;          /* +62  horizontal clip width limit                */
     u32 *rows;           /* +64  per-row opaque columns (zoom_rows), NULL = draw whole rows */
-    /* append new fields BELOW; update .equ block in render3d_atari.S + asserts */
+    /* append new fields BELOW; update .equ block in rrq3d_atari.S + asserts */
 } zoomtofen_mirror_t;
 
-extern zoomtofen_mirror_t zoomtofen_mirror;      /* defined in render3d_atari.S (.bss, .even) */
+extern zoomtofen_mirror_t zoomtofen_mirror;      /* defined in rrq3d_atari.S (.bss, .even) */
 
 /* Render-only entry: C did the setup; runs the DDA loops from the register
    contract in zoomtofen_mirror. ztflowx/ztflowy are written back on exit. */
@@ -126,15 +147,15 @@ typedef struct {
     /* append new fields BELOW this line only; update .equ block + asserts */
 } doland_mirror_t;
 
-extern doland_mirror_t doland_mirror;             /* defined in render3d_atari.S (.bss, .even) */
+extern doland_mirror_t doland_mirror;             /* defined in rrq3d_atari.S (.bss, .even) */
 
-/* Real pointers to the atlland strips (the asm's a2 base). Size = DL_LANDTAB_MAX in render3d_atari.S. */
+/* Real pointers to the atlland strips (the asm's a2 base). Size = DL_LANDTAB_MAX in rrq3d_atari.S. */
 #define DOLAND_LANDTAB_MAX 2048
 extern u8 *doland_landtab[DOLAND_LANDTAB_MAX];
 /* Real row pointers for screen y = -64..319 at [y + 64] (the asm indexes doland_pixtab[y]). */
 extern u8 *doland_pixrows[384];
 
-/* asm veneer (render3d_atari.S): loads a2=scene ptr, a3=rc ptr, runs the lifted body */
+/* asm veneer (rrq3d_atari.S): loads a2=scene ptr, a3=rc ptr, runs the lifted body */
 void doland_body_asm(u8 *scene_ptr, u8 *rc_ptr);
 
 /* asm one-time init: builds the tlinetra/itlinetra/trlinetra/tglinetra tables */

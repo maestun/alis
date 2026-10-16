@@ -41,13 +41,20 @@ void pop_sd6(void)
     strcpy(alis.sd6, src);
 
     s32 len = (s32)strlen(src) + 1;
+    if (alis.platform.version >= 60)
+    {
+        src += len;
+        alis.acc = (s32 *)src;
+        return;
+    }
+
     if (len % 2 == 1)
     {
         src++;
     }
     
     src += len;
-    alis.acc = (s16 *)src;
+    alis.acc = (s32 *)src;
 }
 
 void pop_sd7(void)
@@ -58,11 +65,18 @@ void pop_sd7(void)
     strcpy(alis.sd7, src);
 
     s32 len = (s32)strlen(src) + 1;
+    if (alis.platform.version >= 60)
+    {
+        src += len;
+        alis.acc = (s32 *)src;
+        return;
+    }
+
     if (len % 2 == 1)
         src++;
     
     src += len;
-    alis.acc = (s16 *)src;
+    alis.acc = (s32 *)src;
 }
 
 void push_sd6(void)
@@ -70,12 +84,20 @@ void push_sd6(void)
     char *tgt = (char *)alis.acc;
 
     s32 len = (s32)strlen(alis.sd6) + 1;
+    if (alis.platform.version >= 60)
+    {
+        tgt -= len;
+        strcpy(tgt, alis.sd6);
+        alis.acc = (s32 *)tgt;
+        return;
+    }
+
     if (len % 2 == 1)
         *(--tgt) = 0;
 
     tgt -= len;
     strcpy(tgt, alis.sd6);
-    alis.acc = (s16 *)tgt;
+    alis.acc = (s32 *)tgt;
 }
 
 void push_sd7(void)
@@ -83,12 +105,20 @@ void push_sd7(void)
     char *tgt = (char *)alis.acc;
 
     s32 len = (s32)strlen(alis.sd7) + 1;
+    if (alis.platform.version >= 60)
+    {
+        tgt -= len;
+        strcpy(tgt, alis.sd7);
+        alis.acc = (s32 *)tgt;
+        return;
+    }
+
     if (len % 2 == 1)
         *(--tgt) = 0;
 
     tgt -= len;
     strcpy(tgt, alis.sd7);
-    alis.acc = (s16 *)tgt;
+    alis.acc = (s32 *)tgt;
 }
 
 // =============================================================================
@@ -96,19 +126,29 @@ void push_sd7(void)
 // =============================================================================
 
 // Opername no. 01 opcode 0x00 oimmb
-void oimmb(void) {
+void oimmb(void)
+{
     // reads a byte, extends into r7
     alis.varD7 = (s8)script_read8();
 }
 
 // Opername no. 02 opcode 0x02 oimmw
-void oimmw(void) {
+void oimmw(void)
+{
     // reads a word into r7
-    alis.varD7 = script_read16();
+    alis.varD7 = (s16)script_read16();
+}
+
+// Opername opcode 0x3c oimml
+void oimml(void)
+{
+    // reads a long into r7
+    alis.varD7 = script_read32();
 }
 
 // Opername no. 03 opcode 0x04 oimmp
-void oimmp(void) {
+void oimmp(void)
+{
     if (alis.platform.version == 10)
     {
         script_read16();
@@ -122,21 +162,24 @@ void oimmp(void) {
 }
 
 // Opername no. 04 opcode 0x06 olocb
-void olocb(void) {
+void olocb(void)
+{
     // read word offset, copy extended byte from ram[offset] into r7
     s16 offset = script_read16();
     alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
 }
 
 // Opername no. 05 opcode 0x08 olocw
-void olocw(void) {
+void olocw(void)
+{
     // read word offset, copy word from ram[offset] into r7
     s16 offset = script_read16();
     alis.varD7 = xread16(alis.script->vram_org + offset);
 }
 
 // Opername no. 06 opcode 0x0a olocp
-void olocp(void) {
+void olocp(void)
+{
     s16 offset = script_read16();
     if (alis.platform.version == 10)
     {
@@ -149,7 +192,8 @@ void olocp(void) {
 }
 
 // Opername no. 07 opcode 0x0c oloctp
-void oloctp(void) {
+void oloctp(void)
+{
     if (alis.platform.version == 10)
         return;
     
@@ -158,14 +202,121 @@ void oloctp(void) {
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
+// Opername opcode 0x3e olocto
+void olocto(void)
+{
+    s32 cell = tabstring(alis.script->vram_org + script_read16());
+    alis.varD7 = cell;
+    alis.v6tabcell = (u32)cell;
+}
+
+// Opername opcode 0xaa ogettext
+void ogettext(void)
+{
+    char *key   = (char *)alis.acc;
+    char *fname = key + strlen(key) + 1;
+    s16 line = alis.varD7;
+
+    alis.sd7[0] = 0;
+
+    extern u8 *v6text_get(u16 n, u32 *sz);
+    u32 tsz = 0;
+    u8 *text = v6text_get(node_find(fname), &tsz);
+    if (text == NULL || tsz == 0)
+        return;
+
+    u8 *si  = text;
+    u8 *end = text + tsz;
+
+    for (;;)
+    {
+        while (si < end && *si != '[')
+            si++;
+        
+        if (si >= end)
+            return;
+        
+        si++;
+
+        char *k = key;
+        while (*k)
+        {
+            if (si >= end)
+                return;
+            if ((char)*si != *k)
+                break;
+            si++;
+            k++;
+        }
+
+        if (*k)
+            continue;
+
+        if (si >= end)
+            return;
+        
+        if (*si != ']')
+        {
+            si++;
+            continue;
+        }
+
+        si++;
+        break;
+    }
+
+    u8 term = 0x0d;
+    if (line <= 0)
+    {
+        term = '[';
+        line = 1;
+    }
+
+    for (;;)
+    {
+        if (si >= end)
+            return;
+        
+        u8 c = *si++;
+        if (c == '[')
+            return;
+        
+        if (c != 0x0d)
+            continue;
+        
+        if (--line == 0)
+            break;
+    }
+
+    if (si < end && *si == 0x0a)
+        si++;
+    
+    if (si < end && *si == '[')
+        return;
+
+    char *out = alis.sd7;
+    while (si < end)
+    {
+        u8 c = *si++;
+        if (c == term)
+            break;
+        
+        *out++ = (char)c;
+    }
+
+    *out = 0;
+}
+
 // Opername no. 08 opcode 0x0e oloctc
-void oloctc(void) {
+void oloctc(void)
+{
     s32 addr = tabchar(alis.script->vram_org + script_read16());
     alis.varD7 = (s8)xread8(addr);
 }
 
 // Opername no. 09 opcode 0x10 olocti
-void olocti(void) {
+void olocti(void)
+{
     s32 addr = tabint(alis.script->vram_org + script_read16());
     alis.varD7 = xread16(addr);
 }
@@ -173,23 +324,41 @@ void olocti(void) {
 // Opername no. 10 opcode 0x12 odirb
 // reads a byte offset from script,
 // then reads an extended byte from vram[offset] into r7
-void odirb(void) {
+void odirb(void)
+{
     u8 offset = script_read8();
     alis.varD7 = (s8)xread8(alis.script->vram_org + offset);
+}
+
+// v6 dispatch target for odirb
+static void odirb_v6(void)
+{
+    u16 offset = (u16)script_read16();
+    alis.varD7 = xread32(alis.script->vram_org + offset);
 }
 
 // Opername no. 11 opcode 0x14 odirw
 // reads a byte offset from script,
 // then reads a word from vram[offset] into r7
-void odirw(void) {
+void odirw(void)
+{
     u8 offset = script_read8();
     alis.varD7 = xread16(alis.script->vram_org + offset);
+}
+
+// v6 dispatch target for odirw
+static void odirw_v6(void)
+{
+    u16 offset = (u16)script_read16();
+    s32 addr = v6_tabcell(alis.script->vram_org + offset, 2);
+    alis.varD7 = xread32(addr);
 }
 
 // Opername no. 12 opcode 0x16 odirp
 // reads a byte offset from script,
 // then reads a null-terminated data stream from vram[offset] into bssChunk3
-void odirp(void) {
+void odirp(void)
+{
     u8 offset = script_read8();
     if (alis.platform.version == 10)
     {
@@ -201,8 +370,16 @@ void odirp(void) {
     strcpy(alis.sd7, (char *)get_vram(offset));
 }
 
+// v6 dispatch target for odirp
+static void odirp_v6(void)
+{
+    s16 offset = script_read16();
+    alis.varD7 = xread32(alis.basemain + offset);
+}
+
 // Opername no. 13 opcode 0x18 odirtp
-void odirtp(void) {
+void odirtp(void)
+{
     if (alis.platform.version == 10)
         return;
     
@@ -211,32 +388,69 @@ void odirtp(void) {
     strcpy(alis.sd7, (char *)(alis.mem + addr));
 }
 
+// v6 dispatch target for odirtp
+static void odirtp_v6(void)
+{
+    u16 offset = (u16)script_read16();
+    s32 addr = v6_tabcell(alis.basemain + offset, 2);
+    alis.varD7 = xread32(addr);
+}
+
 // Opername no. 14 opcode 0x1a odirtc
-void odirtc(void) {
+void odirtc(void)
+{
     s32 addr = tabchar(alis.script->vram_org + script_read8());
     alis.varD7 = (s8)xread8(addr);
 }
 
+// v6 dispatch target for odirtc
+static void odirtc_v6(void)
+{
+    u16 offset = (u16)script_read16();
+    s16 ent = xread16(alis.script->vram_org + offset);
+    s32 vram = xread32(alis.atent + ent);
+    u16 offset2 = (u16)script_read16();
+    if (vram <= 0)
+        return;
+
+    alis.varD7 = xread32(vram + offset2);
+}
+
 // Opername no. 15 opcode 0x1c odirti
-void odirti(void) {
+void odirti(void)
+{
     s32 addr = tabint(alis.script->vram_org + script_read8());
     alis.varD7 = xread16(addr);
 }
 
+// v6 dispatch target for odirti
+static void odirti_v6(void)
+{
+    u16 celloff = (u16)script_read16();
+    u16 entoff = (u16)script_read16();
+    s16 ent = xread16(alis.script->vram_org + entoff);
+    s32 vram = xread32(alis.atent + ent);
+    s32 addr = v6_tabcell(vram + celloff, 2);
+    alis.varD7 = xread32(addr);
+}
+
 // Opername no. 16 opcode 0x1e omainb
-void omainb(void) {
+void omainb(void)
+{
     s16 offset = script_read16();
     alis.varD7 = (s8)xread8(alis.basemain + offset);
 }
 
 // Opername no. 17 opcode 0x20 omainw
-void omainw(void) {
+void omainw(void)
+{
     s16 offset = script_read16();
     alis.varD7 = xread16(alis.basemain + offset);
 }
 
 // Opername no. 18 opcode 0x22 omainp
-void omainp(void) {
+void omainp(void)
+{
     s16 offset = script_read16();
     if (alis.platform.version == 10)
     {
@@ -249,7 +463,8 @@ void omainp(void) {
 }
 
 // Opername no. 19 opcode 0x24 omaintp
-void omaintp(void) {
+void omaintp(void)
+{
     if (alis.platform.version == 10)
         return;
     
@@ -259,37 +474,61 @@ void omaintp(void) {
 }
 
 // Opername no. 20 opcode 0x26 omaintc
-void omaintc(void) {
+void omaintc(void)
+{
     s32 addr = tabchar(alis.basemain + script_read16());
     alis.varD7 = (s8)xread8(addr);
 }
 
 // Opername no. 21 opcode 0x28 omainti
-void omainti(void) {
+void omainti(void)
+{
     s32 addr = tabint(alis.basemain + script_read16());
     alis.varD7 = xread16(addr);
 }
 
 // Opername no. 22 opcode 0x2a ohimb
-void ohimb(void) {
+void ohimb(void)
+{
     u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
+
+    if (alis.platform.version >= 60)
+    {
+        u16 offset = (u16)script_read16();
+        if ((s32)vram_addr <= 0)
+            return;
+        alis.varD7 = (s8)xread8(vram_addr + offset);
+        return;
+    }
 
     s16 offset = script_read16();
     alis.varD7 = (s8)xread8(vram_addr + offset);
 }
 
 // Opername no. 23 opcode 0x2c ohimw
-void ohimw(void) {
+void ohimw(void)
+{
     u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
+
+    if (alis.platform.version >= 60)
+    {
+        u16 offset = (u16)script_read16();
+        if ((s32)vram_addr <= 0)
+            return;
+
+        alis.varD7 = xread16(vram_addr + offset);
+        return;
+    }
 
     s16 offset = script_read16();
     alis.varD7 = xread16(vram_addr + offset);
 }
 
 // Opername no. 24 opcode 0x2e ohimp
-void ohimp(void) {
+void ohimp(void)
+{
     u16 entry = xread16(alis.script->vram_org + (s16)script_read16());
     u32 vram_addr = xread32(alis.atent + entry);
 
@@ -305,12 +544,25 @@ void ohimp(void) {
 }
 
 // Opername no. 25 opcode 0x30 ohimtp
-void ohimtp(void) {
+void ohimtp(void)
+{
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// v6 dispatch target for ohimtp
+static void ohimtp_v6(void)
+{
+    u16 celloff = (u16)script_read16();
+    u16 entoff = (u16)script_read16();
+    s16 ent = xread16(alis.script->vram_org + entoff);
+    s32 vram = xread32(alis.atent + ent);
+    s32 addr = tabstring(vram + celloff);
+    strcpy(alis.sd7, (char *)(alis.mem + addr));
+}
+
 // Opername no. 26 opcode 0x32 ohimtc
-void ohimtc(void) {
+void ohimtc(void)
+{
     if (alis.platform.version == 10)
     {
         s16 offset = script_read16();
@@ -322,8 +574,20 @@ void ohimtc(void) {
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// v6 dispatch target for ohimtc
+static void ohimtc_v6(void)
+{
+    u16 celloff = (u16)script_read16();
+    u16 entoff = (u16)script_read16();
+    s16 ent = xread16(alis.script->vram_org + entoff);
+    s32 vram = xread32(alis.atent + ent);
+    s32 addr = v6_tabcell(vram + celloff, 0);
+    alis.varD7 = (s8)xread8(addr);
+}
+
 // Opername no. 27 opcode 0x34 ohimti
-void ohimti(void) {
+void ohimti(void)
+{
     if (alis.platform.version == 10)
     {
         s16 offset = script_read16();
@@ -335,9 +599,21 @@ void ohimti(void) {
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// v6 dispatch target for ohimti
+static void ohimti_v6(void)
+{
+    u16 celloff = (u16)script_read16();
+    u16 entoff = (u16)script_read16();
+    s16 ent = xread16(alis.script->vram_org + entoff);
+    s32 vram = xread32(alis.atent + ent);
+    s32 addr = v6_tabcell(vram + celloff, 1);
+    alis.varD7 = xread16(addr);
+}
+
 // Opername no. 28 opcode 0x36 opile
 // pop from accumulator into r6
-void opile(void) {
+void opile(void)
+{
     // save r6 into r7
     alis.varD7 = alis.varD6;
     alis.varD6 = *alis.acc++;
@@ -345,30 +621,47 @@ void opile(void) {
 
 // Opername no. 29 opcode 0x38 oeval
 // start eval loop, will stop after ofin() is called
-void oeval(void) {
+void oeval(void)
+{
     alis.oeval_loop = 1;
-    while(alis.oeval_loop) {
+    while(alis.oeval_loop)
+    {
         readexec_opername();
     }
     
-    ALIS_DEBUG(EDebugInfo, " [ = %d]", (s8)alis.varD7);
+    ALIS_DEBUG(EDebugInfo, " [ = %d]", (s16)alis.varD7);   // was (s8): masked real values in traces
 }
 
 // Opername no. 30 opcode 0x3a ofin
 // stop eval loop
-void ofin(void) {
+void ofin(void)
+{
+    if (alis.oeval_loop)
+    {
+        alis.oeval_loop = 0;
+        return;
+    }
+
+    if (alis.platform.version >= 60 && alis.ofin_active)
+    {
+        alis.ofin_active = 0;
+        longjmp(alis.ofin_jmp, 1);
+    }
+
     alis.oeval_loop = 0;
 }
 
 // Opername no. 33 opcode 0x40 opushacc
 // push value from r7 register to accumulator
-void opushacc(void) {
+void opushacc(void)
+{
     *(--alis.acc) = alis.varD7;
 }
 
 // Opername no. 34 opcode 0x42 oand
 // r7 = variable AND r7
-void oand(void) {
+void oand(void)
+{
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 &= alis.varD6;
@@ -376,7 +669,8 @@ void oand(void) {
 
 // Opername no. 35 opcode 0x44 oor
 // r7 = variable OR r7
-void oor(void) {
+void oor(void)
+{
     alis.varD6 = alis.varD7;
     readexec_opername();
     alis.varD7 |= alis.varD6;
@@ -384,14 +678,16 @@ void oor(void) {
 
 // Opername no. 36 opcode 0x46 oxor
 // r7 = variable XOR r7
-void oxor(void) {
+void oxor(void)
+{
     readexec_opername_saveD7();
     alis.varD7 ^= alis.varD6;
 }
 
 // Opername no. 37 opcode 0x48 oeqv
 // r7 = variable EQV r7
-void oeqv(void) {
+void oeqv(void)
+{
     readexec_opername_saveD7();
     alis.varD7 ^= alis.varD6;
     alis.varD7 = ~alis.varD7;
@@ -399,56 +695,64 @@ void oeqv(void) {
 
 // Opername no. 38 opcode 0x4a oegal
 // r6 == r7
-void oegal(void) {
+void oegal(void)
+{
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 == alis.varD7) ? -1 : 0;
 }
 
 // Opername no. 39 opcode 0x4c odiff
 // r6 != r7
-void odiff(void) {
+void odiff(void)
+{
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 != alis.varD7) ? -1 : 0;
 }
 
 // Opername no. 40 opcode 0x4e oinfeg
 // r6 <= r7
-void oinfeg(void) {
+void oinfeg(void)
+{
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 <= alis.varD7) ? -1 : 0;
 }
 
 // Opername no. 41 opcode 0x50 osupeg
 // r6 >= r7
-void osupeg(void) {
+void osupeg(void)
+{
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 >= alis.varD7) ? -1 : 0;
 }
 
 // Opername no. 42 opcode 0x52 oinf
 // r6 < r7
-void oinf(void) {
+void oinf(void)
+{
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 < alis.varD7) ? -1 : 0;
 }
 
 // Opername no. 43 opcode 0x54 osup
 // r6 > r7
-void osup(void) {
+void osup(void)
+{
     readexec_opername_saveD7();
     alis.varD7 = (alis.varD6 > alis.varD7) ? -1 : 0;
 }
 
 // Opername no. 44 opcode 0x56 oadd
 // r7 += variable
-void oadd(void) {
+void oadd(void)
+{
     readexec_opername_saveD7();
     alis.varD7 += alis.varD6;
 }
 
 // Opername no. 45 opcode 0x58 osub
 // r7 -= variable
-void osub(void) {
+void osub(void)
+{
     readexec_opername_saveD7();
     alis.varD6 -= alis.varD7;
     alis.varD7 = alis.varD6;
@@ -456,41 +760,54 @@ void osub(void) {
 
 // Opername no. 46 opcode 0x5a omod
 // r7 %= variable
-void omod(void) {
+void omod(void)
+{
     readexec_opername_saveD7();
+    if (alis.platform.version >= 60 && alis.varD7 == 0)
+        alis.varD7 = 1;
+
     alis.varD6 %= alis.varD7;
     alis.varD7 = alis.varD6;
 }
 
 // Opername no. 47 opcode 0x5c odiv
 // r7 /= variable
-void odiv(void) {
+void odiv(void)
+{
     readexec_opername_saveD7();
+    if (alis.platform.version >= 60 && alis.varD7 == 0)
+        alis.varD7 = 1;
+
     alis.varD6 /= alis.varD7;
     alis.varD7 = alis.varD6;
 }
 
 // Opername no. 48 opcode 0x5e omul
 // r7 *= variable
-void omul(void) {
+void omul(void)
+{
     readexec_opername_saveD7();
-    alis.varD7 *= alis.varD6;
+    alis.varD7 = (s32)((u32)alis.varD7 * (u32)alis.varD6);
 }
 
 // Opername no. 49 opcode 0x60 oneg
-void oneg(void) {
+void oneg(void)
+{
     alis.varD7 = -alis.varD7;
 }
 
 // Opername no. 50 opcode 0x62 oabs
-void oabs(void) {
-    if(alis.varD7 < 0) {
+void oabs(void)
+{
+    if(alis.varD7 < 0)
+    {
         alis.varD7 = -alis.varD7;
     }
 }
 
 // Opername no. 51 opcode 0x64 ornd
-void ornd(void) {
+void ornd(void)
+{
     u32 result = alis.random_number;
     result = alis.random_number = (u16)(result * 0x7ab7 - 0x77f);
     result = (alis.varD7 & 0xffff) * result;
@@ -498,34 +815,47 @@ void ornd(void) {
 }
 
 // Opername no. 52 opcode 0x66 osgn
-void osgn(void) {
-    if(alis.varD7 > 0) {
+void osgn(void)
+{
+    if(alis.varD7 > 0)
+    {
         alis.varD7 = 1;
     }
-    else if(alis.varD7 < 0) {
+    else if(alis.varD7 < 0)
+    {
         alis.varD7 = -1;
     }
 }
 
 // Opername no. 53 opcode 0x68 onot
-void onot(void) {
+void onot(void)
+{
     alis.varD7 = ~alis.varD7;
 }
 
 // Opername no. 54 opcode 0x6a oinkey
-void oinkey(void) {
+void oinkey(void)
+{
     alis.varD7 = alis.automode ? alis.prevkey : (alis.prevkey = io_inkey());
     ALIS_DEBUG(EDebugInfo, " [%d] ", alis.varD7);
 }
 
 // Opername no. 55 opcode 0x6c okeyon
 // [N/I]: Robinson's Requiem (IBM PC)
-void okeyon(void) {
+void okeyon(void)
+{
     ALIS_DEBUG(EDebugWarning, "[N/I]: %s", __FUNCTION__);
 }
 
+// v6 dispatch target for okeyon
+static void okeyon_v6(void)
+{
+    alis.varD7 = io_keyon((u8)alis.varD7);
+}
+
 // Opername no. 56 opcode 0x6e ojoy
-void ojoy(void) {
+void ojoy(void)
+{
     if (alis.automode == 0)
     {
         alis.varD7 = alis.platform.version == 10 ? io_joy_raw() : io_joy(alis.varD7);
@@ -533,7 +863,8 @@ void ojoy(void) {
 }
 
 // Opername no. 57 opcode 0x70 oprnd
-void oprnd(void) {
+void oprnd(void)
+{
     u32 result = *alis.acc++;
     result = (u16)(result << 10 | result >> 6);
     result = (u16)(result * 0x7ab7 - 0x77f);
@@ -542,14 +873,15 @@ void oprnd(void) {
 }
 
 // Opername no. 58 opcode 0x72 oscan
-void oscan(void) {
+void oscan(void)
+{
     s16 new_val = get_0x1e_scan_clr(alis.script->vram_org);
     if (new_val == get_0x1c_scan_clr(alis.script->vram_org))
     {
         alis.varD7 = -1;
         return;
     }
-    
+
     s16 limit = alis.platform.version >= 30 ? -0x3f : -0x35;
 
     s16 result = xread16(alis.script->vram_org + new_val);
@@ -564,12 +896,37 @@ void oscan(void) {
     {
         set_0x24_scan_inter(alis.script->vram_org, get_0x24_scan_inter(alis.script->vram_org) & 0x7f);
     }
-    
+
     alis.varD7 = result;
 }
 
+// v6 dispatch target for oscan
+static void oscan_v6(void)
+{
+    u32 vram = alis.script->vram_org;
+    s16 head = get_0x1c_scan_clr(vram);
+    if (head == get_0x1e_scan_clr(vram))
+    {
+        alis.varD7 = 0;
+        return;
+    }
+
+    u16 qsize = (u16)xread16(get_0x14_script_org_offset(vram) + 0x36);
+    s32 result = xread32(vram + head);
+    head += 4;
+    if (head >= -0x40)
+        head -= qsize;
+    
+    set_0x1c_scan_clr(vram, head);
+    if (head == get_0x1e_scan_clr(vram))
+        set_0x24_scan_inter(vram, get_0x24_scan_inter(vram) & 0x7f);
+    
+    alis.varD7 = (s16)result;
+}
+
 // Opername no. 59 opcode 0x74 oshiftkey
-void oshiftkey(void) {
+void oshiftkey(void)
+{
     // TODO: if automode is active use value stored in D1
     alis.varD7 = alis.automode ? 0 : io_shiftkey();
 }
@@ -583,8 +940,8 @@ s16 io_dfree(void)
 }
 
 // Opername no. 60 opcode 0x76 ofree
-void ofree(void) {
-    
+void ofree(void)
+{
     if (alis.platform.version <= 20)
     {
         if (alis.varD7 == 0)
@@ -674,29 +1031,52 @@ void ofree(void) {
 }
 
 // Opername no. 61 opcode 0x78 omodel
-void omodel(void) {
+void omodel(void)
+{
+    if (alis.platform.version >= 60)
+    {
+        alis.varD7 = 0;
+        return;
+    }
+
     alis.varD7 = sys_get_model();
 }
 
 // Opername no. 62 opcode 0x7a ogetkey
-void ogetkey(void) {
+void ogetkey(void)
+{
     alis.varD7 = io_getkey();
     ALIS_DEBUG(EDebugInfo, " [%d] ", alis.varD7);
 }
 
 // Opername no. 63 opcode 0x7c oleft
-void oleft(void) {
+void oleft(void)
+{
     pop_sd7();
     *(u8 *)(alis.sd7 + (alis.varD7 & 0xff)) = 0;
 }
 
 // Opername no. 64 opcode 0x7e oright
-void oright(void) {
+void oright(void)
+{
     ALIS_DEBUG(EDebugWarning, "MISSING: %s", __FUNCTION__);
 }
 
+// v6 dispatch target for oright
+static void oright_v6(void)
+{
+    pop_sd7();
+    s16 keep = alis.varD7;
+    s32 len = (s32)strlen(alis.sd7);
+    if (keep < 0)
+        keep = 0;
+    if (keep < len)
+        memmove(alis.sd7, alis.sd7 + len - keep, keep + 1);
+}
+
 // Opername no. 65 opcode 0x80 omid
-void omid(void) {
+void omid(void)
+{
     char *src = alis.sd7 + *alis.acc++;
 
     pop_sd7();
@@ -719,22 +1099,32 @@ void omid(void) {
 }
 
 // Opername no. 66 opcode 0x82 olen
-void olen(void) {
+void olen(void)
+{
     alis.varD7 = strlen((const char *)alis.sd7);
 }
 
 // Opername no. 67 opcode 0x84 oasc
-void oasc(void) {
+void oasc(void)
+{
+    if (alis.platform.version >= 60)
+    {
+        alis.varD7 = (u8)alis.sd7[0];
+        return;
+    }
+
     alis.varD7 = alis.sd7[0];
 }
 
 // Opername no. 68 opcode 0x86 ostr
-void ostr(void) {
+void ostr(void)
+{
     valtostr(alis.sd7, alis.varD7);
 }
 
 // Opername no. 69 opcode 0x88 osadd
-void osadd(void) {
+void osadd(void)
+{
     readexec_opername_swap();
     
     strcat(alis.sd6, alis.sd7);
@@ -745,48 +1135,56 @@ void osadd(void) {
 }
 
 // Opername no. 70 opcode 0x8a osegal
-void osegal(void) {
+void osegal(void)
+{
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) ? 0 : -1;
 }
 
 // Opername no. 71 opcode 0x8c osdiff
-void osdiff(void) {
+void osdiff(void)
+{
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) ? -1 : 0;
 }
 
 // Opername no. 72 opcode 0x8e osinfeg
-void osinfeg(void) {
+void osinfeg(void)
+{
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) <= 0 ? -1 : 0;
 }
 
 // Opername no. 73 opcode 0x90 ossupeg
-void ossupeg(void) {
+void ossupeg(void)
+{
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) >= 0 ? -1 : 0;
 }
 
 // Opername no. 74 opcode 0x92 osinf
-void osinf(void) {
+void osinf(void)
+{
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) < 0 ? -1 : 0;
 }
 
 // Opername no. 75 opcode 0x94 ossup
-void ossup(void) {
+void ossup(void)
+{
     readexec_opername_swap();
     alis.varD7 = strncmp(alis.sd6, alis.sd7, strlen(alis.sd6)) > 0 ? -1 : 0;
 }
 
 // Opername no. 76 opcode 0x96 ospushacc
-void ospushacc(void) {
+void ospushacc(void)
+{
     push_sd7();
 }
 
 // Opername no. 77 opcode 0x98 ospile
-void ospile(void) {
+void ospile(void)
+{
     char * tmp = alis.sd6;
     alis.sd6 = alis.sd7;
     alis.sd7 = tmp;
@@ -795,7 +1193,8 @@ void ospile(void) {
 }
 
 // Opername no. 78 opcode 0x9a oval
-void oval(void) {
+void oval(void)
+{
     // TODO: compute int value of bssChunk3 string -> d7 ??
 //    ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     
@@ -858,12 +1257,14 @@ void oval(void) {
 }
 
 // Opername no. 79 opcode 0x9c oexistf
-void oexistf(void) {
+void oexistf(void)
+{
     char path[kPathMaxLen] = {0};
     strcpy(path, alis.platform.path);
 //    strcat(path, (char *)alis.oldsd7);
+    char *name = path + strlen(path);
     strcat(path, (char *)alis.sd7);
-    char *dotptr = strrchr(path, '.');
+    char *dotptr = strrchr(name, '.');
     if (dotptr)
     {
         if (strcasecmp(dotptr + 1, "fic") && strcasecmp(dotptr + 1, "cst") && strcasecmp(dotptr + 1, "dat") && !sys_fexists(path))
@@ -872,37 +1273,53 @@ void oexistf(void) {
         }
     }
     
-    alis.varD7 = sys_fexists(path) ? -1 : 0;
+    // an empty name would test the data folder itself
+    alis.varD7 = *name && sys_fexists(path) ? -1 : 0;
 }
 
 // Opername no. 80 opcode 0x9e ochr
-void ochr(void) {
+void ochr(void)
+{
     alis.sd7[0] = (u8)alis.varD7;
     alis.sd7[1] = 0;
 }
 
 // Opername no. 81 opcode 0xa0 ochange
-void ochange(void) {
+void ochange(void)
+{
     // TODO: change le drive courant ??
     ALIS_DEBUG(EDebugWarning, "STUBBED: %s", __FUNCTION__);
     alis.varD7 = 0;
 }
 
 // Opername no. 82 opcode 0xa2 ocountry
-void ocountry(void) {
+void ocountry(void)
+{
     alis.varD7 = alis.pays;
-    if(disalis) {
-       ALIS_DEBUG(EDebugInfo, " [=> d7 = {0x%02x}]", alis.pays);
-       }
+    if(disalis)
+        ALIS_DEBUG(EDebugInfo, " [=> d7 = {0x%02x}]", alis.pays);
 }
 
 // Opername no. 83 opcode 0xa4 omip
-void omip(void) {
-    alis.varD7 = 0x64;
+void oips(void)
+{
+    alis.varD7 = (s16)(alis.v6ips + 1);
+}
+
+void omip(void)
+{
+    alis.varD7 = alis.platform.version >= 60 ? 0x93 : 0x64;
 }
 
 // Opername no. 84 opcode 0xa6 ojoykey
-void ojoykey(void) {
+void ojoykey(void)
+{
+    if (alis.platform.version >= 60)
+    {
+        alis.varD7 = 0;
+        return;
+    }
+
     if (alis.automode == 0)
     {
         alis.varD7 = io_joykey(alis.varD7);
@@ -910,8 +1327,19 @@ void ojoykey(void) {
 }
 
 // Opername no. 85 opcode 0xa8 oconfig
-void oconfig(void) {
+void oconfig(void)
+{
     alis.varD7 = alis.theconfig;
+
+    if (alis.platform.version >= 60)
+    {
+        // Deus reads a hardware config word via oconfig and extracts video/capability bits
+        // DOS's runtime value is 0x44 for the SVGA setup, so those bits are non-zero
+        // 0 here takes the VGA/low branch
+        
+        // Override to the verified DOS value until theconfig is derived from OPTION.DAT/START.STP.
+        alis.varD7 = 0x0044;
+    }
 }
 
 // Opername no. 31 opcode 0x3c pnul
@@ -987,9 +1415,9 @@ const sAlisOpcode opernames[] = {
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x3a, ofin,         "ends an expression evaluation loop"),
     DECL_OPCODE(0, NULL, ""),
-    DECL_OPCODE(0x3c, pnul,         "[N/I] null pointer"),
+    DECL_OPCODE(0x3c, oimml,        "immediate long"),
     DECL_OPCODE(0, NULL, ""),
-    DECL_OPCODE(0x3e, pnul,         "[N/I] null pointer"),
+    DECL_OPCODE(0x3e, olocto,       "v40+ string operand (pnul pre-v6)"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0x40, opushacc,     "push word from r7 into virtual accumulator"),
     DECL_OPCODE(0, NULL, ""),
@@ -1096,5 +1524,55 @@ const sAlisOpcode opernames[] = {
     DECL_OPCODE(0xa6, ojoykey,      "TODO add desc"),
     DECL_OPCODE(0, NULL, ""),
     DECL_OPCODE(0xa8, oconfig,      "unknown"),
+    DECL_OPCODE(0, NULL, ""),
+    DECL_OPCODE(0xaa, ogettext,     "v40+ localized text lookup (absent pre-v6)"),
+    DECL_OPCODE(0, NULL, ""),
+    DECL_OPCODE(0xac, oips,         "v40+ OUNKNOWN_0x56: ips counter + 1"),
     DECL_OPCODE(0, NULL, "")
 };
+
+// ============================================================================
+#pragma mark - v6.0+ operand table
+// ============================================================================
+// See storenames.c for the rationale: v6 selects a different TABLE rather than
+// branching inside each handler, and only the entries that actually differ are
+// listed. (The 32-bit accumulator semantic is NOT per-opcode — v6 is a 32-bit
+// VM while pre-v6 wraps varD7 to 16 bits after every operand — so that one
+// stays in readexec_opername, which is where it belongs.)
+static sAlisOpcode opernames_v6[256];
+static const sAlisOpcode opernames_v6_ov[] = {
+    DECL_OPCODE(0x12, odirb_v6,     "v6: local long"),
+    DECL_OPCODE(0x14, odirw_v6,     "v6: loctab long"),
+    DECL_OPCODE(0x16, odirp_v6,     "v6: main long"),
+    DECL_OPCODE(0x18, odirtp_v6,    "v6: maintab long"),
+    DECL_OPCODE(0x1a, odirtc_v6,    "v6: maintab char"),
+    DECL_OPCODE(0x1c, odirti_v6,    "v6: maintab int"),
+    DECL_OPCODE(0x30, ohimtp_v6,    "v6: himtab long"),
+    DECL_OPCODE(0x32, ohimtc_v6,    "v6: himtab char"),
+    DECL_OPCODE(0x34, ohimti_v6,    "v6: himtab int"),
+    DECL_OPCODE(0x6c, okeyon_v6,    "v6: key-held test"),
+    DECL_OPCODE(0x72, oscan_v6,     "v6: scan"),
+    DECL_OPCODE(0x7e, oright_v6,    "v6: right"),
+};
+
+const sAlisOpcode *alis_tab_opernames(void)
+{
+    static const sAlisOpcode *live = NULL;
+    if (live == NULL)
+    {
+        if (alis.platform.version < 60)
+        {
+            live = opernames;
+        }
+        else
+        {
+            memcpy(opernames_v6, opernames, sizeof(opernames));
+            for (u32 i = 0; i < sizeof(opernames_v6_ov) / sizeof(opernames_v6_ov[0]); i++)
+                opernames_v6[(u8)opernames_v6_ov[i].code] = opernames_v6_ov[i];
+            
+            live = opernames_v6;
+        }
+    }
+
+    return live;
+}

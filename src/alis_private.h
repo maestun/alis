@@ -41,27 +41,30 @@ void readexec_opername_swap(void);
 #endif
 
 void cstore_continue(void);
+void v6_mapcell(int mode);
+void v6_skipprot(void);
 
-extern const sAlisOpcode  opcodes[];
-extern const sAlisOpcode  codesc1names[];
-extern const sAlisOpcode  codesc2names[];
-extern const sAlisOpcode  codesc3names[];
-extern const sAlisOpcode  opernames[];
-extern const sAlisOpcode  storenames[];
-extern const sAlisOpcode  addnames[];
-extern sAlisError   errors[];
+extern const sAlisOpcode opcodes[];
+extern const sAlisOpcode codesc1names[];
+extern const sAlisOpcode codesc2names[];
+extern const sAlisOpcode codesc3names[];
+extern const sAlisOpcode opernames[];
+extern const sAlisOpcode storenames[];
+extern const sAlisOpcode addnames[];
+extern sAlisError errors[];
 
 // newer versions of ALIS
-extern const sAlisOpcode  opcodes_v40[];
+const sAlisOpcode *alis_tab_opcodes(void);
+const sAlisOpcode *alis_tab_opernames(void);
+const sAlisOpcode *alis_tab_storenames(void);
+const sAlisOpcode *alis_tab_addnames(void);
+
 extern const sAlisOpcode  codesc1names_v40[];
-extern const sAlisOpcode  opernames_v40[];
-extern const sAlisOpcode  storenames_v40[];
-extern const sAlisOpcode  addnames_v40[];
 
 // common opcode helpers
-extern u16  loctc_common(u16 offset);
-extern u16  locti_common(u16 offset);
-extern u16  loctp_common(u16 offset);
+extern u16 loctc_common(u16 offset);
+extern u16 locti_common(u16 offset);
+extern u16 loctp_common(u16 offset);
 
 extern void cnul(void);      // Stub for codop, codesc1, codesc2, codesc3
 extern void pnul(void);      // Stub for oper, add, store

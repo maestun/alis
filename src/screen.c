@@ -142,6 +142,7 @@ void scdosprite(s16 scridx)
         sprite->newx = x;
         sprite->depx = x + w;
     }
+
     sprite->newy = y;
     sprite->newd = 0x7fff;
     sprite->depy = y + h;

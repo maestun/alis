@@ -61,8 +61,8 @@
 # define ATARI_TIER_SLOW        0   // stock Falcon 030 @ 16MHz, low-spec
 # define ATARI_TIER_MEDIUM      1   // TT 030 @ 32 MHz
 # define ATARI_TIER_FAST        2   // 040 @ 25–40 MHz (Hades, CT60 040)
-# define ATARI_TIER_FASTER   3   // 060 @ 50+ MHz (CT60)
-# define ATARI_TIER_FASTEST    4   // Aranym / FPGA boards
+# define ATARI_TIER_FASTER      3   // 060 @ 50+ MHz (CT60)
+# define ATARI_TIER_FASTEST     4   // Aranym / FPGA boards
 
 static u16   sdl1_machine_type = SDL1_MCH_ST;
 static u8    sdl1_cpu_family   = 0;
@@ -79,7 +79,8 @@ static long atari_bench(void)
     u32 t0, t1;
 
     t0 = *hz200;
-    while (*hz200 == t0) { /* spin */ }
+    while (*hz200 == t0) {}
+
     t0 = *hz200;
 
     u32 count = SDL1_BENCH_ITERS;
@@ -98,12 +99,16 @@ static u8 atari_cpu_tier(u32 ticks, u8 cpu_family)
 {
     if (ticks < 5)
         return ATARI_TIER_FASTEST;
+    
     if (cpu_family >= 60 || ticks <= 20)
         return ATARI_TIER_FASTER;
+    
     if (cpu_family >= 40 || ticks <= 50)
         return ATARI_TIER_FAST;
+    
     if (ticks <= 100)
         return ATARI_TIER_MEDIUM;
+    
     return ATARI_TIER_SLOW;
 }
 
@@ -114,10 +119,12 @@ static void atari_detect_machine(void)
 
     if (Getcookie(C__MCH, &cookie_mch) != C_FOUND)
         cookie_mch = 0;  // plain ST
+    
     sdl1_machine_type = (u16)(cookie_mch >> 16);
 
     if (Getcookie(C__CPU, &cookie_cpu) != C_FOUND)
         cookie_cpu = 0;  // 68000
+    
     sdl1_cpu_family = (u8)cookie_cpu;
 
     sdl1_bench_result_ticks = 0;
@@ -162,17 +169,14 @@ static int atari_dma_rate(void)
 // (The Falcon has it too, but defaults to its DSP — see atari_use_dma_backend.)
 static int atari_has_dma_sound(void)
 {
-    return sdl1_machine_type == SDL1_MCH_STE
-        || sdl1_machine_type == SDL1_MCH_TT;
+    return sdl1_machine_type == SDL1_MCH_STE || sdl1_machine_type == SDL1_MCH_TT;
 }
 
 // We drive the audio hardware ourselves only on STE/MegaSTE/TT (DMA) and Falcon
 // (DSP or DMA); everything else (ST, clones, GSXB, unknown _MCH) uses SDL audio.
 static int atari_own_audio(void)
 {
-    return sdl1_machine_type == SDL1_MCH_STE
-        || sdl1_machine_type == SDL1_MCH_TT
-        || sdl1_machine_type == SDL1_MCH_FALCON;
+    return sdl1_machine_type == SDL1_MCH_STE || sdl1_machine_type == SDL1_MCH_TT || sdl1_machine_type == SDL1_MCH_FALCON;
 }
 
 // 1 = CPU-mixed DMA path. --audio: 0=auto (STE/TT→DMA, Falcon→DSP), 1=DSP
@@ -180,10 +184,15 @@ static int atari_own_audio(void)
 extern int atari_audio_backend;
 static int atari_use_dma_backend(void)
 {
-    if (!atari_own_audio()) return 0;                             // clones/ST → SDL
-    if (atari_audio_backend == 2) return 1;                       // forced DMA
+    if (!atari_own_audio())
+        return 0;                                                 // clones/ST → SDL
+    
+    if (atari_audio_backend == 2)
+        return 1;                                                 // forced DMA
+    
     if (atari_audio_backend == 1)                                 // forced DSP
         return (sdl1_machine_type == SDL1_MCH_FALCON) ? 0 : 1;    // no DSP off-Falcon
+    
     return atari_has_dma_sound();                                 // auto
 }
 
@@ -201,6 +210,7 @@ static int atari_dma_rate_machine(void)
             default:                 return  8195;   // stock 030 — Devconnect floor
         }
     }
+
     return atari_dma_rate();
 }
 
@@ -217,8 +227,8 @@ extern SDL_Event        event;
 extern SDL_AudioSpec    *audio_spec;
 extern SDL_Rect         dirty_rects[256];
 extern SDL_Rect         dirty_mouse_rect;
-extern volatile u8     dirty_pal;
-extern u8              dirty_len;
+extern volatile u8      dirty_pal;
+extern u8               dirty_len;
 
 extern u8               shift;
 extern mouse_t          mouse;
@@ -286,6 +296,8 @@ static u8 lut9_bpp = 0;
 void sys_audio_callback_S16MSB(void *userdata, u8 *stream, s32 len);
 void sys_audio_callback_S8(void *userdata, u8 *stream, s32 len);
 
+static volatile u8 sdl1_isr_paused;     // sys_isr_pause
+
 #if defined(__atarist__) || defined(__TOS__)
 
 #include <signal.h>
@@ -329,7 +341,8 @@ static long atari_save_hw_vectors_supexec(void)
 
 static long atari_restore_hw_vectors_supexec(void)
 {
-    if (!atari_hw_vectors_saved) return 0;
+    if (!atari_hw_vectors_saved)
+        return 0;
 
     // Timer A first — silences any pending SDMA IRQ at the source.
     Setexc(0x4D, (long)atari_old_timera_vec);
@@ -350,15 +363,18 @@ void atari_etv_term_handler(void)
     // Re-entry guard for MiNT's do_exit p_term loop.
     if (atari_etv_term_fired)
         return;
+    
     atari_etv_term_fired = 1;
 
     void *sdl_old_term = atari_old_etv_term;
     atari_old_etv_term = NULL;
 
     // Normal shutdown already cleaned up; repeating it could fault. Just chain.
-    if (atari_cleanup_done) {
+    if (atari_cleanup_done)
+    {
         if (sdl_old_term)
             Setexc(0x102, (long)sdl_old_term);
+        
         return;
     }
 
@@ -368,6 +384,7 @@ void atari_etv_term_handler(void)
     sys_deinit_psg();
     if (atari_old_etv_timer)
         Supexec(atari_timerc_uninstall_supexec);
+    
     SDL_Quit();
 
     if (sdl_old_term)
@@ -431,10 +448,19 @@ void atari_timera_c_callback(void)
     extern volatile u8 g_psg_isr_context;
     u8 _psg_saved = g_psg_isr_context;
     g_psg_isr_context = 1;
-    if (atari_dma_available)
+    if (sdl1_isr_paused)
+    {
+        ;
+    }
+    else if (atari_dma_available)
+    {
         atari_dma_sound_tick_isr();           // STE/TT: software-mix one frame into DMA buf
+    }
     else
+    {
         dsp_mixer_tick_isr();                 // Falcon: sequencer tick + 8-voice DSP feed
+    }
+
     g_psg_isr_context = _psg_saved;
 
     __asm__ volatile("move.w %0,%%sr" : : "d"(saved_sr) : "cc", "memory");
@@ -467,6 +493,7 @@ static long atari_timera_uninstall_supexec(void)
     MFP_IMRA &= (u8)~MFP_TIMERA_BIT;
     if (atari_old_timera)
         MFP_TIMERA_VEC = atari_old_timera;    // restore previous vector
+    
     atari_timera_installed = 0;
     return 0;
 }
@@ -476,6 +503,7 @@ static long atari_timerc_install_supexec(void)
 {
     if (!atari_no_timerc)
         atari_old_etv_timer = (void *)Setexc(0x100, (long)atari_timerc_trampoline);
+    
     // etv_term ($408) is set in user mode (atari_timerc_install): only the
     // trap path updates MiNT's per-process p_term entry.
     return 0;
@@ -487,6 +515,7 @@ static long atari_timerc_uninstall_supexec(void)
     // still reaches our handler.
     if (atari_old_etv_timer)
         Setexc(0x100, (long)atari_old_etv_timer);
+    
     return 0;
 }
 
@@ -510,16 +539,19 @@ static void atari_timerc_calibrate(void)
 
     u32 t0 = atari_read_hz200();
     while (atari_read_hz200() == t0) {}
+
     t0 = atari_read_hz200();
 
     atari_timerc_subtick = 0;
     while (atari_read_hz200() - t0 < 200) {}
+
     u32 isr_count = atari_timerc_subtick;
 
     int target_hz = alis.platform.is_little_endian ? 60 : 50;
     int div = ((int)isr_count + target_hz / 2) / target_hz;
     if (div < 1)
         div = 1;
+    
     if (div > 64)
         div = 64;
 
@@ -529,8 +561,7 @@ static void atari_timerc_calibrate(void)
     // Publish the actual rate (the divider may not hit the target) for FLI pacing.
     sys_timeclock_hz = (u32)isr_count / (u32)div;
 
-    printf("  Atari Timer C: %d ISRs/s -> divider %d (target %d Hz, actual %u Hz)\n",
-           (int)isr_count, div, target_hz, (unsigned)sys_timeclock_hz);
+    printf("  Atari Timer C: %d ISRs/s -> divider %d (target %d Hz, actual %u Hz)\n", (int)isr_count, div, target_hz, (unsigned)sys_timeclock_hz);
 }
 
 void atari_timerc_emergency_uninstall(void)
@@ -558,9 +589,12 @@ static void atari_timerc_install(void)
     // No SIGTERM/SIGINT handlers here: sys.c's signals_handler stops the VM so
     // the normal sys_deinit path runs.
 
-    if (atari_no_timerc) {
+    if (atari_no_timerc)
+    {
         printf("  Atari Timer C: SKIPPED (--no-timerc); etv_term hook only\n");
-    } else {
+    }
+    else
+    {
         atari_timerc_calibrate();
     }
 }
@@ -580,7 +614,6 @@ static SDL_TimerID timer_id = NULL;
 #pragma mark - SDL1 System init
 // ============================================================================
 
-u32 sys_profile_ticks(void) { return SDL_GetTicks(); }
 u32 sys_ticks(void) { return SDL_GetTicks(); }
 void sys_delay(u32 ms) { SDL_Delay(ms); }
 u8 *sys_get_framebuffer(int index) { (void)index; return NULL; }  // VM mallocs the render buffers
@@ -594,11 +627,41 @@ static SDL_Surface *sdl1_set_8bpp_mode(s32 w, s32 h)
     SDL_Surface *s = SDL_SetVideoMode(w, h, 0, SDL_HWSURFACE|SDL_HWPALETTE|SDL_DOUBLEBUF);
     if (s == NULL)
         s = SDL_SetVideoMode(w, h, 0, SDL_HWSURFACE|SDL_HWPALETTE);
+    
     return s;
 }
 #endif
 
-void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
+// Savestate load: block the audio callback (SDL) or the Timer-A feed (own audio)
+void sys_isr_pause(int on)
+{
+    if (on)
+    {
+        sdl1_isr_paused = 1;
+    }
+    
+#if defined(ALIS_DSP_MIXER) && (defined(__atarist__) || defined(__TOS__))
+    if (!atari_own_audio())
+#endif
+    {
+        if (on)
+        {
+            SDL_LockAudio();
+        }
+        else
+        {
+            SDL_UnlockAudio();
+        }
+    }
+    
+    if (!on)
+    {
+        sdl1_isr_paused = 0;
+    }
+}
+
+void sys_init(sPlatform *pl, int fullscreen, int mutesound)
+{
     dirty_mouse_rect = (SDL_Rect){ .x = host.pixelbuf.w, .y = host.pixelbuf.h, .w = 0, .h = 0 };
 
     width = pl->width;
@@ -611,8 +674,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     // Detect the machine first: it decides whether SDL or we own the audio.
     atari_detect_machine();
     printf("  machine_type=%d cpu_family=%d bench_ticks=%u tier=%d own_audio=%d\n",
-           (int)sdl1_machine_type, (int)sdl1_cpu_family, (unsigned)sdl1_bench_ticks,
-           (int)sdl1_cpu_tier, atari_own_audio());
+           (int)sdl1_machine_type, (int)sdl1_cpu_family, (unsigned)sdl1_bench_ticks, (int)sdl1_cpu_tier, atari_own_audio());
 #endif
 
     printf("  SDL initialization...\n");
@@ -629,7 +691,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         if (!atari_own_audio())               // clones/ST → let SDL drive audio
             sdl_flags |= SDL_INIT_AUDIO;
 #endif
-        if (SDL_Init(sdl_flags) < 0) {
+        if (SDL_Init(sdl_flags) < 0)
+        {
             fprintf(stderr, "   Unable to initialize SDL: %s\n", SDL_GetError());
             exit(-1);
         }
@@ -639,9 +702,11 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         extern SDL_Joystick *sys_joy_handle;
         // Polled via SDL_JoystickGet* in io_joy; we don't need events queued.
         SDL_JoystickEventState(SDL_IGNORE);
-        if (SDL_NumJoysticks() > 0) {
+        if (SDL_NumJoysticks() > 0)
+        {
             sys_joy_handle = SDL_JoystickOpen(0);
-            if (sys_joy_handle) {
+            if (sys_joy_handle)
+            {
                 printf("  Joystick: %s\n", SDL_JoystickName(0));
             }
         }
@@ -657,23 +722,30 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 #if defined(__TOS__) || defined(__atarist__)
     {
         const char *drv = SDL_VideoDriverName((char[16]){0}, 16);
-        if (drv && strcmp(drv, "gem") != 0) {
+        if (drv && strcmp(drv, "gem") != 0)
+        {
             opt_scale = 1;
         }
     }
 #endif
 
-    if (opt_scale < 1) opt_scale = 1;
-    if (opt_scale > 4) opt_scale = 4;
+    if (opt_scale < 1)
+        opt_scale = 1;
+    
+    if (opt_scale > 4)
+        opt_scale = 4;
 
     // ×1.2 aspect correction only when scaling.
     s32 disp_w, disp_h;
-    if (opt_scale > 1) {
+    if (opt_scale > 1)
+    {
         disp_w = (s32)width  * opt_scale;
         disp_h = (s32)height * opt_scale * 12 / 10;
         display_sx_num = opt_scale;        display_sx_den = 1;
         display_sy_num = opt_scale * 12;   display_sy_den = 10;
-    } else {
+    }
+    else
+    {
         disp_w = (s32)width;
         disp_h = (s32)height;
         display_sx_num = 1;  display_sx_den = 1;
@@ -692,25 +764,32 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 #else
     display = SDL_SetVideoMode(disp_w, disp_h, 32, SDL_SWSURFACE);
 #endif
-    if (display == NULL) {
+    if (display == NULL)
+    {
         fprintf(stderr, "   Could not create %dx%d window: %s\n", disp_w, disp_h, SDL_GetError());
         exit(-1);
     }
 
-    if (opt_scale > 1) {
+    if (opt_scale > 1)
+    {
         // Memory back buffer at native resolution, same pixel format as display.
         surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height,
                                        display->format->BitsPerPixel,
                                        display->format->Rmask, display->format->Gmask,
                                        display->format->Bmask, display->format->Amask);
-        if (surface == NULL) {
+        if (surface == NULL)
+        {
             fprintf(stderr, "   Could not create %dx%d back buffer: %s\n", (int)width, (int)height, SDL_GetError());
             exit(-1);
         }
-        if (display->format->BitsPerPixel == 8 && display->format->palette) {
+
+        if (display->format->BitsPerPixel == 8 && display->format->palette)
+        {
             SDL_SetColors(surface, display->format->palette->colors, 0, 256);
         }
-    } else {
+    }
+    else
+    {
         surface = display;  // alias — no scaling
     }
 
@@ -728,8 +807,10 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     printf("  Present: %s\n", use_flip ? "SDL_DOUBLEBUF page flip (vsynced)" : "single buffer (no vsync)");
     printf("  Surface format: BPP=%d Rmask=0x%08x Gmask=0x%08x Bmask=0x%08x Amask=0x%08x\n", surface->format->BitsPerPixel, surface->format->Rmask, surface->format->Gmask, surface->format->Bmask, surface->format->Amask);
 
-    switch (surface->format->BitsPerPixel) {
-        case 32: {
+    switch (surface->format->BitsPerPixel)
+    {
+        case 32:
+        {
 #if defined(__TOS__) || defined(__atarist__)
             image.pal_format = EPalARGB;
 #else
@@ -738,15 +819,18 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
             break;
         }
             
-        case 16: {
+        case 16:
+        {
             image.pal_format = EPal565;
             break;
         }
             
-        case 8: {
+        case 8:
+        {
             image.pal_format = EPalRGBA32;
             
-            for (int i = 0; i < 256; i++) {
+            for (int i = 0; i < 256; i++)
+            {
                 hicolor8_palette[i].r = (i & 0b11000000);
                 hicolor8_palette[i].g = (i & 0b00111000) << 2;
                 hicolor8_palette[i].b = (i & 0b00000111) << 5;
@@ -755,7 +839,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
             break;
         }
             
-        default: {
+        default:
+        {
             image.pal_format = EPalARGB;
             break;
         }
@@ -763,11 +848,13 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
     
     // Build 9-bit ST color LUT for S512/HAM video modes
     lut9_bpp = surface->format->BitsPerPixel;
-    for (int c = 0; c < 512; c++) {
+    for (int c = 0; c < 512; c++)
+    {
         u8 r = ((c >> 6) & 7) << 5;
         u8 g = ((c >> 3) & 7) << 5;
         u8 b = ( c       & 7) << 5;
-        switch (lut9_bpp) {
+        switch (lut9_bpp)
+        {
             case 32:
 #if !defined(__TOS__) && !defined(__atarist__)
                 lut9.p32[c] = ((u32)b << 24) | ((u32)g << 16) | ((u32)r << 8);
@@ -786,9 +873,11 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 
     // set icon
     SDL_RWops *rw = SDL_RWFromConstMem(alis_icon8_bmp, (int)alis_icon8_bmp_len);
-    if (rw) {
+    if (rw)
+    {
         SDL_Surface *icon_surface = SDL_LoadBMP_RW(rw, 1);
-        if (icon_surface) {
+        if (icon_surface)
+        {
             SDL_WM_SetIcon(icon_surface, NULL);
             SDL_FreeSurface(icon_surface);
         }
@@ -839,12 +928,15 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 
 #if defined(ALIS_DSP_MIXER) && (defined(__atarist__) || defined(__TOS__))
     // Own-audio machines: audio_spec = desired_spec, no SDL_OpenAudio.
-    if (atari_own_audio()) {
+    if (atari_own_audio())
+    {
         memcpy(audio_spec, desired_spec, sizeof(SDL_AudioSpec));
         printf("    Own audio backend (DSP/DMA): SDL_OpenAudio skipped.\n");
-    } else
+    }
+    else
 #endif
-    if (SDL_OpenAudio(desired_spec, audio_spec) != 0) {
+    if (SDL_OpenAudio(desired_spec, audio_spec) != 0)
+    {
         fprintf(stderr, "   Could not open audio: %s\n", SDL_GetError());
         free(audio_spec);
         surface->pixels = prev_pixels;
@@ -853,12 +945,15 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         exit(-1);
     }
 
-    if (audio_spec->format != desired_spec->format || audio_spec->channels != desired_spec->channels || audio_spec->freq != desired_spec->freq) {
+    if (audio_spec->format != desired_spec->format || audio_spec->channels != desired_spec->channels || audio_spec->freq != desired_spec->freq)
+    {
         printf("    Non-native audio:\n");
         if (audio_spec->format != desired_spec->format)
             printf("      format:   desired=0x%04x, native=0x%04x\n", (unsigned)desired_spec->format, (unsigned)audio_spec->format);
+        
         if (audio_spec->channels != desired_spec->channels)
             printf("      channels: desired=%d, native=%d\n", (int)desired_spec->channels, (int)audio_spec->channels);
+        
         if (audio_spec->freq != desired_spec->freq)
             printf("      freq:     desired=%d, native=%d\n", (int)desired_spec->freq, (int)audio_spec->freq);
 
@@ -879,7 +974,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
                 desired_spec->channels = audio_spec->channels;
                 desired_spec->freq     = audio_spec->freq;
                 desired_spec->callback = sys_audio_callback_S8;
-                if (SDL_OpenAudio(desired_spec, audio_spec) != 0) {
+                if (SDL_OpenAudio(desired_spec, audio_spec) != 0)
+                {
                     printf("    SDL_OpenAudio S8 retry FAILED: %s\n", SDL_GetError());
                     fprintf(stderr, "   SDL_OpenAudio S8 retry FAILED: %s\n", SDL_GetError());
                     free(audio_spec);
@@ -897,7 +993,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
                 // Atari, e.g. SDL emulator giving S16LSB). Last resort.
                 printf("    Falling back to SDL converter path (S16MSB callback).\n");
                 desired_spec->callback = sys_audio_callback_S16MSB;
-                if (SDL_OpenAudio(desired_spec, NULL) != 0) {
+                if (SDL_OpenAudio(desired_spec, NULL) != 0)
+                {
                     fprintf(stderr, "   SDL_OpenAudio retry FAILED: %s\n", SDL_GetError());
                     free(audio_spec);
                     surface->pixels = prev_pixels;
@@ -912,21 +1009,6 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         }
     }
     
-#if defined(__atarist__) || defined(__TOS__)
-    // Log requested vs obtained rate: isr_step is only right if SDL reports
-    // the rate the hardware really plays.
-    if (!atari_own_audio()) {
-        FILE *alog = fopen("audio_log.txt", "w");
-        if (alog) {
-            fprintf(alog, "SDL audio: tier=%d requested=%d obtained=%d fmt=0x%04x ch=%d tick_hz=%d\n",
-                    (int)sdl1_cpu_tier, (int)desired_spec->freq, (int)audio_spec->freq,
-                    (unsigned)audio_spec->format, (int)audio_spec->channels,
-                    (int)(alis.platform.is_little_endian ? 60 : 50));
-            fclose(alog);
-        }
-    }
-#endif
-
     free(desired_spec);
 
     audio.host_freq = audio_spec->freq;
@@ -945,34 +1027,24 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
         // its crossbar routed (is_falcon=1). Do NOT call dsp_mixer_init() on a
         // non-Falcon — the DSP XBIOS calls it makes don't exist there.
         int is_falcon = (sdl1_machine_type == SDL1_MCH_FALCON);
-        int dma_rc = atari_dma_sound_init(audio_spec->freq, audio_spec->channels, is_falcon);
-        FILE *dlog = fopen("dma_log.txt", "a");    // init wrote the header ("w")
-        if (dlog) { fprintf(dlog, "DMA: backend=%d falcon=%d init=%d available=%d\n",
-                            atari_audio_backend, is_falcon, dma_rc, atari_dma_available); }
+        atari_dma_sound_init(audio_spec->freq, audio_spec->channels, is_falcon);
         // Refill from the 50 Hz Timer-A ISR so music tempo is independent of frame rate.
 #ifdef ALIS_DSP_USE_TRACKER
-        if (atari_dma_available) {
+        if (atari_dma_available)
+        {
             atari_dma_sound_set_isr_driven(1);
             Supexec(atari_timera_install_supexec);
-            if (dlog) fprintf(dlog, "DMA: Timer A refill installed (50 Hz).\n");
         }
 #endif
-        if (dlog) fclose(dlog);
     }
     else if (atari_own_audio())   // Falcon DSP. Clones/ST fall through to SDL audio.
     {
-        FILE *dlog = fopen("dsp_log.txt", "w");
-        if (dlog) { fprintf(dlog, "DSP: calling init (after SDL_OpenAudio)...\n"); fflush(dlog); }
         // Load the tracker initially; the main-loop poll (dsp_audio_select_for_music)
         // hot-swaps to the FM+SFX program when OPL2 music plays, and back. The 50 Hz
         // Timer A drives whichever program is resident (tracker feed, or OPL sequencer tick).
-        int dsp_rc = dsp_mixer_init();
-        if (dlog) fprintf(dlog, "DSP: init returned %d, available=%d\n", dsp_rc, dsp_mixer_available);
-        if (dsp_mixer_available) {
+        dsp_mixer_init();
+        if (dsp_mixer_available)
             Supexec(atari_timera_install_supexec);
-            if (dlog) fprintf(dlog, "DSP: Timer A feed installed (50 Hz).\n");
-        }
-        if (dlog) fclose(dlog);
     }
 #endif
 
@@ -1006,7 +1078,8 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound) {
 #endif
 }
 
-void sys_init_timers(void) {
+void sys_init_timers(void)
+{
     
     poll_ticks = SDL_GetTicks();
     frame_time = SDL_GetTicks();
@@ -1077,30 +1150,49 @@ void sys_sleep_until_music_stops(void)
 #pragma mark - SDL1 Main system loop
 // ============================================================================
 
-u8 sys_start(void) {
+u8 sys_start(void)
+{
 
     alis.state = eAlisStateRunning;
     alis_thread(NULL);
     return 0;
 }
 
-void sys_poll_event(void) {
+void sys_poll_event(void)
+{
 
-    while (SDL_PollEvent(&event)) {
-        switch (event.type) {
+    while (SDL_PollEvent(&event))
+    {
+        switch (event.type)
+        {
 
             case SDL_MOUSEBUTTONDOWN:
             {
-                if (event.button.button == SDL_BUTTON_LEFT)  { mouse.lb = 1; mouse.lb_clicked = 1; }
-                if (event.button.button == SDL_BUTTON_RIGHT) { mouse.rb = 1; mouse.rb_clicked = 1; }
+                if (event.button.button == SDL_BUTTON_LEFT)
+                {
+                    mouse.lb = 1;
+                    mouse.lb_clicked = 1;
+                }
+
+                if (event.button.button == SDL_BUTTON_RIGHT)
+                {
+                    mouse.rb = 1;
+                    mouse.rb_clicked = 1;
+                }
+
                 break;
             }
+
             case SDL_MOUSEBUTTONUP:
             {
-                    if (event.button.button == SDL_BUTTON_LEFT)  mouse.lb = 0;
-                    if (event.button.button == SDL_BUTTON_RIGHT) mouse.rb = 0;
+                if (event.button.button == SDL_BUTTON_LEFT)
+                    mouse.lb = 0;
+                
+                if (event.button.button == SDL_BUTTON_RIGHT)
+                    mouse.rb = 0;
                 break;
             }
+
             case SDL_QUIT:
             {
                 printf("\n");
@@ -1109,8 +1201,12 @@ void sys_poll_event(void) {
                 alis.state = eAlisStateStopped;
                 break;
             }
+
             case SDL_KEYUP:
             {
+                if (sys_pad3do_click(event.key.keysym.sym, 0))
+                    break;
+                
                 switch (event.key.keysym.sym)
                 {
                     case SDLK_LALT:
@@ -1140,11 +1236,13 @@ void sys_poll_event(void) {
                         break;
 
                     case SDLK_F10:
-                        if (SDL_GetModState() & KMOD_SHIFT) {
+                        if (SDL_GetModState() & KMOD_SHIFT)
+                        {
                             printf("\n");
                             ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request (Shift+F10).\n");
                             alis.state = eAlisStateStopped;
                         }
+
                         break;
                         
                     default:
@@ -1153,9 +1251,10 @@ void sys_poll_event(void) {
 
                 break;
             }
+
             case SDL_KEYDOWN:
             {
-                if (event.key.keysym.sym == SDLK_F11 || event.key.keysym.sym == SDLK_F12)
+                if (sys_pad3do_click(event.key.keysym.sym, 1) || event.key.keysym.sym == SDLK_F11 || event.key.keysym.sym == SDLK_F12)
                 {
                     break;
                 }
@@ -1182,7 +1281,8 @@ void sys_poll_event(void) {
     SDL_GetMouseState(&mouse.x, &mouse.y);
 
     // Reported coords are in screen space; map back to game space.
-    if (opt_scale > 1) {
+    if (opt_scale > 1)
+    {
         mouse.x = (s32)mouse.x * display_sx_den / display_sx_num;
         mouse.y = (s32)mouse.y * display_sy_den / display_sy_num;
     }
@@ -1227,7 +1327,8 @@ void sys_poll_event(void) {
 #pragma mark - SDL1 Video
 // ============================================================================
 
-void setHAMto32bit(void *pixels, u32 px, u8 *rawcolor) {
+void setHAMto32bit(void *pixels, u32 px, u8 *rawcolor)
+{
 #if !defined(__TOS__) && !defined(__atarist__)
     ((u32 *)pixels)[px] = (rawcolor[2] << 24) | (rawcolor[1] << 16) | (rawcolor[0] << 8);
 #else
@@ -1235,15 +1336,18 @@ void setHAMto32bit(void *pixels, u32 px, u8 *rawcolor) {
 #endif
 }
 
-void setHAMto16bit(void *pixels, u32 px, u8 *rawcolor) {
+void setHAMto16bit(void *pixels, u32 px, u8 *rawcolor)
+{
     ((u16 *)pixels)[px] = (u16)(((rawcolor[0] >> 3) << 11) | ((rawcolor[1] >> 2) << 5) | (rawcolor[2] >> 3));
 }
 
-void setHAMto8bit(void *pixels, u32 px, u8 *rawcolor) {
+void setHAMto8bit(void *pixels, u32 px, u8 *rawcolor)
+{
     ((u8 *)pixels)[px] = (u8)(((rawcolor[0] >> 6) << 6) | ((rawcolor[1] >> 5) << 3) | (rawcolor[2] >> 5));
 }
 
-void set9to32bit(void *pixels, u32 px, u8 *rawcolor) {
+void set9to32bit(void *pixels, u32 px, u8 *rawcolor)
+{
 #if !defined(__TOS__) && !defined(__atarist__)
     ((u32 *)pixels)[px] = (u32)((((rawcolor[0] & 0x07) << 5) << 8) | (((rawcolor[1] >> 4) << 5) << 16) | ((u32)((rawcolor[1] & 0x07) << 5) << 24));
 #else
@@ -1251,11 +1355,13 @@ void set9to32bit(void *pixels, u32 px, u8 *rawcolor) {
 #endif
 }
 
-void set9to16bit(void *pixels, u32 px, u8 *rawcolor) {
+void set9to16bit(void *pixels, u32 px, u8 *rawcolor)
+{
     ((u16 *)pixels)[px] = (u16)((((rawcolor[0] & 0b00000111) << 2) << 11) + (((rawcolor[1] >> 4) << 3) << 5) + (((rawcolor[1] & 0b00000111) << 2)));
 }
 
-void set9to8bit(void *pixels, u32 px, u8 *rawcolor) {
+void set9to8bit(void *pixels, u32 px, u8 *rawcolor)
+{
     ((u8 *)pixels)[px] = (u8)((((rawcolor[0] & 0b00000111) >> 1) << 6) + ((rawcolor[1] >> 4) << 3) + (((rawcolor[1] & 0b00000111))));
 }
 
@@ -1265,7 +1371,8 @@ static void __attribute__((noinline)) render_s512(pixelbuf_t buffer)
 {
     #define ST_PAL9(v) ((((v) >> 8) & 7) << 6 | (((v) >> 4) & 7) << 3 | ((v) & 7))
 
-    if (lut9_bpp == 8 && bfilm.frame == 1) {
+    if (lut9_bpp == 8 && bfilm.frame == 1)
+    {
         SDL_SetPalette(surface, SDL_PHYSPAL, hicolor8_palette, 0, 256);
         if (display != surface)
             SDL_SetPalette(display, SDL_PHYSPAL, hicolor8_palette, 0, 256);
@@ -1355,7 +1462,8 @@ static void __attribute__((noinline)) render_s512(pixelbuf_t buffer)
         } \
     } while(0)
 
-    switch (lut9_bpp) {
+    switch (lut9_bpp)
+    {
         case 32: S512_RENDER_LOOP(u32, lut9.p32); break;
         case 16: S512_RENDER_LOOP(u16, lut9.p16); break;
         case 8:  S512_RENDER_LOOP(u8,  lut9.p8);  break;
@@ -1365,46 +1473,72 @@ static void __attribute__((noinline)) render_s512(pixelbuf_t buffer)
     {
         dirty_len = 0;
         s16 ry = -1;
-        for (int l = 0; l <= 200 && dirty_len < 254; l++) {
+        for (int l = 0; l <= 200 && dirty_len < 254; l++)
+        {
             u8 d = (l < 200) ? (fls_dirty_lines[l] | fls_prev_dirty[l]) : 0;
-            if (d) {
+            if (d)
+            {
                 u8 x1, x2;
-                if (fls_dirty_lines[l] && fls_prev_dirty[l]) {
+                if (fls_dirty_lines[l] && fls_prev_dirty[l])
+                {
                     x1 = fls_dirty_x1[l] < fls_prev_x1[l] ? fls_dirty_x1[l] : fls_prev_x1[l];
                     x2 = fls_dirty_x2[l] > fls_prev_x2[l] ? fls_dirty_x2[l] : fls_prev_x2[l];
-                } else if (fls_dirty_lines[l]) {
+                }
+                else if (fls_dirty_lines[l])
+                {
                     x1 = fls_dirty_x1[l]; x2 = fls_dirty_x2[l];
-                } else {
+                }
+                else
+                {
                     x1 = fls_prev_x1[l]; x2 = fls_prev_x2[l];
                 }
+                
                 s16 px1 = (x1 / 8) * 16;
                 s16 px2 = ((x2 / 8) + 1) * 16 - 1;
-                if (px2 >= (s16)host.pixelbuf.w) px2 = host.pixelbuf.w - 1;
-                if (ry >= 0 && l == ry + dirty_rects[dirty_len].h &&
-                    px1 <= dirty_rects[dirty_len].x + dirty_rects[dirty_len].w &&
-                    px2 >= dirty_rects[dirty_len].x - 1) {
+                if (px2 >= (s16)host.pixelbuf.w)
+                {
+                    px2 = host.pixelbuf.w - 1;
+                }
+                
+                if (ry >= 0 && l == ry + dirty_rects[dirty_len].h && px1 <= dirty_rects[dirty_len].x + dirty_rects[dirty_len].w && px2 >= dirty_rects[dirty_len].x - 1)
+                {
                     s16 ox1 = dirty_rects[dirty_len].x;
                     s16 ox2 = ox1 + dirty_rects[dirty_len].w - 1;
-                    if (px1 < ox1) ox1 = px1;
-                    if (px2 > ox2) ox2 = px2;
+                    if (px1 < ox1)
+                        ox1 = px1;
+                    
+                    if (px2 > ox2)
+                        ox2 = px2;
+                    
                     dirty_rects[dirty_len].x = ox1;
                     dirty_rects[dirty_len].w = ox2 - ox1 + 1;
                     dirty_rects[dirty_len].h++;
-                } else {
-                    if (ry >= 0) dirty_len++;
+                }
+                else
+                {
+                    if (ry >= 0)
+                        dirty_len++;
+                    
                     ry = l;
                     dirty_rects[dirty_len] = (SDL_Rect){ .x = px1, .y = l, .w = px2 - px1 + 1, .h = 1 };
                 }
-            } else if (ry >= 0) {
+            }
+            else if (ry >= 0)
+            {
                 dirty_len++;
                 ry = -1;
             }
         }
-        if (ry >= 0) dirty_len++;
-        if (dirty_len == 0) {
+
+        if (ry >= 0)
+            dirty_len++;
+        
+        if (dirty_len == 0)
+        {
             dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
             dirty_len = 1;
         }
+
         memcpy(fls_prev_dirty, fls_dirty_lines, 200);
         memcpy(fls_prev_x1, fls_dirty_x1, 200);
         memcpy(fls_prev_x2, fls_dirty_x2, 200);
@@ -1418,14 +1552,16 @@ static void __attribute__((noinline)) render_s512(pixelbuf_t buffer)
     #undef ST_PAL9
 }
 
-void sys_render(pixelbuf_t buffer) {
+void sys_render(pixelbuf_t buffer)
+{
 
 #if !defined(__TOS__) && !defined(__atarist__)
     // Desktop: convert full palette to native surface pixel format.
     // Uses a separate array so buffer.palette (internal format) is never modified.
     {
         u8 r, g, b;
-        for (int i = 0; i < 256; i++) {
+        for (int i = 0; i < 256; i++)
+        {
             PAL_READ_RGB(buffer.palette, i, r, g, b);
             surface_palette[i] = SDL_MapRGB(surface->format, r, g, b);
         }
@@ -1444,7 +1580,8 @@ void sys_render(pixelbuf_t buffer) {
         u8 (*ham_pal)[3] = bfilm.ham_pal;
         u32 planesize = (buffer.w * buffer.h) >> 3;
 
-        if (lut9_bpp == 8 && bfilm.frame == 1) {
+        if (lut9_bpp == 8 && bfilm.frame == 1)
+        {
             SDL_SetPalette(surface, SDL_PHYSPAL, hicolor8_palette, 0, 256);
             if (display != surface)
                 SDL_SetPalette(display, SDL_PHYSPAL, hicolor8_palette, 0, 256);
@@ -1498,7 +1635,8 @@ void sys_render(pixelbuf_t buffer) {
         #define HAM_PIX16 ((u16)(((r>>3)<<11)|((g>>2)<<5)|(b>>3)))
         #define HAM_PIX8  ((u8)(((r>>6)<<6)|((g>>5)<<3)|(b>>5)))
 
-        switch (lut9_bpp) {
+        switch (lut9_bpp)
+        {
             case 32: HAM_RENDER_LOOP(u32, HAM_PIX32); break;
             case 16: HAM_RENDER_LOOP(u16, HAM_PIX16); break;
             case 8:  HAM_RENDER_LOOP(u8,  HAM_PIX8);  break;
@@ -1548,6 +1686,7 @@ void sys_render(pixelbuf_t buffer) {
                 SDL_SetPalette(surface, SDL_PHYSPAL, (SDL_Color *)buffer.palette, 0, 256);
                 if (display != surface)
                     SDL_SetPalette(display, SDL_PHYSPAL, (SDL_Color *)buffer.palette, 0, 256);
+                
                 dirty_pal = 0;
             }
 
@@ -1627,7 +1766,8 @@ void sys_render(pixelbuf_t buffer) {
                                     BLIT_ROW_32(dst, src, pal32, r.w);
 
                                 y_start = y_end;
-                                if (pal_nxt[0] != 0xff) {
+                                if (pal_nxt[0] != 0xff)
+                                {
                                     pal_cur = pal_nxt;
                                     pal_nxt = pal_cur + stride;
                                 }
@@ -1641,6 +1781,7 @@ void sys_render(pixelbuf_t buffer) {
 
                         break;
                     }
+
                     case 16:
                     {
                         // Palette is stored as u16 RGB565 at u16 stride (via sColor565 writes)
@@ -1654,7 +1795,8 @@ void sys_render(pixelbuf_t buffer) {
                             s16 *pal_nxt = pal_cur + stride;
                             s16 y_start = r.y;
 
-                            while (pal_nxt[0] != 0xff && r.y >= pal_nxt[1]) {
+                            while (pal_nxt[0] != 0xff && r.y >= pal_nxt[1])
+                            {
                                 pal_cur = pal_nxt;
                                 pal_nxt = pal_cur + stride;
                             }
@@ -1670,7 +1812,8 @@ void sys_render(pixelbuf_t buffer) {
                                     BLIT_ROW_16(dst, src, pal16, r.w);
 
                                 y_start = y_end;
-                                if (pal_nxt[0] != 0xff) {
+                                if (pal_nxt[0] != 0xff)
+                                {
                                     pal_cur = pal_nxt;
                                     pal_nxt = pal_cur + stride;
                                 }
@@ -1710,16 +1853,22 @@ void sys_render(pixelbuf_t buffer) {
 #endif
                 u32 *mdst = (u32 *)surface->pixels + mx + (my + surface_y_offset) * surface_stride;
                 for (int y = 0; y < mh; y++, mdst += surface_stride, msrc += 16)
+                {
                     for (int x = 0; x < mw; x++)
-                        if (msrc[x]) mdst[x] = pal_base[msrc[x]];
+                        if (msrc[x])
+                            mdst[x] = pal_base[msrc[x]];
+                }
             }
             else if (surface->format->BitsPerPixel == 16)
             {
                 u16 *pal_base = (u16 *)buffer.palette;
                 u16 *mdst = (u16 *)surface->pixels + mx + (my + surface_y_offset) * surface_stride;
                 for (int y = 0; y < mh; y++, mdst += surface_stride, msrc += 16)
+                {
                     for (int x = 0; x < mw; x++)
-                        if (msrc[x]) mdst[x] = pal_base[msrc[x]];
+                        if (msrc[x])
+                            mdst[x] = pal_base[msrc[x]];
+                }
             }
             else if (surface->format->BitsPerPixel == 8)
             {
@@ -1732,7 +1881,8 @@ void sys_render(pixelbuf_t buffer) {
                 {
                     memcpy(bgr, mdst, mw);
                     for (int x = 0; x < mw; x++)
-                        if (msrc[x]) mdst[x] = msrc[x];
+                        if (msrc[x])
+                            mdst[x] = msrc[x];
                 }
             }
         }
@@ -1774,22 +1924,25 @@ void sys_render(pixelbuf_t buffer) {
 #if defined(ALIS_DIRTY_MERGE)
     // Merge touching/overlapping rects until stable: SDL's Atari drivers c2p
     // each rect separately, and fewer, larger rects favour the full-row path.
-    if (dirty_len > 1) {
+    if (dirty_len > 1)
+    {
         int changed = 1;
-        while (changed) {
+        while (changed)
+        {
             changed = 0;
-            for (int __i = 0; __i < (int)dirty_len; __i++) {
+            for (int __i = 0; __i < (int)dirty_len; __i++)
+            {
                 SDL_Rect *__a = &dirty_rects[__i];
                 int __ax2 = __a->x + __a->w;
                 int __ay2 = __a->y + __a->h;
-                for (int __j = __i + 1; __j < (int)dirty_len; __j++) {
+                for (int __j = __i + 1; __j < (int)dirty_len; __j++)
+                {
                     SDL_Rect *__b = &dirty_rects[__j];
                     int __bx2 = __b->x + __b->w;
                     int __by2 = __b->y + __b->h;
                     // Touch/overlap: left edge of one within 1 of right edge
                     // of the other on both axes.
-                    if (__a->x <= __bx2 && __b->x <= __ax2 &&
-                        __a->y <= __by2 && __b->y <= __ay2)
+                    if (__a->x <= __bx2 && __b->x <= __ax2 && __a->y <= __by2 && __b->y <= __ay2)
                     {
                         // Union bbox into rect __i, remove rect __j.
                         int __ux  = (__a->x < __b->x) ? __a->x : __b->x;
@@ -1814,10 +1967,12 @@ void sys_render(pixelbuf_t buffer) {
     }
 #endif
 
-    if (display != surface) {
+    if (display != surface)
+    {
         // Stretch each dirty rect from back buffer to scaled display.
         SDL_Rect scaled_rects[256];
-        for (int i = 0; i < dirty_len; i++) {
+        for (int i = 0; i < dirty_len; i++)
+        {
             SDL_Rect dst;
             dst.x = (Sint16)((s32)dirty_rects[i].x * display_sx_num / display_sx_den);
             dst.y = (Sint16)((s32)dirty_rects[i].y * display_sy_num / display_sy_den);
@@ -1826,10 +1981,14 @@ void sys_render(pixelbuf_t buffer) {
             SDL_SoftStretch(surface, &dirty_rects[i], display, &dst);
             scaled_rects[i] = dst;
         }
+
         SDL_UpdateRects(display, dirty_len, scaled_rects);
-    } else {
+    }
+    else
+    {
         SDL_UpdateRects(surface, dirty_len, dirty_rects);
     }
+
     dirty_len = 0;
 
     // 8bpp only: restore the saved background under the cursor so
@@ -1853,11 +2012,16 @@ void sys_render(pixelbuf_t buffer) {
 
 void sys_restore_desktop(void) { }   // GEM/desktop handover: native Atari backend only
 
-void sys_deinit(void) {
+void sys_deinit(void)
+{
 
     {
         extern SDL_Joystick *sys_joy_handle;
-        if (sys_joy_handle) { SDL_JoystickClose(sys_joy_handle); sys_joy_handle = NULL; }
+        if (sys_joy_handle)
+        {
+            SDL_JoystickClose(sys_joy_handle);
+            sys_joy_handle = NULL;
+        }
     }
 
     // Stop the script-clock timer first so its callback can't fire
@@ -1865,7 +2029,8 @@ void sys_deinit(void) {
 #if defined(__atarist__) || defined(__TOS__)
     atari_timerc_uninstall();
 #else
-    if (timer_id) {
+    if (timer_id)
+    {
         SDL_RemoveTimer(timer_id);
         timer_id = NULL;
     }
@@ -1885,9 +2050,13 @@ void sys_deinit(void) {
         Supexec(atari_timera_uninstall_supexec);
 #endif
     if (atari_use_dma_backend())
+    {
         atari_dma_sound_close();   // stop DMA + free ST-RAM ring (no-op if unused)
+    }
     else if (atari_own_audio())
+    {
         dsp_mixer_close();         // Falcon DSP. Clones/ST: SDL_Quit closes SDL audio.
+    }
 #endif
     sys_deinit_psg();
 
@@ -1912,10 +2081,11 @@ void sys_mouse_uncopy(void) {}
 void sys_mouse_draw(void)   {}
 void sys_flip_wait(void)    {}
 
-void sys_dirty_mouse(void) {
+void sys_dirty_mouse(void)
+{
 
     SDL_ShowCursor(0);
-    if (alis.desmouse == NULL)
+    if (alis.platform.version >= 60 || alis.desmouse == NULL)
     {
         return;
     }
@@ -1987,6 +2157,7 @@ void sys_dirty_mouse(void) {
                     mouse_pixels[px] = color == clear ? 0 : color + palidx;
                 }
             }
+
             break;
         }
 
@@ -2029,10 +2200,12 @@ void sys_dirty_mouse(void) {
 #pragma mark - SDL1 SYNC
 // =============================================================================
 
-void sys_lock_renderer(void) {
+void sys_lock_renderer(void)
+{
 }
 
-void sys_unlock_renderer(void) {
+void sys_unlock_renderer(void)
+{
 }
 
 #endif

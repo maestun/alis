@@ -40,7 +40,7 @@ static sPlatform platforms[] = {
     { .kind = EPlatformMac,         .uid = EGameUnknown, .version = 20, .desc = "Macintosh",                    .ext = "MO", .ram_sz = 0x400000, .video_ram_sz = 0xfa00,  .width = 480, .height = 300, .bpp = 1,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
     { .kind = EPlatformPC,          .uid = EGameUnknown, .version = 20, .desc = "IBM PC",                       .ext = "IO", .ram_sz = 0x400000, .video_ram_sz = 0xfa00,  .width = 320, .height = 200, .bpp = 8,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformAmstradCPC,  .uid = EGameUnknown, .version = 20, .desc = "Amstrad CPC",                  .ext = "??", .ram_sz = 0x20000,  .video_ram_sz = 0x3e80,  .width = 320, .height = 200, .bpp = 2,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
-    { .kind = EPlatform3DO,         .uid = EGameUnknown, .version = 20, .desc = "3DO Interactive Multiplayer",  .ext = "3O", .ram_sz = 0x200000, .video_ram_sz = 0x6c000, .width = 384, .height = 288, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
+    { .kind = EPlatform3DO,         .uid = EGameUnknown, .version = 20, .desc = "3DO Interactive Multiplayer",  .ext = "3O", .ram_sz = 0x200000, .video_ram_sz = 0x6c000, .width = 384, .height = 288, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
     { .kind = EPlatformJaguar,      .uid = EGameUnknown, .version = 20, .desc = "Atari Jaguar",                 .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width = 320, .height = 200, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformPS1,         .uid = EGameUnknown, .version = 20, .desc = "Sony PlayStation",             .ext = "PO", .ram_sz =        0, .video_ram_sz =      0,  .width = 512, .height = 240, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
     { .kind = EPlatformPS2,         .uid = EGameUnknown, .version = 20, .desc = "Sony PlayStation 2",           .ext = "2O", .ram_sz =        0, .video_ram_sz =      0,  .width = 640, .height = 512, .bpp = 24, .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 1, .path = "" },
@@ -49,16 +49,23 @@ static sPlatform platforms[] = {
     { .kind = EPlatformUnknown,     .uid = EGameUnknown, .version = 20, .desc = "Unknown",                      .ext = "??", .ram_sz =        0, .video_ram_sz =      0,  .width =   0, .height =   0, .bpp = 0,  .px_format = EPxFormatChunky, .dbl_buf = 1, .is_little_endian = 0, .path = "" },
 };
 
-int pl_supported(sPlatform* platform) {
+int pl_supported(sPlatform* platform)
+{
     return platform->kind != EPlatformUnknown;
 }
 
 // alis.mem heap size. 1 MB floor (io_model's minimum Atari value 1010 = 1 MB); 2 MB for 8bpp,
 // ALIS_CONV_INPLACE builds and non-textured RRQ; 4 MB for textured RRQ (DOS, Falcon CD).
-u32 pl_compute_ram_size(const sPlatform *pl) {
-    if (pl->uid == EGameRobinsonsRequiem0 || pl->uid == EGameRobinsonsRequiem1) {
-        if (pl->kind == EPlatformPC || pl->kind == EPlatformFalcon)
+u32 pl_compute_ram_size(const sPlatform *pl)
+{
+    if (pl->version >= 60 && pl->ram_sz > 4 * 1024 * 1024)
+        return pl->ram_sz;
+
+    if (pl->uid == EGameRobinsonsRequiem0 || pl->uid == EGameRobinsonsRequiem1 || pl->uid == EGameRobinsonsRequiem3DO)
+    {
+        if (pl->kind == EPlatformPC || pl->kind == EPlatformFalcon || pl->kind == EPlatform3DO)
             return 4 * 1024 * 1024;
+        
         return 2 * 1024 * 1024;
     }
 
@@ -76,7 +83,9 @@ static u32 pl_original_ram(const sPlatform *pl)
 {
     if (pl->kind != EPlatformAtari && pl->kind != EPlatformAmiga)
         return 0;
-    switch (pl->uid) {
+    
+    switch (pl->uid)
+    {
         case EGameManhattanDealers0: case EGameManhattanDealers1: case EGameMadShow:
         case EGameTarghan0: case EGameTarghan1: case EGameWindsurfWilly: case EGameLeFeticheMaya:
         case EGameColorado: case EGameStarblade: case EGameCrystalsOfArborea0:
@@ -108,37 +117,45 @@ u16 pl_model_memclass(u32 ram_sz)
     return orig < 1024 * 1024 ? 1000 : orig < 2 * 1024 * 1024 ? 1010 : 1020;
 }
 
-static sPlatform* pl_get(const char * main_script) {
+static sPlatform* pl_get(const char * main_script)
+{
     char * ext = NULL;
     sPlatform* pl = &platforms[EPlatformUnknown];
 
      // Manhattan Dealers on Atari and Amiga use files with the same 'OO' extension,
      // but the main script is in the 'main.sng' and 'main.oo' files respectively.
      // We identify them by the main script name, not by used extension
-     if (!strncasecmp(main_script, kManAtariScriptName, strlen(kManAtariScriptName))) {
+     if (!strncasecmp(main_script, kManAtariScriptName, strlen(kManAtariScriptName)))
+     {
          pl = &platforms[EPlatformOldAtari];
          return pl;
-         }
-     if (!strncasecmp(main_script, kManAmigaScriptName, strlen(kManAmigaScriptName))) {
+     }
+
+     if (!strncasecmp(main_script, kManAmigaScriptName, strlen(kManAmigaScriptName)))
+     {
          pl = &platforms[EPlatformOldAmiga];
          return pl;
-         } 
+     }
 
     // get file extension
     ext = strrchr(main_script, '.') + 1;
 
     // check platform by script file extension
-    for (int i = 0; i <= EPlatformUnknown; i++) {
+    for (int i = 0; i <= EPlatformUnknown; i++)
+    {
         pl = &platforms[i];
-        if(!strncasecmp(ext, pl->ext, strlen(ext))) {
+        if(!strncasecmp(ext, pl->ext, strlen(ext)))
+        {
             break;
         }
      }
+
  return pl;
 }
 
 // mode = 0 path can only be a folder, mode = 1 path can also be a file
-sPlatform* pl_guess(const char * path, int mode) {
+sPlatform* pl_guess(const char * path, int mode)
+{
     sPlatform* platform = &platforms[EPlatformUnknown];
     FILE * file = NULL;
     if (path == NULL)
@@ -167,31 +184,35 @@ sPlatform* pl_guess(const char * path, int mode) {
     DIR * dir = opendir(data_path);
     if (dir == NULL)
     {
-       if ((file = fopen(data_path, "r")) != NULL) // Maybe it is a file?
-       {
-           fclose(file);
-           if (!mode) {
-              ALIS_DEBUG(EDebugInfo, "It seems you are trying to run alis with a file: %s\n", data_path);
-              ALIS_DEBUG(EDebugError,"Working with individual files is not supported in a game mode.\n");
-              ALIS_DEBUG(EDebugError,"Enter valid data path (game folder) located inside the alis folder.\n");
-           } else
-           {
-              platform = pl_get(data_path);
-              if(platform->kind == EPlatformUnknown)
+        if ((file = fopen(data_path, "r")) != NULL) // Maybe it is a file?
+        {
+            fclose(file);
+            if (!mode)
+            {
+                ALIS_DEBUG(EDebugInfo, "It seems you are trying to run alis with a file: %s\n", data_path);
+                ALIS_DEBUG(EDebugError,"Working with individual files is not supported in a game mode.\n");
+                ALIS_DEBUG(EDebugError,"Enter valid data path (game folder) located inside the alis folder.\n");
+            }
+            else
+            {
+                platform = pl_get(data_path);
+                if(platform->kind == EPlatformUnknown)
                 {
-                  ALIS_DEBUG(EDebugInfo, "It seems you are trying to unpack a file %s\n", data_path);
-                  ALIS_DEBUG(EDebugError,"Unable to identify the plaftorm by file name.\n");
-                  ALIS_DEBUG(EDebugError,"Platform is unknown or unsupported.\n");
-                } else
-                {
-                  strcpy(platform->path, data_path);
+                    ALIS_DEBUG(EDebugInfo, "It seems you are trying to unpack a file %s\n", data_path);
+                    ALIS_DEBUG(EDebugError,"Unable to identify the plaftorm by file name.\n");
+                    ALIS_DEBUG(EDebugError,"Platform is unknown or unsupported.\n");
                 }
-           }
+                else
+                {
+                    strcpy(platform->path, data_path);
+                }
+            }
        }
        else
        {
            ALIS_DEBUG(EDebugError,"%s is not a valid data path.\n", data_path);
        } 
+
        return platform;
     }
 
@@ -204,31 +225,39 @@ sPlatform* pl_guess(const char * path, int mode) {
     while ((ent = readdir(dir)) != NULL)
     {
 #if defined (_DIRENT_HAVE_D_TYPE)
-        if(ent->d_type == DT_REG) {
+        if(ent->d_type == DT_REG)
+        {
 #else
-        if((strcmp(ent->d_name,".")==0 || strcmp(ent->d_name,"..")==0)) continue;
+        if ((strcmp(ent->d_name,".")==0 || strcmp(ent->d_name,"..")==0))
+            continue;
+            
         struct stat sb;
         strcpy(main_path, data_path);
         strcat(main_path, ent->d_name);
-        if(stat(main_path, &sb) == -1) continue; // an error
-        if(S_ISREG(sb.st_mode) != 0) {
+        if (stat(main_path, &sb) == -1)
+            continue;                            // an error
+            
+        if (S_ISREG(sb.st_mode) != 0)
+        {
 #endif
             // look for main script
-            if(!strncasecmp(ent->d_name, kMainScriptName, strlen(kMainScriptName)) ||
-               !strncasecmp(ent->d_name, kManAtariScriptName, strlen(kManAtariScriptName)) ||
-               !strncasecmp(ent->d_name, kManAmigaScriptName, strlen(kManAmigaScriptName)) ||
-               !strncasecmp(ent->d_name, kManMSDOSScriptName, strlen(kManMSDOSScriptName)))
+            if (!strncasecmp(ent->d_name, kMainScriptName, strlen(kMainScriptName)) ||
+                !strncasecmp(ent->d_name, kManAtariScriptName, strlen(kManAtariScriptName)) ||
+                !strncasecmp(ent->d_name, kManAmigaScriptName, strlen(kManAmigaScriptName)) ||
+                !strncasecmp(ent->d_name, kManMSDOSScriptName, strlen(kManMSDOSScriptName)))
             {
                 strcpy(main_path, data_path);
                 strcat(main_path, ent->d_name);
 
-                if ((file = fopen(main_path, "r")) != NULL) {
-                   fclose(file);
+                if ((file = fopen(main_path, "r")) != NULL)
+                {
+                    fclose(file);
                 }
-                else {
-                   ALIS_DEBUG(EDebugError,"Cannot open %s for reading: No such file or directory.\n", main_path);
-                   closedir(dir);
-                   return platform;
+                else
+                {
+                    ALIS_DEBUG(EDebugError,"Cannot open %s for reading: No such file or directory.\n", main_path);
+                    closedir(dir);
+                    return platform;
                 }
 
                 platform = pl_get(ent->d_name);
@@ -241,10 +270,12 @@ sPlatform* pl_guess(const char * path, int mode) {
             }
         }
     }
+
     closedir(dir);
     if(platform->kind == EPlatformUnknown)
     {
-      ALIS_DEBUG(EDebugFatal, "Platform is unknown, unsupported or main file is not found.\n");
+        ALIS_DEBUG(EDebugFatal, "Platform is unknown, unsupported or main file is not found.\n");
     }
+
     return platform;
 }

@@ -65,6 +65,11 @@ typedef struct {
 void inifilm(void);
 void runfilm(void);
 void endfilm(void);
+u32  fli_audio_push(const s8 *src, u32 len, s16 freq);
+
+// 3DO DataStream films, copenfilm names the stream, crunfilm plays it whole.
+void film3do_open(const char *name);
+void film3do_run(s16 mode);
 
 // Film streaming (video.c). fli_stream_open takes ownership of fp and puts the
 // film into sliding-window mode (bfilm.sbuf = window, primed lazily by
@@ -72,6 +77,16 @@ void endfilm(void);
 // it does NOT free the window (bfilm.delptr owns it; cdelfilm frees).
 int  fli_stream_open(FILE *fp, u32 file_size);
 void fli_stream_close(void);
+void fli_stream_rewind(void);
+
+// Per-frame players: FLI/FLC (fli.c) and FLS (fls.c); 0 = film ended.
+s16  flitofen(void);
+u32  flstofen(s16 clean);
+
+extern u8 *endframe;
+extern u16 fls_drawing;
+extern u16 fls_pallines;
+extern s8  fls_state;
 
 extern sFLICData bfilm;
 
@@ -87,5 +102,7 @@ extern u8 fls_prev_x2[200];
 // Film composition buffer: allocated by inifilm, released by the backend after the last frame.
 #define kVgaLogicSize 128400
 extern u8 *pvgalogic, *vgalogic, *vgalogic_df;
+extern u32 vgalogic_sz;
 int  vgalogic_alloc(void);
+int  vgalogic_fit(u32 need);
 void vgalogic_free(void);

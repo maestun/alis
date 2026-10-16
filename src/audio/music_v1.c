@@ -112,13 +112,16 @@ static u32 mv1_scan_len(int c, u32 start, u32 ramsz)
 
     const u8 *p = (const u8 *)(alis.mem + start);
     u32 maxscan = (ramsz > start) ? (ramsz - start) : 0;
-    if (maxscan > 0x8000) maxscan = 0x8000;     // bound the scan
+    if (maxscan > 0x8000)
+        maxscan = 0x8000;                       // bound the scan
     u32 l = 0;
-    while (l < maxscan && p[l] != 0) l++;
+    while (l < maxscan && p[l] != 0)
+        l++;
     scan_key[c] = start;
     scan_val[c] = l;
     return l;
 }
+
 // Set on each note-on (case 1) — MV1 re-strikes the SAME one-shot sample at a
 // constant address for repeated notes, so the DSP voice must be told to restart
 // even though its address is unchanged. Read+cleared in mv1_soundrout's feed.
@@ -132,7 +135,8 @@ static void mv1_dsp_capture(void)
         sMV1Channel *ch = &mv1a.channels[c];
         u32 start = ch->instr;            // stable note-on sample start
         u32 end   = ch->endsam;           // loop-point VM address (0 = one-shot)
-        if (ch->active != 0x2a78 || !start) continue;
+        if (ch->active != 0x2a78 || !start)
+            continue;
 
         // mv1_playnote always plays [instr → first-zero]; the full length is
         // that scan regardless of loop. For a looped note (endsam != 0), endsam
@@ -144,8 +148,16 @@ static void mv1_dsp_capture(void)
         if (end > start && end <= ramsz)
         {
             u32 intro = end - start;                  // [instr, endsam)
-            if (len > intro) { rep = len - intro; loop = 2; }   // tail [endsam, zero)
-            else             { rep = len;         loop = 2; }   // degenerate → loop whole
+            if (len > intro)
+            {
+                rep = len - intro;
+                loop = 2;
+            }                                                   // tail [endsam, zero)
+            else
+            {
+                rep = len;
+                loop = 2;
+            }                                                   // degenerate → loop whole
         }
 
         if (len && start + len <= ramsz)
@@ -318,7 +330,8 @@ void mv1_soundrout(void)
     // Clear the per-channel latch for this soundrout; each mv1_checkcom() then
     // captures its active channels (mv1_dsp_capture) before its render loop.
     if (dsp_mixer_available)
-        for (int c = 0; c < kNumMV1Channels; c++) mv1_cap_seen[c] = 0;
+        for (int c = 0; c < kNumMV1Channels; c++)
+            mv1_cap_seen[c] = 0;
 #endif
 
     for (int m = 0; m < 4; m++)
@@ -359,6 +372,7 @@ void mv1_soundrout(void)
                 // Channel has gone inactive — stop the voice once.
                 dsp_mixer_update_music(c, NULL, 0, 0, 0, 1, 0, 0);
             }
+
             // else: active but no fresh capture — keep the voice playing.
         }
     }
@@ -418,6 +432,7 @@ void mv1_checkcom(void)
                     noteptr = audio.mupnote;
                     break;
                 }
+
                 case 1:
                 {
                     if (xread8(nextnoteptr + 1) == 0)
@@ -454,8 +469,10 @@ void mv1_checkcom(void)
                             channel->active = 0x2a78;
                         }
                     }
+
                     break;
                 }
+
                 case 2:
                 {
                     noteptr = nextnoteptr + 1;
@@ -467,6 +484,7 @@ void mv1_checkcom(void)
                     channel->instr = sample;
                     break;
                 }
+
                 case 3:
                 {
                     channel->endsam = mv1_loop_addr(channel->instr, channel->instr - 4);
@@ -474,6 +492,7 @@ void mv1_checkcom(void)
                     noteptr = nextnoteptr;
                     break;
                 }
+
                 default:
                 {
                     // Not music data (the original would jump through garbage): stop instead of spinning.
@@ -483,6 +502,7 @@ void mv1_checkcom(void)
                         mv1a.channels[c].active = 0x6010;
                         mv1a.channels[c].actflag = 0;
                     }
+
                     return;
                 }
             }
@@ -537,11 +557,13 @@ static void mv1_step_state(int total)
     for (int c = 0; c < kNumMV1Channels; c++)
     {
         sMV1Channel *channel = &mv1a.channels[c];
-        if (channel->active != 0x2a78) continue;
+        if (channel->active != 0x2a78)
+            continue;
 
         u32 slen = mv1_scan_len(c, channel->instr, ramsz);
         u64 step = (u64)channel->speedsam << 16;
-        if (!slen || !step) continue;                 // nothing to advance / no length
+        if (!slen || !step)
+            continue;                                 // nothing to advance / no length
         u32 zero_addr = channel->instr + slen;        // terminator byte address
 
         u64 pos = ((u64)channel->startsam.address << 32) | channel->startsam.fraction;
@@ -555,11 +577,19 @@ static void mv1_step_state(int total)
             {
                 u64 need = ((u64)zero_addr << 32) - pos;
                 u64 k = (need + step - 1) / step;     // samples until addr == zero_addr
-                if ((u64)remaining < k) { pos += step * (u64)remaining; remaining = 0; break; }
+                if ((u64)remaining < k)
+                {
+                    pos += step * (u64)remaining;
+                    remaining = 0;
+                    break;
+                }
+
                 pos += step * k;
                 remaining -= (int)k;
-                if (remaining <= 0) break;            // landed on terminator; handle next tick
+                if (remaining <= 0)
+                    break;                            // landed on terminator; handle next tick
             }
+
             // Terminator reached (one read iteration): loop back or deactivate.
             if (channel->endsam != 0)
             {
@@ -582,6 +612,7 @@ static void mv1_step_state(int total)
         channel->startsam.address  = (u32)(pos >> 32);
         channel->startsam.fraction = (u32)(pos & 0xFFFFFFFFu);
     }
+
     mv1a.mucnt += total;                              // keep parity with the per-sample path
 }
 #endif

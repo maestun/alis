@@ -121,9 +121,13 @@ void mv2_gomusic(void)
         {
             u8 itype = xread8(instrument->address - 0x10);
             if (itype == 5)
+            {
                 chipinst++;
+            }
             else if (itype == 6)
+            {
                 opl2inst++;
+            }
         }
         
         instrument ++;
@@ -508,6 +512,7 @@ void mv2_checkcom(u32 noteat, u16 *volsam)
             mv2a.mucnt = 0x40;
             break;
         }
+
         case 0xc:
         {
             if (0x40 < data)
@@ -516,11 +521,13 @@ void mv2_checkcom(u32 noteat, u16 *volsam)
             *volsam = data;
             break;
         }
+
         case 0xd:
         {
             mv2a.mucnt = 0x40;
             break;
         }
+
         case 0xf:
         {
             // Bunny Bricks' driver skips F00 (its song then loops); later engines stop on speed 0.
@@ -594,6 +601,7 @@ void mv2_checkefft(sAudioVoice *voice)
                     
                     voice->freqsam = newfreq;
                 }
+
                 break;
             }
 
@@ -617,6 +625,7 @@ void mv2_checkefft(sAudioVoice *voice)
                         voice->volsam = 0x40;
                     }
                 }
+
                 break;
             }
     };
@@ -678,8 +687,8 @@ void f_updatevoice(sAudioVoice *voice, u32 smpstart, u32 smplength)
     }
 }
 
-// Pure-C reference mixer (the original decompiled body): non-Atari fallback and
-// the ALIS_MV2_MIX_VERIFY oracle for the asm loop. Keep it unchanged.
+// Pure-C mixer (the original decompiled body): the non-Atari fallback and the
+// reference behaviour the asm loop must match. Keep it unchanged.
 void mv2_soundcal_c(sAudioVoice *voice, const bool first)
 {
     u32 freq;
@@ -883,20 +892,8 @@ static u32 mv2_soundcal_asm(s16 *dst, u32 mutaloop, const u8 *read_base,
     return ls1;
 }
 
-#if defined(ALIS_MV2_MIX_VERIFY) && ALIS_MV2_MIX_VERIFY
-// Bit-exact harness counters (updated from the mixer tick — which may run in the
-// audio ISR — so plain volatiles, no dbglog here). Reported from a main-loop
-// safe point (dsp_mixer_poll, [mv2mix]).
-#define MV2_MIX_VERIFY_MAX 4096
-volatile unsigned long mv2_mix_calls = 0;
-volatile unsigned long mv2_mix_bad   = 0;
-volatile long          mv2_mix_bi[6];   // last mismatch: index, asm, C, first, asm_ls1^C_ls1, asm_ss1^C_ss1
-static s16 mv2_mix_scratch[MV2_MIX_VERIFY_MAX];
-static s16 mv2_mix_predst [MV2_MIX_VERIFY_MAX];
-#endif
-
 // Computes the mixer setup exactly as mv2_soundcal_c(), then runs the pinned asm
-// loop (or, flag-off / non-Atari, defers to the pure-C oracle).
+// loop (or, flag-off / non-Atari, defers to mv2_soundcal_c).
 void mv2_soundcal(sAudioVoice *voice, const bool first)
 {
     // --- setup: identical to mv2_soundcal_c() ---
@@ -951,47 +948,6 @@ void mv2_soundcal(sAudioVoice *voice, const bool first)
     }
 
     const u8 *read_base = mem_base + end_adj;   // read_base[-(s32)longsam1] == mem_base[end_adj-longsam1]
-
-#if defined(ALIS_MV2_MIX_VERIFY) && ALIS_MV2_MIX_VERIFY
-    if (mutaloop <= MV2_MIX_VERIFY_MAX)
-    {
-        // Snapshot pre-mix dst, then run the trusted C oracle LIVE (keeps
-        // muadresse correct), then run the asm into a scratch and compare.
-        for (u32 i = 0; i < mutaloop; i++) mv2_mix_predst[i] = dst[i];
-
-        mv2_soundcal_c(voice, first);          // trusted result -> live dst + voice
-        u32 c_ls1 = voice->longsam1;
-        u32 c_ss1 = voice->startsam1;
-
-        for (u32 i = 0; i < mutaloop; i++) mv2_mix_scratch[i] = mv2_mix_predst[i];
-        struct mv2_asm_ctx ctx = { longsam2, startsam2, startsam1 };
-        u32 a_ls1 = mv2_soundcal_asm(mv2_mix_scratch, mutaloop, read_base,
-                                     vol_fixed, step_full, longsam1, first, &ctx);
-        u32 a_ss1 = ctx.startsam1;
-
-        mv2_mix_calls++;
-        int bad = 0; long bidx = -1; long ba = 0, bc = 0;
-        for (u32 i = 0; i < mutaloop; i++)
-        {
-            if (mv2_mix_scratch[i] != dst[i])
-            {
-                if (!bad) { bidx = (long)i; ba = mv2_mix_scratch[i]; bc = dst[i]; }
-                bad = 1;
-            }
-        }
-        if (a_ls1 != c_ls1 || a_ss1 != c_ss1) bad = 1;
-        if (bad)
-        {
-            mv2_mix_bad++;
-            mv2_mix_bi[0] = bidx; mv2_mix_bi[1] = ba; mv2_mix_bi[2] = bc;
-            mv2_mix_bi[3] = first ? 1 : 0;
-            mv2_mix_bi[4] = (long)(a_ls1 ^ c_ls1);
-            mv2_mix_bi[5] = (long)(a_ss1 ^ c_ss1);
-        }
-        return;   // live dst already holds the trusted C result
-    }
-    // mutaloop too large for the scratch buffers: fall through to plain asm.
-#endif
 
     struct mv2_asm_ctx ctx = { longsam2, startsam2, startsam1 };
     longsam1 = mv2_soundcal_asm(dst, mutaloop, read_base,
@@ -1191,7 +1147,8 @@ void mv2_chipcanal(sChipChannel *chanel, s32 idx)
 
                 type = xread8(address); address ++;
             }
-            else {
+            else
+            {
                 if (type == 0xfd)
                 {
                     mv2a.chipmixer |= 1 << idx;
@@ -1199,6 +1156,7 @@ void mv2_chipcanal(sChipChannel *chanel, s32 idx)
 
                     type = xread8(address); address ++;
                 }
+
                 if (type == 0xfe)
                 {
                     mv2a.chipmixer &= ~(1 << idx);
@@ -1206,6 +1164,7 @@ void mv2_chipcanal(sChipChannel *chanel, s32 idx)
 
                     type = xread8(address); address ++;
                 }
+
                 if (type == 0xfc)
                 {
                     mv2a.chipmixer &= ~(1 << idx);

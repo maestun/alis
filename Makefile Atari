@@ -122,14 +122,6 @@ else
 CFLAGS += -DALIS_VM_REGVARS=0
 endif
 
-# VM-vs-render frame profiler (alis.c). Every 512 frames appends a VM%/DRAW%
-# split to its own file C:\vmprof.log (fallback: ./vmprof.log, A:\vmprof.log).
-# Works in any build (native or SDL1). Enable with:
-#   make -f "Makefile Atari" VM_PROFILE=1
-ifdef VM_PROFILE
-CFLAGS += -DALIS_VM_PROFILE=1
-endif
-
 # Experiment: request a 16-bit Falcon truecolor surface (chunky, no planar c2p)
 # instead of the native 8-bit mode, to A/B render speed. SDL1 build only.
 #   make -f "Makefile Atari" FALCON_16BPP=1
@@ -159,8 +151,6 @@ endif
 
 CFLAGS += -DALIS_DSP_MIXER=1
 
-# Embed build info for profiling log
-CFLAGS += -DBUILD_CFLAGS='"$(CFLAGS)"'
 LDFLAGS := -m68020-60
 #LDFLAGS := -mcfv4e
 
@@ -171,7 +161,7 @@ LDFLAGS := -m68020-60
 # dirty_pal/dirty_len, giving "multiple definition" at link. We stamp the config
 # toggles to build/.build_sig; if they changed since the last build, wipe build/
 # so everything recompiles cleanly. (Skipped for the `clean` goal.)
-BUILD_SIG      := native=$(USE_NATIVE_ATARI);16bpp=$(FALCON_16BPP);fli16=$(FLI16);regvars=$(VM_REGVARS);profile=$(VM_PROFILE);extra=$(EXTRA_CFLAGS)
+BUILD_SIG      := native=$(USE_NATIVE_ATARI);16bpp=$(FALCON_16BPP);fli16=$(FLI16);regvars=$(VM_REGVARS);extra=$(EXTRA_CFLAGS)
 BUILD_SIG_FILE := $(BUILD_DIR)/.build_sig
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
   BUILD_SIG_OLD := $(shell cat $(BUILD_SIG_FILE) 2>/dev/null)

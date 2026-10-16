@@ -106,6 +106,7 @@ typedef enum {
     EGameArabianNights           = -8,
     EGameLesVisiteurs            = -9,
     EGameInspectorGadget         = -10,
+    EGameRobinsonsRequiem3DO     = -11,
     EGameUnknown                 = 0,
 
 } EGame;
@@ -133,6 +134,7 @@ typedef struct {
     EPxFormat   px_format;
     u8          dbl_buf;
     u8          is_little_endian;
+    u8          ega;                // PC 16-colour art (sprites + palettes) in a CGA-era engine (Mad Show re-release)
     char        path[kPathMaxLen];  // path to scripts
     char        main[kPathMaxLen];  // path to main script
 } sPlatform;

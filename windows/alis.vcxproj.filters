@@ -36,6 +36,9 @@
     <ClInclude Include="..\src\debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\render\deus3d.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\emu2149\emu2149.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -54,19 +57,22 @@
     <ClInclude Include="..\src\platform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\render3d.h">
+    <ClInclude Include="..\src\render\rrq3d.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\render3d_68k.h">
+    <ClInclude Include="..\src\render\rrq3d_68k.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\render3d_dos.h">
+    <ClInclude Include="..\src\render\rrq3d_dos.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\screen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\script.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\patches.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\sys\sys.h">
@@ -78,7 +84,10 @@
     <ClInclude Include="..\src\utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\video.h">
+    <ClInclude Include="..\src\video\video.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\cinepak.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="dirent.h">
@@ -110,6 +119,9 @@
     <ClCompile Include="..\src\debug.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\render\deus3d.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\emu2149\emu2149.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -131,9 +143,6 @@
     <ClCompile Include="..\src\mem.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\newalis.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\opcodes.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -143,19 +152,25 @@
     <ClCompile Include="..\src\platform.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\render3d.c">
+    <ClCompile Include="..\src\render\rrq3d.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\render3d_68k.c">
+    <ClCompile Include="..\src\render\rrq3d_68k.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\render3d_dos.c">
+    <ClCompile Include="..\src\render\rrq3d_dos.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\render\rrq3d_3do.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\screen.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\script.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\patches.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\storenames.c">
@@ -173,7 +188,19 @@
     <ClCompile Include="..\src\utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\video.c">
+    <ClCompile Include="..\src\video\video.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\fli.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\fls.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\film3do.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\cinepak.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

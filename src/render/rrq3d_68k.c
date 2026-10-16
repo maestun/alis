@@ -1,16 +1,30 @@
 //
-//  render3d_68k.c
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
-//  m68k-specific terrain rendering functions extracted from render3d.c
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the “Software”),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
 #include <string.h>
 #include "alis.h"
 #include "image.h"
 #include "mem.h"
-#include "render3d.h"
-#include "render3d_68k.h"
+#include "rrq3d.h"
+#include "rrq3d_68k.h"
 
 #if ALIS_SDL_VER < 2
 # include <SDL/SDL.h>
@@ -18,7 +32,7 @@ extern SDL_Rect dirty_rects[256];
 extern u8 dirty_len;
 #endif
 
-// Shared globals defined in render3d.c
+// Shared globals defined in rrq3d.c
 extern u8 fprectop;
 extern u8 fprectopa;
 extern u8 fbottom;
@@ -38,117 +52,6 @@ extern u32 adresa;
 extern u8 terrain_fill_color;
 extern s16 bartra_saved_si;
 extern s16 bottom_type_index;
-
-#if defined(ALIS_MEASURE_OVERDRAW)
-// Overdraw stats: stamp each bar's rect with its id, report how much survives per frame.
-#define OD_W 512
-#define OD_H 256
-#define OD_MAXBARS 65535
-static u16 od_id[OD_H][OD_W];
-static u16 od_row_of[OD_MAXBARS + 1];
-static u32 od_bars, od_px, od_cells, od_rows, od_sprites, od_frames;
-static u32 od_cells_in_row[1024];
-static u64 od_sum_cells, od_sum_bars, od_sum_px, od_sum_vis_px, od_sum_vis_bars, od_sum_dead_cells, od_sum_sprites;
-
-u32 g_zoom_px, g_zoom_opaque;
-
-static void od_begin(void)
-{
-    memset(od_id, 0, sizeof(od_id));
-    od_bars = od_px = od_cells = od_rows = od_sprites = 0;
-}
-
-static void od_bar(s16 x, s16 y, s16 w, s16 h)
-{
-    if (w <= 0 || h <= 0 || od_bars >= OD_MAXBARS) return;
-    u16 id = (u16)++od_bars;
-    od_row_of[id] = (u16)od_rows;
-    od_px += (u32)w * (u32)h;
-    for (s16 r = y; r < y + h; r++)
-        for (s16 c = x; c < x + w; c++)
-            if (r >= 0 && r < OD_H && c >= 0 && c < OD_W) od_id[r][c] = id;
-}
-
-static void od_end(void)
-{
-    static u8 seen[OD_MAXBARS + 1];
-    memset(seen, 0, od_bars + 1);
-    u32 vis_px = 0, vis_bars = 0, first_vis_row = od_rows;
-    for (int r = 0; r < OD_H; r++)
-        for (int c = 0; c < OD_W; c++)
-        {
-            u16 id = od_id[r][c];
-            if (!id) continue;
-            vis_px++;
-            if (!seen[id]) { seen[id] = 1; vis_bars++; if (od_row_of[id] < first_vis_row) first_vis_row = od_row_of[id]; }
-        }
-    // Rows painted before the farthest visible one are fully hidden: front-to-back never walks them.
-    u32 dead_cells = 0;
-    for (u32 r = 0; r < first_vis_row && r < 1024; r++) dead_cells += od_cells_in_row[r];
-
-    od_frames++;
-    od_sum_cells += od_cells; od_sum_bars += od_bars; od_sum_px += od_px;
-    od_sum_vis_px += vis_px; od_sum_vis_bars += vis_bars; od_sum_dead_cells += dead_cells; od_sum_sprites += od_sprites;
-    if (od_frames % 50 == 0)
-        printf("[overdraw] %u frames avg: rows %u cells %llu bars %llu (visible %llu = %.0f%%) px %llu visible %llu overdraw %.2fx sprites %llu; cells in fully hidden far rows %.0f%%\n",
-               od_frames, od_rows, od_sum_cells / od_frames, od_sum_bars / od_frames, od_sum_vis_bars / od_frames,
-               100.0 * od_sum_vis_bars / (od_sum_bars ? od_sum_bars : 1), od_sum_px / od_frames, od_sum_vis_px / od_frames,
-               (double)od_sum_px / (od_sum_vis_px ? od_sum_vis_px : 1), od_sum_sprites / od_frames,
-               100.0 * od_sum_dead_cells / (od_sum_cells ? od_sum_cells : 1));
-    if (od_frames % 50 == 0)
-        printf("[overdraw] billboard pixels %u, opaque %u (%.0f%%)\n", g_zoom_px, g_zoom_opaque,
-               100.0 * g_zoom_opaque / (g_zoom_px ? g_zoom_px : 1));
-}
-#define OD(x) x
-#else
-#define OD(x)
-#endif
-
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-// Harness pixel watch: after each bar, log when the watched byte changed and which C paths ran.
-u32 rrq_watch;            // alis.mem offset of the watched byte, 0 = off
-static s16 rrq_cell_x, rrq_cell_y;
-// Row trace for the harness: 1 = C run, 2 = asm run (asm calls rrq_row_note from doland1).
-u8 rrq_rowlog;
-void rrq_bar_note(s32 kind, s32 row, s32 x, s32 top, s32 height, s32 precx)
-{
-    if (!rrq_rowlog)
-        return;
-    extern void dbglog(const char *fmt, ...);
-    dbglog("[rrqbar] %c %c %d x=%d top=%d h=%d precx=%d\n", rrq_rowlog == 1 ? 'C' : 'A', kind == 1 ? 'g' : 't',
-           (int)row, (int)(s16)x, (int)(s16)top, (int)(s16)height, (int)(s16)precx);
-}
-
-void rrq_row_note(s32 row, u32 colx, u32 step, u32 tx, u32 ty, u32 sx, u32 sy)
-{
-    if (!rrq_rowlog)
-        return;
-    extern void dbglog(const char *fmt, ...);
-    dbglog("[rrqrow] %c %d x=%08x st=%08x t=%08x,%08x s=%08x,%08x\n", rrq_rowlog == 1 ? 'C' : 'A',
-           (int)row, colx, step, tx, ty, sx, sy);
-}
-u8  rrq_watch_val;
-static char rrq_path[24];
-static u8 rrq_path_n;
-#define RRQ_PATH(c) do { if (rrq_path_n < sizeof(rrq_path) - 1) rrq_path[rrq_path_n++] = (c); } while (0)
-static void rrq_watch_bar(const char *kind, s32 rc, s16 a, s16 b, s16 c, s16 d)
-{
-    rrq_path[rrq_path_n] = 0;
-    rrq_path_n = 0;
-    if (!rrq_watch || alis.mem[rrq_watch] == rrq_watch_val)
-        return;
-    extern void dbglog(const char *fmt, ...);
-    dbglog("[rrqw] %s %d,%d,%d,%d path=%s %02x->%02x precx=%d vbarx=%d vbarlarg=%d r246=%d r25c=%d r24e=%d vbarbot=%d bothigh=%d botalt=%d precboti=%d cell=%d,%d solh=%d solpixy=%d r276=%d r25a=%d\n",
-           kind, a, b, c, d, rrq_path, rrq_watch_val, alis.mem[rrq_watch], image.precx, image.vbarx, image.vbarlarg,
-           xread16(rc - 0x246), xread16(rc - 0x25c), xread16(rc - 0x24e), image.vbarbot, bothigh, botalt, precboti,
-           rrq_cell_x, rrq_cell_y, image.solh, image.solpixy, xread16(rc - 0x276), xread16(rc - 0x25a));
-    rrq_watch_val = alis.mem[rrq_watch];
-}
-#define RRQ_WATCH(...) rrq_watch_bar(__VA_ARGS__)
-#else
-#define RRQ_PATH(c)
-#define RRQ_WATCH(...)
-#endif
 
 void vgatofen_68k(void)
 {
@@ -172,42 +75,40 @@ void vgatofen_68k(void)
         // 4-bit games: mask to planes 0-3 (clrvga's 0x10 fill and shade bytes set high bits).
         static u8 vf_row[352];
 #if defined(__m68k__) && !defined(ALIS_NO_C2P_ASM)
-        if (limit == 0xff && image.clipy2 >= image.clipy1 && w > 0) {
+        if (limit == 0xff && image.clipy2 >= image.clipy1 && w > 0)
+        {
             extern void c2p8_rect(const u8 *src, s32 src_pitch, u8 *dst, s32 dst_pitch, s32 chunks, s32 rows);
             const u8 *src0 = image.wlogic + x0 + (image.clipy1 - image.wlogy1) * image.wloglarg;
             u8 *dst0 = image.logic + (u32)image.clipy1 * pitch + x0;
             s32 rows = image.clipy2 - image.clipy1 + 1;
             c2p8_rect(src0, image.wloglarg, dst0, pitch, w >> 4, rows);
-#if defined(ALIS_C2P_VERIFY)
-            {
-                // Convert again into a private buffer (the cursor ISR may touch the screen) and
-                // compare with the C converter.
-                extern void dbglog(const char *fmt, ...);
-                static u8 *tmp, ref[352];
-                static u32 calls, bad;
-                if (!tmp) tmp = malloc(352 * 256);
-                if (tmp && rows <= 256 && w <= 352) {
-                    c2p8_rect(src0, image.wloglarg, tmp, w, w >> 4, rows);
-                    calls++;
-                    for (s32 y = 0; y < rows; y++) {
-                        chunky8_to_planar(src0 + y * image.wloglarg, w, 1, 0, ref);
-                        if (memcmp(ref, tmp + y * w, w)) { bad++; dbglog("[c2p] row %d differs\n", (int)y); break; }
-                    }
-                    if ((calls & 63) == 0) dbglog("[c2p] %u calls, %u bad\n", calls, bad);
-                }
-            }
+        }
+        else
 #endif
-        } else
-#endif
-        for (int y = image.clipy1; y <= image.clipy2; y++) {
+        for (int y = image.clipy1; y <= image.clipy2; y++)
+        {
             u8 *src_row = image.wlogic + x0 + (y - image.wlogy1) * image.wloglarg;
             u8 *dst_row = image.logic + (u32)y * pitch + x0; // x0 16-aligned → planar byte offset == x0
-            if (limit != 0xff) { for (s32 i = 0; i < w; i++) vf_row[i] = src_row[i] & limit; src_row = vf_row; }
+            if (limit != 0xff)
+            {
+                for (s32 i = 0; i < w; i++)
+                    vf_row[i] = src_row[i] & limit;
+                    src_row = vf_row;
+            }
+
             chunky8_to_planar(src_row, w, 1, 0, dst_row);
         }
 #if ALIS_SDL_VER < 2
-        if (dirty_len > 0xfd) { dirty_rects[0] = (SDL_Rect){0,0,host.pixelbuf.w,host.pixelbuf.h}; dirty_len = 0xff; }
-        else { dirty_rects[dirty_len] = (SDL_Rect){ x0, image.clipy1, w, image.clipy2 - image.clipy1 + 1 }; dirty_len++; }
+        if (dirty_len > 0xfd)
+        {
+            dirty_rects[0] = (SDL_Rect){0,0,host.pixelbuf.w,host.pixelbuf.h};
+            dirty_len = 0xff;
+        }
+        else
+        {
+            dirty_rects[dirty_len] = (SDL_Rect){ x0, image.clipy1, w, image.clipy2 - image.clipy1 + 1 };
+            dirty_len++;
+        }
 #endif
         return;
     }
@@ -234,8 +135,11 @@ void vgatofen_68k(void)
         {
             u8 *t = tgt, *s = src;
             s32 x = roww;
-            for (; x >= 4; x -= 4, t += 4, s += 4) *(u32 *)t = *(u32 *)s & m4;
-            for (; x > 0; x--, t++, s++) *t = *s & limit;
+            for (; x >= 4; x -= 4, t += 4, s += 4)
+                *(u32 *)t = *(u32 *)s & m4;
+            
+            for (; x > 0; x--, t++, s++)
+                *t = *s & limit;
         }
     }
 
@@ -267,12 +171,14 @@ void clrvga_68k(void)
         {
             *ptr++ = 0x1010;
         }
+
         ptr = (u16 *)((u8 *)ptr + modulo);
     }
 
 #if ALIS_SDL_VER > 1
     // Clear enhanced RGBA + depth buffers
-    if (image.terrgba && image.terrgbarows) {
+    if (image.terrgba && image.terrgbarows)
+    {
         memset(image.terrgba, 0, image.terrgbaw * image.terrgbah * sizeof(u32));
         if (image.depthbuf)
             memset(image.depthbuf, 0, image.terrgbaw * image.terrgbah);
@@ -305,7 +211,8 @@ void calclan0_68k(s32 scene_addr, s32 render_context)
         // Y-dominant: step along Y, interpolate X
         xwrite16(render_context - 0x2b0, abs_dy);
         u16 minor_span = xread16(render_context - 0x36a) - xread16(render_context - 0x370);
-        if ((int)((u32)minor_span << 0x10) < 0) {
+        if ((int)((u32)minor_span << 0x10) < 0)
+        {
             minor_span = -minor_span;
         }
 
@@ -331,6 +238,7 @@ void calclan0_68k(s32 scene_addr, s32 render_context)
         {
             strip_span = -strip_span;
         }
+
         xwrite16(render_context - 0x24e, (s16)strip_span >> (grid_shift & 0x3f));
     }
     else
@@ -450,11 +358,20 @@ static u8 *line_fwd(u8 *p, s16 i, u32 d4, u32 alt)
 {
     if (i < 0)
         return p;
+    
     s16 j = i & 3;
     for (s16 n = (i >> 2) + (j == 3); n > 0; n--, p += 4)
         put_l(p, d4);
-    if (j == 1 || j == 2) { put_w(p, d4); p += 2; }
-    if (j == 0 || j == 2) *p++ = (u8)alt;
+    
+    if (j == 1 || j == 2)
+    {
+        put_w(p, d4);
+        p += 2;
+    }
+
+    if (j == 0 || j == 2)
+        *p++ = (u8)alt;
+    
     return p;
 }
 
@@ -463,10 +380,23 @@ static u8 *line_bwd(u8 *p, s16 i, u32 d4, u32 alt)
 {
     if (i < 0)
         return p;
+    
     s16 j = i & 3;
-    for (s16 n = (i >> 2) + (j == 3); n > 0; n--) { p -= 4; put_l(p, d4); }
-    if (j == 1 || j == 2) { p -= 2; put_w(p, d4); }
-    if (j == 0 || j == 2) *--p = (u8)alt;
+    for (s16 n = (i >> 2) + (j == 3); n > 0; n--)
+    {
+        p -= 4;
+        put_l(p, d4);
+    }
+
+    if (j == 1 || j == 2)
+    {
+        p -= 2;
+        put_w(p, d4);
+    }
+
+    if (j == 0 || j == 2)
+        *--p = (u8)alt;
+    
     return p;
 }
 
@@ -477,16 +407,20 @@ static inline u8 *pixrow(s16 y) { return alis.mem + xread32(image.atlpix + (s16)
 // bartra/bartrab head: dark level from the cell, then the shade lookup -> 2-periodic long.
 static u32 bar_shade(s32 cell, s32 rc, s16 index)
 {
-    s16 dark = (s16)((((xread16(xread16(rc - 0x3c4) + cell) & 0xc0) + ((xread16(cell + 2) >> 8) & 0xc0)
-                       + ((xread16(cell) >> 8) & 0xc0) * 2) * -2) + image.vdarkw);
+    s16 dark = (s16)((((xread16(xread16(rc - 0x3c4) + cell) & 0xc0) + ((xread16(cell + 2) >> 8) & 0xc0) + ((xread16(cell) >> 8) & 0xc0) * 2) * -2) + image.vdarkw);
     if (dark < 0)
         dark = 0;
+    
     u16 c;
     if (alis.platform.bpp == 4)
+    {
         c = xread16(alis.ptrdark + (s16)((dark & 0xff00) | (u8)(xread8(rc + 8 + index) * 2)));
+    }
     else
-        c = (u16)(xread8(alis.ptrdark + (s16)((dark & 0xff00) | xread8(rc + 8 + index))) << 8)
-          | xread8(alis.ptrdark + (s16)((dark & 0xff00) | xread8(rc + 9 + index)));
+    {
+        c = (u16)(xread8(alis.ptrdark + (s16)((dark & 0xff00) | xread8(rc + 8 + index))) << 8) | xread8(alis.ptrdark + (s16)((dark & 0xff00) | xread8(rc + 9 + index)));
+    }
+
     return ((u32)c << 16) | c;
 }
 
@@ -495,16 +429,22 @@ static u16 alias_step(u16 d2, u16 larg)
 {
     if (d2 <= 0x40 && larg <= 0x3f)
         return xread16(image.atalias + (s16)((((d2 - 1) << 6) + larg) * 2));
+    
     d2 >>= 2;
     if (d2 > 0x40)
         d2 = 0x40;
+    
     return (u16)((s16)xread16(image.atalias + (s16)((((d2 - 1) << 7) + larg) & 0xfffe)) >> 1);
 }
 
 static inline u32 dither_phase(u32 d4, s16 y, s32 rc)
 {
-    if (y & 1) d4 = rot8(d4);
-    if (xread16(rc - 0x24e) & 1) d4 = rot8(d4);
+    if (y & 1)
+        d4 = rot8(d4);
+    
+    if (xread16(rc - 0x24e) & 1)
+        d4 = rot8(d4);
+    
     return d4;
 }
 
@@ -521,24 +461,32 @@ static void bartrab_flat(s32 rc, s16 d0, s16 d1, s16 d5, s16 d6, u32 d4);
 // bartramin (+ bartrams): d5+1 full rows of d6+1 bytes from a0; then the bottom taper if pending.
 static void bartramin_flat(s32 rc, u8 *a0, s16 d5, s16 d6, u32 d4)
 {
-    RRQ_PATH('m');
     u32 d2 = rot8(d4);
     s16 mod = image.wloglarg - d6 - 1;
-    if (odd_addr(a0)) {
+    if (odd_addr(a0))
+    {
         *a0++ = (u8)d4;
-        for (;;) {
+        for (;;)
+        {
             a0 = line_fwd(a0, d6 - 1, d4, d2) + mod;
             swap_l(&d2, &d4);
-            if (--d5 < 0) break;
+            if (--d5 < 0)
+                break;
+            
             *a0++ = (u8)d4;
         }
-    } else {
-        for (;;) {
+    }
+    else
+    {
+        for (;;)
+        {
             a0 = line_fwd(a0, d6, d4, d2) + mod;
             swap_l(&d2, &d4);
-            if (--d5 < 0) break;
+            if (--d5 < 0)
+                break;
         }
     }
+
     if (image.vbarbot)
         bartrab_flat(rc, bothigh, bothigh, image.vbarbot, d6, d4);   // bartrams -> bartrabin
 }
@@ -558,6 +506,7 @@ static void bartrab_flat(s32 rc, s16 d0, s16 d1, s16 d5, s16 d6, u32 d4)
     image.vbarbot = 0;
     if (--d5 < 0)
         return;
+    
     u16 d2 = alias_step((u16)(botalt - bothigh), image.vbarlarg);
     u32 d3 = (u32)-(s32)slope_start(d0, d1, d2);
     d3 = add_hi(d3, image.vbarlarg);
@@ -565,44 +514,75 @@ static void bartrab_flat(s32 rc, s16 d0, s16 d1, s16 d5, s16 d6, u32 d4)
     u32 d1r;
     s16 wlog = image.wloglarg;
 
-    if (botalt != precboti) {
+    if (botalt != precboti)
+    {
         // bartrabr: anchored left
-        RRQ_PATH('B');
         if ((s16)(image.vbarlarg - d6) > 0)
             d3 = add_hi(d3, image.vbarx - image.precx);
+        
         d4 = dither_phase(d4, d0, rc);
         u8 *a2 = pixrow(d0) + image.precx, *a0 = a2;
         d1r = rot8(d4);
         int odd = odd_addr(a0);
-        for (;;) {
+        for (;;)
+        {
             s16 d7 = (s16)(d3 >> 16);
-            if (d7 > d6) d7 = d6;
-            if (odd) { *a0++ = (u8)d4; line_fwd(a0, d7 - 1, d4, d1r); }
-            else line_fwd(a0, d7, d4, d1r);
+            if (d7 > d6)
+                d7 = d6;
+            
+            if (odd)
+            {
+                *a0++ = (u8)d4;
+                line_fwd(a0, d7 - 1, d4, d1r);
+            }
+            else
+            {
+                line_fwd(a0, d7, d4, d1r);
+            }
+
             swap_l(&d1r, &d4);
             d3 += step;
-            if ((s32)d3 < 0) break;
+            if ((s32)d3 < 0)
+                break;
+            
             a2 += wlog; a0 = a2;
-            if (--d5 == -1) break;
+            if (--d5 == -1)
+                break;
         }
-    } else {
+    }
+    else
+    {
         // bartrabg: anchored right, written right to left
-        RRQ_PATH('b');
         if ((s16)(image.vbarlarg - d6) > 0)
             d3 = add_hi(d3, image.precx + d6 - image.vbarx - image.vbarlarg);
+        
         d4 = dither_phase(d4, d0, rc);
         u8 *a2 = pixrow(d0) + image.precx + 1 + d6, *a0 = a2;
         d1r = rot8(d4);
         int odd = odd_addr(a0);
-        for (;;) {
+        for (;;)
+        {
             s16 d7 = (s16)(d3 >> 16);
-            if (odd) { *--a0 = (u8)d4; line_bwd(a0, d7 - 1, d4, d1r); }   // no clamp on this path
-            else { if (d7 > d6) d7 = d6; line_bwd(a0, d7, d4, d1r); }
+            if (odd)
+            {
+                *--a0 = (u8)d4;
+                line_bwd(a0, d7 - 1, d4, d1r);
+            }                                                             // no clamp on this path
+            else
+            {
+                if (d7 > d6)
+                    d7 = d6;
+                line_bwd(a0, d7, d4, d1r);
+            }
+
             swap_l(&d1r, &d4);
             d3 += step;
-            if ((s32)d3 < 0) break;
+            if ((s32)d3 < 0)
+                break;
+            
             a2 += wlog; a0 = a2;
-            if (--d5 == -1) break;
+            if (--d5 == -1)
+                break;
         }
     }
 }
@@ -615,40 +595,71 @@ static u8 *bartra_slope(s32 rc, s16 d0, s16 d1, s16 d5, s16 d6, u16 d2, u32 *d4p
     s32 step = (s32)(s16)d2 << 8;
     s16 wlog = image.wloglarg;
     int rtl = xread16(rc - 0x246) != xread16(rc - 0x25c);
-    RRQ_PATH(rtl ? 'R' : 'L');
     if ((s16)(image.vbarlarg - d6) > 0)
         d3 = add_hi(d3, rtl ? image.precx + d6 - image.vbarx - image.vbarlarg : image.vbarx - image.precx);
+    
     d4 = dither_phase(d4, d0, rc);
     u8 *a2 = pixrow(d0) + image.precx + (rtl ? 1 + d6 : 0), *a0 = a2;
     u32 d1r = rot8(d4);
     int odd = odd_addr(a0);
     d5++;
     s16 d7 = (s16)(d3 >> 16);
-    for (;;) {
+    for (;;)
+    {
         int over = odd ? (u16)d7 > (u16)d6 : d7 > d6;   // dbhi on odd rows, dbgt on even
-        if (!over) {
-            if (--d5 == -1) break;
-            if (odd) {
-                if (rtl) { *--a0 = (u8)d4; line_bwd(a0, d7 - 1, d4, d1r); }
-                else { *a0++ = (u8)d4; line_fwd(a0, d7 - 1, d4, d1r); }
-            } else {
-                if (rtl) line_bwd(a0, d7, d4, d1r);
-                else line_fwd(a0, d7, d4, d1r);
+        if (!over)
+        {
+            if (--d5 == -1)
+                break;
+            
+            if (odd)
+            {
+                if (rtl)
+                {
+                    *--a0 = (u8)d4;
+                    line_bwd(a0, d7 - 1, d4, d1r);
+                }
+                else
+                {
+                    *a0++ = (u8)d4;
+                    line_fwd(a0, d7 - 1, d4, d1r);
+                }
             }
-        } else {
-            if (d5 < 0) break;
-            if (odd && d7 < 0) {
-                if (--d5 == -1) break;      // bartragi11/bartrari11: skip the row
-            } else {
+            else
+            {
+                if (rtl)
+                {
+                    line_bwd(a0, d7, d4, d1r);
+                }
+                else
+                {
+                    line_fwd(a0, d7, d4, d1r);
+                }
+            }
+        }
+        else
+        {
+            if (d5 < 0)
+                break;
+            
+            if (odd && d7 < 0)
+            {
+                if (--d5 == -1)
+                    break;                  // bartragi11/bartrari11: skip the row
+            }
+            else
+            {
                 d7 = d6;
                 continue;
             }
         }
+
         swap_l(&d1r, &d4);
         d3 += step;
         a2 += wlog; a0 = a2;
         d7 = (s16)(d3 >> 16);
     }
+
     *d4p = d4;
     return rtl ? a0 - 1 - d6 : a0;
 }
@@ -656,37 +667,51 @@ static u8 *bartra_slope(s32 rc, s16 d0, s16 d1, s16 d5, s16 d6, u16 d2, u32 *d4p
 // bartra after the shade lookup: ground or overhang bar. d0 = clipped top, bary = unclipped top.
 static void bartra_shaded(s32 rc, s16 d0, s16 d5, s16 d6, s16 bary, u32 d4)
 {
-    RRQ_PATH('F');
     s16 r246 = xread16(rc - 0x246);
 
     s16 d7 = r246 - d0;
-    if (d7 <= 1) { bartram_flat(rc, d0, d5, d6, d4); return; }
+    if (d7 <= 1)
+    {
+        bartram_flat(rc, d0, d5, d6, d4);
+        return;
+    }
+
     d5 -= d7;
-    if (d5 < 0) d7 += d5;
-    if (d7 <= 0) { bartram_flat(rc, d0, d5, d6, d4); return; }
+    if (d5 < 0)
+        d7 += d5;
+    
+    if (d7 <= 0)
+    {
+        bartram_flat(rc, d0, d5, d6, d4);
+        return;
+    }
+
     image.vbarmid = d5;
     d5 = d7 - 1;
     d7 = r246 - bary;
-    if (d7 <= 1) { bartram_flat(rc, d0, image.vbarmid, d6, d4); return; }
+    if (d7 <= 1)
+    {
+        bartram_flat(rc, d0, image.vbarmid, d6, d4);
+        return;
+    }
 
     u8 *a0 = bartra_slope(rc, d0, bary, d5, d6, alias_step((u16)d7, image.vbarlarg), &d4);
     d5 = image.vbarmid - 1;
     if (d5 < 0)
         return;
+    
     bartramin_flat(rc, a0, d5, d6, d4);
 }
 
 static void bartra_68k(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
 {
-    bartra_shaded(render_context, (s16)drawy, barheight, barwidth - 1, bary,
-                  bar_shade(terrain_cell, render_context, index));
+    bartra_shaded(render_context, (s16)drawy, barheight, barwidth - 1, bary, bar_shade(terrain_cell, render_context, index));
 }
 
 // tbarland bottom-only entry (bartrab): the bar lies wholly below bothigh.
 static void bartrab_68k(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight)
 {
-    bartrab_flat(render_context, (s16)drawy, bothigh, barheight, barwidth - 1,
-                 bar_shade(terrain_cell, render_context, index));
+    bartrab_flat(render_context, (s16)drawy, bothigh, barheight, barwidth - 1, bar_shade(terrain_cell, render_context, index));
 }
 
 
@@ -694,11 +719,8 @@ static void bartrab_68k(s32 terrain_cell, s32 render_context, u16 drawy, s16 ind
 // Falcon CD textured bottom narrowing renderer
 // Ghidra barland CD lines 23774-23901, tbarland CD lines 24249-24389
 // =========================================================================
-static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
-    s16 bot_lines, u32 dark, u32 persp, u32 v_step, u32 h_step_per_line,
-    u32 V, u16 width_mask, s16 height_mask, s32 tex_base)
+static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols, s16 bot_lines, u32 dark, u32 persp, u32 v_step, u32 h_step_per_line, u32 V, u16 width_mask, s16 height_mask, s32 tex_base)
 {
-    RRQ_PATH('t');
     // Atalias lookup for bottom slope
     u16 bot_dist = botalt - bothigh;
     u16 slope_step;
@@ -711,6 +733,7 @@ static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
         bot_dist >>= 2;
         if (0x40 < bot_dist)
             bot_dist = 0x40;
+        
         slope_step = xread16(image.atalias + (s16)(image.vbarlarg + (bot_dist - 1) * 0x80 & 0xfffe)) >> 1;
     }
 
@@ -745,7 +768,8 @@ static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
             s16 cnt = (s16)col_count;
             if (cnt >= 0)
             {
-                do {
+                do
+                {
                     u16 uv = v_lo | (u16)H_init;
                     u8 texel = xread8(tex_base + (s16)uv);
                     u32 H_recov = concat22((s16)(H_init >> 16), v_lo ^ uv);
@@ -755,7 +779,8 @@ static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
                     H_init = concat22((s16)(H_sum >> 16),
                                       width_mask & ((s16)H_sum + (u16)carry4(persp, H_recov)));
                     cnt--;
-                } while (cnt >= 0);
+                }
+                while (cnt >= 0);
             }
 
             V = v_step + Vsaved;
@@ -792,7 +817,8 @@ static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
             s16 cnt = (s16)col_count;
             if (cnt >= 0)
             {
-                do {
+                do
+                {
                     u16 uv = v_lo | (u16)H_init;
                     u8 texel = xread8(tex_base + (s16)uv);
                     u32 H_recov = concat22((s16)(H_init >> 16), v_lo ^ uv);
@@ -802,7 +828,8 @@ static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
                                       width_mask & ((s16)H_sum + (u16)carry4(persp, H_recov)));
                     fb++;
                     cnt--;
-                } while (cnt >= 0);
+                }
+                while (cnt >= 0);
             }
 
             V = v_step + Vsaved;
@@ -823,14 +850,11 @@ static void bartrab_textured_68k(s32 render_context, s16 index, s16 max_cols,
 // =========================================================================
 static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy, s16 index, s16 barwidth, s16 barheight, s16 bary)
 {
-    RRQ_PATH('T');
     s16 max_cols = barwidth - 1;
     s16 row_offset = (s16)drawy - bary;
 
     // Darkness: same formula as flat bartra
-    u16 dark_val = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0)
-                 + ((xread16(terrain_cell + 2) >> 8) & 0xc0)
-                 + ((xread16(terrain_cell) >> 8) & 0xc0) * 2) * -2;
+    u16 dark_val = image.vdarkw + (((u16)xread16(xread16(render_context - 0x3c4) + terrain_cell) & 0xc0) + ((xread16(terrain_cell + 2) >> 8) & 0xc0) + ((xread16(terrain_cell) >> 8) & 0xc0) * 2) * -2;
     u32 dark = (u32)dark_val;
     if ((s32)(dark << 0x10) < 0)
         dark = 0;
@@ -843,9 +867,14 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
     // Shift: read from type entry; if 0, derive from width_mask (Falcon CD
     // game scripts don't initialise this field — floppy never needed it)
     u8 shift = xread8(render_context + index) & 0x3f;
-    if (shift == 0 && width_mask != 0) {
+    if (shift == 0 && width_mask != 0)
+    {
         u16 w = width_mask + 1;
-        while (w > 1) { shift++; w >>= 1; }
+        while (w > 1)
+        {
+            shift++;
+            w >>= 1;
+        }
     }
 
     u32 persp = image.tex_persp_step;
@@ -861,8 +890,7 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
 
     // V initial from row offset
     u32 v_init_raw = persp_unrolled * (u32)(u16)row_offset * 0x10000;
-    u32 V = concat22((s16)((v_init_raw << 8) >> 16),
-                     (u16)(u8)(v_init_raw >> 24) << shift);
+    u32 V = concat22((s16)((v_init_raw << 8) >> 16), (u16)(u8)(v_init_raw >> 24) << shift);
 
     // Height mask and texture base
     s16 type_v_base = xread16(render_context + index + 2);
@@ -870,22 +898,18 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
     // Snap to nearest power-of-2 minus 1 (required for AND masking).
     // Original Falcon CD resources may have non-power-of-2 heights (e.g. 36);
     // DOS init code snaps these in opcodes.c but the 68k path doesn't.
-    if (hmask_raw > 0 && (hmask_raw & (hmask_raw + 1)) != 0) {
+    if (hmask_raw > 0 && (hmask_raw & (hmask_raw + 1)) != 0)
+    {
         u16 h = (u16)hmask_raw;
         h |= h >> 1; h |= h >> 2; h |= h >> 4; h |= h >> 8;
         hmask_raw = (s16)(h >> 1);
     }
+
     s16 height_mask = hmask_raw << shift;
     // Image header: +0 format, +2 width_mask, +4 height, +6 extra, +8 pixel data
     // Original Falcon CD asm uses +6 (native resource format), but loaded resources
     // use the platform image format which has an 8-byte header (format 0x1C/0x1E)
     s32 tex_base = tex_table_ptr + ((s32)type_v_base << shift) + tex_offset + 8;
-
-#if defined(ALIS_PROFILE_TEX)
-    { extern void texprof_add(u32, s32, s32);
-      texprof_add((u32)(tex_table_ptr + tex_offset), (s32)width_mask + 1,
-                  (s32)xread16(tex_table_ptr + tex_offset + 4)); }
-#endif
 
     // Framebuffer pointer — flows through slope into main body
     u32 fb = (s32)image.precx + xread32(image.atlpix + (s16)(((s16)drawy - image.wlogy1) * 4));
@@ -894,8 +918,7 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
     s16 top_lines = xread16(render_context - 0x246) - (s16)drawy;
     s16 mid_height = barheight;
 
-    if (top_lines != 0 && (s16)drawy < xread16(render_context - 0x246)
-        && (s16)(xread16(render_context - 0x246) - bary) >= 2)
+    if (top_lines != 0 && (s16)drawy < xread16(render_context - 0x246) && (s16)(xread16(render_context - 0x246) - bary) >= 2)
     {
         mid_height = barheight - top_lines;
         if (barheight < top_lines)
@@ -910,12 +933,15 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
             {
                 u16 slope_step;
                 if ((tex_step_dist < 0x41) && (image.vbarlarg < 0x40))
+                {
                     slope_step = (u16)xread16(image.atalias + (s16)((image.vbarlarg + (tex_step_dist - 1) * 0x40) * 2));
+                }
                 else
                 {
                     tex_step_dist >>= 2;
                     if (0x40 < tex_step_dist)
                         tex_step_dist = 0x40;
+                    
                     slope_step = xread16(image.atalias + (s16)(image.vbarlarg + (tex_step_dist - 1) * 0x80 & 0xfffe)) >> 1;
                 }
 
@@ -925,6 +951,7 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
                     u32 tex_frac = 0;
                     if (bary < (s16)drawy)
                         tex_frac = ((u16)((s16)drawy - bary) & 0xff) * 0x100 * (u32)slope_step;
+                    
                     if (clip_cols != 0 && (s16)max_cols <= (s16)image.vbarlarg)
                         tex_frac = (u32)(u16)((image.vbarx + (s16)(tex_frac >> 0x10)) - image.precx) << 0x10 | (tex_frac & 0xffff);
 
@@ -945,29 +972,35 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
                                 Vm = concat22((s16)(Vm >> 16), (u16)H ^ uv);
                                 xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
                                 u32 old_H = H;
-                                H = concat22((s16)((persp + old_H) >> 16),
-                                             width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
+                                H = concat22((s16)((persp + old_H) >> 16), width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
                                 fb++;
                                 cnt--;
                             }
+
                             V = v_step + Vm;
                             if (carry4(v_step, Vm))
                                 V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
+                            
                             tex_frac += (s16)slope_step * 0x100;
                             fb = row_start + image.wloglarg;
                             col_count = tex_frac >> 0x10;
                             row_start = fb;
                         }
-                        if (top_lines < 0) break;
+
+                        if (top_lines < 0)
+                            break;
+                        
                         col_count = max_cols;
                     }
                 }
+
                 // RTL slope
                 else
                 {
                     u32 tex_frac = 0;
                     if (bary < (s16)drawy)
                         tex_frac = ((u16)((s16)drawy - bary) & 0xff) * 0x100 * (u32)slope_step;
+                    
                     if (clip_cols != 0 && (s16)max_cols <= (s16)image.vbarlarg)
                         tex_frac = (u32)(u16)(((max_cols + image.precx + (s16)(tex_frac >> 0x10)) - image.vbarx) - image.vbarlarg) << 0x10 | (tex_frac & 0xffff);
 
@@ -990,21 +1023,26 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
                                 fb--;
                                 xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
                                 u32 old_H = H;
-                                H = concat22((s16)((persp + old_H) >> 16),
-                                             width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
+                                H = concat22((s16)((persp + old_H) >> 16), width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
                                 cnt--;
                             }
+
                             V = v_step + Vm;
                             if (carry4(v_step, Vm))
                                 V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
+                            
                             tex_frac += (s16)slope_step * 0x100;
                             fb = row_start + image.wloglarg;
                             col_count = tex_frac >> 0x10;
                             row_start = fb;
                         }
-                        if (top_lines < 0) break;
+
+                        if (top_lines < 0)
+                            break;
+                        
                         col_count = max_cols;
                     }
+
                     fb += (-1 - (s16)max_cols); // adjust back to left edge for main body
                 }
 
@@ -1031,10 +1069,10 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
                 xwrite8(fb, xread8(alis.ptrdark + (s16)((dark & 0xFF00) | texel)));
                 fb++;
                 u32 old_H = H;
-                H = concat22((s16)((persp + old_H) >> 16),
-                             width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
+                H = concat22((s16)((persp + old_H) >> 16), width_mask & ((s16)(persp + old_H) + (u16)carry4(persp, old_H)));
                 cnt--;
             }
+
             V = v_step + Vm;
             if (carry4(v_step, Vm))
                 V = concat22((s16)(V >> 16), width_mask + (s16)V + 1);
@@ -1052,8 +1090,7 @@ static void bartra_textured_68k(s32 terrain_cell, s32 render_context, u16 drawy,
         s16 bot_lines = saved_vbarbot - 1;
         if (bot_lines >= 0)
         {
-            bartrab_textured_68k(render_context, index, max_cols, bot_lines + 1,
-                dark, persp, v_step, h_step_per_line, V, width_mask, height_mask, tex_base);
+            bartrab_textured_68k(render_context, index, max_cols, bot_lines + 1, dark, persp, v_step, h_step_per_line, V, width_mask, height_mask, tex_base);
         }
     }
 }
@@ -1082,6 +1119,7 @@ static bool clip_bar_y(s16 bary, s16 *barheight, u16 *drawy)
             *barheight = image.clipy2 + (*barheight - barbot);
         }
     }
+
     return true;
 }
 
@@ -1097,6 +1135,7 @@ static void hittest_bar(s32 terrain_cell, s32 render_context, u16 drawy, s16 bar
         image.etstpix = 0xfffe;
         image.dtstpix = xread32hi16(render_context - 0x2e0);
     }
+
     barlands(drawy, barheight, barwidth);
 }
 
@@ -1143,28 +1182,40 @@ static __attribute__((noinline)) void barland_68k(s32 terrain_cell, s32 render_c
         // Render or hit-test the bar
         if (-1 < xread16(render_context - 0x24e))
         {
-            OD(if (image.ftstpix == 0) od_bar(image.precx, (s16)drawy - image.wlogy1, barwidth, barheight);)
 #if ALIS_SDL_VER > 1
             // Stamp per-pixel depth for the bar's screen region
-            if (image.depthrows) {
+            if (image.depthrows)
+            {
                 s16 ry = (s16)drawy - image.wlogy1;
                 s16 rx = image.precx;
-                for (s16 r = 0; r < barheight; r++) {
+                for (s16 r = 0; r < barheight; r++)
+                {
                     s16 y = ry + r;
-                    if (y < 0) continue;
-                    if (y >= image.terrgbah) break;
+                    if (y < 0)
+                        continue;
+                    
+                    if (y >= image.terrgbah)
+                        break;
+                    
                     u8 *drow = image.depthrows[y];
                     for (s16 c = 0; c < barwidth && (rx + c) < image.terrgbaw; c++)
-                        if ((rx + c) >= 0) drow[rx + c] = image.stripdepth;
+                    {
+                        if ((rx + c) >= 0)
+                            drow[rx + c] = image.stripdepth;
+                    }
                 }
             }
 #endif
             if (image.ftstpix == 0)
             {
                 if ((s8)xread8(render_context - 0x400) == 0x0B)
+                {
                     bartra_textured_68k(terrain_cell, render_context, drawy, index, barwidth, barheight, bary);
+                }
                 else
+                {
                     bartra_68k(terrain_cell, render_context, drawy, index, barwidth, barheight, bary);
+                }
             }
             else
             {
@@ -1244,10 +1295,16 @@ static __attribute__((noinline)) void tbarland_68k(s32 terrain_cell, s32 render_
                         s32 toff = (s32)xread32(ttp);
                         u16 wmask = xread16(ttp + toff + 2);
                         u8 shift = xread8(render_context + index) & 0x3f;
-                        if (shift == 0 && wmask != 0) {
+                        if (shift == 0 && wmask != 0)
+                        {
                             u16 w = wmask + 1;
-                            while (w > 1) { shift++; w >>= 1; }
+                            while (w > 1)
+                            {
+                                shift++;
+                                w >>= 1;
+                            }
                         }
+
                         u32 v_step = concat22((s16)(persp >> 16), (s16)persp << shift);
                         u16 clip_cols = (u16)(image.vbarlarg - barwidth);
                         u32 h_raw = persp_unrolled * (u32)clip_cols * 0x10000;
@@ -1257,11 +1314,13 @@ static __attribute__((noinline)) void tbarland_68k(s32 terrain_cell, s32 render_
                         u32 V = concat22((s16)((v_raw << 8) >> 16), (u16)(u8)(v_raw >> 24) << shift);
                         s16 vbase = xread16(render_context + index + 2);
                         s16 hmask_raw = xread16(ttp + toff + 4) - vbase;
-                        if (hmask_raw > 0 && (hmask_raw & (hmask_raw + 1)) != 0) {
+                        if (hmask_raw > 0 && (hmask_raw & (hmask_raw + 1)) != 0)
+                        {
                             u16 h = (u16)hmask_raw;
                             h |= h >> 1; h |= h >> 2; h |= h >> 4; h |= h >> 8;
                             hmask_raw = (s16)(h >> 1);
                         }
+
                         s16 hmask = hmask_raw << shift;
                         s32 tbase = ttp + ((s32)vbase << shift) + toff + 8;
                         bartrab_textured_68k(render_context, index, barwidth, barheight, dark, persp, v_step, h_step, V, wmask, hmask, tbase);
@@ -1270,6 +1329,7 @@ static __attribute__((noinline)) void tbarland_68k(s32 terrain_cell, s32 render_
                     {
                         bartrab_68k(terrain_cell, render_context, drawy, index, barwidth, barheight);
                     }
+
                     return;
                 }
 
@@ -1281,7 +1341,6 @@ static __attribute__((noinline)) void tbarland_68k(s32 terrain_cell, s32 render_
                 }
             }
 
-            OD(if (image.ftstpix == 0) od_bar(image.precx, (s16)drawy - image.wlogy1, barwidth, barheight);)
 #if ALIS_SDL_VER > 1
             // Stamp per-pixel depth for the bar's screen region
             if (image.depthrows)
@@ -1291,12 +1350,17 @@ static __attribute__((noinline)) void tbarland_68k(s32 terrain_cell, s32 render_
                 for (s16 r = 0; r < barheight; r++)
                 {
                     s16 y = ry + r;
-                    if (y < 0) continue;
-                    if (y >= image.terrgbah) break;
+                    if (y < 0)
+                        continue;
+                    
+                    if (y >= image.terrgbah)
+                        break;
+                    
                     u8 *drow = image.depthrows[y];
                     for (s16 c = 0; c < barwidth && (rx + c) < image.terrgbaw; c++)
                     {
-                        if ((rx + c) >= 0) drow[rx + c] = image.stripdepth;
+                        if ((rx + c) >= 0)
+                            drow[rx + c] = image.stripdepth;
                     }
                 }
             }
@@ -1306,9 +1370,13 @@ static __attribute__((noinline)) void tbarland_68k(s32 terrain_cell, s32 render_
             if (image.ftstpix == 0)
             {
                 if ((s8)xread8(render_context - 0x400) == 0x0B)
+                {
                     bartra_textured_68k(terrain_cell, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
+                }
                 else
+                {
                     bartra_68k(terrain_cell, render_context, drawy, index, barwidth, barheight - image.vbarbot, bary);
+                }
             }
             else
             {
@@ -1319,17 +1387,10 @@ static __attribute__((noinline)) void tbarland_68k(s32 terrain_cell, s32 render_
 }
 
 
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-u32 g_bar_ticks = 0, g_bar_calls = 0, g_bar_px = 0;   // barland time + fill-pixel count within one doland
-u32 g_prescan_ticks = 0, g_prescan_iters = 0;         // occlusion prescan time + cell-sample count
-#endif
-
 // Occlusion prescan (orig dolanc @0x22862): walk grid cells between the previous and current
 // screen column tracking max occlusion height; writes rc-0x25e/-0x260/-0x280 and `adresa`.
 // Keep inlinable: noinline costs a movem per call (~1 iteration per call).
-static void doland_prescan(s32 render_context, s32 terrain_grid, s32 alt_table,
-                           u32 col_step_x, u32 col_step_y, s16 bar_screen_x,
-                           u32 *scan_xp, u32 *scan_yp, s16 *prev_max_yp)
+static void doland_prescan(s32 render_context, s32 terrain_grid, s32 alt_table, u32 col_step_x, u32 col_step_y, s16 bar_screen_x, u32 *scan_xp, u32 *scan_yp, s16 *prev_max_yp)
 {
     u32 scan_x = *scan_xp;
     u32 scan_y = *scan_yp;
@@ -1346,9 +1407,6 @@ static void doland_prescan(s32 render_context, s32 terrain_grid, s32 alt_table,
 
     while (col_target_x < bar_screen_x)
     {
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-        g_prescan_iters++;
-#endif
         xwrite16(render_context - 0x25e, max_y);
         u16 prescan_height = 0;
 
@@ -1409,6 +1467,7 @@ static void doland_prescan(s32 render_context, s32 terrain_grid, s32 alt_table,
                     adresa = ((strip_ptr - (s16)next_scan_y) - (s32)(s16)next_scan_y);
                     prescan_height = (u16)(xread16((s32)adresa) & 0xff);
                 }
+
                 // wrap off: no terrain out here — prescan_height stays 0
             }
             else
@@ -1443,6 +1502,7 @@ static inline s16 divs_w(s32 n, s16 d)
 {
     if (d == 0)
         return (s16)n;   // a zero-divide trap in the original
+    
     s32 q = n / d;
     return (q < -32768 || q > 32767) ? (s16)n : (s16)q;
 }
@@ -1454,6 +1514,7 @@ static inline u32 swapstep_add(u32 pos_raw, u32 step_swp)
     u16 lo = (u16)r + (u16)(r < p);        /* addx.w: carry out of add.l */
     return (u32)lo << 16 | r >> 16;
 }
+
 static inline u32 swapstep_sub(u32 pos_raw, u32 step_swp)
 {
     u32 p = pos_raw << 16 | pos_raw >> 16;
@@ -1464,17 +1525,10 @@ static inline u32 swapstep_sub(u32 pos_raw, u32 step_swp)
 
 void doland_68k(s32 scene_addr, s32 render_context)
 {
-#if defined(ALIS_PROFILE_TEX)
-    { extern void texprof_frame_begin(void); texprof_frame_begin(); }
-#endif
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-    g_bar_ticks = 0; g_bar_calls = 0; g_bar_px = 0; g_prescan_ticks = 0; g_prescan_iters = 0;
-#endif
     // =========================================================================
     // INITIALIZATION
     // =========================================================================
 
-    OD(if (image.ftstpix == 0) od_begin();)
 
     // --- Sprite depth sorting setup ---
     image.spritprof = 0x8000;
@@ -1766,16 +1820,9 @@ void doland_68k(s32 scene_addr, s32 render_context)
         if (((s32)((u32)rows_remaining << 0x10) < 0) && (xread16(render_context - 0x24e) < -3))
         {
             spritaff(-1);
-            OD(if (image.ftstpix == 0) od_end();)
             return;
         }
-        OD(od_rows++; if (od_rows < 1024) od_cells_in_row[od_rows] = 0;)
 
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-        rrq_row_note((s16)xread16(render_context - 0x24e), col_x_pos_swp, col_x_step_swp,
-                     trav_x << 16 | trav_x >> 16, trav_y << 16 | trav_y >> 16,
-                     row_start_x << 16 | row_start_x >> 16, row_start_y << 16 | row_start_y >> 16);
-#endif
         // =====================================================================
         // INNER LOOP: Process columns left-to-right within this row
         // =====================================================================
@@ -1786,7 +1833,6 @@ void doland_68k(s32 scene_addr, s32 render_context)
         do
         {
             s16 bar_screen_x = (s16)col_x_pos_swp;
-            OD(od_cells++; if (od_rows < 1024) od_cells_in_row[od_rows]++;)
 
             // Hoisted terrain-map constants — also consumed by the main cell lookup below.
             const s16 rc_294 = xread16(render_context - 0x294);   // grid X-bound
@@ -1794,14 +1840,7 @@ void doland_68k(s32 scene_addr, s32 render_context)
             const u8  rc_3fe = xread8(render_context - 0x3fe);    // wrap-enable flag
 
             s16 prev_max_y;
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-            { extern u32 sys_profile_ticks_safe(void); u32 _pt = sys_profile_ticks_safe();
-#endif
-            doland_prescan(render_context, terrain_grid, alt_table, col_step_x, col_step_y,
-                           bar_screen_x, &scan_x, &scan_y, &prev_max_y);
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-            g_prescan_ticks += sys_profile_ticks_safe() - _pt; }
-#endif
+            doland_prescan(render_context, terrain_grid, alt_table, col_step_x, col_step_y, bar_screen_x, &scan_x, &scan_y, &prev_max_y);
 
             // =================================================================
             // Main terrain lookup at center column position
@@ -1888,20 +1927,7 @@ void doland_68k(s32 scene_addr, s32 render_context)
                 if (bar_height != 0 && sborrow2(prev_max_y, ground_clip_y) == (s32)((u32)bar_height << 0x10) < 0)
                 {
                     u32 packed_pos = concat22((trav_x), (trav_x >> 16));
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-                    { extern u32 sys_profile_ticks_safe(void); u32 _bt = sys_profile_ticks_safe();
-#endif
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-                    rrq_bar_note(1, (s16)xread16(render_context - 0x24e), bar_screen_x, ground_clip_y, bar_height, image.precx);
-#endif
                     barland_68k(terrain_cell, render_context, col_dir_x, (s16)(col_step_y_raw >> 0x10), ground_clip_y, bar_height, terrain_type_idx, bar_screen_x, packed_pos, scan_x);
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-                    rrq_cell_x = (s16)center_grid_x; rrq_cell_y = (s16)center_grid_y;
-#endif
-                    RRQ_WATCH("bar", render_context, ground_clip_y, bar_height, bar_screen_x, terrain_type_idx);
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-                    g_bar_ticks += sys_profile_ticks_safe() - _bt; g_bar_calls++; }
-#endif
                 }
 
                 // =============================================================
@@ -1935,14 +1961,18 @@ void doland_68k(s32 scene_addr, s32 render_context)
                                 d1 = d0 - (s16)solha;
                                 open = d1 > 0 && (d2 -= d1) > 0;
                             }
+
                             if (!open)
+                            {
                                 fprectopa = 0;   // dotopa7
+                            }
                             else
                             {
                                 d2 += solha;
                                 d1 = d0;
                                 if (d2 < d0)
                                     d1 = d2 - solha;
+                                
                                 d1 = d0 - d1;
                                 s16 seg = xread16(render_context - 0x25a), base = xread32lo16(render_context - 0x270);
                                 d0 = xread16(alt_table + (s16)(d0 * 2 + seg)) + base;
@@ -1960,13 +1990,22 @@ void doland_68k(s32 scene_addr, s32 render_context)
                                 {
                                     prectopb = prectopc;
                                     precbotb = precbotc;
-                                    if (d0 > d6) d6 = d0;
+                                    if (d0 > d6)
+                                        d6 = d0;
+                                    
                                     prectopc = d6;
-                                    if (d6 < (s16)prectopb) d6 = prectopb;
-                                    if (d1 < d7) d7 = d1;
+                                    if (d6 < (s16)prectopb)
+                                        d6 = prectopb;
+                                    
+                                    if (d1 < d7)
+                                        d7 = d1;
+                                    
                                     precbotc = d7;
-                                    if (d7 > (s16)precbotb) d7 = precbotb;
-                                    if (d6 < d7) notopa = 0;
+                                    if (d7 > (s16)precbotb)
+                                        d7 = precbotb;
+                                    
+                                    if (d6 < d7)
+                                        notopa = 0;
                                 }
                             }
                         }
@@ -1982,12 +2021,14 @@ void doland_68k(s32 scene_addr, s32 render_context)
                         d1 = d0 - (s16)image.solh;
                         if (d1 <= 0 || (d2 -= d1) <= 0)
                             goto advance_column;   // dotop6: no overhang, fprectop unchanged
+                        
                         d2 += image.solh;
                         if (d2 < d0)
                         {
                             d1 = d2 - image.solh;
                             fbottom = 1;
                         }
+
                         d1 = d0 - d1;
                         s16 row_base = xread32lo16(render_context - 0x278);
                         d0 = xread16(alt_table + (s16)(d0 * 2)) + row_base;
@@ -1997,17 +2038,27 @@ void doland_68k(s32 scene_addr, s32 render_context)
                         s16 old_top = (s16)prectopi;
                         prectopi = d0;
                         if (old_top > d0)
+                        {
                             xwrite16(render_context - 0x246, old_top);   // -0x246 = max, d0 = min
+                        }
                         else
+                        {
                             d0 = old_top;
+                        }
+
                         d1 = fbottom ? xread16(alt_table + (s16)(d1 * 2)) + row_base : old246;
                         bothigh = d1;
                         s16 old_bot = (s16)precboti;
                         precboti = d1;
                         if (old_bot < d1)
+                        {
                             bothigh = old_bot;                            // bothigh = min, botalt = max
+                        }
                         else
+                        {
                             d1 = old_bot;
+                        }
+
                         botalt = d1;
 
                         if (fprectop && (d1 -= d0) > 0)
@@ -2033,19 +2084,17 @@ void doland_68k(s32 scene_addr, s32 render_context)
                                     draw = d1 > 0;
                                 }
                             }
+
                             if (draw)
                             {
                                 s16 saved_clip = xread16(render_context - 0x25c);
                                 xwrite16(render_context - 0x25c, prectopi);
                                 u32 packed_pos = concat22((trav_x), (trav_x >> 16));
-#if defined(ALIS_RRQ_ASM_DOLAND_VERIFY) && ALIS_RRQ_ASM_DOLAND_VERIFY
-                                rrq_bar_note(2, (s16)xread16(render_context - 0x24e), (s16)col_x_pos_swp, d0, d1, image.precx);
-#endif
                                 tbarland_68k(terrain_cell, render_context, col_dir_x, col_step_y, d0, d1, oh_type_idx, col_x_pos_swp, packed_pos, 0);
-                                RRQ_WATCH("tbar", render_context, d0, d1, (s16)col_x_pos_swp, oh_type_idx);
                                 xwrite16(render_context - 0x25c, saved_clip);
                             }
                         }
+
                         fprectop = 1;   // dotop4
 
                         goto advance_column;
@@ -2056,8 +2105,6 @@ void doland_68k(s32 scene_addr, s32 render_context)
 
                     // --- Billboard sprite at this terrain cell ---
                     barsprite(render_context, terrain_type_idx, center_grid_x, center_grid_y, 0);
-                    RRQ_WATCH("spr", render_context, terrain_type_idx, center_grid_x, center_grid_y, 0);
-                    OD(od_sprites++;)
                 }
 
                 fprectop = 0;
@@ -2110,20 +2157,6 @@ void landtofi_68k(s16 unused, s16 scene_id)
     image.wlogy1 = xread16(scene_addr + 0x10);
     image.mapscreen = scene_addr;
 
-#if defined(ALIS_TRACE_LAND)
-    extern void dbglog(const char *fmt, ...);
-#if defined(ALIS_PROFILE_DRAW)
-    extern u32 sys_profile_ticks_safe(void);
-    #define LT_MS() (sys_profile_ticks_safe() * 5u)   /* 200Hz ticker */
-#else
-    #define LT_MS() (alis.timeclock * 20u)             /* ~50Hz fallback */
-#endif
-    u32 _lt0 = LT_MS(), _lt_setup = 0, _lt_clr = 0, _lt_dol = 0;
-    s16 _lt_x1 = image.clipx1, _lt_x2 = image.clipx2;
-    s16 _lt_y1 = image.clipy1, _lt_y2 = image.clipy2;
-    u8  _lt_fdo = image.fdoland;
-#endif
-
     if (image.fdoland != 0)
     {
         image.landclipx2 = xread16(scene_addr + 0x12) + xread16(scene_addr + 0xe);
@@ -2140,23 +2173,14 @@ void landtofi_68k(s16 unused, s16 scene_id)
         calctoy(scene_addr, render_context);
         spritland(scene_addr, xread16(scene_addr + 2));
         calclan0_68k(scene_addr, render_context);
-#if defined(ALIS_TRACE_LAND)
-        _lt_setup = LT_MS();
-#endif
 
         if (((xread8(scene_addr + 1) & 0x40) == 0) && (xread16(scene_addr + 0xa2) == 0))
         {
             clrvga_68k();
         }
-#if defined(ALIS_TRACE_LAND)
-        _lt_clr = LT_MS();
-#endif
 
         /* via doland fn-ptr so the asm renderer is used here too */
         doland(scene_addr, render_context);
-#if defined(ALIS_TRACE_LAND)
-        _lt_dol = LT_MS();
-#endif
 
         image.fdoland = 0;
         image.landone = 1;
@@ -2187,28 +2211,4 @@ void landtofi_68k(s16 unused, s16 scene_id)
     image.wlogx2 = image.logx2;
     image.wlogy2 = image.logy2;
     image.wloglarg = image.loglarg;
-
-#if defined(ALIS_TRACE_LAND)
-    {
-        static int _lt_n = 0;
-        if (_lt_n < 80) {
-            _lt_n++;
-            u32 _lt_end = LT_MS();
-            if (_lt_fdo)
-            {
-                // terrain type: 0x0B = CD textured bars, else flat dither fills
-                s32 _lt_rc = xread16(scene_addr + 0x42) + xread32(alis.atent + xread16(scene_addr + 0x40));
-                dbglog("[land] landtofi #%d: fdoland=1 type=%02x win=[%d..%d]x[%d..%d] setup=%ums clrvga=%ums doland=%ums vgatofen=%ums total=%ums\n",
-                       _lt_n, (unsigned)xread8(_lt_rc - 0x400), _lt_x1, _lt_x2, _lt_y1, _lt_y2,
-                       (unsigned)(_lt_setup - _lt0), (unsigned)(_lt_clr - _lt_setup),
-                       (unsigned)(_lt_dol - _lt_clr), (unsigned)(_lt_end - _lt_dol),
-                       (unsigned)(_lt_end - _lt0));
-            }
-            else
-                dbglog("[land] landtofi #%d: fdoland=0 win=[%d..%d]x[%d..%d] vgatofen=%ums\n",
-                       _lt_n, _lt_x1, _lt_x2, _lt_y1, _lt_y2, (unsigned)(_lt_end - _lt0));
-        }
-    }
-    #undef LT_MS
-#endif
 }

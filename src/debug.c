@@ -68,26 +68,21 @@ static char* debug_colors[] = {
     ANSI_COLOR_CYAN
 };
 
-static char* debug_prefix[] = {
-    ANSI_COLOR_BRIGHT "[SYSTEM]",
-    ANSI_COLOR_BRIGHT "[FATAL]",
-    ANSI_COLOR_BRIGHT "[ERROR]",
-    "[WARNING]",
-    "[INFO]",
-    "[VERBOSE]"
-};
-
 #ifndef NDEBUG
-void debug(EDebugLevel level, char * format, ...) {
-    if((disalis) && (level < EDebugVerbose)) {
+void debug(EDebugLevel level, char * format, ...)
+{
+    if((disalis) && (level < EDebugVerbose))
+    {
        va_list arg;
        va_start(arg, format);
        fflush(stdout);
        vprintf(format, arg);
        fflush(stdout);
     }
-    else {
-        if(level <= DEBUG_LEVEL) {
+    else
+    {
+        if(level <= DEBUG_LEVEL)
+        {
            va_list arg;
            va_start(arg, format);
            vdebug(level, format, arg);
@@ -96,8 +91,10 @@ void debug(EDebugLevel level, char * format, ...) {
     }
 }
 
-void vdebug(EDebugLevel level, char * format, va_list args) {
-  if(level <= DEBUG_LEVEL) {
+void vdebug(EDebugLevel level, char * format, va_list args)
+{
+  if(level <= DEBUG_LEVEL)
+  {
      printf("%s ", debug_colors[level]);
      vprintf(format, args);
      printf("%s", ANSI_COLOR_RESET);

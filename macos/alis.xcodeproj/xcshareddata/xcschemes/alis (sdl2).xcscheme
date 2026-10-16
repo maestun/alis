@@ -193,15 +193,15 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--3x /Users/gildor/work/xxx/colorado/atari"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/amiga/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/colorado/dos/"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/gildor/Work/alis/data/deus/dos/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -242,7 +242,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/dealers/dos/"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/metalmutant/atari/"
@@ -257,7 +257,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/requiem/atari/"
+            argument = "-m /Users/gildor/Work/alis/data/requiem/atari/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -277,15 +277,15 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/requiem/dos/ -m"
-            isEnabled = "YES">
+            argument = "/Users/gildor/Work/alis/data/requiem/dos/"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/gildor/Work/alis/data/requiem/dos_cd/"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/gildor/Work/alis/data/requiem/3DO/"
+            argument = "/Users/gildor/Work/alis/data/requiem/3DO/ --far"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -361,6 +361,13 @@
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "ALIS_SPRCHK"
+            value = "1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
       <AdditionalOptions>
          <AdditionalOption
             key = "MallocScribble"

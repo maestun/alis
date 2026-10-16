@@ -1,15 +1,29 @@
 //
-//  render3d_dos.c
-//  alis
+// Copyright 2023 Olivier Huguenot, Vadim Kindl
 //
-//  DOS-specific terrain rendering functions extracted from render3d.c
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the “Software”),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+// OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
 #include "alis.h"
 #include "image.h"
 #include "mem.h"
-#include "render3d.h"
-#include "render3d_dos.h"
+#include "rrq3d.h"
+#include "rrq3d_dos.h"
 
 #if ALIS_SDL_VER < 2
 # include <SDL/SDL.h>
@@ -17,7 +31,7 @@ extern SDL_Rect dirty_rects[256];
 extern u8 dirty_len;
 #endif
 
-// Shared globals defined in render3d.c
+// Shared globals defined in rrq3d.c
 extern u8 fprectop;
 extern u8 fprectopa;
 extern u8 fbottom;
@@ -38,12 +52,6 @@ extern u8 terrain_fill_color;
 extern s16 bartra_saved_si;
 extern s16 bottom_type_index;
 
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-// Per-doland cost counters, defined in render3d_68k.c and printed by affiland.
-// g_bar_px stays 0 here.
-extern u32 g_bar_ticks, g_bar_calls, g_bar_px, g_prescan_ticks, g_prescan_iters;
-#endif
-
 void vgatofen_dos(void)
 {
     image.switchgo = 1;
@@ -63,18 +71,26 @@ void vgatofen_dos(void)
 #if defined(__m68k__) && !defined(ALIS_NO_C2P_ASM)
         extern void c2p8_rect(const u8 *src, s32 src_pitch, u8 *dst, s32 dst_pitch, s32 chunks, s32 rows);
         if (image.clipy2 >= image.clipy1 && w > 0)
-            c2p8_rect(image.wlogic + x0 + (image.clipy1 - image.wlogy1) * image.wloglarg, image.wloglarg,
-                      image.logic + (u32)image.clipy1 * pitch + x0, pitch, w >> 4, image.clipy2 - image.clipy1 + 1);
+            c2p8_rect(image.wlogic + x0 + (image.clipy1 - image.wlogy1) * image.wloglarg, image.wloglarg, image.logic + (u32)image.clipy1 * pitch + x0, pitch, w >> 4, image.clipy2 - image.clipy1 + 1);
 #else
-        for (int y = image.clipy1; y <= image.clipy2; y++) {
+        for (int y = image.clipy1; y <= image.clipy2; y++)
+        {
             u8 *src_row = image.wlogic + x0 + (y - image.wlogy1) * image.wloglarg;
             u8 *dst_row = image.logic + (u32)y * pitch + x0;
             chunky8_to_planar(src_row, w, 1, 0, dst_row);
         }
 #endif
 #if ALIS_SDL_VER < 2
-        if (dirty_len > 0xfd) { dirty_rects[0] = (SDL_Rect){0,0,host.pixelbuf.w,host.pixelbuf.h}; dirty_len = 0xff; }
-        else { dirty_rects[dirty_len] = (SDL_Rect){ x0, image.clipy1, w, image.clipy2 - image.clipy1 + 1 }; dirty_len++; }
+        if (dirty_len > 0xfd)
+        {
+            dirty_rects[0] = (SDL_Rect){0,0,host.pixelbuf.w,host.pixelbuf.h};
+            dirty_len = 0xff;
+        }
+        else
+        {
+            dirty_rects[dirty_len] = (SDL_Rect){ x0, image.clipy1, w, image.clipy2 - image.clipy1 + 1 };
+            dirty_len++;
+        }
 #endif
         return;
     }
@@ -82,8 +98,10 @@ void vgatofen_dos(void)
 
     u8 *ptr = image.logic;
     u8 *tgt = ptr + image.clipx1 + image.clipy1 * image.loglarg * 2;
-    for (int y = image.clipy1; y <= image.clipy2; y++, tgt+=image.bitmodulo, src+=image.vgamodulo) {
-        for (int x = image.clipx1; x <= image.clipx2; x++, tgt++, src++) {
+    for (int y = image.clipy1; y <= image.clipy2; y++, tgt+=image.bitmodulo, src+=image.vgamodulo)
+    {
+        for (int x = image.clipx1; x <= image.clipx2; x++, tgt++, src++)
+        {
             *tgt = *src;
         }
     }
@@ -108,6 +126,7 @@ void clrvga_dos(void)
     u16 width = (image.fenx2 - image.fenx1) + 1;
     if (image.fenx1 + width > image.wloglarg)
         width = image.wloglarg - image.fenx1;
+    
     s16 rows = image.feny2 - image.feny1;
     u16 w4 = width >> 2;
     u16 modulo = image.wloglarg - (w4 << 2);
@@ -121,6 +140,7 @@ void clrvga_dos(void)
         {
             *ptr++ = 0;
         }
+
         ptr = (u32 *)((u8 *)ptr + modulo);
     }
 }
@@ -150,7 +170,8 @@ void calclan0_dos(s32 scene_addr, s32 render_context)
         // Y-dominant: step along Y, interpolate X
         xwrite16(render_context - 0x2b0, abs_dy);
         u16 minor_span = xread16(render_context - 0x36a) - xread16(render_context - 0x370);
-        if ((int)((u32)minor_span << 0x10) < 0) {
+        if ((int)((u32)minor_span << 0x10) < 0)
+        {
             minor_span = -minor_span;
         }
 
@@ -176,6 +197,7 @@ void calclan0_dos(s32 scene_addr, s32 render_context)
         {
             strip_span = -strip_span;
         }
+
         xwrite16(render_context - 0x24e, (s16)strip_span >> (grid_shift & 0x3f));
     }
     else
@@ -284,10 +306,7 @@ void calclan0_dos(s32 scene_addr, s32 render_context)
 //   texel = tex_data[(v_coord & v_mask) | ((h_coord >> 8) & tex_width)]
 // where v_mask = (tex_height << shift) for non-subtile,
 //       v_mask = ((tex_height - subtile) << shift) for subtile (with tex_data offset by subtile << shift)
-void bartra_dos_line(u32 dst, s16 start_col, s16 end_col,
-                                   u16 v_coord, u8 shift,
-                                   u16 tex_width, u16 tex_height, u16 subtile,
-                                   u32 tex_data, s16 dark_page, s8 direction)
+void bartra_dos_line(u32 dst, s16 start_col, s16 end_col, u16 v_coord, u8 shift, u16 tex_width, u16 tex_height, u16 subtile, u32 tex_data, s16 dark_page, s8 direction)
 {
     u16 v_mask;
     u32 tex_base;
@@ -317,6 +336,7 @@ void bartra_dos_line(u32 dst, s16 start_col, s16 end_col,
             {
                 xwrite8(dst + col, xread8(alis.ptrdark + ((u16)dark_page << 8) + texel));
             }
+
             h_coord -= image.tex_persp_step;
         }
     }
@@ -333,6 +353,7 @@ void bartra_dos_line(u32 dst, s16 start_col, s16 end_col,
             {
                 xwrite8(dst + col, xread8(alis.ptrdark + ((u16)dark_page << 8) + texel));
             }
+
             h_coord += image.tex_persp_step;
         }
     }
@@ -375,17 +396,14 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
     u16 subtile = xread16(render_context + index + 2);
     u32 tex_base = tex_ptr_addr + (u32)tex_offset;
 
-#if defined(ALIS_PROFILE_TEX)
-    { extern void texprof_add(u32, s32, s32);
-      texprof_add((u32)(tex_ptr_addr + tex_offset), (s32)tex_width_mask + 1, (s32)tex_height_raw); }
-#endif
-
     // --- Darkness ---
     u16 cell = xread16(terrain_cell);
 
     // 8-bit dark page
     s16 dark_page = (s16)(u8)(image.vdarkw >> 8) - (s16)((u8)(cell >> 8) >> 6) * 2;
-    if ((s16)((u16)dark_page << 8) < 0) dark_page = 0;
+    if ((s16)((u16)dark_page << 8) < 0)
+        dark_page = 0;
+    
     u32 dark_base = ((u32)(u8)dark_page) << 8;
 
     // --- Shared working vars ---
@@ -456,7 +474,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
         } while (0)
 
     // --- Top part selection ---
-    if (slope_height_s == 0 || slope_clip < sVar9) {
+    if (slope_height_s == 0 || slope_clip < sVar9)
+    {
         // No slope
         v_mask = (u16)((u16)(tex_height_raw - (s16)subtile) << (shift & 0x1f));
         u32 subtile_off = ((u32)subtile) << (shift & 0x1f);
@@ -465,29 +484,39 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
         screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx;
         v_coord = 0;
         remaining = barheight;
-    } else {
+    }
+    else
+    {
         // Slope exists
-        if (subtile == 0) {
+        if (subtile == 0)
+        {
             // --- No-subtile slope ---
             remaining = (s16)(barheight - (s16)slope_height);
-            if (barheight < (s16)slope_height) {
+            if (barheight < (s16)slope_height)
+            {
                 slope_rows = (u8)((s8)slope_rows + (s8)remaining);
             }
 
             // atalias lookup
             u16 slope_dist = (u16)(slope_clip - bary);
             s16 slope_step;
-            if (slope_dist < 0x41) {
+            if (slope_dist < 0x41)
+            {
                 slope_step = xread16(image.atalias + (u16)(((slope_dist - 1) * 0x40u + (u16)barwidth) - 1u) * 2u);
-            } else {
+            }
+            else
+            {
                 slope_dist >>= 2;
-                if (0x40 < slope_dist) slope_dist = 0x40;
+                if (0x40 < slope_dist)
+                    slope_dist = 0x40;
+                
                 slope_step = (s16)(xread16(image.atalias + (u16)(((slope_dist - 1) * 0x40u + ((u16)barwidth >> 1)) - 1u) * 2u) >> 1);
             }
 
             u8 col_width = 1;
             v_coord = 0;
-            if (bary < sVar9) {
+            if (bary < sVar9)
+            {
                 v_coord = (u16)(sVar9 - bary) * tex_vstep;
                 col_width = (u8)((u16)((u16)(sVar9 - bary) * (u16)slope_step) >> 8) + 1;
             }
@@ -496,50 +525,64 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
             tex_data = tex_base + 8;
 
             // direction check
-            if (slope_clip == xread16(render_context - 0x25c)) {
+            if (slope_clip == xread16(render_context - 0x25c))
+            {
                 // LTR slope (solid)
                 screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx;
                 u16 col_frac = (u16)col_width << 8;
 
                 u8 rows = slope_rows;
-                do {
+                do
+                {
                     u8 cols = (u8)(col_frac >> 8);
                     DRAW_LINE_SOLID_LTR(screen_ptr, v_coord, hbase0, cols);
                     v_coord = (u16)(v_coord + tex_vstep);
                     col_frac = (u16)(col_frac + (u16)slope_step);
                     screen_ptr += stride;
-                } while (--rows);
-            } else {
+                }
+                while (--rows);
+            }
+            else
+            {
                 // RTL slope (solid) - uses +0x2000 hbase tweak locally
                 u16 hbase = (u16)(hbase0 + 0x2000u);
                 screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx + (u32)width_byte;
 
                 u16 col_frac = (u16)col_width << 8;
                 u8 rows = slope_rows;
-                do {
+                do
+                {
                     u8 cols = (u8)(col_frac >> 8);
                     DRAW_LINE_SOLID_RTL(screen_ptr, v_coord, hbase, cols);
                     v_coord = (u16)(v_coord + tex_vstep);
                     col_frac = (u16)(col_frac + (u16)slope_step);
                     screen_ptr += stride;
-                } while (--rows);
+                }
+                while (--rows);
 
                 screen_ptr -= (u32)width_byte; // match asm tail adjust
             }
 
-            if (remaining < 1) return;
-        } else {
+            if (remaining < 1)
+                return;
+        }
+        else
+        {
             // --- Subtile slope ---
             remaining = (s16)(barheight - (s16)slope_height);
-            if (barheight < (s16)slope_height) {
+            if (barheight < (s16)slope_height)
+            {
                 slope_height = (u16)((u16)slope_height + (u16)remaining);
             }
+
             u16 slope_h = slope_height;
 
-            if (slope_clip == (s16)(bary - bartra_saved_si)) {
+            if (slope_clip == (s16)(bary - bartra_saved_si))
+            {
                 // PATH A: flat subtile (transparent), LTR
                 v_coord = 0;
-                if (bary < sVar9) {
+                if (bary < sVar9)
+                {
                     v_coord = (u16)(sVar9 - bary) * tex_vstep;
                 }
 
@@ -550,30 +593,40 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                 screen_ptr = xread32(image.atlpix + (s16)(sVar9 - image.wlogy1) * 4) + _precx;
 
                 u8 sub_rows = (u8)(slope_h & 0xFF);
-                do {
+                do
+                {
                     DRAW_LINE_XP_LTR(screen_ptr, v_coord, hbase0, width_byte);
                     v_coord = (u16)(v_coord + tex_vstep);
                     screen_ptr += stride;
-                } while (--sub_rows);
+                }
+                while (--sub_rows);
 
-                if (remaining < 1) return;
+                if (remaining < 1)
+                    return;
 
                 tex_data += subtile_off;
                 v_coord = 0;
                 // NOTE: v_mask stays at (tex_height_raw - subtile) << shift
                 // The original does NOT reset to full height here (Ghidra lines 18110-18111)
-            } else {
+            }
+            else
+            {
                 // PATH B: perspective subtile
                 // ASM: slope_dist = (slope_clip - SI) + DAT_0001ab5e
                 //   SI = ground_clip_y (with extra_height), DAT_0001ab5e = extra_height
                 //   so slope_dist = slope_clip - ground_base_y (without extra height)
                 u16 slope_dist = (u16)((slope_clip - bary) + bartra_saved_si);
                 s16 slope_step;
-                if (slope_dist < 0x41) {
+                if (slope_dist < 0x41)
+                {
                     slope_step = xread16(image.atalias + (u16)((slope_dist + ((u16)barwidth - 1u) * 0x40u) - 1u) * 2u);
-                } else {
+                }
+                else
+                {
                     slope_dist >>= 2;
-                    if (0x40 < slope_dist) slope_dist = 0x40;
+                    if (0x40 < slope_dist)
+                        slope_dist = 0x40;
+                    
                     slope_step = (s16)(xread16(image.atalias + (u16)((slope_dist + ((((u16)(barwidth - 1) * 0x40u)) >> 1)) - 1u) * 2u) >> 1);
                 }
 
@@ -581,7 +634,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                 s32 scanline_delta = (s32)slope_step_rows * (s32)(s16)image.wloglarg;
 
                 u16 v_start = 0;
-                if (bary < sVar9) {
+                if (bary < sVar9)
+                {
                     v_start = (u16)(sVar9 - bary) * tex_vstep;
                 }
 
@@ -590,7 +644,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                 tex_data = tex_base + 8;
 
                 // Direction check
-                if (slope_clip == xread16(render_context - 0x25c)) {
+                if (slope_clip == xread16(render_context - 0x25c))
+                {
                     // LTR perspective (transparent)
                     s32 drawy_idx = (s16)(sVar9 - image.wlogy1);
                     u32 end_ptr = xread32(image.atlpix + (s16)((slope_h & 0xFF) + drawy_idx) * 4) + _precx;
@@ -599,7 +654,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                     u32 h_accum = (u32)hbase0;
                     u8 col_count = width_byte;
 
-                    do {
+                    do
+                    {
                         // Mask h byte before accumulation (Ghidra: bVar20 = (byte)(uVar18>>8) & DAT_0001ab52)
                         u8 h_masked = (u8)((u16)h_accum >> 8) & tex_width_mask;
                         u32 h_saved = (h_accum & 0xFFFF0000u) | ((u32)h_masked << 8) | (h_accum & 0xFF);
@@ -607,13 +663,16 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                         u32 cur = start_ptr;
                         u16 vc = v_start;
 
-                        while (cur < end_ptr) {
+                        while (cur < end_ptr)
+                        {
                             u16 vm = (u16)(vc & v_mask);
                             u16 idx = (u16)((vm & 0xFF00) | (u16)(((u8)vm) | h_masked));
                             u8 texel = xread8(tex_data + idx);
-                            if (texel) {
+                            if (texel)
+                            {
                                 xwrite8(cur, texel);
                             }
+
                             vc = (u16)(vc + tex_vstep);
                             cur += stride;
                         }
@@ -621,22 +680,30 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                         // Advance h_accum with carry (Ghidra: uVar18 = uVar19 + _DAT_0001ab4a)
                         u32 addv = ((u32)(u8)slope_step << 24) | (u32)(tex_hstep & 0xFFFF);
                         u32 new_h = h_saved + addv;
-                        if (carry4(h_saved, addv)) {
+                        if (carry4(h_saved, addv))
+                        {
                             start_ptr += stride;
                         }
 
-                        if (end_ptr <= start_ptr + (u32)scanline_delta) break;
+                        if (end_ptr <= start_ptr + (u32)scanline_delta)
+                            break;
+                        
                         start_ptr += (u32)scanline_delta + 1;
                         h_accum = new_h;
-                    } while (--col_count);
+                    }
+                    while (--col_count);
 
-                    if (remaining < 1) return;
+                    if (remaining < 1)
+                        return;
+                    
                     tex_data += subtile_off;
                     v_coord = 0;
                     v_start = tex_hstep;
                     // NOTE: v_mask stays at (tex_height_raw - subtile) << shift
                     // The original does NOT reset to full height here (Ghidra lines 18188-18190)
-                } else {
+                }
+                else
+                {
                     // RTL perspective (transparent)
                     s32 drawy_idx = (s16)(sVar9 - image.wlogy1);
                     u32 end_ptr = xread32(image.atlpix + (s16)((slope_h & 0xFF) + drawy_idx) * 4) + _precx;
@@ -646,7 +713,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                     u32 h_accum = (u32)hbase;
                     u8 col_count = width_byte;
 
-                    do {
+                    do
+                    {
                         // Mask h byte before accumulation (Ghidra RTL)
                         u8 h_masked = (u8)((u16)h_accum >> 8) & tex_width_mask;
                         u32 h_saved = (h_accum & 0xFFFF0000u) | ((u32)h_masked << 8) | (h_accum & 0xFF);
@@ -654,29 +722,37 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                         u32 cur = start_ptr;
                         u16 vc = v_start;
 
-                        while (cur < end_ptr) {
+                        while (cur < end_ptr)
+                        {
                             u16 vm = (u16)(vc & v_mask);
                             u16 idx = (u16)((vm & 0xFF00) | (u16)(((u8)vm) | h_masked));
                             u8 texel = xread8(tex_data + idx);
-                            if (texel) {
+                            if (texel)
+                            {
                                 xwrite8(cur, texel);
                             }
+
                             vc = (u16)(vc + tex_vstep);
                             cur += stride;
                         }
 
                         u32 subv = ((u32)(u8)slope_step << 24) | (u32)(tex_hstep & 0xFFFF);
                         u32 new_h = h_saved - subv;
-                        if (h_saved < subv) {
+                        if (h_saved < subv)
+                        {
                             start_ptr += stride;
                         }
 
-                        if (end_ptr <= start_ptr + (u32)scanline_delta) break;
+                        if (end_ptr <= start_ptr + (u32)scanline_delta)
+                            break;
+                        
                         start_ptr += (u32)scanline_delta - 1;
                         h_accum = new_h;
                     } while (--col_count);
 
-                    if (remaining < 1) return;
+                    if (remaining < 1)
+                        return;
+                    
                     tex_data += subtile_off;
                     v_coord = 0;
                     v_start = tex_hstep;
@@ -689,29 +765,39 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
 
     // --- Mid/flat section (solid, LTR), matches LAB_0000df53 family ---
     s16 mid_rows = (s16)(remaining - image.vbarbot);
-    if (mid_rows > 0) {
+    if (mid_rows > 0)
+    {
         s16 mid_drawy = (s16)(sVar9 + (barheight - remaining));
         screen_ptr = xread32(image.atlpix + (s16)(mid_drawy - image.wlogy1) * 4) + _precx;
 
         u8 mr = (u8)mid_rows;
-        do {
+        do
+        {
             DRAW_LINE_SOLID_LTR(screen_ptr, v_coord, hbase0, width_byte);
             v_coord = (u16)(v_coord + tex_vstep);
             screen_ptr += stride;
-        } while (--mr);
+        }
+        while (--mr);
     }
 
     // --- Bottom section ---
-    if (image.vbarbot > 0) {
+    if (image.vbarbot > 0)
+    {
         u16 bot_dist = (u16)(botalt - bothigh);
-        if (bot_dist != 0 && bothigh <= botalt) {
+        if (bot_dist != 0 && bothigh <= botalt)
+        {
             s16 bot_slope_step;
             u16 bot_width_val = (u16)width_byte;
-            if (bot_dist < 0x41) {
+            if (bot_dist < 0x41)
+            {
                 bot_slope_step = xread16(image.atalias + (u16)(((bot_dist - 1u) * 0x40u + bot_width_val) - 1u) * 2u);
-            } else {
+            }
+            else
+            {
                 bot_dist >>= 2;
-                if (0x40 < bot_dist) bot_dist = 0x40;
+                if (0x40 < bot_dist)
+                    bot_dist = 0x40;
+                
                 bot_slope_step = (s16)(xread16(image.atalias + (u16)(((bot_dist - 1u) * 0x40u + (bot_width_val >> 1)) - 1u) * 2u) >> 1);
             }
 
@@ -719,7 +805,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
             u16 bot_v_coord = 0;
 
             u32 bot_tex_ptr = xread32(render_context + bottom_type_index + 4);
-            if (bot_tex_ptr != 0) {
+            if (bot_tex_ptr != 0)
+            {
                 s32 bot_tex_off = xread32(bot_tex_ptr);
                 u8  bot_tex_width_mask = xread8(bot_tex_ptr + bot_tex_off + 2);
                 u8  bot_shift = xread8(render_context + bottom_type_index);
@@ -727,7 +814,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                 u32 bot_tex_data = bot_tex_ptr + (u32)bot_tex_off + 8;
 
                 u8 bot_dark = (u8)(image.vdarkw >> 8) - (u8)((u8)(cell >> 8) >> 6) * 2;
-                if ((s16)((u16)bot_dark << 8) < 0) bot_dark = 0;
+                if ((s16)((u16)bot_dark << 8) < 0)
+                    bot_dark = 0;
                 u32 bot_dark_base = ((u32)bot_dark) << 8;
 
                 u32 bot_screen = xread32(image.atlpix + (s16)(bothigh - image.wlogy1) * 4) + _precx;
@@ -735,12 +823,14 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                 // col_frac starts at width in high byte, 0xFF low byte
                 u16 bot_col_frac = (u16)(((u16)width_byte << 8) | 0xFF);
 
-                if (botalt == precboti) {
+                if (botalt == precboti)
+                {
                     // RTL bottom (solid)
                     bot_screen += (u32)width_byte;
                     u16 hbase = (u16)(hbase0 + 0x2000u);
 
-                    do {
+                    do
+                    {
                         u8 cols = (u8)(bot_col_frac >> 8);
 
                         // custom inner loop (uses bot masks & tex pointers)
@@ -748,7 +838,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                         u16 _h = hbase;
                         u16 _vm = (u16)(bot_v_coord & bot_v_mask);
                         u8  _c = cols;
-                        while (_c--) {
+                        while (_c--)
+                        {
                             u8 hm = (u8)((_h >> 8) & bot_tex_width_mask);
                             u16 idx = (u16)((_vm & 0xFF00) | (u16)(((u8)_vm) | hm));
                             u8 texel = xread8(bot_tex_data + idx);
@@ -761,17 +852,22 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                         bot_v_coord = (u16)(bot_v_coord + tex_vstep);
                         bot_col_frac = (u16)(bot_col_frac - (u16)bot_slope_step);
                         bot_screen += stride;
-                    } while (--bot_rows);
-                } else {
+                    }
+                    while (--bot_rows);
+                }
+                else
+                {
                     // LTR bottom (solid)
-                    do {
+                    do
+                    {
                         u8 cols = (u8)(bot_col_frac >> 8);
 
                         u32 _dst = bot_screen;
                         u16 _h = hbase0;
                         u16 _vm = (u16)(bot_v_coord & bot_v_mask);
                         u8  _c = cols;
-                        while (_c--) {
+                        while (_c--)
+                        {
                             u8 hm = (u8)((_h >> 8) & bot_tex_width_mask);
                             u16 idx = (u16)((_vm & 0xFF00) | (u16)(((u8)_vm) | hm));
                             u8 texel = xread8(bot_tex_data + idx);
@@ -784,7 +880,8 @@ static void bartra_dos(s32 terrain_cell, s32 render_context, u16 drawy, s16 inde
                         bot_v_coord = (u16)(bot_v_coord + tex_vstep);
                         bot_col_frac = (u16)(bot_col_frac - (u16)bot_slope_step);
                         bot_screen += stride;
-                    } while (--bot_rows);
+                    }
+                    while (--bot_rows);
                 }
             }
         }
@@ -824,20 +921,27 @@ static void barland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 st
     // === Y clipping (Ghidra lines 17407-17422) ===
     s16 drawy = bary;  // param_1 = AX
     sVar4 = (drawy - image.landclipy1) - image.landcliph;
-    if ((image.landcliph <= (u16)(drawy - image.landclipy1) && sVar4 != 0) ||
-       ((s16)(-barheight - sVar4) < 0)) {
-        if (image.clipy2 < drawy) {
+    if ((image.landcliph <= (u16)(drawy - image.landclipy1) && sVar4 != 0) || ((s16)(-barheight - sVar4) < 0))
+    {
+        if (image.clipy2 < drawy)
+        {
             return;
         }
+
         sVar4 = barheight + drawy + -1;
-        if (sVar4 < (s16)image.landclipy1) {
+        if (sVar4 < (s16)image.landclipy1)
+        {
             return;
         }
-        if (drawy < (s16)image.landclipy1) {
+
+        if (drawy < (s16)image.landclipy1)
+        {
             barheight = (barheight - image.landclipy1) + drawy;
             drawy = image.landclipy1;
         }
-        if (image.clipy2 < sVar4) {
+
+        if (image.clipy2 < sVar4)
+        {
             barheight = (barheight - sVar4) + image.clipy2;
         }
     }
@@ -858,30 +962,37 @@ static void barland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 st
         image.vbarbot = 0;
 
         // GS:[0x9b6] >= 0 (visibility check) (Ghidra line 17437)
-        if (-1 < xread16(render_context - 0x24e)) {
+        if (-1 < xread16(render_context - 0x24e))
+        {
 
-            if (image.ftstpix == 0) {
+            if (image.ftstpix == 0)
+            {
                 // Normal rendering: GS:[DI+8] texture check (Ghidra lines 17439-17445)
-                if (xread8(render_context + 8 + index) != 0) {
+                if (xread8(render_context + 8 + index) != 0)
+                {
                     bartra_dos(terrain_cell, render_context, drawy, index, (s16)vbarlarg, barheight, bary);
                     return;
                 }
+
                 barlands(drawy, barheight, (s16)vbarlarg);
                 return;
             }
 
             // === ftstpix hit-test path (Ghidra lines 17449-17465) ===
-            if (drawy < sVar4) {
-                if ((s16)(drawy + barheight) <= sVar4) {
+            if (drawy < sVar4)
+            {
+                if ((s16)(drawy + barheight) <= sVar4)
+                {
                     image.vbarbot = 0;
                     return;
                 }
+
                 barheight = (barheight + sVar4) - drawy;
                 drawy = sVar4;
             }
 
-            if (((drawy <= image.ytstpix) && (image.ytstpix < (s16)(drawy + barheight))) &&
-               ((image.precx <= image.xtstpix && (image.xtstpix < (s16)(image.precx + (s16)vbarlarg))))) {
+            if (((drawy <= image.ytstpix) && (image.ytstpix < (s16)(drawy + barheight))) && ((image.precx <= image.xtstpix && (image.xtstpix < (s16)(image.precx + (s16)vbarlarg)))))
+            {
 
                 // Terrain cell reads (DOS LE: byte0=height, byte1=type)
                 image.ntstpix = (u16)(xread16(terrain_cell) >> 8);
@@ -917,18 +1028,23 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
     // === Y clipping (Ghidra lines 17514-17532) ===
     s16 drawy = bary;
     s16 sVar4 = (drawy - image.landclipy1) - image.landcliph;
-    if ((image.landcliph <= (u16)(drawy - image.landclipy1) && sVar4 != 0) ||
-       ((s16)(-barheight - sVar4) < 0)) {
+    if ((image.landcliph <= (u16)(drawy - image.landclipy1) && sVar4 != 0) || ((s16)(-barheight - sVar4) < 0))
+    {
         if (image.clipy2 < drawy)
             return;
+        
         sVar4 = barheight + drawy + -1;
         if (sVar4 < (s16)image.landclipy1)
             return;
-        if (drawy < (s16)image.landclipy1) {
+        
+        if (drawy < (s16)image.landclipy1)
+        {
             barheight = (barheight - image.landclipy1) + drawy;
             drawy = image.landclipy1;
         }
-        if (image.clipy2 < sVar4) {
+
+        if (image.clipy2 < sVar4)
+        {
             barheight = (barheight - sVar4) + image.clipy2;
         }
     }
@@ -957,11 +1073,13 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
     image.vbarbot = 0;
 
     // === fbottom handling (Ghidra lines 17543-17679) ===
-    if (fbottom != 0) {
+    if (fbottom != 0)
+    {
         // DAT_0001ab64 = unaff_DI (Ghidra line 17544)
         bottom_type_index = index;
 
-        if ((s16)bothigh <= drawy) {
+        if ((s16)bothigh <= drawy)
+        {
             // === INLINE BOTTOM SURFACE RENDERING ===
             // Renders a narrowing textured slope for the overhang bottom surface.
             // (Ghidra lines 17546-17674, Assembly LAB_0000dfdb at 0xdfdb-0xe261)
@@ -973,14 +1091,16 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
             u16 tex_vstep = (tex_hstep >> ((8 - shift) & 0x1f)) + 1;
 
             // Early exit: barheight <= 0 (Ghidra lines 17553-17557)
-            if (barheight < 1) {
+            if (barheight < 1)
+            {
                 image.vbarbot = 0;
                 return;
             }
 
             // Distance for atalias lookup (Ghidra lines 17558-17563)
             u16 distance = botalt - bothigh;
-            if (distance == 0 || botalt < (s16)bothigh) {
+            if (distance == 0 || botalt < (s16)bothigh)
+            {
                 image.vbarbot = 0;
                 return;
             }
@@ -989,18 +1109,24 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
             // Use image.vbarlarg (full unclipped width) for correct slope geometry
             u16 slope_width_t = (image.vbarlarg > 0) ? image.vbarlarg : vbarlarg;
             s16 slope_step;
-            if (distance < 0x41) {
+            if (distance < 0x41)
+            {
                 slope_step = xread16(image.atalias + (u16)(((distance - 1) * 0x40 + slope_width_t) - 1) * 2);
-            } else {
+            }
+            else
+            {
                 distance >>= 2;
-                if (0x40 < distance) distance = 0x40;
+                if (0x40 < distance)
+                    distance = 0x40;
+                
                 slope_step = xread16(image.atalias + (u16)(((distance - 1) * 0x40 + (slope_width_t >> 1)) - 1) * 2) >> 1;
             }
 
             // Initialize v_coord and col_width (Ghidra lines 17578-17582)
             u16 v_coord = 0;
             u8 col_width = (u8)vbarlarg;
-            if ((s16)bothigh < drawy) {
+            if ((s16)bothigh < drawy)
+            {
                 u16 pre_rows = (u16)(drawy - (s16)bothigh);
                 v_coord = pre_rows * tex_vstep;
                 col_width -= (u8)((u16)(pre_rows * (u16)slope_step) >> 8);
@@ -1010,6 +1136,7 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
             u32 tex_ptr_addr = xread32(render_context + index + 4);
             if (tex_ptr_addr == 0)
                 return;
+            
             s32 tex_offset = xread32(tex_ptr_addr);
             u8 tex_width = xread8(tex_ptr_addr + tex_offset + 2);
             u16 tex_height_raw = xread16(tex_ptr_addr + tex_offset + 4);
@@ -1020,7 +1147,8 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
             u8 fog = (u8)((u16)image.vdarkw >> 8);
             u8 type_dark = (xread8(terrain_cell + 1) >> 6) * 2;
             s16 dark_page = (s16)fog - (s16)type_dark;
-            if (dark_page < 0) dark_page = 0;
+            if (dark_page < 0)
+                dark_page = 0;
 
             // Row counter: low byte of barheight (Ghidra line 17599)
             u8 row_count = (u8)barheight;
@@ -1032,27 +1160,34 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
             u32 screen_base = xread32(image.atlpix + (s16)((drawy - image.wlogy1) * 4)) + _precx;
 
             // Direction check (Ghidra line 17584/17631)
-            if (botalt == precboti) {
+            if (botalt == precboti)
+            {
                 // === RTL path: bar narrows from left side (Ghidra lines 17585-17629) ===
-                do {
+                do
+                {
                     u8 cols = (u8)(col_frac >> 8);
-                    if (cols > 0) {
+                    if (cols > 0)
+                    {
                         s16 start_col = (s16)((u8)vbarlarg) - (s16)cols;
                         s16 end_col = (s16)((u8)vbarlarg) - 1;
-                        bartra_dos_line(screen_base, start_col, end_col, v_coord, shift,
-                                        tex_width, tex_height_raw, 0, tex_data, dark_page, -1);
+                        bartra_dos_line(screen_base, start_col, end_col, v_coord, shift, tex_width, tex_height_raw, 0, tex_data, dark_page, -1);
                     }
 
                     v_coord += tex_vstep;
                     col_frac -= (u16)slope_step;
                     screen_base += stride;
                     row_count--;
-                } while (row_count != 0);
-            } else {
+                }
+                while (row_count != 0);
+            }
+            else
+            {
                 // === LTR path: bar narrows from right side (Ghidra lines 17632-17673) ===
-                do {
+                do
+                {
                     u8 cols = (u8)(col_frac >> 8);
-                    if (cols > 0) {
+                    if (cols > 0)
+                    {
                         bartra_dos_line(screen_base, 0, (s16)cols - 1, v_coord, shift,
                                         tex_width, tex_height_raw, 0, tex_data, dark_page, 1);
                     }
@@ -1061,7 +1196,8 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
                     col_frac -= (u16)slope_step;
                     screen_base += stride;
                     row_count--;
-                } while (row_count != 0);
+                }
+                while (row_count != 0);
             }
 
             return;
@@ -1069,32 +1205,41 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
 
         // Not entirely below clip: compute vbarbot (Ghidra lines 17676-17679)
         s16 clip_calc = (barheight + drawy) - (s16)bothigh;
-        if (clip_calc != 0 && (s16)bothigh <= (s16)(barheight + drawy)) {
+        if (clip_calc != 0 && (s16)bothigh <= (s16)(barheight + drawy))
+        {
             image.vbarbot = clip_calc;
         }
     }
 
     // === Normal dispatch (Ghidra lines 17681-17688) ===
-    if (image.ftstpix == 0) {
-        if (xread8(render_context + 8 + index) != 0) {
+    if (image.ftstpix == 0)
+    {
+        if (xread8(render_context + 8 + index) != 0)
+        {
             bartra_dos(terrain_cell, render_context, drawy, index, (s16)vbarlarg, barheight, bary);
-        } else {
+        }
+        else
+        {
             barlands(drawy, barheight, (s16)vbarlarg);
         }
+
         return;
     }
 
     // === ftstpix hit-test path (Ghidra lines 17690-17709) ===
-    if (drawy < sVar_clip) {
-        if ((s16)(drawy + barheight) <= sVar_clip) {
+    if (drawy < sVar_clip)
+    {
+        if ((s16)(drawy + barheight) <= sVar_clip)
+        {
             return;
         }
+
         barheight = (barheight + sVar_clip) - drawy;
         drawy = sVar_clip;
     }
 
-    if (((drawy <= image.ytstpix) && (image.ytstpix < (s16)(drawy + barheight))) &&
-       ((image.precx <= image.xtstpix && (image.xtstpix < (s16)(image.precx + (s16)vbarlarg))))) {
+    if (((drawy <= image.ytstpix) && (image.ytstpix < (s16)(drawy + barheight))) && ((image.precx <= image.xtstpix && (image.xtstpix < (s16)(image.precx + (s16)vbarlarg)))))
+    {
 
         image.ntstpix = (u16)(xread16(terrain_cell) >> 8);
         image.cztstpix = (u16)(xread16(terrain_cell) & 0xff);
@@ -1126,13 +1271,6 @@ static void tbarland_dos(s32 terrain_cell, s32 render_context, s16 step_x, s16 s
 
 void doland_dos(s32 scene_addr, s32 render_context)
 {
-#if defined(ALIS_PROFILE_TEX)
-    { extern void texprof_frame_begin(void); texprof_frame_begin(); }
-#endif
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-    // Same per-doland counters as the 68k path (defined in render3d_68k.c).
-    g_bar_ticks = 0; g_bar_calls = 0; g_bar_px = 0; g_prescan_ticks = 0; g_prescan_iters = 0;
-#endif
     // =========================================================================
     // INITIALIZATION
     // =========================================================================
@@ -1197,10 +1335,8 @@ void doland_dos(s32 scene_addr, s32 render_context)
     s16 proj_x = (cam_grid_x << cell_shift) - xread16(render_context - 0x360);
     s16 proj_y = (cam_grid_y << cell_shift) - xread16(render_context - 0x35e);
 
-    glandtopix(render_context, &proj_x, &proj_y,
-               (xread16(render_context - 0x378) + proj_x) - xread16(render_context - 0x37e),
-               (xread16(render_context - 0x376) + proj_y) - xread16(render_context - 0x37c),
-               xread32hi16(render_context - 0x2e0));
+    glandtopix(render_context, &proj_x, &proj_y, (xread16(render_context - 0x378) + proj_x) - xread16(render_context - 0x37e),
+               (xread16(render_context - 0x376) + proj_y) - xread16(render_context - 0x37c), xread32hi16(render_context - 0x2e0));
 
     xwrite32(render_context - 0x280, (u32)(u16)(xread16(render_context - 0x26c) + proj_x) << 0x10);
     // DOS: <<8 / <<8 perspective (not <<6 / <<10 like m68k)
@@ -1342,10 +1478,13 @@ void doland_dos(s32 scene_addr, s32 render_context)
                 u32 quotient = 0x200000 / divisor;
                 if (0x200000 % divisor != 0)
                     quotient++; // ceiling
+                
                 image.tex_persp_step = (u16)quotient;
             }
             else
+            {
                 image.tex_persp_step = 0;
+            }
         }
 
         xwrite32(render_context - 0x278, xread32(render_context - 0x270));
@@ -1355,10 +1494,8 @@ void doland_dos(s32 scene_addr, s32 render_context)
         {
             proj_x = ((s16)(row_start_x >> 16) << ((u16)xread16(render_context - 0x3c0) & 0x3f)) - xread16(render_context - 0x360);
             proj_y = ((s16)(row_start_y >> 16) << ((u16)xread16(render_context - 0x3c0) & 0x3f)) - xread16(render_context - 0x35e);
-            glandtopix(render_context, &proj_x, &proj_y,
-                       (xread16(render_context - 0x378) + proj_x) - xread16(render_context - 0x37e),
-                       (xread16(render_context - 0x376) + proj_y) - xread16(render_context - 0x37c),
-                       xread32hi16(render_context - 0x2e0));
+            glandtopix(render_context, &proj_x, &proj_y, (xread16(render_context - 0x378) + proj_x) - xread16(render_context - 0x37e),
+                       (xread16(render_context - 0x376) + proj_y) - xread16(render_context - 0x37c), xread32hi16(render_context - 0x2e0));
             xwrite32(render_context - 0x280, (u32)(u16)(xread16(render_context - 0x26c) + proj_x) << 0x10);
             // DOS: <<8 / <<8 perspective
             xwrite32(render_context - 0x27c, (s32)(s16)(((s32)(s16)(proj_y - proj_x) << 8) / (s32)xread16(render_context - 0x3a4)) << 8);
@@ -1441,14 +1578,8 @@ void doland_dos(s32 scene_addr, s32 render_context)
             s16 col_target_x = xread32hi16(render_context - 0x280);
 
             // ----- Pre-scan: step through grid cells between columns -----
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-            { extern u32 sys_profile_ticks_safe(void); u32 _pt = sys_profile_ticks_safe();
-#endif
             while (col_target_x < bar_screen_x)
             {
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-                g_prescan_iters++;
-#endif
                 xwrite16(render_context - 0x25e, max_y);
                 u16 prescan_height = 0;
 
@@ -1509,6 +1640,7 @@ void doland_dos(s32 scene_addr, s32 render_context)
                             adresa = ((strip_ptr - (s16)next_scan_y) - (s32)(s16)next_scan_y);
                             prescan_height = (u16)(xread16((s32)adresa) & 0xff);
                         }
+
                         // wrap off: prescan_height stays 0
                     }
                     else
@@ -1529,9 +1661,6 @@ void doland_dos(s32 scene_addr, s32 render_context)
 
                 col_target_x = xread32hi16(render_context - 0x280);
             }
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-            g_prescan_ticks += sys_profile_ticks_safe() - _pt; }
-#endif
 
             // =================================================================
             // Main terrain lookup at center column position
@@ -1633,13 +1762,7 @@ void doland_dos(s32 scene_addr, s32 render_context)
                 if (bar_height != 0 && sborrow2(prev_max_y, ground_clip_y) == (s32)((u32)bar_height << 0x10) < 0)
                 {
                     u32 packed_pos = concat22((trav_x), (trav_x >> 16));
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-                    { extern u32 sys_profile_ticks_safe(void); u32 _bt = sys_profile_ticks_safe();
-#endif
                     barland_dos(terrain_cell, render_context, col_dir_x, (s16)(col_step_y_raw >> 0x10), ground_clip_y, bar_height, terrain_type_idx, bar_screen_x, packed_pos, scan_x);
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-                    g_bar_ticks += sys_profile_ticks_safe() - _bt; g_bar_calls++; }
-#endif
                 }
 
                 // =============================================================
@@ -1736,6 +1859,7 @@ void doland_dos(s32 scene_addr, s32 render_context)
                                             notopa = 0;
                                         }
                                     }
+
                                     goto dos_overhang_render;
                                 }
                             }
@@ -1828,13 +1952,7 @@ void doland_dos(s32 scene_addr, s32 render_context)
                                     s16 saved_clip = xread16(render_context - 0x25c);
                                     xwrite16(render_context - 0x25c, prectopi);
                                     u32 packed_pos = concat22((trav_x), (trav_x >> 16));
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-                                    { extern u32 sys_profile_ticks_safe(void); u32 _bt = sys_profile_ticks_safe();
-#endif
                                     tbarland_dos(terrain_cell, render_context, col_dir_x, (s16)col_step_y, (s16)prev_oh_top, (s16)oh_bar_height, oh_type_idx, (s16)col_x_pos_swp, packed_pos, oh_packed);
-#if defined(ALIS_PROFILE_DRAW) && defined(ALIS_USE_NATIVE_ATARI)
-                                    g_bar_ticks += sys_profile_ticks_safe() - _bt; g_bar_calls++; }
-#endif
                                     xwrite16(render_context - 0x25c, saved_clip);
                                 }
                             }
@@ -1907,8 +2025,7 @@ void landtofi_dos(s16 unused, s16 scene_id)
 
     // Tautology — always runs (Ghidra: if (fdoland==0 || fdoland!=0))
     image.fdoland = 0;
-    if (((s16)(xread16(scene_addr + 0x12) + 1) == image.clipl) &&
-        ((u16)(xread16(scene_addr + 0x14) + 1) == (u16)image.cliph))
+    if (((s16)(xread16(scene_addr + 0x12) + 1) == image.clipl) && ((u16)(xread16(scene_addr + 0x14) + 1) == (u16)image.cliph))
     {
         image.fdoland = 1;
     }

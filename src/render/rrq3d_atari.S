@@ -1,7 +1,7 @@
 /*
- * render3d_atari.S — the ORIGINAL Robinson's Requiem Falcon renderer, lifted
+ * rrq3d_atari.S — the ORIGINAL Robinson's Requiem Falcon renderer, lifted
  * from the Ghidra disassembly of the shipped interpreters. Contract with the C
- * side: render3d_atari_glue.h (mirror structs; offsets locked by _Static_asserts).
+ * side: rrq3d_atari_glue.h (mirror structs; offsets locked by _Static_asserts).
  *
  * zoomtofen — billboard sprite scaler (rrq-falcon-cd.asm): render body
  * 0x2373e-0x237f6 (normal) and 0x238a4-0x23920 (flipped), plus the setup/clip
@@ -36,14 +36,9 @@
 /* ========================================================================
  * zoomtofen
  * ======================================================================== */
-#if defined(ALIS_ASM_PAD)
-	.text
-	.skip	ALIS_ASM_PAD		| placement experiments: shift all of this file's code
-#endif
-
 #if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM
 
-/* ---- zoomtofen_mirror mirror block (offsets = render3d_atari_glue.h, asserted in C) ---- */
+/* ---- zoomtofen_mirror mirror block (offsets = rrq3d_atari_glue.h, asserted in C) ---- */
 	.equiv	ZM_WLOGIC,    0
 	.equiv	ZM_ZTFLOWX,   4
 	.equiv	ZM_ZTFLOWY,   8
@@ -138,7 +133,7 @@ SYM(zoomtofen_render_asm):
  *     newad in the high 24 bits, so `move.l (8,A0),D0; lsr.l #8,D0` yields
  *     newad (VERIFIED via m68k-atari-mint-gcc codegen — NOT and.l #0xffffff).
  *   - newad is an alis.mem OFFSET, so resolve via memfix: A2 = mem + newad,
- *     then A2 += (A2)  (== alis.mem + newad + xread32(newad), C render3d.c).
+ *     then A2 += (A2)  (== alis.mem + newad + xread32(newad), C rrq3d.c).
  *   - flip is our newf @0x0b (original read it from 0x30).
  *   - the clip globals clipy1/clipy2/cliph/clipx1/clipx2/clipl and alis.mem are
  *     threaded via the zoomtofen_mirror mirror (abs.l), same as the render body.
@@ -393,7 +388,7 @@ Lzm_f_nocarry:				| 0x23916
 
 #if !defined(ALIS_NO_ZOOM_TRIM)
 /* ---------------------------------------------------------------------------
- * Row trimming: draw only the opaque span of each row (spans from render3d.c zoom_rows).
+ * Row trimming: draw only the opaque span of each row (spans from rrq3d.c zoom_rows).
  * The texture step is the same for every row, so one pass gives the accumulator at each
  * screen pixel (D) and, per screen row, the first pixel and count-1 of its span (T, -1 =
  * nothing). The trimmed loops start each row from D and run the original pixel loop,
@@ -650,7 +645,7 @@ Lzt_\tag\()_next:
 
 #if defined(ALIS_RRQ_ASM_DOLAND) && ALIS_RRQ_ASM_DOLAND
 
-/* ---- doland_mirror mirror block (offsets = render3d_atari_glue.h, asserted in glue.c) ---- */
+/* ---- doland_mirror mirror block (offsets = rrq3d_atari_glue.h, asserted in glue.c) ---- */
 	.equiv	DL_ATLLAND,     0
 	.equiv	DL_ATLPIX,      4
 	.equiv	DL_ATALTI,      8
@@ -756,8 +751,8 @@ SYM(initltra_asm):
  * barland/tbarland labels and the Lrrq_* data block).
  * ========================================================================= */
 
-#include "../tools/asm_lift/blob_a_bars.inc.S"
-#include "../tools/asm_lift/blob_c_textured.inc.S"
-#include "../tools/asm_lift/blob_b_doland.inc.S"
+#include "../../tools/asm_lift/blob_a_bars.inc.S"
+#include "../../tools/asm_lift/blob_c_textured.inc.S"
+#include "../../tools/asm_lift/blob_b_doland.inc.S"
 
 #endif /* ALIS_RRQ_ASM_DOLAND */

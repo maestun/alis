@@ -169,8 +169,12 @@ int             opt_native_timing = 0;
 
 u32 sys_pace_hz(void)
 {
-    if (opt_native_timing && alis.platform.kind == EPlatformPC)  return 70;
-    if (opt_native_timing && alis.platform.kind == EPlatformMac) return 60;
+    if (opt_native_timing && alis.platform.kind == EPlatformPC)
+        return 70;
+    
+    if (opt_native_timing && alis.platform.kind == EPlatformMac)
+        return 60;
+    
     return 50;
 }
 
@@ -180,18 +184,6 @@ u32 sys_music_hz(void)
         return 60;
     return 50;
 }
-
-// FLI audio mixer-side logging (fli_dbg_log lives in video.c).
-#ifndef ALIS_FLI_AUDIO_DEBUG
-#define ALIS_FLI_AUDIO_DEBUG 0
-#endif
-#if ALIS_FLI_AUDIO_DEBUG
-extern void fli_dbg_log(const char *fmt, ...);
-#define FLI_DBG_MIX(...) fli_dbg_log(__VA_ARGS__)
-#else
-#define FLI_DBG_MIX(...) ((void)0)
-#endif
-
 
 u8 giaccess(s8 cmd, u8 data, u8 ch);
 bool priorblanc(sChannel *channel);
@@ -204,14 +196,17 @@ void sys_audio_callback_S8(void *userdata, u8 *stream, s32 len);
 #pragma mark - Signals
 // ============================================================================
 
-void signals_handler(int signo) {
-
-    if (signo>0) {
+void signals_handler(int signo)
+{
+    if (signo>0)
+    {
         failure = signo;
     }
-    else {
+    else
+    {
         failure = 1;
     }
+
     alis.state = eAlisStateStopped;
 
 #if defined(__atarist__) || defined(__TOS__)
@@ -224,7 +219,8 @@ void signals_handler(int signo) {
     signal(signo, SIG_DFL);
 }
 
-void sys_errors_init(void) {
+void sys_errors_init(void)
+{
 
     failure = 0;
     signal(SIGSEGV, signals_handler);
@@ -241,7 +237,8 @@ void sys_errors_init(void) {
 #endif
 }
 
-void sys_errors_deinit(void) {
+void sys_errors_deinit(void)
+{
 
     signal(SIGSEGV, SIG_DFL);
     signal(SIGABRT, SIG_DFL);
@@ -251,49 +248,61 @@ void sys_errors_deinit(void) {
     signal(SIGILL,  SIG_DFL);
 }
 
-void signals_info(int signo) {
-
-    if (signo == 0) return;
+void signals_info(int signo)
+{
+    if (signo == 0)
+        return;
 
     printf("\n");
-    switch (signo) {
+    switch (signo)
+    {
         case SIGSEGV:
         {
             ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGSEGV: Invalid memory access (segmentation fault).\n");
             break;
         }
+
         case SIGABRT:
         {
             ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGABRT: Abnormal termination.\n");
             break;
         }
+
         case SIGFPE:
         {
             ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGFPE: Erroneous arithmetic operation.\n");
             break;
         }
+
         case SIGINT:
         {
             ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGINT: External interrupt.\n");
             break;
         }
+
         case SIGTERM:
         {
             ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGTERM: Termination request.\n");
             break;
         }
+
         case SIGILL:
         {
             ALIS_DEBUG(EDebugFatal, disalis ? "FATAL ERROR: %s" : "%s", "SIGILL: Invalid program image.\n");
             break;
         }
+
         default:
-            if (disalis) {
+        {
+            if (disalis)
+            {
                 ALIS_DEBUG(EDebugFatal, "FATAL ERROR: An unidentified error %d occurred.\n", signo);
             }
-            else {
+            else
+            {
                 ALIS_DEBUG(EDebugFatal, "An unidentified error %d occurred.\n", signo);
             }
+        }
     }
     
     ALIS_DEBUG(EDebugSystem, "A STOP signal has been sent to the host system queue...\n");
@@ -356,6 +365,7 @@ static inline void psg_hw_write(u8 reg, u8 val)
     *sel = reg; *dat = val;
     __asm__ volatile("move.w %0,%%sr" : : "d"(sr) : "cc", "memory");
 }
+
 static inline u8 psg_hw_read(u8 reg)
 {
     volatile u8 *sel = (volatile u8 *)0xFFFF8800UL;
@@ -370,7 +380,12 @@ static inline u8 psg_hw_read(u8 reg)
 void sys_write_psg(u32 reg, u32 val)
 {
 #if defined(__TOS__) || defined(__atarist__)
-    if (g_psg_isr_context) { psg_hw_write((u8)(reg & 0x0f), (u8)val); return; }
+    if (g_psg_isr_context)
+    {
+        psg_hw_write((u8)(reg & 0x0f), (u8)val);
+        return;
+    }
+    
     /* Giaccess(data, reg). Bit 7 of reg = write-enable. Registers
      * 0..15. Routed through XBIOS so it works in user mode without
      * Super(). */
@@ -383,7 +398,9 @@ void sys_write_psg(u32 reg, u32 val)
 u8 sys_read_psg(u32 reg)
 {
 #if defined(__TOS__) || defined(__atarist__)
-    if (g_psg_isr_context) return psg_hw_read((u8)(reg & 0x0f));
+    if (g_psg_isr_context)
+        return psg_hw_read((u8)(reg & 0x0f));
+    
     /* Bit 7 clear → read register. */
     return (u8)Giaccess(0, (u8)(reg & 0x0f));
 #else
@@ -457,6 +474,7 @@ static void sys_opl_capture_open_if_needed(void)
 {
     if (!opl_capture_flag || sys_opl_cap)
         return;
+    
     sys_opl_cap = fopen("opl_capture.bin", "wb");
     opl_capture_flag = 0;                         // open once
     if (sys_opl_cap)
@@ -486,6 +504,7 @@ void sys_write_opl(u32 reg, u8 val)
 #else
     if (sys_opl_host)                              // Atari: feed the FM-block translator
         opl_host_write_reg(sys_opl_host, reg, val);
+    
     if (sys_opl_q_count < SYS_OPL_QUEUE_MAX)        // (raw queue kept for capture/debug)
     {
         sys_opl_q_reg[sys_opl_q_count] = (u8)reg;
@@ -639,8 +658,11 @@ void io_canal(sChannel *channel, s16 index)
     // Mirrors Falcon RRQ asm io_canal (rrq-falcon.asm:0xD3EE).
     // Both early-returns are required: index > 2 would clobber reg 6
     // (noise period); sample channels (type & 0x80) must not touch PSG.
-    if (index > 2) return;
-    if (channel->type & 0x80) return;
+    if (index > 2)
+        return;
+    
+    if (channel->type & 0x80)
+        return;
 
     giaccess(index + 0x88, (channel->volume >> 11) & 0xf, index);
     giaccess(index * 2 + 0x80, (channel->freq >> 3) & 0xff, index);
@@ -691,7 +713,9 @@ void sys_psg_tick(void)
                 s32 vol = (s32)ch->delta_volume + (s32)ch->volume;
                 if (-1 < vol)
                 {
-                    if (0x7fff < vol) vol = 0x7fff;
+                    if (0x7fff < vol)
+                        vol = 0x7fff;
+                    
                     ch->volume = (s16)vol;
                     u32 freq = ch->delta_freq + ch->freq;
                     if (-1 < (s32)(freq << 0x10))
@@ -809,9 +833,12 @@ static void io_canal_opl(sChannel *channel, s16 index)
 
     // Frequency: from Ishar 2 DOS FUN_1000_0af5
     s32 freq_idx = (channel->freq >> 3) + 0x140;
-    if (freq_idx < 1) freq_idx = 1;
+    if (freq_idx < 1)
+        freq_idx = 1;
+    
     u16 fnum = 0xD6D8 / freq_idx;
-    if (fnum > 0x3FF) fnum = 0x3FF;
+    if (fnum > 0x3FF)
+        fnum = 0x3FF;
 
     OPL_writeReg(audio_opl, 0xA0 + opl_ch, fnum & 0xFF);
     OPL_writeReg(audio_opl, 0xB0 + opl_ch, 0x20 | 0x1C | ((fnum >> 8) & 0x03));
@@ -835,11 +862,14 @@ static s32 vol_tab_v[4] = { -1, -1, -1, -1 };
 
 static const s16 *vol_table(int ch, s32 volratio)
 {
-    if (vol_tab_v[ch] != volratio) {
+    if (vol_tab_v[ch] != volratio)
+    {
         for (int k = 0; k < 256; k++)
             vol_tab[ch][k] = (s16)((s8)k * volratio);
+        
         vol_tab_v[ch] = volratio;
     }
+
     return vol_tab[ch];
 }
 
@@ -874,36 +904,6 @@ typedef int MixRunS8(s8 *buf, int bi, int len, u8 adv, const s16 *vt, const s8 *
                      u32 *accp, int *smpidxp, u32 *playedp, s32 *s0p);
 #if defined(__m68k__) && !defined(__mcoldfire__)
 MixRunS8 mix_run_s8, mix_run_s8_store;   // sys_atari_mix.S; _store: the buffer is still zero
-#if defined(ALIS_MIX_VERIFY)
-// Run the C version on copies next to the asm and log any difference.
-MIX_RUN(mix_run_s8_c, s8, (s8)((s16)(s0 + ((s16)buf[bi] << 8)) >> 8))
-static int mix_check(MixRunS8 *fn, s8 *buf, int bi, int len, u8 adv, const s16 *vt, const s8 *addr, u32 end,
-                     u32 ratio, u32 *accp, int *smpidxp, u32 *playedp, s32 *s0p)
-{
-    extern void dbglog(const char *fmt, ...);
-    static s8 copy[8192];
-    static u32 calls, bad;
-    u32 acc = *accp, played = *playedp; int smp = *smpidxp; s32 s0 = *s0p;
-    if (len > (int)sizeof(copy)) return fn(buf, bi, len, adv, vt, addr, end, ratio, accp, smpidxp, playedp, s0p);
-    memcpy(copy, buf, len);
-    int ri = mix_run_s8_c(copy, bi, len, adv, vt, addr, end, ratio, &acc, &smp, &played, &s0);
-    int ra = fn(buf, bi, len, adv, vt, addr, end, ratio, accp, smpidxp, playedp, s0p);
-    calls++;
-    if (ri != ra || acc != *accp || smp != *smpidxp || played != *playedp || (s16)s0 != (s16)*s0p || memcmp(copy, buf, len)) {
-        if (bad++ < 8) dbglog("[mix] #%lu BAD %s bi %d/%d acc %lx/%lx smp %d/%d\n", (unsigned long)calls,
-                              fn == mix_run_s8_store ? "store" : "add", ri, ra,
-                              (unsigned long)acc, (unsigned long)*accp, smp, *smpidxp);
-    } else if ((calls & 1023) == 0)
-        dbglog("[mix] %lu calls, %lu bad\n", (unsigned long)calls, (unsigned long)bad);
-    return ra;
-}
-static int mix_run_s8_v(s8 *b, int bi, int l, u8 adv, const s16 *vt, const s8 *a, u32 e, u32 r, u32 *ac, int *sm, u32 *pl, s32 *s0)
-{ return mix_check(mix_run_s8, b, bi, l, adv, vt, a, e, r, ac, sm, pl, s0); }
-static int mix_run_s8_store_v(s8 *b, int bi, int l, u8 adv, const s16 *vt, const s8 *a, u32 e, u32 r, u32 *ac, int *sm, u32 *pl, s32 *s0)
-{ return mix_check(mix_run_s8_store, b, bi, l, adv, vt, a, e, r, ac, sm, pl, s0); }
-#define mix_run_s8 mix_run_s8_v
-#define mix_run_s8_store mix_run_s8_store_v
-#endif
 #else
 MIX_RUN(mix_run_s8, s8, (s8)((s16)(s0 + ((s16)buf[bi] << 8)) >> 8))
 #define mix_run_s8_store mix_run_s8
@@ -1037,8 +1037,7 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                     while (buffer_index < buffer_length)
                     {
 #if ALIS_SND_INTERPOLATE_TYPE == 0
-                        buffer_index = mix_run_s16(audio_buffer, buffer_index, buffer_length, adv, vt, addr, length + 1,
-                                              ratio, &accumulator, &smpidx, &played, &s0);
+                        buffer_index = mix_run_s16(audio_buffer, buffer_index, buffer_length, adv, vt, addr, length + 1, ratio, &accumulator, &smpidx, &played, &s0);
                         if (buffer_index >= buffer_length)
                             break;
 #endif
@@ -1047,17 +1046,21 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                             smpidx += add;
 #if ALIS_SND_INTERPOLATE_TYPE > 0
                             // Shift window by 'add' samples so it tracks smpidx when downsampling.
-                            for (u32 step = 1; step <= add; step++) {
+                            for (u32 step = 1; step <= add; step++)
+                            {
                                 x0 = x1; x1 = x2; x2 = x3;
                                 s32 idx = (s32)smpidx - (s32)add + (s32)step + 2;
-                                if (idx < (s32)length) {
+                                if (idx < (s32)length)
+                                {
                                     x3 = (s16)(addr[idx] * 256);
-                                } else if (loop > 1) {
+                                }
+                                else if (loop > 1)
+                                {
                                     s32 wrapped = idx - (s32)length;
-                                    x3 = (wrapped >= 0 && wrapped < (s32)length)
-                                         ? (s16)(addr[wrapped] * 256)
-                                         : 0;
-                                } else {
+                                    x3 = (wrapped >= 0 && wrapped < (s32)length) ? (s16)(addr[wrapped] * 256) : 0;
+                                }
+                                else
+                                {
                                     x3 = 0;
                                 }
                             }
@@ -1082,7 +1085,9 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                                 else if (i == 3 && fli_audio_q_head != fli_audio_q_tail)
                                 {
                                     // Splice in the next queued FLI chunk.
-                                    if (i == 3) fli_chunks_played++;
+                                    if (i == 3)
+                                        fli_chunks_played++;
+                                    
                                     u8 t = fli_audio_q_tail;
                                     addr   = fli_audio_queue[t].addr;
                                     length = fli_audio_queue[t].length;
@@ -1099,17 +1104,12 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                                     x2 = (length > 1) ? (s16)(addr[1] * 256) : 0;
                                     x3 = (length > 2) ? (s16)(addr[2] * 256) : 0;
 #endif
-                                    FLI_DBG_MIX("S16MSB splice: chunk=%u freq=%d len=%u ratio=0x%x q_used=%u\n",
-                                                fli_chunks_played, (int)ch->freq, length, ratio,
-                                                (unsigned)((fli_audio_q_head - fli_audio_q_tail) & (FLI_AUDIO_QUEUE_SIZE - 1)));
                                 }
                                 else
                                 {
-                                    if (i == 3) {
+                                    if (i == 3)
                                         fli_chunks_played++;
-                                        FLI_DBG_MIX("S16MSB end: chunk=%u (queue empty, channel terminating)\n",
-                                                    fli_chunks_played);
-                                    }
+                                    
                                     ch->type = eChannelTypeNone;
                                     ch->curson = 0x80;
                                     break;
@@ -1140,10 +1140,12 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                     }
 
                     // Main thread may have replaced the chunk directly; then `played` is stale.
-                    if (ch->address == addr) {
+                    if (ch->address == addr)
+                    {
                         ch->played = played;
                         ch->loop   = loop;
                     }
+
                     break;
                 }
 
@@ -1182,10 +1184,14 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                                                 ch->freq = freq;
 #if !defined(__TOS__) && !defined(__atarist__)
                                                 if (alis.platform.kind == EPlatformPC)
+                                                {
                                                     io_canal_opl(ch, i);
+                                                }
                                                 else
 #endif
+                                                {
                                                     io_canal(ch, i);
+                                                }
                                                 break;
                                             }
                                         }
@@ -1199,10 +1205,14 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
                                     ch->played = 0;
 #if !defined(__TOS__) && !defined(__atarist__)
                                     if (alis.platform.kind == EPlatformPC)
+                                    {
                                         io_canal_opl(ch, i);
+                                    }
                                     else
 #endif
+                                    {
                                         io_canal(ch, i);
+                                    }
                                 }
                                 while (false);
                             }
@@ -1223,6 +1233,7 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
 #endif
                         }
                     }
+
                     break;
                 }
                     
@@ -1242,6 +1253,9 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
             audio_buffer[buffer_index + o] = audio_buffer[buffer_index];
     }
 #endif
+
+    if (alis.platform.version >= 60)
+        v6snd_render((s16 *)audio_buffer, buffer_length / adv, adv, audio_spec->freq);
 }
 
 // sys_audio_callback_S8 — 8-bit signed output (STE/TT DMA). Narrows the s16 mix
@@ -1395,17 +1409,23 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                             smpidx += add;
 #if ALIS_SND_INTERPOLATE_TYPE > 0
                             // Shift window by 'add' samples so it tracks smpidx when downsampling.
-                            for (u32 step = 1; step <= add; step++) {
+                            for (u32 step = 1; step <= add; step++)
+                            {
                                 x0 = x1; x1 = x2; x2 = x3;
                                 s32 idx = (s32)smpidx - (s32)add + (s32)step + 2;
-                                if (idx < (s32)length) {
+                                if (idx < (s32)length)
+                                {
                                     x3 = (s16)(addr[idx] * 256);
-                                } else if (loop > 1) {
+                                }
+                                else if (loop > 1)
+                                {
                                     s32 wrapped = idx - (s32)length;
                                     x3 = (wrapped >= 0 && wrapped < (s32)length)
                                          ? (s16)(addr[wrapped] * 256)
                                          : 0;
-                                } else {
+                                }
+                                else
+                                {
                                     x3 = 0;
                                 }
                             }
@@ -1429,7 +1449,9 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                                 else if (i == 3 && fli_audio_q_head != fli_audio_q_tail)
                                 {
                                     // Splice in the next queued FLI chunk.
-                                    if (i == 3) fli_chunks_played++;
+                                    if (i == 3)
+                                        fli_chunks_played++;
+                                    
                                     u8 t = fli_audio_q_tail;
                                     addr   = fli_audio_queue[t].addr;
                                     length = fli_audio_queue[t].length;
@@ -1439,9 +1461,6 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                                     fli_audio_q_tail = (u8)((t + 1) & (FLI_AUDIO_QUEUE_SIZE - 1));
                                     ratio = (ch->freq << 16) / audio_spec->freq;
                                     played = smpidx = accumulator = 0;
-                                    FLI_DBG_MIX("S8 splice: chunk=%u freq=%d len=%u ratio=0x%x q_used=%u\n",
-                                                fli_chunks_played, (int)ch->freq, length, ratio,
-                                                (unsigned)((fli_audio_q_head - fli_audio_q_tail) & (FLI_AUDIO_QUEUE_SIZE - 1)));
 #if ALIS_SND_INTERPOLATE_TYPE > 0
                                     x0 = x3;   // tail of previous chunk (avoids click)
                                     x1 = (length > 0) ? (s16)(addr[0] * 256) : 0;
@@ -1451,11 +1470,9 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                                 }
                                 else
                                 {
-                                    if (i == 3) {
+                                    if (i == 3)
                                         fli_chunks_played++;
-                                        FLI_DBG_MIX("S8 end: chunk=%u (queue empty, channel terminating)\n",
-                                                    fli_chunks_played);
-                                    }
+                                    
                                     ch->type = eChannelTypeNone;
                                     ch->curson = 0x80;
                                     break;
@@ -1488,10 +1505,12 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                     }
 
                     // Main thread may have replaced the chunk directly; then `played` is stale.
-                    if (ch->address == addr) {
+                    if (ch->address == addr)
+                    {
                         ch->played = played;
                         ch->loop   = loop;
                     }
+
                     fresh = 0;
                     break;
                 }
@@ -1531,10 +1550,14 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                                                 ch->freq = freq;
 #if !defined(__TOS__) && !defined(__atarist__)
                                                 if (alis.platform.kind == EPlatformPC)
+                                                {
                                                     io_canal_opl(ch, i);
+                                                }
                                                 else
 #endif
+                                                {
                                                     io_canal(ch, i);
+                                                }
                                                 break;
                                             }
                                         }
@@ -1548,10 +1571,14 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                                     ch->played = 0;
 #if !defined(__TOS__) && !defined(__atarist__)
                                     if (alis.platform.kind == EPlatformPC)
+                                    {
                                         io_canal_opl(ch, i);
+                                    }
                                     else
 #endif
+                                    {
                                         io_canal(ch, i);
+                                    }
                                 }
                                 while (false);
                             }
@@ -1575,6 +1602,7 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
 #endif
                         }
                     }
+
                     break;
                 }
 
@@ -1629,18 +1657,21 @@ u32 sys_free_bytes(const char *path, u32 cap)
     return n < cap ? (u32)n : cap;
 }
 
-mouse_t sys_get_mouse(void) {
+mouse_t sys_get_mouse(void)
+{
     return mouse;
 }
 
-mouse_t sys_consume_mouse(void) {
+mouse_t sys_consume_mouse(void)
+{
     mouse_t snap = mouse;
     mouse.lb_clicked = 0;
     mouse.rb_clicked = 0;
     return snap;
 }
 
-void sys_set_mouse(u16 x, u16 y) {
+void sys_set_mouse(u16 x, u16 y)
+{
     mouse.x = x;
     mouse.y = y;
 }
@@ -1650,7 +1681,8 @@ bool rect_equals(const SDL_Rect *x, const SDL_Rect *y)
     return x && y && x->x == y->x && x->y == y->y && x->w == y->w && x->h == y->h;
 }
 
-void sys_enable_mouse(u8 enable) {
+void sys_enable_mouse(u8 enable)
+{
     
 #if ALIS_SDL_VER == 1
     s16 width = mouse.x + 16 > host.pixelbuf.w ? host.pixelbuf.w - mouse.x : 16;
@@ -1677,14 +1709,14 @@ void sys_enable_mouse(u8 enable) {
 
     mouse.enabled = enable;
 
-    if (!mouse.enabled)
+    if (!mouse.enabled && alis.platform.version < 60)
         alis.desmouse = NULL;
     
     dirty_mouse = true;
 }
 
-void set_update_cursor(void) {
-    
+void set_update_cursor(void)
+{
     dirty_mouse = true;
 }
 
@@ -1707,6 +1739,7 @@ static const u8 atari_sc_ascii[128] = {
     [0x67]='7',[0x68]='8',[0x69]='9',[0x6a]='4',[0x6b]='5',[0x6c]='6',
     [0x6d]='1',[0x6e]='2',[0x6f]='3',[0x70]='0',[0x71]='.',[0x72]=0x0d,
 };
+
 static const u8 atari_sc_ascii_shift[128] = {
     [0x02]='!',[0x03]='@',[0x04]='#',[0x05]='$',[0x06]='%',[0x07]='^',[0x08]='&',[0x09]='*',[0x0a]='(',[0x0b]=')',
     [0x0c]='_',[0x0d]='+',[0x0e]=0x08,[0x0f]=0x09,
@@ -1723,8 +1756,92 @@ static const u8 atari_sc_ascii_shift[128] = {
 };
 #endif
 
-#if defined(ALIS_TRACE_KEYS)
-#include "video.h"
+#if !defined(ALIS_USE_NATIVE_ATARI)
+// RRQ 3DO pad codes (launchme FUN_00001f70 -> [0x34cc8]): d-pad '8' '5' '4' '6', P (start)
+// 'P', X (stop) 'X', L '7', R '9', L+up/down '-' '+', A/B/C + R 'A' 'B' 'C'.
+// The d-pad sidesteps and L/R turn, so the left/right arrows are L/R.
+static u8 key3do(int sym)
+{
+    if (SDL_GetModState() & KMOD_SHIFT)
+    {
+        switch (sym)
+        {
+            case SDLK_a:    return 'A';
+            case SDLK_b:    return 'B';
+            case SDLK_c:    return 'C';
+        }
+    }
+
+    switch (sym)
+    {
+        case SDLK_UP:       case SDLK_KP_8:                     return '8';
+        case SDLK_DOWN:     case SDLK_KP_5: case SDLK_KP_2:     return '5';
+        case SDLK_COMMA:    case SDLK_KP_4:                     return '4';
+        case SDLK_PERIOD:   case SDLK_KP_6:                     return '6';
+        case SDLK_p:                                            return 'P';
+        case SDLK_x:                                            return 'X';
+        case SDLK_LEFT:     case SDLK_KP_7: case SDLK_PAGEUP:   return '7';
+        case SDLK_RIGHT:    case SDLK_KP_9: case SDLK_PAGEDOWN: return '9';
+        case SDLK_MINUS:    case SDLK_KP_MINUS:                 return '-';
+        case SDLK_EQUALS:   case SDLK_KP_PLUS:                  return '+';
+        default:                                                return 0;
+    }
+}
+#endif
+
+#if !defined(ALIS_USE_NATIVE_ATARI)
+// RRQ 3DO pad B and C are the mouse buttons (FUN_00001f70 -> +0x3c bits 1/2): B, Space and
+// Enter press left, C and Escape press right. Returns 1 when the key was taken.
+int sys_pad3do_click(int sym, int down)
+{
+    if (alis.platform.uid != EGameRobinsonsRequiem3DO || (down && (SDL_GetModState() & KMOD_SHIFT)))
+        return 0;
+    switch (sym)
+    {
+        case SDLK_b: case SDLK_SPACE: case SDLK_RETURN: case SDLK_KP_ENTER:
+            if (down && !mouse.lb)              // key repeat is not a new click
+                mouse.lb_clicked = 1;
+            mouse.lb = down;
+            return 1;
+        case SDLK_c: case SDLK_ESCAPE:
+            if (down && !mouse.rb)
+                mouse.rb_clicked = 1;
+            mouse.rb = down;
+            return 1;
+    }
+
+    return 0;
+}
+#endif
+
+#if !defined(ALIS_USE_NATIVE_ATARI)
+// 3DO 000344ec: the d-pad direction of key3do, only when exactly one is held (1 up, 2 down,
+// 4 left, 8 right); the port is ignored
+static u8 joy3do(void)
+{
+    static const struct { int sym; u8 bit; } map[] = {
+        { SDLK_UP,      1 },
+        { SDLK_KP_8,    1 },
+        { SDLK_DOWN,    2 },
+        { SDLK_KP_5,    2 },
+        { SDLK_KP_2,    2 },
+        { SDLK_COMMA,   4 },
+        { SDLK_KP_4,    4 },
+        { SDLK_PERIOD,  8 },
+        { SDLK_KP_6,    8 } };
+    
+    const u8 *keys = SDL_GetKeyboardState(NULL);
+    u8 d = 0;
+    for (int i = 0; i < (int)(sizeof(map) / sizeof(map[0])); i++)
+#if ALIS_SDL_VER == 1
+        if (keys[map[i].sym])
+#else
+        if (keys[SDL_GetScancodeFromKey(map[i].sym)])
+#endif
+            d |= map[i].bit;
+    
+    return (d == 1 || d == 2 || d == 4 || d == 8) ? d : 0;
+}
 #endif
 
 u8 io_inkey(void)
@@ -1736,24 +1853,15 @@ u8 io_inkey(void)
         // A press shorter than the poll interval (slow machines) is still reported once.
         extern volatile u8 g_ikbd_new;
         u8 sc = g_ikbd_cur;
-        if (sc == 0 || sc >= 128 || (!g_ikbd_pressed[sc] && !g_ikbd_new)) {
+        if (sc == 0 || sc >= 128 || (!g_ikbd_pressed[sc] && !g_ikbd_new))
+        {
             g_ikbd_cur = 0;
             return 0;
         }
-#if defined(ALIS_TRACE_KEYS)
-        {   // key the game sees: log changes and latched (already released) reports
-            extern void dbglog(const char *fmt, ...);
-            static u8 last_sc;
-            u8 held = g_ikbd_pressed[sc] != 0;
-            if (sc != last_sc || !held)
-                dbglog("KEY sc=%02x held=%d new=%d t=%u script=%s film=%d/%d play=%d\n", sc, held,
-                       g_ikbd_new != 0, (unsigned)alis.timeclock, alis.script ? alis.script->name : "?",
-                       (int)bfilm.frame, (int)bfilm.frames, (int)bfilm.playing);
-            last_sc = sc;
-        }
-#endif
+
         g_ikbd_new = 0;
-        switch (sc) {
+        switch (sc)
+        {
             case 0x01: return 0x1b;                          // ESC
             case 0x48: return 0xc8;                          // UP
             case 0x50: return 0xd0;                          // DOWN
@@ -1766,7 +1874,8 @@ u8 io_inkey(void)
             case 0x43: return 0xc3; case 0x44: return 0xc4;  // F9 F10
             case 0x2a: case 0x36: case 0x1d: case 0x38: case 0x3a:
                 return 0;                                    // shift/ctrl/alt/caps
-            default: {
+            default:
+            {
                 u8 shifted = g_ikbd_pressed[0x2a] || g_ikbd_pressed[0x36];
                 u8 ch = (shifted ? atari_sc_ascii_shift : atari_sc_ascii)[sc];
                 return ch ? ch : sc;
@@ -1782,8 +1891,7 @@ u8 io_inkey(void)
     // F11/F12 save states) stay queued for sys_poll_event.
     {
         SDL_Event ev;
-        while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT,
-                              SDL_EVENTMASK(SDL_KEYDOWN)) > 0)
+        while (SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_EVENTMASK(SDL_KEYDOWN)) > 0)
         {
             SDLKey k = ev.key.keysym.sym;
             if (k == SDLK_PAUSE)
@@ -1810,7 +1918,11 @@ u8 io_inkey(void)
     }
     
     ALIS_DEBUG(EDebugInfo, " [\"%s\"]", SDL_GetKeyName(button.sym));
-    switch (button.sym) {
+    if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+        return key3do(button.sym);
+    
+    switch (button.sym)
+    {
         case SDLK_ESCAPE:       return 0x1b;
             
         case SDLK_UP:           return 0xc8;
@@ -1861,7 +1973,8 @@ u8 io_inkey(void)
 #endif
             if (shifted)
             {
-                switch (button.sym) {
+                switch (button.sym)
+                {
                     case SDLK_1:            return '!';
                     case SDLK_2:            return '@';
                     case SDLK_3:            return '#';
@@ -1877,37 +1990,61 @@ u8 io_inkey(void)
                     default: break;
                 }
             }
+
             return button.sym;
         }
     }
 #endif // ALIS_USE_NATIVE_ATARI
 }
 
-u8 io_shiftkey(void) {
+u8 io_shiftkey(void)
+{
 
 #if defined(ALIS_USE_NATIVE_ATARI)
     // Read modifiers straight from the IKBD held-key state (sys_atari_ikbd.S).
     // Encoding: 1=RShift 2=LShift 4=Ctrl 8=Alt.
     shift = 0;
-    if (g_ikbd_pressed[0x36]) shift |= 1;
-    if (g_ikbd_pressed[0x2a]) shift |= 2;
-    if (g_ikbd_pressed[0x1d]) shift |= 4;
-    if (g_ikbd_pressed[0x38]) shift |= 8;
+    if (g_ikbd_pressed[0x36])
+        shift |= 1;
+    
+    if (g_ikbd_pressed[0x2a])
+        shift |= 2;
+    
+    if (g_ikbd_pressed[0x1d])
+        shift |= 4;
+    
+    if (g_ikbd_pressed[0x38])
+        shift |= 8;
+    
     return shift;
 #else
     const u8 *keys = SDL_GetKeyboardState(NULL);
     u16 mod = SDL_GetModState();
 
 #if ALIS_SDL_VER == 1
-    if (keys[SDLK_RSHIFT])  mod |= KMOD_RSHIFT;
-    if (keys[SDLK_LSHIFT])  mod |= KMOD_LSHIFT;
-    if (keys[SDLK_RCTRL] || keys[SDLK_LCTRL])  mod |= KMOD_CTRL;
-    if (keys[SDLK_RALT]  || keys[SDLK_LALT])   mod |= KMOD_ALT;
+    if (keys[SDLK_RSHIFT])
+        mod |= KMOD_RSHIFT;
+    
+    if (keys[SDLK_LSHIFT])
+        mod |= KMOD_LSHIFT;
+    
+    if (keys[SDLK_RCTRL] || keys[SDLK_LCTRL])
+        mod |= KMOD_CTRL;
+    
+    if (keys[SDLK_RALT]  || keys[SDLK_LALT])
+        mod |= KMOD_ALT;
 #else
-    if (keys[SDL_SCANCODE_RSHIFT])  mod |= KMOD_RSHIFT;
-    if (keys[SDL_SCANCODE_LSHIFT])  mod |= KMOD_LSHIFT;
-    if (keys[SDL_SCANCODE_RCTRL] || keys[SDL_SCANCODE_LCTRL])  mod |= KMOD_CTRL;
-    if (keys[SDL_SCANCODE_RALT]  || keys[SDL_SCANCODE_LALT])   mod |= KMOD_ALT;
+    if (keys[SDL_SCANCODE_RSHIFT])
+        mod |= KMOD_RSHIFT;
+    
+    if (keys[SDL_SCANCODE_LSHIFT])
+        mod |= KMOD_LSHIFT;
+    
+    if (keys[SDL_SCANCODE_RCTRL] || keys[SDL_SCANCODE_LCTRL])
+        mod |= KMOD_CTRL;
+    
+    if (keys[SDL_SCANCODE_RALT]  || keys[SDL_SCANCODE_LALT])
+        mod |= KMOD_ALT;
 #endif
 
     shift = (mod & KMOD_RSHIFT) ? shift |  1 : shift & 0xfe;
@@ -1919,11 +2056,19 @@ u8 io_shiftkey(void) {
 #endif // ALIS_USE_NATIVE_ATARI
 }
 
-u8 io_getkey(void) {
+u8 io_getkey(void)
+{
     
     u8 result = 0;
-    while (alis.state && (result = io_inkey()) == 0) { sys_sleep(k_event_ticks); }
-    while (alis.state && io_inkey() != 0) { sys_sleep(k_event_ticks); }
+    while (alis.state && (result = io_inkey()) == 0)
+    {
+        sys_sleep(k_event_ticks);
+    }
+    while (alis.state && io_inkey() != 0)
+    {
+        sys_sleep(k_event_ticks);
+    }
+
     return result;
 }
 
@@ -1935,87 +2080,201 @@ u8 io_getkey(void) {
 // (right = the joystick's own fire while the mouse is on).
 extern volatile u8 g_joy0, g_joy1, g_mouse_buttons;
 
-static u8 sys_joy_keys(void) {
+static u8 sys_joy_keys(void)
+{
     const volatile u8 *k = g_ikbd_pressed;
     u8 b = 0;
-    if (k[0x48] || k[0x68] || k[0x67] || k[0x69]) b |= 0x01;   // up, kp 8/7/9
-    if (k[0x50] || k[0x6e] || k[0x6d] || k[0x6f]) b |= 0x02;   // down, kp 2/1/3
-    if (k[0x4b] || k[0x6a] || k[0x67] || k[0x6d]) b |= 0x04;   // left, kp 4/7/1
-    if (k[0x4d] || k[0x6c] || k[0x69] || k[0x6f]) b |= 0x08;   // right, kp 6/9/3
+    if (k[0x48] || k[0x68] || k[0x67] || k[0x69])
+        b |= 0x01;                                             // up, kp 8/7/9
+    
+    if (k[0x50] || k[0x6e] || k[0x6d] || k[0x6f])
+        b |= 0x02;                                             // down, kp 2/1/3
+    
+    if (k[0x4b] || k[0x6a] || k[0x67] || k[0x6d])
+        b |= 0x04;                                             // left, kp 4/7/1
+    
+    if (k[0x4d] || k[0x6c] || k[0x69] || k[0x6f])
+        b |= 0x08;                                             // right, kp 6/9/3
+    
     return b;
 }
 
-static void sys_joy_refresh(void) {
+static void sys_joy_refresh(void)
+{
     u8 keys = sys_joy_keys();
     joystick0 = g_joy0 | keys;
     joystick1 = g_joy1 | keys | ((g_mouse_buttons & 3) ? 0x80 : 0);
-#if defined(ALIS_DEBUG_AUTOWALK)
-    // Test runs: keep the camera moving (turn left, walk, turn right, walk), 1.5 s per step.
-    static const u8 walk[] = { 0x04, 0x04, 0x01, 0x08, 0x08, 0x01, 0x01, 0x05 };
-    joystick1 |= walk[(sys_ticks() / 1500) % sizeof walk];
-#endif
 }
 #else
 #define SYS_JOY_AXIS_DEAD   8000
 
-static u8 sys_joy_compose(int with_mouse_fire, int with_keys) {
+static u8 sys_joy_compose(int with_mouse_fire, int with_keys)
+{
     u8 b = 0;
 
-    if (sys_joy_handle) {
+    if (sys_joy_handle)
+    {
 #if ALIS_SDL_VER == 1
         SDL_JoystickUpdate();
 #endif
         s16 ax = SDL_JoystickGetAxis(sys_joy_handle, 0);
         s16 ay = SDL_JoystickGetAxis(sys_joy_handle, 1);
-        if (ay < -SYS_JOY_AXIS_DEAD) b |= 0x01;
-        if (ay >  SYS_JOY_AXIS_DEAD) b |= 0x02;
-        if (ax < -SYS_JOY_AXIS_DEAD) b |= 0x04;
-        if (ax >  SYS_JOY_AXIS_DEAD) b |= 0x08;
+        if (ay < -SYS_JOY_AXIS_DEAD)
+            b |= 0x01;
+        
+        if (ay >  SYS_JOY_AXIS_DEAD)
+            b |= 0x02;
+        
+        if (ax < -SYS_JOY_AXIS_DEAD)
+            b |= 0x04;
+        
+        if (ax >  SYS_JOY_AXIS_DEAD)
+            b |= 0x08;
 
-        if (SDL_JoystickNumHats(sys_joy_handle) > 0) {
+        if (SDL_JoystickNumHats(sys_joy_handle) > 0)
+        {
             u8 h = SDL_JoystickGetHat(sys_joy_handle, 0);
-            if (h & SDL_HAT_UP)    b |= 0x01;
-            if (h & SDL_HAT_DOWN)  b |= 0x02;
-            if (h & SDL_HAT_LEFT)  b |= 0x04;
-            if (h & SDL_HAT_RIGHT) b |= 0x08;
+            if (h & SDL_HAT_UP)
+                b |= 0x01;
+            
+            if (h & SDL_HAT_DOWN)
+                b |= 0x02;
+            
+            if (h & SDL_HAT_LEFT)
+                b |= 0x04;
+            
+            if (h & SDL_HAT_RIGHT)
+                b |= 0x08;
         }
 
         int nb = SDL_JoystickNumButtons(sys_joy_handle);
-        for (int i = 0; i < nb; i++) {
-            if (SDL_JoystickGetButton(sys_joy_handle, i)) { b |= 0x80; break; }
+        for (int i = 0; i < nb; i++)
+        {
+            if (SDL_JoystickGetButton(sys_joy_handle, i))
+            {
+                b |= 0x80;
+                break;
+            }
         }
     }
 
-    if (with_keys) 
+    // Arrows + numpad as compass directions (7/9/1/3 set both bits). Shift is
+    // not fire: games gating on ojoykey's fire bit would break (Metal Mutant).
+    u8 a = 0;
     {
-        // Arrows + numpad as compass directions (7/9/1/3 set both bits). Shift is
-        // not fire: games gating on ojoykey's fire bit would break (Metal Mutant).
         const u8 *keys = SDL_GetKeyboardState(NULL);
 #if ALIS_SDL_VER == 1
-        if (keys[SDLK_UP]    || keys[SDLK_KP8] || keys[SDLK_KP7] || keys[SDLK_KP9]) b |= 0x01;
-        if (keys[SDLK_DOWN]  || keys[SDLK_KP2] || keys[SDLK_KP1] || keys[SDLK_KP3]) b |= 0x02;
-        if (keys[SDLK_LEFT]  || keys[SDLK_KP4] || keys[SDLK_KP7] || keys[SDLK_KP1]) b |= 0x04;
-        if (keys[SDLK_RIGHT] || keys[SDLK_KP6] || keys[SDLK_KP9] || keys[SDLK_KP3]) b |= 0x08;
+        if (keys[SDLK_UP]    || keys[SDLK_KP8] || keys[SDLK_KP7] || keys[SDLK_KP9])
+            a |= 0x01;
+        
+        if (keys[SDLK_DOWN]  || keys[SDLK_KP2] || keys[SDLK_KP1] || keys[SDLK_KP3])
+            a |= 0x02;
+        
+        if (keys[SDLK_LEFT]  || keys[SDLK_KP4] || keys[SDLK_KP7] || keys[SDLK_KP1])
+            a |= 0x04;
+        
+        if (keys[SDLK_RIGHT] || keys[SDLK_KP6] || keys[SDLK_KP9] || keys[SDLK_KP3])
+            a |= 0x08;
 #else
-        if (keys[SDL_SCANCODE_UP]    || keys[SDL_SCANCODE_KP_8] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_9]) b |= 0x01;
-        if (keys[SDL_SCANCODE_DOWN]  || keys[SDL_SCANCODE_KP_2] || keys[SDL_SCANCODE_KP_1] || keys[SDL_SCANCODE_KP_3]) b |= 0x02;
-        if (keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_KP_4] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_1]) b |= 0x04;
-        if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_KP_6] || keys[SDL_SCANCODE_KP_9] || keys[SDL_SCANCODE_KP_3]) b |= 0x08;
+        if (keys[SDL_SCANCODE_UP]    || keys[SDL_SCANCODE_KP_8] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_9])
+            a |= 0x01;
+        
+        if (keys[SDL_SCANCODE_DOWN]  || keys[SDL_SCANCODE_KP_2] || keys[SDL_SCANCODE_KP_1] || keys[SDL_SCANCODE_KP_3])
+            a |= 0x02;
+        
+        if (keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_KP_4] || keys[SDL_SCANCODE_KP_7] || keys[SDL_SCANCODE_KP_1])
+            a |= 0x04;
+        
+        if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_KP_6] || keys[SDL_SCANCODE_KP_9] || keys[SDL_SCANCODE_KP_3])
+            a |= 0x08;
 #endif
     }
 
-    if (with_mouse_fire && mouse.lb) b |= 0x80;
+    if (with_keys)
+        b |= a;
+
+    if (with_mouse_fire && mouse.lb)
+        b |= 0x80;
+    
     return b;
 }
 
-static void sys_joy_refresh(void) {
+static void sys_joy_refresh(void)
+{
     joystick0 = sys_joy_compose(0, 1);
     joystick1 = sys_joy_compose(1, 1);
 }
 #endif
 
+static u8 io_keyon_live(u8 code);
+
+u8 io_keyon(u8 code)
+{
+#if ALIS_SDL_VER == 1
+    const u8 *ks = SDL_GetKeyState(NULL);
+#define KDN(sdl2, sdl1) ks[sdl1]
+#else
+    const u8 *ks = SDL_GetKeyboardState(NULL);
+#define KDN(sdl2, sdl1) ks[sdl2]
+#endif
+    switch (code)
+    {
+    case 0x1b: return KDN(SDL_SCANCODE_ESCAPE, SDLK_ESCAPE) ? 1 : 0;
+    case 0x0d: return (KDN(SDL_SCANCODE_RETURN, SDLK_RETURN) || KDN(SDL_SCANCODE_KP_ENTER, SDLK_KP_ENTER)) ? 1 : 0;
+    case 0x20: return KDN(SDL_SCANCODE_SPACE, SDLK_SPACE) ? 1 : 0;
+    case 0x08: return KDN(SDL_SCANCODE_BACKSPACE, SDLK_BACKSPACE) ? 1 : 0;
+    case 0x09: return KDN(SDL_SCANCODE_TAB, SDLK_TAB) ? 1 : 0;
+    case 0xc8: return (KDN(SDL_SCANCODE_UP, SDLK_UP) || KDN(SDL_SCANCODE_KP_8, SDLK_KP8)) ? 1 : 0;
+    case 0xd0: return (KDN(SDL_SCANCODE_DOWN, SDLK_DOWN) || KDN(SDL_SCANCODE_KP_2, SDLK_KP2)) ? 1 : 0;
+    case 0xcb: return (KDN(SDL_SCANCODE_LEFT, SDLK_LEFT) || KDN(SDL_SCANCODE_KP_4, SDLK_KP4)) ? 1 : 0;
+    case 0xcd: return (KDN(SDL_SCANCODE_RIGHT, SDLK_RIGHT) || KDN(SDL_SCANCODE_KP_6, SDLK_KP6)) ? 1 : 0;
+    case 0xc7: return KDN(SDL_SCANCODE_HOME, SDLK_HOME) ? 1 : 0;
+    case 0xc9: return KDN(SDL_SCANCODE_PAGEUP, SDLK_PAGEUP) ? 1 : 0;
+    case 0xcf: return KDN(SDL_SCANCODE_END, SDLK_END) ? 1 : 0;
+    case 0xd1: return KDN(SDL_SCANCODE_PAGEDOWN, SDLK_PAGEDOWN) ? 1 : 0;
+    case 0xd2: return KDN(SDL_SCANCODE_INSERT, SDLK_INSERT) ? 1 : 0;
+    case 0xd3: return KDN(SDL_SCANCODE_DELETE, SDLK_DELETE) ? 1 : 0;
+    case 0xe0: return KDN(SDL_SCANCODE_LSHIFT, SDLK_LSHIFT) ? 1 : 0;
+    case 0xe1: return KDN(SDL_SCANCODE_RSHIFT, SDLK_RSHIFT) ? 1 : 0;
+    case 0xe2: return (KDN(SDL_SCANCODE_LCTRL, SDLK_LCTRL) || KDN(SDL_SCANCODE_RCTRL, SDLK_RCTRL)) ? 1 : 0;
+    case 0xe3: return (KDN(SDL_SCANCODE_LALT, SDLK_LALT) || KDN(SDL_SCANCODE_RALT, SDLK_RALT)) ? 1 : 0;
+    case 0xe4: return KDN(SDL_SCANCODE_CAPSLOCK, SDLK_CAPSLOCK) ? 1 : 0;
+    default:
+        if (code >= 0xbb && code <= 0xc6)
+        {
+#if ALIS_SDL_VER == 1
+            return ks[SDLK_F1 + (code - 0xbb)] ? 1 : 0;
+#else
+            return ks[SDL_SCANCODE_F1 + (code - 0xbb)] ? 1 : 0;
+#endif
+        }
+
+        if (code >= 'a' && code <= 'z')
+        {
+#if ALIS_SDL_VER == 1
+            return ks[SDLK_a + (code - 'a')] ? 1 : 0;
+#else
+            return ks[SDL_SCANCODE_A + (code - 'a')] ? 1 : 0;
+#endif
+        }
+
+        if (code >= '0' && code <= '9')
+        {
+#if ALIS_SDL_VER == 1
+            return (ks[SDLK_0 + (code - '0')] || ks[SDLK_KP0 + (code - '0')]) ? 1 : 0;
+#else
+            return (ks[SDL_SCANCODE_1 + (code == '0' ? 9 : code - '1')] || ks[SDL_SCANCODE_KP_1 + (code == '0' ? 9 : code - '1')]) ? 1 : 0;
+#endif
+        }
+            
+        return 0;
+    }
+#undef KDN
+}
+
 // joystick only, no arrows/numpad emulation (v1.0 reads the IKBD joystick byte)
-u8 io_joy_raw(void) {
+u8 io_joy_raw(void)
+{
 #if defined(ALIS_USE_NATIVE_ATARI)
     return g_joy1 | ((g_mouse_buttons & 3) ? 0x80 : 0);
 #else
@@ -2023,12 +2282,18 @@ u8 io_joy_raw(void) {
 #endif
 }
 
-u8 io_joy(u8 port) {
+u8 io_joy(u8 port)
+{
     sys_joy_refresh();
+#if !defined(ALIS_USE_NATIVE_ATARI)
+    if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+        return joy3do();
+#endif
     return port ? joystick0 : joystick1;
 }
 
-u8 io_joykey(u8 test) {
+u8 io_joykey(u8 test)
+{
     sys_joy_refresh();
 
     u8 result = 0;
@@ -2053,20 +2318,22 @@ u8 io_joykey(u8 test) {
 #pragma mark - FILE SYSTEM
 // =============================================================================
 
-static char *last_path_component(char *path) {
-    
+static char *last_path_component(char *path)
+{
     char *name = strrchr(path, '/');
     char *bs = strrchr(path, '\\');
     if (bs && (!name || bs > name))
         name = bs;
+    
     return name ? name + 1 : path;
 }
 
-FILE *sys_fopen(const char *path, const char * __restrict mode) {
-
+FILE *sys_fopen(const char *path, const char * __restrict mode)
+{
     ALIS_DEBUG(EDebugInfo, " [%s][%s] ", path, mode);
     FILE *fp = fopen(path, mode);
-    if (fp) {
+    if (fp)
+    {
         return fp;
     }
     
@@ -2077,7 +2344,8 @@ FILE *sys_fopen(const char *path, const char * __restrict mode) {
     char *name = last_path_component(pathcpy);
     strlower(name);
     fp = fopen(pathcpy, mode);
-    if (fp) {
+    if (fp)
+    {
         return fp;
     }
     
@@ -2085,8 +2353,8 @@ FILE *sys_fopen(const char *path, const char * __restrict mode) {
     return fopen(pathcpy, mode);
 }
 
-FILE *sys_fopen_b(char *path, u16 mode) {
-
+FILE *sys_fopen_b(char *path, u16 mode)
+{
     char flag[8] = "rb";
     
     if (mode & 0x100)
@@ -2126,11 +2394,13 @@ FILE *sys_fopen_b(char *path, u16 mode) {
     return fp;
 }
 
-int sys_fclose(FILE *fp) {
+int sys_fclose(FILE *fp)
+{
     return fclose(fp);
 }
 
-u8 sys_fexists(char *path) {
+u8 sys_fexists(char *path)
+{
     FILE *fp = fopen(path, "rb");
     if (fp)
     {
@@ -2162,16 +2432,22 @@ u8 sys_fexists(char *path) {
 #pragma mark - MISC
 // =============================================================================
 
-void sys_set_time(u16 h, u16 m, u16 s) {
-    
+void sys_set_time(u16 h, u16 m, u16 s)
+{
 }
 
-time_t sys_get_time(void) {
+time_t sys_get_time(void)
+{
     return 0;
 }
 
-u16 sys_get_model(void) {
+u32 sys_msec(void)
+{
+    return (u32)SDL_GetTicks();
+}
 
+u16 sys_get_model(void)
+{
     // Developer/author mode (-a): hand the startup test a sub-1000 model exactly once, then behave
     // normally so the script's platform discrimination still sees the true machine. See config.h.
     if (authormode)
@@ -2189,13 +2465,10 @@ u16 sys_get_model(void) {
     // the digit is a CPU class) keep 2000.
     
     // TODO: find all values
-    switch (alis.platform.kind) {
-            
+    switch (alis.platform.kind)
+    {
         // Memory class (1000 = 512K, 1010 = 1MB, 1020 = more) + 100 for STE (v20+ engines).
-        case EPlatformAtari:
-            if (alis.memclass)
-                return alis.memclass + (alis.platform.version < 20 ? 0 : 100);
-            return alis.platform.version < 20 ? 1010 : 1120;
+        case EPlatformAtari:        return alis.memclass ? (alis.memclass + (alis.platform.version < 20 ? 0 : 100)) : (alis.platform.version < 20 ? 1010 : 1120);
         case EPlatformPC:           return alis.platform.version > 11 && alis.platform.version < 30 ? 2004 : 2000;
         case EPlatformAmiga:        return 3000;
         case EPlatformMac:          return 4001;
@@ -2208,7 +2481,7 @@ u16 sys_get_model(void) {
     };
 }
 
-
-u16 sys_random(void) {
+u16 sys_random(void)
+{
     return rand() & 0xffff;
 }

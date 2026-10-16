@@ -41,37 +41,45 @@ fRead32 read32be;
 fRead16 read16le;
 fRead32 read32le;
 
-static u16 _read16(const u8 *ptr) {
+static u16 _read16(const u8 *ptr)
+{
     return *((u16*)ptr);
 }
 
-static u16 _read16le(const u8 *ptr) {
+static u16 _read16le(const u8 *ptr)
+{
     return (u16)ptr[0] | ((u16)ptr[1] << 8);
 }
 
-static u16 _read16be(const u8 *ptr) {
+static u16 _read16be(const u8 *ptr)
+{
     return (u16)ptr[1] | ((u16)ptr[0] << 8);
 }
 
-static u32 _read_le24(const u8 *ptr) {
+static u32 _read_le24(const u8 *ptr)
+{
     u32 result = (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16);
     return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
 }
 
-static u32 _read_be_24(const u8 *ptr) {
+static u32 _read_be_24(const u8 *ptr)
+{
     u32 result = (u32)ptr[2] | ((u32)ptr[1] << 8) | ((u32)ptr[0] << 16);
     return (result > 0x7FFFFF) ? (result << 8) & 0xff : result;
 }
 
-static u32 _read32(const u8 *ptr) {
+static u32 _read32(const u8 *ptr)
+{
     return *((u32*)ptr);
 }
 
-static u32 _read32le(const u8 *ptr) {
+static u32 _read32le(const u8 *ptr)
+{
     return (u32)ptr[0] | ((u32)ptr[1] << 8) | ((u32)ptr[2] << 16) | ((u32)ptr[3] << 24);
 }
 
-static u32 _read32be(const u8 *ptr) {
+static u32 _read32be(const u8 *ptr)
+{
     return (u32)ptr[3] | ((u32)ptr[2] << 8) | ((u32)ptr[1] << 16) | ((u32)ptr[0] << 24);
 }
 
@@ -84,26 +92,31 @@ static fConvert32 _convert32;
 static fConvert16 _convert16be;
 static fConvert32 _convert32be;
 
-static u16 _swap16(u16 value) {
+static u16 _swap16(u16 value)
+{
     return (value <<  8) | (value >>  8);
 }
 
-static u16 _linear16(u16 value) {
+static u16 _linear16(u16 value)
+{
     return value;
 }
 
-static u32 _swap32(u32 value) {
+static u32 _swap32(u32 value)
+{
     return ((value >> 24) & 0xff) |
            ((value <<  8) & 0xff0000) |
            ((value >>  8) & 0xff00) |
            ((value << 24) & 0xff000000);
 }
 
-static u32 _linear32(u32 value) {
+static u32 _linear32(u32 value)
+{
     return value;
 }
 
-void vram_init(void) {
+void vram_init(void)
+{
 
     // Set up thin aliases for inline xread/xwrite (NDEBUG path)
     _xmem = alis.mem;
@@ -127,148 +140,175 @@ void vram_init(void) {
     _convert32be = is_host_le() ? _swap32 : _linear32;
 }
 
-void write32(const u8 *ptr, u32 value) {
+void write32(const u8 *ptr, u32 value)
+{
     *((u32*)ptr) = _convert32(value);
 }
 
-u16 swap16(const u8 *ptr) {
+u16 swap16(const u8 *ptr)
+{
     return _convert16(*((u16*)ptr));
 }
 
-u32 swap32(const u8 *ptr) {
+u32 swap32(const u8 *ptr)
+{
     return _convert32(*((u32*)ptr));
 }
 
 #if !defined(ALIS_MEM_NATIVE_ENDIAN) && !defined(NDEBUG)
-u8 xread8(u32 offset) {
+u8 xread8(u32 offset)
+{
     ALIS_DEBUG(EDebugVerbose, " [%.2x <= %.6x]", *(u8 *)(alis.mem + offset), offset);
     return *(alis.mem + offset);
 }
 
-s16 xread16(u32 offset) {
+s16 xread16(u32 offset)
+{
     s16 val = _convert16(*(u16*)(alis.mem + offset));
     ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u16)val, offset);
     return val;
 }
 
-s32 xread32(u32 offset) {
+s32 xread32(u32 offset)
+{
     s32 val = _convert32(*(u32*)(alis.mem + offset));
     ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u32)val, offset);
     return val;
 }
 #endif // ALIS_MEM_NATIVE_ENDIAN
 
-u8 * get_vram(s16 offset) {
+u8 * get_vram(s16 offset)
+{
     ALIS_DEBUG(EDebugVerbose, " [%s <= %.6x]", (char *)(alis.mem + alis.script->vram_org + offset), alis.script->vram_org + offset);
     return (u8 *)(alis.mem + alis.script->vram_org + offset);
 }
 
 #if !defined(ALIS_MEM_NATIVE_ENDIAN) && !defined(NDEBUG)
-void xwrite8(u32 offset, u8 value) {
+void xwrite8(u32 offset, u8 value)
+{
     ALIS_DEBUG(EDebugVerbose, " [%.2x => %.6x]", value, offset);
     *(u8 *)(alis.mem + offset) = value;
 }
 
-void xwrite16(u32 offset, s16 value) {
+void xwrite16(u32 offset, s16 value)
+{
     ALIS_DEBUG(EDebugVerbose, " [%.4x => %.6x]", value, offset);
     *(s16 *)(alis.mem + offset) = _convert16(value);
 }
 
-void xwrite32(u32 offset, s32 value) {
+void xwrite32(u32 offset, s32 value)
+{
     ALIS_DEBUG(EDebugVerbose, " [%.8x => %.6x]", value, offset);
     *(s32 *)(alis.mem + offset) = _convert32(value);
 }
 
-void xadd8(s32 offset, s8 value) {
+void xadd8(s32 offset, s8 value)
+{
     ALIS_DEBUG(EDebugVerbose, " [%d + %d => %.6x]", *(u8 *)(alis.mem + offset), value, offset);
     *(s8 *)(alis.mem + offset) += value;
 }
 
-void xadd16(s32 offset, s16 addition) {
+void xadd16(s32 offset, s16 addition)
+{
     s16 val = xread16(offset);
     ALIS_DEBUG(EDebugVerbose, " [%d + %d => %.6x]", val, addition, offset);
     xwrite16(offset, val + addition);
 }
 
-void xadd32(s32 offset, s32 addition) {
+void xadd32(s32 offset, s32 addition)
+{
     s32 val = xread32(offset);
     ALIS_DEBUG(EDebugVerbose, " [%d + %d => %.6x]", val, addition, offset);
     xwrite32(offset, val + addition);
 }
 
-void xsub8(s32 offset, s8 value) {
+void xsub8(s32 offset, s8 value)
+{
     ALIS_DEBUG(EDebugVerbose, " [%d - %d => %.6x]", *(u8 *)(alis.mem + offset), value, offset);
     *(s8 *)(alis.mem + offset) -= value;
 }
 
-void xsub16(s32 offset, s16 sub) {
+void xsub16(s32 offset, s16 sub)
+{
     s16 val = xread16(offset);
     ALIS_DEBUG(EDebugVerbose, " [%d - %d => %.6x]", val, sub, offset);
     xwrite16(offset, val - sub);
 }
 
-void xsub32(s32 offset, s32 sub) {
+void xsub32(s32 offset, s32 sub)
+{
     s32 val = xread32(offset);
     ALIS_DEBUG(EDebugVerbose, " [%d - %d => %.6x]", val, sub, offset);
     xwrite32(offset, val - sub);
 }
 
-s16 xswap16(u16 value) {
+s16 xswap16(u16 value)
+{
     return _convert16(value);
 }
 
-s32 xswap32(u32 value) {
+s32 xswap32(u32 value)
+{
     return _convert32(value);
 }
 #endif // ALIS_MEM_NATIVE_ENDIAN
 
-void xpush32(s32 value) {
+void xpush32(s32 value)
+{
     alis.script->vacc_off -= sizeof(u32);
     xwrite32(alis.script->vram_org + alis.script->vacc_off, value);
     ALIS_DEBUG(EDebugVerbose, " [%.8x => va %.4x + %.6x (%.6x)]", value, (s16)alis.script->vacc_off, alis.script->vram_org, alis.script->vacc_off + alis.script->vram_org);
 }
 
-s32 xpeek32(void) {
+s32 xpeek32(void)
+{
     return xread32(alis.script->vram_org + alis.script->vacc_off);
 }
 
-s32 xpop32(void) {
+s32 xpop32(void)
+{
     s32 val = xpeek32();
     ALIS_DEBUG(EDebugVerbose, " [%.8x <= va %.4x + %.6x (%.6x)]", val, (s16)alis.script->vacc_off, alis.script->vram_org, alis.script->vacc_off + alis.script->vram_org);
     alis.script->vacc_off += sizeof(s32);
     return val;
 }
 
-u16 fread16(FILE* fp) {
+u16 fread16(FILE* fp)
+{
     u32 tmp = 0;
     fread(&tmp, sizeof(u16), 1, fp);
     return swap16((u8 *)&tmp);
 }
 
 
-u32 fread32(FILE* fp) {
+u32 fread32(FILE* fp)
+{
     u32 tmp = 0;
     fread(&tmp, sizeof(u32), 1, fp);
     return swap32((u8 *)&tmp);
 }
 
 #if !defined(ALIS_MEM_NATIVE_ENDIAN) && !defined(NDEBUG)
-s16 xswap16be(u16 value) {
+s16 xswap16be(u16 value)
+{
     return _convert16be(value);
 }
 
-s32 xswap32be(u32 value) {
+s32 xswap32be(u32 value)
+{
     return _convert32be(value);
 }
 
-s16 xread16be(u32 offset) {
+s16 xread16be(u32 offset)
+{
     u16* ptr = (u16*)(alis.mem + offset);
     s16 val = _convert16be(*ptr);
     ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u16)val, offset);
     return val;
 }
 
-s32 xread32be(u32 offset) {
+s32 xread32be(u32 offset)
+{
     u32* ptr = (u32*)(alis.mem + offset);
     s32 val = _convert32be(*ptr);
     ALIS_DEBUG(EDebugVerbose, " [%.4x <= %.6x]", (u32)val, offset);
@@ -280,20 +320,27 @@ s32 xread32be(u32 offset) {
 #if !defined(ALIS_MEM_NATIVE_ENDIAN) && !(defined(ALIS_MEM_WC_INLINE) && ALIS_MEM_WC_INLINE)
 // World-coordinate accessors for cwalkmap. All builds: v3.0+ LE stores WC as 16.16; swap words so
 // xread16 sees the integer.
-s32 xread32_wc(s32 base, s32 wc_offset) {
-    if (alis.platform.version >= 30 && alis.platform.is_little_endian) {
+s32 xread32_wc(s32 base, s32 wc_offset)
+{
+    if (alis.platform.version >= 30 && alis.platform.is_little_endian)
+    {
         u16 hi = (u16)xread16(base + wc_offset);       // integer (bytes 0-1 on LE)
         u16 lo = (u16)xread16(base + wc_offset + 2);   // fraction (bytes 2-3 on LE)
         return ((s32)hi << 16) | lo;
     }
+
     return xread32(base + wc_offset);
 }
 
-void xwrite32_wc(s32 base, s32 wc_offset, s32 val) {
-    if (alis.platform.version >= 30 && alis.platform.is_little_endian) {
+void xwrite32_wc(s32 base, s32 wc_offset, s32 val)
+{
+    if (alis.platform.version >= 30 && alis.platform.is_little_endian)
+    {
         xwrite16(base + wc_offset, (s16)(val >> 16));         // integer to bytes 0-1
         xwrite16(base + wc_offset + 2, (s16)(val & 0xffff));  // fraction to bytes 2-3
-    } else {
+    }
+    else
+    {
         xwrite32(base + wc_offset, val);
     }
 }

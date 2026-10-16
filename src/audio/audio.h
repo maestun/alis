@@ -23,6 +23,7 @@
 
 # define a32 u32
 
+#include <stdio.h>
 #include "channel.h"
 #include "config.h"
 
@@ -190,6 +191,44 @@ typedef struct {
 
 extern sAudio audio;
 
+#define V6SND_SFXCHANNELS   4
+#define V6SND_CHANNELS      8
+
+typedef struct {
+    u8  state;
+    u8  type;
+    u8  lvol;
+    u8  rvol;
+    s8  prio;
+    u16 unk06;
+    s16 loopcnt;
+    u16 freq;
+    u32 sample0;
+    u32 loopstart;
+    u32 loopend;
+    u32 end;
+    u32 frac;
+    u32 pos;
+    u32 stepfrac;
+    u32 stepint;
+    u32 unk30;
+    u16 unk34;
+    u16 fade36;
+    u32 voiceid;
+} sV6Voice;
+
+extern sV6Voice v6voices[V6SND_CHANNELS];
+
+void v6snd_init(void);
+void v6snd_step(u32 slot);
+void v6snd_stopslot(u32 slot);
+void v6snd_delsound(u32 slot, u16 arg);
+void v6snd_stopchan(s16 idx);
+void v6snd_render(s16 *buf, s32 frames, s32 channels, s32 outrate);
+void cdtrack_play(const char *path, s8 loops);
+void cdtrack_stop(void);
+void cdtrack_save(FILE *fp);
+void cdtrack_load(FILE *fp);
 static inline void set_mutaloop(u32 n) { audio.mutaloop = (u16)(n < kMuBufLen ? n : kMuBufLen); }
 
 void playsample(eChannelType type, u8 *address, s8 freq, u8 volume, u32 length, u16 loop, s8 priorson);

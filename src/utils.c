@@ -24,34 +24,44 @@
 #include <strings.h>
 #endif
 
-char * strlower(char * str) {
+char * strlower(char * str)
+{
     char * ptr = str;
-    if(ptr) {
+    if (ptr)
+    {
         for ( ; *ptr; ++ptr)
             *ptr = tolower(*ptr);
     }
+
     return str;
 }
 
-char * stristr(const char *haystack, const char *needle) {
+char * stristr(const char *haystack, const char *needle)
+{
     size_t len = strlen(needle);
     for ( ; *haystack; haystack++)
+    {
         if (!strncasecmp(haystack, needle, len))
             return (char *)haystack;
+    }
+    
     return NULL;
 }
 
-char * strupper(char * str) {
+char * strupper(char * str)
+{
     char * ptr = str;
-    if(ptr) {
+    if (ptr)
+    {
         for ( ; *ptr; ++ptr)
             *ptr = toupper(*ptr);
     }
+
     return str;
 }
 
-char *strarr(char *haystack, const char *needle, int length) {
-    
+char *strarr(char *haystack, const char *needle, int length)
+{
     size_t needle_len = strlen(needle);
     for (int i = 0, j = 0; i < length; i++)
     {
@@ -73,7 +83,8 @@ char *strarr(char *haystack, const char *needle, int length) {
     return NULL;
 }
 
-int is_host_le(void) {
+int is_host_le(void)
+{
     static unsigned int x = 1;
     char* c = (char*)&x;
     return (int)*c;

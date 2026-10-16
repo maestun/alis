@@ -26,10 +26,13 @@
 #include "debug.h"
 #include "image.h"
 #include "mem.h"
+#include "patches.h"
 #include "platform.h"
 #include "script.h"
 #include "unpack.h"
 #include "utils.h"
+
+#define kDeusBaseShift  (0xed210 - 0x24100)
 
 // =============================================================================
 // MARK: - Unpacker
@@ -42,15 +45,18 @@
 // if main: byte 22..29 -> dic
 // if not main: byte 6..13 -> dic
 
-u8 is_packedx(u32 magic) {
+u8 is_packedx(u32 magic)
+{
     return ((magic >> 24) & 0xf0) == 0xa0;
 }
 
-u32 get_unpacked_size(u32 magic) {
+u32 get_unpacked_size(u32 magic)
+{
     return (magic & 0x00ffffff);
 }
 
-int is_main(u16 check) {
+int is_main(u16 check)
+{
     return kMainScriptID == check;
 }
 
@@ -58,21 +64,26 @@ int is_main(u16 check) {
 // MARK: - Script API
 // =============================================================================
 
-int search_insert(u32 *nums, u32 size, int target_id) {
-    
+int search_insert(u32 size, int target_id)
+{
     int start = 0;
     int end = size - 1;
         
-    while(start <= end) {
+    while(start <= end)
+    {
         int mid = start + (end - start) / 2;
-        int current_id = read16(alis.mem + nums[mid]);
+        int current_id = read16(alis.mem + ATPROG(mid));
         if (current_id == target_id)
             return mid;
         
         if (current_id < target_id)
+        {
             start = mid + 1;
+        }
         else
+        {
             end = mid - 1;
+        }
     }
     
     return start;
@@ -163,11 +174,13 @@ s8 tfibo[16] = {
     0x01, 0x02, 0x03, 0x05,
     0x08, 0x0D, 0x15, 0x22 };
 
-void script_guess_game(const char * script_path) {
-    
+void script_guess_game(const char * script_path)
+{
     alis.platform.uid = 0;
+    alis.platform.ega = 0;
     FILE * fp = sys_fopen(script_path, "rb");
-    if (fp) {
+    if (fp)
+    {
         ALIS_DEBUG(EDebugInfo, "\nLoading script file: %s\n", script_path);
         
         // get packed file size
@@ -177,19 +190,39 @@ void script_guess_game(const char * script_path) {
         
         if (input_sz > 24)
         {
-            // read header
+            // Try v6.0+ format detection first:
+            // v6.0 scripts have an 8-byte name field at offset 0x08,
+            // and the main script has "main" there.
+            u8 header_buf[24];
+            fread(header_buf, 1, 24, fp);
+
+            u8 is_v60 = (memcmp(header_buf + 8, "main", 4) == 0 && header_buf[12] == 0);
+            rewind(fp);
+
+            // read header (old format)
             u32 magic = fread32(fp);
             u16 check = fread16(fp);
-            
-            if (is_main(check)) {
-                
+
+            if(is_v60)
+            {
+                // v6.0+ format: first dword is total file size, name at offset 0x08
+                // VM specs are not in the old location; use placeholder UID
+                // TODO: distinguish between v6.0+ games
+                alis.platform.uid = alis.platform.kind == EPlatform3DO ? EGameRobinsonsRequiem3DO : EGameDeus;
+            }
+            else if(is_main(check))
+            {
                 alis.header.val0 = fread16(fp);
                 alis.header.val1 = fread16(fp);
                 alis.header.val2 = fread32(fp);
                 alis.header.val3 = fread32(fp);
                 alis.header.val4 = fread32(fp);
-                
+
                 alis.platform.uid = alis.header.val3 * alis.header.val4;
+            }
+
+            if(alis.platform.uid != 0)
+            {
                 
                 EPxFormat px_format = EPxFormatChunky;
                 switch (alis.platform.kind)
@@ -216,6 +249,8 @@ void script_guess_game(const char * script_path) {
                     case EGameMadShow:               strcpy(alis.platform.name, "Mad Show");
                                                      alis.platform.version = 11;  // 2.1 [0x15], 2.3 [0x17], 0 [0x00]
                                                      alis.platform.bpp = 4;
+                                                     // EGA PC re-release (dictionary packer 0xa1)
+                                                     alis.platform.ega = alis.platform.kind == EPlatformPC && (magic >> 24) == 0xa1;
                                                      alis.platform.px_format = px_format;
                                                      alis.basemem = 0x23e00;
                                                      break;
@@ -337,9 +372,21 @@ void script_guess_game(const char * script_path) {
                                                      alis.basemem = 0x22400;
                                                      break;
                     //#######################################################################################
-                    case EGameDeus:                  strcpy(alis.platform.name, "Deus");
+                    case EGameRobinsonsRequiem3DO:   strcpy(alis.platform.name, "Robinson's Requiem");
                                                      alis.platform.version = 60;  // 6.0 [0x3c]
                                                      alis.basemem = 0x22400;
+                                                     alis.platform.width = 320;
+                                                     alis.platform.height = 200;
+                                                     break;
+                    //#######################################################################################
+                    case EGameDeus:                  strcpy(alis.platform.name, "Deus");
+                                                     alis.platform.version = 60;  // 6.0 [0x3c]
+                                                     // TODO: fix it
+                                                     // MAIN vram at 0xed210 as in DOS: DOS save
+                                                     // loads keep MAIN-internal pointers absolute
+                                                     alis.basemem = 0x22400 + kDeusBaseShift;
+                                                     // Deus is a 16MB-era DOS game, default 4MB PC pool is far too small, using 16MB pool
+                                                     alis.platform.ram_sz = 0x1000000 + kDeusBaseShift;
                                                      break;
                     //#######################################################################################
                     case EGameTimeWarriors:          strcpy(alis.platform.name, "Time Warriors");
@@ -381,34 +428,38 @@ void script_guess_game(const char * script_path) {
 
                 // Announce once (native Atari calls this twice: memory pre-check, then alis_init).
                 static int announced = 0;
-                if (!announced) {
+                if (!announced)
+                {
                     announced = 1;
                     printf("Starting %s %s (ALIS ver. %.1f)\n", alis.platform.name, alis.platform.desc, alis.platform.version / 10.0);
                     printf("         Host:  %s,  Platform:  %s,  Artificial version: %d\n", is_host_le() ? "LE" : "BE", alis.platform.is_little_endian ? "LE" : "BE", alis.platform.version);
-                    printf("         Platform UID: Specs+0x08 x Specs+0x0c = Vmaxvram x Vmaxsprite\n");
-                    printf("                   =>  0x%08x x 0x%08x = 0x%08x\n", alis.header.val3, alis.header.val4, alis.platform.uid);
+                    if (!is_v60)
+                    {
+                        printf("         Platform UID: Specs+0x08 x Specs+0x0c = Vmaxvram x Vmaxsprite\n");
+                        printf("                   =>  0x%08x x 0x%08x = 0x%08x\n", alis.header.val3, alis.header.val4, alis.platform.uid);
+                    }
+
                     fflush(stdout);
                 }
             }
-            else {
+            else
+            {
                 ALIS_DEBUG(EDebugError, "The version of the %s file is not supported, or it is not a valid main file of the game.\n", script_path);
             }
         }
-        else {
+        else
+        {
             ALIS_DEBUG(EDebugError, "The size of the main file %s is %d bytes, and it is smaller than required.\n", script_path, input_sz);
         }
+
         // cleanup
         fclose(fp);
     }
-    else {
+    else
+    {
         ALIS_DEBUG(EDebugError, "Could not open main file %s.\n", script_path);
     }
 }
-
-#if defined(ALIS_PROFILE_DRAW)
-// Sprite-conversion ticks for the current load (reset in script_load, reported in its LOAD line).
-static u32 g_lp_conv_ticks = 0;
-#endif
 
 static void tochunky(u8 *bitmap)
 {
@@ -497,17 +548,207 @@ static void all_tochunky(u8 *data)
     }
 }
 
-sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
-    s16 id = swap16((data + 0));
+// v6 memory nodes
+// FIFO free list linked through node +0x10, type at +0x15. Returns 0 when exhausted.
+// Non-entity nodes go to the front of the block list (head NODE_BLKHEAD, next at +0xe,
+// name at +6, DOS block+8). Entity nodes keep the vram block layout at +6 / +8.
+u16 node_take(u8 type)
+{
+    u16 n = alis.nodefree;
+    u16 nx = xread16(alis.atent + n + 0x10);
+    
+    // NOTE: DOS refuses the last two free nodes; 3DO has no check
+    if (n == 0 || n == alis.nodetail || (alis.platform.kind != EPlatform3DO && nx == alis.nodetail))
+    {
+        ALIS_DEBUG(EDebugError, "node_take: no free memory node\n");
+        return 0;
+    }
+
+    alis.nodefree = nx;
+    xwrite8(alis.atent + n + 0x15, type);
+    if (type != 1)
+    {
+        for (int i = 0; i < 8; i++)
+            xwrite8(alis.atent + n + 6 + i, 0);
+        
+        xwrite16(alis.atent + n + 0xe, xread16(alis.atent + NODE_BLKHEAD + 0xe));
+        xwrite16(alis.atent + NODE_BLKHEAD + 0xe, n);
+    }
+
+    return n;
+}
+
+void node_free(u16 n)
+{
+    if (n == 0)
+        return;
+    if (xread8(alis.atent + n + 0x15) != 1)
+    {
+        // unlink from the block list
+        u16 p = NODE_BLKHEAD;
+        while (xread16(alis.atent + p + 0xe) != n && p != NODE_BLKTAIL)
+            p = xread16(alis.atent + p + 0xe);
+        
+        if (p != NODE_BLKTAIL)
+            xwrite16(alis.atent + p + 0xe, xread16(alis.atent + n + 0xe));
+    }
+
+    xwrite8(alis.atent + n + 0x15, 0);
+    xwrite16(alis.atent + alis.nodetail + 0x10, n);
+    alis.nodetail = n;
+}
+
+void node_setname(u16 n, const char *name)
+{
+    for (int i = 0, end = 0; i < 8; i++)
+    {
+        if (!name[i] || name[i] == '.')
+            end = 1;
+        
+        xwrite8(alis.atent + n + 6 + i, end ? 0 : (u8)name[i]);
+    }
+}
+
+u16 node_find(const char *name)
+{
+    u8 key[8] = {0};
+    for (int i = 0; i < 8 && name[i]; i++)
+        key[i] = (u8)name[i];
+    
+    for (u16 n = xread16(alis.atent + NODE_BLKHEAD + 0xe); n != NODE_BLKTAIL; n = xread16(alis.atent + n + 0xe))
+    {
+        u8 t = xread8(alis.atent + n + 0x15);
+        if (t != 2 && t != 0xc && (t != 0xd || alis.platform.kind == EPlatform3DO))
+            continue;
+        
+        if (memcmp(alis.mem + alis.atent + n + 6, key, 8) == 0)
+            return n;
+    }
+
+    return 0;
+}
+
+void node_swap(u16 a, u16 b)
+{
+    if (a == b)
+        return;
+    
+    u8 t[0x18];
+    memcpy(t, alis.mem + alis.atent + a, 0x18);
+    memcpy(alis.mem + alis.atent + a, alis.mem + alis.atent + b, 0x18);
+    memcpy(alis.mem + alis.atent + b, t, 0x18);
+#define NSW(x) ((x) == a ? b : (x) == b ? a : (x))
+    for (int i = 0; i < alis.maxent; i++)
+    {
+        u32 n = alis.atent + i * 0x18;
+        xwrite16(n + 4, NSW(xread16(n + 4)));          // run chain
+        xwrite16(n + 0xe, NSW(xread16(n + 0xe)));      // block list
+        xwrite16(n + 0x10, NSW(xread16(n + 0x10)));    // free list
+    }
+
+    alis.nodefree = NSW(alis.nodefree);
+    alis.nodetail = NSW(alis.nodetail);
+    alis.filmnode = NSW(alis.filmnode);
+    for (int i = 0; i < 16; i++)
+    {
+        alis.scrnode[i].node = NSW(alis.scrnode[i].node);
+    }
+    
+    for (int i = 0; i < 8; i++)
+    {
+        alis.v6texts[i].node = NSW(alis.v6texts[i].node);
+    }
+    
+    for (int i = 0; i < alis.nbprog; i++)
+    {
+        if (alis.loaded_scripts[i])
+            alis.loaded_scripts[i]->node = NSW(alis.loaded_scripts[i]->node);
+    }
+    
+#undef NSW
+    sAlisScriptLive *sa = alis.live_scripts[a / 0x18];
+    alis.live_scripts[a / 0x18] = alis.live_scripts[b / 0x18];
+    alis.live_scripts[b / 0x18] = sa;
+    for (u16 i = 0; i < 2; i++)
+    {
+        u16 id = i ? b : a;
+        sAlisScriptLive *e = alis.live_scripts[id / 0x18];
+        if (e && xread8(alis.atent + id + 0x15) == 1)
+        {
+            if (xread16(V6_CLINKING(e->vram_org)) == xread16(e->vram_org + 0x3a))
+                xwrite16(V6_CLINKING(e->vram_org), id);
+            
+            xwrite16(e->vram_org + 0x3a, id);
+            set_0x0e_script_ent(e->vram_org, id);
+        }
+    }
+}
+
+// node of a screen buffer field (+0xb4 / +0xbc)
+void scrnode_set(u32 scr, u16 field, u16 node)
+{
+    int slot = -1;
+    for (int i = 0; i < 16; i++)
+    {
+        if (alis.scrnode[i].scr == (u16)(scr - alis.basemain) && alis.scrnode[i].field == field)
+        {
+            slot = i;
+            break;
+        }
+        
+        if (slot < 0 && alis.scrnode[i].node == 0)
+        {
+            slot = i;
+        }
+    }
+
+    if (slot < 0)
+        return;
+    
+    alis.scrnode[slot].scr = (u16)(scr - alis.basemain);
+    alis.scrnode[slot].field = field;
+    alis.scrnode[slot].node = node;
+    alis.scrnode[slot].handle = xread32(scr + field);
+}
+
+// 0 if the field no longer holds the buffer the node was taken for
+u16 scrnode_get(u32 scr, u16 field)
+{
+    for (int i = 0; i < 16; i++)
+    {
+        if (alis.scrnode[i].node && alis.scrnode[i].scr == (u16)(scr - alis.basemain) && alis.scrnode[i].field == field)
+            return alis.scrnode[i].handle == xread32(scr + field) ? alis.scrnode[i].node : 0;
+    }
+    
+    return 0;
+}
+
+sAlisScriptData *node_prog(u16 n)
+{
+    for (int i = 0; n && i < alis.nbprog; i++)
+    {
+        if (alis.loaded_scripts[i] && alis.loaded_scripts[i]->node == n)
+            return alis.loaded_scripts[i];
+    }
+    
+    return NULL;
+}
+
+sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz)
+{
+    // v6 low word of the u32 size (on BE the high word would be 0 for most scripts)
+    s16 id = alis.platform.version >= 60 ? (s16)swap32(data + 0) : swap16(data + 0);
     s16 insert = debprotf(id);
-    if (insert > 0 && insert < alis.nbprog)
+    
+    // v6 checks by name before loading (node_find); its ids may collide
+    if (alis.platform.version < 60 && insert > 0 && insert < alis.nbprog)
     {
         sAlisScriptData *script = alis.loaded_scripts[insert];
         if (script->header.id == id)
         {
             for (int i = 0; i < alis.nbprog; i++)
             {
-                ALIS_DEBUG(EDebugVerbose, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
+                ALIS_DEBUG(EDebugVerbose, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + ATPROG(i)), ATPROG(i));
             }
             
             ALIS_DEBUG(EDebugVerbose, "\n");
@@ -519,6 +760,9 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         }
     }
     
+    if (alis.platform.version < 60)
+        script_fix(name, data, data_sz);
+
     // init script
     sAlisScriptData * script = (sAlisScriptData *)malloc(sizeof(sAlisScriptData));
     memset(script, 0, sizeof(sAlisScriptData));
@@ -527,27 +771,61 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
     script->type = alis.typepack;
     
     // script data
-    script->header.id = swap16((data + 0));
-    
-    if (alis.platform.kind == EPlatformPC)
+    if (alis.platform.version >= 60)
     {
+        // v6.0+ header layout (0x38 bytes):
+        // 0x00: u32 total_size
+        // 0x04: u32 unknown (contains version info)
+        // 0x08: 8 bytes script name (null-terminated)
+        // 0x10: u32 inisprit
+        // 0x14: u32 unknown
+        // 0x18: u32 code_loc/ret_offset
+        // 0x1c: u32 flag1 (scan/inter bit 0)
+        // 0x20: u32 flag2 (scan/inter bit 1)
+        // 0x24: u32 flag3 / ret_offset for sub-script
+        // 0x28: u32 unknown
+        // 0x2c: u32 unknown
+        // 0x30: u32 vram_alloc_sz (32-bit!)
+        // 0x34: u16 w_unknown5
+        // 0x36: u16 w_unknown7
+
+        // Use first u16 as synthetic ID for script table compatibility
+        script->header.id = id;
         script->header.unknown01 = *(data + 4);
         script->header.unknown02 = *(data + 5);
-        script->header.code_loc_offset = swap16((data + 2));
+        script->header.code_loc_offset = (u16)swap32(data + 0x18);
+        script->header.ret_offset = swap32((data + 0x18));
+        script->header.dw_unknown3 = swap32((data + 0x1c));
+        script->header.dw_unknown4 = swap32((data + 0x20));
+        script->header.w_unknown5 = swap16((data + 0x34));
+        script->header.vram_alloc_sz = (u16)swap32(data + 0x30);
+        script->header.w_unknown7 = swap16((data + 0x36));
     }
     else
     {
-        script->header.unknown01 = *(data + 2);
-        script->header.unknown02 = *(data + 3);
-        script->header.code_loc_offset = swap16((data + 4));
+        script->header.id = swap16((data + 0));
+
+        if (alis.platform.kind == EPlatformPC)
+        {
+            script->header.unknown01 = *(data + 4);
+            script->header.unknown02 = *(data + 5);
+            script->header.code_loc_offset = swap16((data + 2));
+        }
+        else
+        {
+            script->header.unknown01 = *(data + 2);
+            script->header.unknown02 = *(data + 3);
+            script->header.code_loc_offset = swap16((data + 4));
+        }
+
+        script->header.ret_offset = swap32((data + 6));
+        script->header.dw_unknown3 = swap32((data + 10));
+        script->header.dw_unknown4 = swap32((data + 14));
+        script->header.w_unknown5 = swap16((data + 18));
+        script->header.vram_alloc_sz = swap16((data + 20));
+        script->header.w_unknown7 = swap16((data + 22));
     }
-    
-    script->header.ret_offset = swap32((data + 6));
-    script->header.dw_unknown3 = swap32((data + 10));
-    script->header.dw_unknown4 = swap32((data + 14));
-    script->header.w_unknown5 = swap16((data + 18));
-    script->header.vram_alloc_sz = swap16((data + 20));
-    script->header.w_unknown7 = swap16((data + 22));
+
     script->data_org = alis.finprog;
     // Scripts must stay below finmem (io_malloc blocks sit above it), as the original.
     // Overflow-safe: data_sz may be a wrapped negative s32.
@@ -560,10 +838,11 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         free(script);
         return NULL;
     }
+
     memcpy(alis.mem + script->data_org, data, data_sz);
 
     // get insert point
-    insert = search_insert(alis.atprog_ptr, alis.nbprog, script->header.id);
+    insert = search_insert(alis.nbprog, script->header.id);
 
     // v1.0 keeps scripts word aligned
     alis.finprog += alis.platform.version == 10 ? (data_sz + 1) & ~1 : data_sz;
@@ -572,21 +851,45 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
 
     for (int i = alis.nbprog - 2; i >= insert; i--)
     {
-        alis.atprog_ptr[i + 1] = alis.atprog_ptr[i];
+        ATPROG_SET(i + 1, ATPROG(i));
         alis.loaded_scripts[i + 1] = alis.loaded_scripts[i];
     }
 
-    alis.atprog_ptr[insert] = script->data_org;
+    ATPROG_SET(insert, script->data_org);
     alis.loaded_scripts[insert] = script;
+    if (alis.platform.version >= 60)
+    {
+        script->node = node_take(2);                        // DOS 0000dd37: program node
+        node_setname(script->node, (const char *)alis.mem + script->data_org + 8);
+    }
 
     for (int i = 0; i < alis.nbprog; i++)
     {
-        ALIS_DEBUG(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + alis.atprog_ptr[i]), alis.atprog_ptr[i]);
+        ALIS_DEBUG(EDebugInfo, "\n%c%s ID %.2x AT %.6x", i == insert ? '*' : ' ', alis.loaded_scripts[i]->name, read16(alis.mem + ATPROG(i)), ATPROG(i));
     }
     
     ALIS_DEBUG(EDebugInfo, "\n");
     ALIS_DEBUG(EDebugInfo, "Initialized script '%s' (ID = 0x%02x)\nDATA at address 0x%x - 0x%x\n", script->name, script->header.id, script->data_org, alis.finprog);
     
+    if (alis.platform.version >= 60)
+    {
+        // v6 samples (type 9) are signed 8-bit
+        // the mixer takes unsigned
+        data = alis.mem + script->data_org;
+        u32 n = read16(data + 0x3e);
+        for (u32 i = 0, slot = 0x40; i < n && slot + 4 <= data_sz; i++, slot += 4)
+        {
+            u32 off = read32(data + slot), at = slot + off;
+            if (!off || at + 0x20 > data_sz || data[at] != 9)
+                continue;
+            
+            u32 len = read32(data + at + 0x10);
+            u8 *smp = data + at + 0x20;
+            for (u32 k = 0; k < len && at + 0x20 + k < data_sz; k++)
+                smp[k] ^= 0x80;
+        }
+    }
+
     if (alis.platform.version == 10)
     {
         if (alis.platform.kind != EPlatformPC)
@@ -598,6 +901,9 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
         return script;
     }
     
+    if (alis.platform.version >= 60)
+        return script;
+
     if (alis.platform.kind == EPlatformMac)
     {
         data = alis.mem + script->data_org;
@@ -666,13 +972,10 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                 {
                     u16 width = read16(bitmap + 2) + 1;
                     u16 height = read16(bitmap + 4) + 1;
-                    s32 nbytes = (width * height) >> 1;
 
-                    u16 *ptr = (u16 *)(bitmap + 6);
-                    for (int h = 0; h < nbytes; h++, ptr++)
-                    {
-                        *ptr = (*ptr | *ptr << 4);
-                    }
+                    u8 *ptr = bitmap + 6;
+                    for (s32 h = 0; h < width * height; h++)
+                        ptr[h] |= (u8)(ptr[h] << 4);
                 }
             }
         }
@@ -732,13 +1035,10 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
                 {
                     u16 width = read16(bitmap + 2) + 1;
                     u16 height = read16(bitmap + 4) + 1;
-                    s32 nbytes = (width * height) >> 1;
 
-                    u16 *ptr = (u16 *)(bitmap + 6);
-                    for (int h = 0; h < nbytes; h++, ptr++)
-                    {
-                        *ptr = (*ptr | *ptr << 4);
-                    }
+                    u8 *ptr = bitmap + 6;
+                    for (s32 h = 0; h < width * height; h++)
+                        ptr[h] |= (u8)(ptr[h] << 4);
                 }
             }
         }
@@ -774,8 +1074,11 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
 
                             if (bitmap[0] == 0x10)
                             {
-                                if (hi != 0) hi += pal_offset;
-                                if (lo != 0) lo += pal_offset;
+                                if (hi != 0)
+                                    hi += pal_offset;
+                                
+                                if (lo != 0)
+                                    lo += pal_offset;
                             }
                             else
                             {
@@ -797,14 +1100,7 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz) {
             // `name` selects the per-script 2D/3D policy on DOS data (opcodes.c
             // conv_planar_allowed_for): the 3D renderer samples its resources as chunky.
             extern s32 convert_sprites_inplace(u32 org, const char *name);
-#if defined(ALIS_PROFILE_DRAW)
-            extern u32 sys_profile_ticks_safe(void);
-            u32 _lp_c0 = sys_profile_ticks_safe();
-#endif
             script->sz += convert_sprites_inplace(script->data_org, script->name);
-#if defined(ALIS_PROFILE_DRAW)
-            g_lp_conv_ticks += sys_profile_ticks_safe() - _lp_c0;
-#endif
         }
 #endif
     }
@@ -954,16 +1250,23 @@ s32 get_context_size(void)
         case EGameIshar_3:
         case EGameRobinsonsRequiem0:
         case EGameRobinsonsRequiem1:
-        case EGameDeus:
             return 0x3e;
+            break;
+        case EGameRobinsonsRequiem3DO:
+        case EGameDeus:
+            return 0x80;
             break;
         default:
             return -1;
     }
 }
 
-sAlisScriptLive *script_live(sAlisScriptData * prog) {
-    
+sAlisScriptLive *script_live(sAlisScriptData * prog)
+{
+    u16 newent = alis.platform.version >= 60 ? node_take(1) : (u16)alis.dernent;
+    if (newent == 0 && alis.platform.version >= 60)
+        return NULL;
+
     sAlisScriptLive *script = (sAlisScriptLive *)malloc(sizeof(sAlisScriptLive));
     memset(script, 0, sizeof(sAlisScriptLive));
     
@@ -971,31 +1274,52 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     script->data        = prog;
 
     u8 *data = alis.mem + script->data->data_org;
-    
-    s32 prevfin = swap16((data + 0x12)) + alis.finent;
-    
+
+    u16 w_unknown5, w_unknown7, vram_length;
+    if (alis.platform.version >= 60)
+    {
+        w_unknown5 = swap16((data + 0x34));
+        w_unknown7 = swap16((data + 0x36));
+        vram_length = (u16)swap32(data + 0x30);
+    }
+    else
+    {
+        w_unknown5 = swap16((data + 0x12));
+        w_unknown7 = swap16((data + 0x16));
+        vram_length = swap16((data + 0x14));
+    }
+
+    s32 prevfin = w_unknown5 + alis.finent;
+
     s32 contextsize = get_context_size();
 
-    alis.finent += swap16(data + 0x16) + swap16(data + 0x12) + contextsize;
+    alis.finent += w_unknown7 + w_unknown5 + contextsize;
 
     script->vacc_off = (prevfin - alis.finent) & 0xffff;
     script->vram_org = alis.finent;
-    
-    u16 vram_length = swap16((data + 0x14));
+
     memset(alis.mem + script->vram_org, 0, vram_length);
 
     s16 curent = alis.varD5;
-    alis.varD7 = alis.dernent;
+    alis.varD7 = newent;
     
-    int caller_idx = curent / sizeof(sScriptLoc);
-    int script_idx = alis.dernent / sizeof(sScriptLoc);
+    int caller_idx = curent / ENT_STRIDE;
+    int script_idx = newent / ENT_STRIDE;
 
     ALIS_DEBUG(EDebugVerbose, " add at idx: %d hooked to idx: %d. ", script_idx, caller_idx);
 
     set_0x0a_vacc_offset(script->vram_org, script->vacc_off);
     set_0x1c_scan_clr(script->vram_org, script->vacc_off);
     set_0x1e_scan_clr(script->vram_org, script->vacc_off);
-    set_0x08_script_ret_offset(script->vram_org, script->data->data_org + script->data->header.code_loc_offset + 2);
+    if (alis.platform.version >= 60)
+    {
+        set_0x08_script_ret_offset(script->vram_org, script->data->data_org + 0x18 + script->data->header.ret_offset);
+    }
+    else
+    {
+        set_0x08_script_ret_offset(script->vram_org, script->data->data_org + script->data->header.code_loc_offset + 2);
+    }
+
     set_0x10_script_id(script->vram_org, script->data->header.id);
     set_0x14_script_org_offset(script->vram_org, script->data->data_org);
     set_0x2e_script_header_word_2(script->vram_org, script->data->header.unknown01);
@@ -1003,8 +1327,8 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
     set_0x01_wait_count(script->vram_org, 1);
     set_0x04_cstart_csleep(script->vram_org, 0xff);
     set_0x1a_cforme(script->vram_org, -1);
-    set_0x0e_script_ent(script->vram_org, alis.dernent);
-    set_0x24_scan_inter(script->vram_org, alis.platform.version >= 31 ? 6 : 2);
+    set_0x0e_script_ent(script->vram_org, newent);
+    set_0x24_scan_inter(script->vram_org, alis.platform.version >= 60 ? 4 : alis.platform.version >= 31 ? 6 : 2);
     set_0x18_unknown(script->vram_org, 0);
     set_0x0c_vacc_offset(script->vram_org, 0);
     set_0x22_cworld(script->vram_org, 0);
@@ -1039,16 +1363,92 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
         set_0x3a_wait_cycles(script->vram_org, 0);
         set_0x3e_wait_time(script->vram_org, 0);
     }
+
+    if (contextsize > 0x3e)
+    {
+        xwrite16(script->vram_org - 0x40, 0);
+    }
+
+    if (alis.platform.version >= 60)
+    {
+        u32 head = v6_elemhead(script->vram_org);
+        u32 tail = v6_elemtail(script->vram_org);
+        v6el_set_next(head, tail);
+        v6el_set_prev(head, head);
+        v6el_set_prev(tail, head);
+        v6el_set_next(tail, tail);
+        xwrite16(script->vram_org - 0x64, 0);
+        xwrite8(script->vram_org - 0x66, 0);
+        xwrite8(V6_FARSLEEP(script->vram_org), 0);
+        xwrite16(script->vram_org - 0x7c, 0);
+        xwrite32(script->vram_org - 0x80, 0);
+
+        {
+            u16 qsize = (u16)xread16(script->data->data_org + 0x36);
+            s16 qbase = -(s16)(0x40 + qsize);
+            set_0x1c_scan_clr(script->vram_org, qbase);
+            set_0x1e_scan_clr(script->vram_org, qbase);
+            if (qsize > 0x20)
+                ALIS_DEBUG(EDebugWarning, "v6 scan queue of %s is 0x%x (> 0x20): cells reach below -0x60 into the context extras!\n", script->name, qsize);
+        }
+
+        {
+            u32 data = script->data->data_org;
+            u8 vf = 0x4;
+            if (xread32(data + 0x1c) != 0)
+                vf |= 0x1;
+            if (xread32(data + 0x20) != 0)
+                vf |= 0x2;
+            if (xread32(data + 0x24) != 0)
+                vf |= 0x8;
+            xwrite8(script->vram_org - 0x67, vf);
+        }
+
+        xwrite16(script->vram_org + 0x3a, newent);
+        xwrite16(V6_CLINKING(script->vram_org), newent);
+        xwrite32(script->vram_org + 0x3c, xread32(script->data->data_org + 0x8));
+        xwrite32(script->vram_org + 0x40, xread32(script->data->data_org + 0xc));
+
+        if (alis.script != NULL && alis.script->vram_org != 0 && alis.script->vram_org != script->vram_org)
+        {
+            u32 p = alis.script->vram_org;
+            u32 c = script->vram_org;
+            xwrite16(c + 0x38, xread16(p + 0x3a));
+            xwrite32(c + 0x0c, xread32(p + 0x0c));
+            xwrite32(c + 0x10, xread32(p + 0x10));
+            xwrite32(c + 0x14, xread32(p + 0x14));
+            xwrite16(c + 0x18, xread16(p + 0x18));
+            xwrite16(c + 0x1a, xread16(p + 0x1a));
+            xwrite16(c + 0x1c, xread16(p + 0x1c));
+            xwrite16(c + 0x26, xread16(p + 0x26));
+            xwrite16(c + 0x28, xread16(p + 0x28));
+            xwrite16(c + 0x2a, xread16(p + 0x2a));
+            xwrite8(c + 0x24, xread8(p + 0x24));
+            xwrite16(c - 0x64, xread16(p - 0x64));
+            set_0x16_screen_id(c, get_0x16_screen_id(p));
+            xwrite8(c - 0x66, xread8(p - 0x66));
+        }
+    }
     
     //set_0x2d_calign(script->vram_org, script->header.unknown02);
     
     script->pc = script->pc_org = get_0x08_script_ret_offset(script->vram_org);
+
+    // link right after the creator
+    u16 nextent = xread16(alis.atent + curent + 4);
+    xwrite16(alis.atent + curent + 4, newent);
+    if (alis.platform.version < 60)
+        alis.dernent = xread16(alis.atent + newent + 4);
     
-    s16 nextent = xswap16(alis.atent_ptr[caller_idx].offset);
-    alis.atent_ptr[caller_idx].offset = xswap16(alis.dernent);
-    alis.dernent = xswap16(alis.atent_ptr[script_idx].offset);
-    alis.atent_ptr[script_idx].offset = xswap16(nextent);
-    alis.atent_ptr[script_idx].vram_offset = xswap32(script->vram_org);
+    xwrite16(alis.atent + newent + 4, nextent);
+    xwrite32(alis.atent + newent, script->vram_org);
+    if (alis.platform.version >= 60)
+    {
+        // block layout for killent
+        xwrite16(alis.atent + newent + 6, w_unknown5 + w_unknown7 + contextsize);
+        xwrite32(alis.atent + newent + 8, w_unknown5 + w_unknown7 + contextsize + vram_length);
+    }
+
     alis.live_scripts[script_idx] = script;
     alis.finent += vram_length;
     alis.nbent ++;
@@ -1082,138 +1482,122 @@ sAlisScriptLive *script_live(sAlisScriptData * prog) {
  0...23     24      header bytes
  24...xx    ?       unpacked data (1st word is ID, must be zero)
  */
-sAlisScriptData * script_load(const char * script_path) {
-
+sAlisScriptData * script_load(const char * script_path)
+{
     sAlisScriptData * script = NULL;
 
     s32 unpack_sz = -1;
-#if defined(ALIS_PROFILE_DRAW)
-    // Per-script load profiling: unpack_script vs script_init (sprite conversion) + growprog volume.
-    extern u32 sys_profile_ticks_safe(void);   // 200 Hz, 5 ms/tick
-    extern u32 g_lp_grow_bytes;
-    extern u32 g_lp_c2p_ticks, g_lp_grow_ticks, g_lp_fixup_ticks;
-    extern void dbglog(const char *fmt, ...);
-    const char *_lp_name = strrchr(script_path, kPathSeparator);
-    _lp_name = _lp_name ? _lp_name + 1 : script_path;
-    u32 _lp_unpack = 0, _lp_init = 0, _lp_t = 0;
-    g_lp_grow_bytes = 0;
-    g_lp_conv_ticks = 0;
-    g_lp_c2p_ticks = 0; g_lp_grow_ticks = 0; g_lp_fixup_ticks = 0;
-#endif
 
     FILE * fp = sys_fopen(script_path, "rb");
-    if (fp) {
+    if (fp)
+    {
         ALIS_DEBUG(EDebugInfo, "\nLoading script file: %s\n", script_path);
-        
+
         // get packed file size
         fseek(fp, 0L, SEEK_END);
         u32 input_sz = (u32)ftell(fp);
         rewind(fp);
 
-        // read header
-        u32 magic = fread32(fp);
-        u16 check = fread16(fp);
-        
-        // alloc and unpack
-        unpack_sz = get_unpacked_size(magic);
-        u8 * unpack_buf = (u8 *)malloc(1024 + unpack_sz * sizeof(u8));
-        memset(unpack_buf, 0, unpack_sz);
-
-        // TODO: check if this was already loaded, if so use cache
-        
-        // decrunch if needed
-        alis.typepack = magic >> 24;
-        // v1.1 re-release (Mad Show) marks the dictionary packer with 0xa1
-        if (alis.platform.kind == EPlatformPC && alis.platform.version != 11) {
-            alis.typepack &= 0xfe;
-        }
-        
-        if (alis.typepack < 0)
+        if (alis.platform.version >= 60)
         {
-            ALIS_DEBUG(EDebugInfo, "Unpacking...\n");
+            unpack_sz = input_sz;
+            u8 * unpack_buf = (u8 *)malloc(1024 + unpack_sz * sizeof(u8));
+            memset(unpack_buf, 0, unpack_sz);
 
-            u32 pak_sz = input_sz - kPackedHeaderSize - kPackedDictionarySize;
-            if(is_main(check)) {
-                ALIS_DEBUG(EDebugInfo, "Main script detected.\n");
-                
-                // skip vm specs
-                fseek(fp, kVMSpecsSize, SEEK_CUR);
-                pak_sz -= kVMSpecsSize;
+            fread(unpack_buf, sizeof(u8), unpack_sz, fp);
+
+            u8 is_main_script = (memcmp(unpack_buf + 8, "main", 4) == 0 && unpack_buf[12] == 0);
+            if (is_main_script)
+            {
+                ALIS_DEBUG(EDebugInfo, "Main script detected (v6.0+).\n");
             }
 
-#if defined(ALIS_PROFILE_DRAW)
-            _lp_t = sys_profile_ticks_safe();
-#endif
-            unpack_sz = unpack_script(script_path, unpack_buf);
-#if defined(ALIS_PROFILE_DRAW)
-            _lp_unpack = sys_profile_ticks_safe() - _lp_t;
-#endif
-            if (unpack_sz > 0) {
-#if defined(ALIS_PROFILE_DRAW)
-                _lp_t = sys_profile_ticks_safe();
-#endif
-                script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
-#if defined(ALIS_PROFILE_DRAW)
-                _lp_init = sys_profile_ticks_safe() - _lp_t;
-#endif
-            }
+            script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
+
+            free(unpack_buf);
+            fclose(fp);
         }
-        else {
+        else
+        {
+            // read header
+            u32 magic = fread32(fp);
+            u16 check = fread16(fp);
 
-            ALIS_DEBUG(EDebugInfo, "Loading...\n");
+            // alloc and unpack
+            unpack_sz = get_unpacked_size(magic);
+            u8 * unpack_buf = (u8 *)malloc(1024 + unpack_sz * sizeof(u8));
+            memset(unpack_buf, 0, unpack_sz);
 
-            // not packed, still might be script
+            // TODO: check if this was already loaded, if so use cache
 
-            s32 seekto = kPackedHeaderSize;
-            if(is_main(check))
-                seekto += kVMSpecsSize;
-
-            unpack_sz -= seekto;
-
-            if (unpack_sz <= 0) {
-                ALIS_DEBUG(EDebugError, "Skipping '%s': file too small (only %d bytes after header)\n",
-                           script_path, (s32)input_sz - seekto);
+            // decrunch if needed
+            alis.typepack = magic >> 24;
+            // v1.1 re-release (Mad Show) marks the dictionary packer with 0xa1
+            if (alis.platform.kind == EPlatformPC && alis.platform.version != 11)
+            {
+                alis.typepack &= 0xfe;
             }
-            else {
-                fseek(fp, seekto, SEEK_SET);
-                fread(unpack_buf, sizeof(u8), unpack_sz, fp);
 
-#if defined(ALIS_PROFILE_DRAW)
-                _lp_t = sys_profile_ticks_safe();
-#endif
-                script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
-#if defined(ALIS_PROFILE_DRAW)
-                _lp_init = sys_profile_ticks_safe() - _lp_t;
-#endif
+            if (alis.typepack < 0)
+            {
+                ALIS_DEBUG(EDebugInfo, "Unpacking...\n");
+
+                u32 pak_sz = input_sz - kPackedHeaderSize - kPackedDictionarySize;
+                if(is_main(check))
+                {
+                    ALIS_DEBUG(EDebugInfo, "Main script detected.\n");
+
+                    // skip vm specs
+                    fseek(fp, kVMSpecsSize, SEEK_CUR);
+                    pak_sz -= kVMSpecsSize;
+                }
+
+                unpack_sz = unpack_script(script_path, unpack_buf);
+                if (unpack_sz > 0)
+                {
+                    script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
+                }
             }
-        }
+            else
+            {
+                ALIS_DEBUG(EDebugInfo, "Loading...\n");
 
-        // cleanup
-        free(unpack_buf);
-        fclose(fp);
-#if defined(ALIS_PROFILE_DRAW)
-        // conv split: c2p (chunky->planar) | grow (growprog memmove) | fix (O(n^2) offset table)
-        // | prep (per-sprite malloc + nibble-unpack pass + free = conv - the other three).
-        u32 _lp_prep = g_lp_conv_ticks;
-        if (_lp_prep > g_lp_c2p_ticks + g_lp_grow_ticks + g_lp_fixup_ticks)
-            _lp_prep -= g_lp_c2p_ticks + g_lp_grow_ticks + g_lp_fixup_ticks;
-        else _lp_prep = 0;
-        dbglog("LOAD %-13s unpack=%lums init=%lums conv=%lums [c2p=%lu grow=%lu fix=%lu prep=%lu] shift=%luKB\n",
-               _lp_name,
-               (unsigned long)(_lp_unpack * 5), (unsigned long)(_lp_init * 5),
-               (unsigned long)(g_lp_conv_ticks * 5),
-               (unsigned long)(g_lp_c2p_ticks * 5), (unsigned long)(g_lp_grow_ticks * 5),
-               (unsigned long)(g_lp_fixup_ticks * 5), (unsigned long)(_lp_prep * 5),
-               (unsigned long)(g_lp_grow_bytes >> 10));
-#endif
-        
-        // damaged data already set alis_fatal: let the VM stop and show it
-        if (unpack_sz < 0 && !alis_fatal) {
-            ALIS_DEBUG(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
-            exit(-1);
+                // not packed, still might be script
+
+                s32 seekto = kPackedHeaderSize;
+                if(is_main(check))
+                    seekto += kVMSpecsSize;
+
+                unpack_sz -= seekto;
+
+                if (unpack_sz <= 0)
+                {
+                    ALIS_DEBUG(EDebugError, "Skipping '%s': file too small (only %d bytes after header)\n",
+                               script_path, (s32)input_sz - seekto);
+                }
+                else
+                {
+                    fseek(fp, seekto, SEEK_SET);
+                    fread(unpack_buf, sizeof(u8), unpack_sz, fp);
+
+                    script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
+                }
+            }
+
+            // cleanup
+            free(unpack_buf);
+            fclose(fp);
+            
+            // damaged data already set alis_fatal: let the VM stop and show it
+            if (unpack_sz < 0 && !alis_fatal)
+            {
+                ALIS_DEBUG(EDebugFatal, "Failed to unpack script at path '%s'\n", script_path);
+                exit(-1);
+            }
         }
     }
-    else {
+    else
+    {
         ALIS_DEBUG(EDebugFatal, "Failed to open script at path '%s'\n", script_path);
     }
     
@@ -1263,11 +1647,12 @@ sAlisScriptData * script_load(const char * script_path) {
     return script;
 }
 
-
-void script_unload(sAlisScriptData * script) {
+void script_unload(sAlisScriptData * script)
+{
 }
 
-bool is_delay_script(char *name) {
+bool is_delay_script(char *name)
+{
     
     if (alis.platform.uid == EGameIshar_1 && stristr(name, "auteur."))
     {
@@ -1340,7 +1725,8 @@ bool is_delay_script(char *name) {
 // Release builds use the static-inline versions in alis.h; these logging
 // variants are debug-only (see script.h).
 #ifndef NDEBUG
-u8 script_read8(void) {
+u8 script_read8(void)
+{
     u8 ret = (VMEM[VSCRIPT->pc++]);
     ALIS_DEBUG(EDebugInfo, " 0x%02x", ret & 0xff);
     return ret;
@@ -1351,22 +1737,24 @@ u8 script_read8(void) {
  *
  * @return u16
  */
-u16 script_read16(void) {
-
+u16 script_read16(void)
+{
     u32 val = read16(VMEM + VSCRIPT->pc);
     VSCRIPT->pc += 2;
     ALIS_DEBUG(EDebugInfo, " 0x%04x", val & 0xffff);
     return val;
 }
 
-u32 script_read24(void) {
+u32 script_read24(void)
+{
     u32 val = read24(VMEM + VSCRIPT->pc);
     VSCRIPT->pc += 3;
     ALIS_DEBUG(EDebugInfo, " 0x%06x", val & 0xffffff);
     return val;
 }
 
-u32 script_read32(void) {
+u32 script_read32(void)
+{
 
     u32 val = read32(VMEM + VSCRIPT->pc);
     VSCRIPT->pc += 4;
@@ -1375,10 +1763,13 @@ u32 script_read32(void) {
 }
 #endif
 
-void script_read_bytes(u32 len, u8 * dest) {
-    while(len--) *dest++ = VMEM[VSCRIPT->pc++];
+void script_read_bytes(u32 len, u8 * dest)
+{
+    while(len--)
+        *dest++ = VMEM[VSCRIPT->pc++];
 }
 
-void script_read_until_zero(char * dest) {
+void script_read_until_zero(char * dest)
+{
     while((*dest++ = VMEM[VSCRIPT->pc++]));
 }

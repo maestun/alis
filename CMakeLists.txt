@@ -65,6 +65,8 @@ include_directories(src/emu8950)
 include_directories(${SDL2_INCLUDE_DIRS})
 include_directories(src)
 include_directories(src/audio)
+include_directories(src/render)
+include_directories(src/video)
 # add_library()
 
 list(APPEND alis_SOURCES
@@ -85,19 +87,25 @@ list(APPEND alis_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/escnames.c
     ${CMAKE_CURRENT_LIST_DIR}/src/mem.c
     ${CMAKE_CURRENT_LIST_DIR}/src/image.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/render3d.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/render3d_68k.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/render3d_dos.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render/deus3d.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render/rrq3d.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render/rrq3d_68k.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render/rrq3d_dos.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/render/rrq3d_3do.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/video/film3do.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/video/cinepak.c
     ${CMAKE_CURRENT_LIST_DIR}/src/opcodes.c
     ${CMAKE_CURRENT_LIST_DIR}/src/opernames.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/patches.c
     ${CMAKE_CURRENT_LIST_DIR}/src/platform.c
     ${CMAKE_CURRENT_LIST_DIR}/src/screen.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/video.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/video/video.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/video/fli.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/video/fls.c
     ${CMAKE_CURRENT_LIST_DIR}/src/script.c
     ${CMAKE_CURRENT_LIST_DIR}/src/storenames.c
     ${CMAKE_CURRENT_LIST_DIR}/src/unpack.c
     ${CMAKE_CURRENT_LIST_DIR}/src/utils.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/newalis.c
 #   ${CMAKE_CURRENT_LIST_DIR}/src/font.c
 )
 
@@ -126,6 +134,16 @@ if(SDL2_MANUAL_SET)
 else()
   set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 endif()
+
+# Script disassembler (no SDL)
+add_executable(alisdis
+    ${CMAKE_CURRENT_LIST_DIR}/tools/alisdis/main.c
+    ${CMAKE_CURRENT_LIST_DIR}/tools/alisdis/decode.c
+    ${CMAKE_CURRENT_LIST_DIR}/tools/alisdis/ops_v6.c
+    ${CMAKE_CURRENT_LIST_DIR}/tools/alisdis/tables_v6.c
+    ${CMAKE_CURRENT_LIST_DIR}/tools/alisdis/ops_v2.c
+    ${CMAKE_CURRENT_LIST_DIR}/tools/alisdis/tables_v2.c
+    ${CMAKE_CURRENT_LIST_DIR}/tools/alisdis/unpack.c)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
