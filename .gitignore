@@ -3,7 +3,6 @@ DerivedData/
 build
 **/xcuserdata
 .vscode/settings.json
-data/
 /windows/alis
 /windows/.vs
 /windows/x64
@@ -11,3 +10,9 @@ data/
 /Docs
 /build-asan
 /CMakeFiles
+/data/
+tools/disassembler/build/
+*.o
+*.a
+*.txt
+data/
