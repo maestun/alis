@@ -1517,7 +1517,6 @@ static void cfwriteg(void)
 
 void killent(u16 entidx);
 void shrinkprog(s32 start, s32 length, u16 script_id);
-u32 v6_worldhead(void);
 
 static u32 sg_rd32(const u8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24; }
 static u16 sg_rd16(const u8 *p) { return (u16)(p[0] | p[1] << 8); }

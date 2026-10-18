@@ -43,6 +43,8 @@ void readexec_opername_swap(void);
 void cstore_continue(void);
 void v6_mapcell(int mode);
 void v6_skipprot(void);
+u32 v6_worldhead(void);
+void v6_worldhead_rebuild(void);
 
 extern const sAlisOpcode opcodes[];
 extern const sAlisOpcode codesc1names[];

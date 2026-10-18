@@ -325,6 +325,16 @@ s16 pz2;
 // Terminator of the found-entity list
 #define ENTLIST_END (alis.platform.version >= 60 ? 0 : -1)
 
+// Found-entity table full (keeps a slot for the terminator); overflow would hit atent
+static int tabent_full(int idx)
+{
+    if (idx < (int)(sizeof(alis.tablent) / sizeof(alis.tablent[0])) - 1)
+        return 0;
+    
+    ALIS_DEBUG(EDebugError, "%s: found-entity table full (%d entries), list truncated\n", alis.script->name, idx);
+    return 1;
+}
+
 void clivin(void);
 void shrinkprog(s32 start, s32 length, u16 script_id);
 void v6_unloadprog(const char *name, s32 mode);
@@ -2772,6 +2782,9 @@ void clipform(void)
                     }
 
                     int index = (int)(alis.ptrent - alis.tablent);
+                    if (tabent_full(index))
+                        break;
+                    
                     alis.matent[index] = alis.goodmat;
                     alis.tablent[index] = entidx;
                     alis.ptrent ++;
@@ -3870,6 +3883,9 @@ void sviewtyp(void)
                         bufidx --;
                     }
                     
+                    if (tabent_full(bufidx))
+                        break;
+                    
                     buffer32[bufidx] = value;
                     alis.tablent[bufidx] = entidx;
                     
@@ -3998,6 +4014,10 @@ void sviewmat(void)
 
                         bufidx --;
                     }
+                    else if (tabent_full(bufidx))
+                    {
+                        goto LAB_00015c8a;
+                    }
 
                     ((s32 *)alis.buffer)[bufidx] = value;
                     alis.tablent[bufidx] = entidx;
@@ -4063,6 +4083,10 @@ void sviewent(void)
                             goto cnearen2;
                         
                         bufidx --;
+                    }
+                    else if (tabent_full(bufidx))
+                    {
+                        goto cnearen2;
                     }
                     
                     ((s32 *)alis.buffer)[bufidx] = value;
@@ -4183,6 +4207,9 @@ static void near_v6(int kind)
 
             if (d2 <= r2)
             {
+                if (tabent_full(tabidx))
+                    break;
+                
                 alis.matent[tabidx] = 0;
                 alis.tablent[tabidx] = entidx;
                 tabidx++;
@@ -5765,6 +5792,40 @@ static void cvmov(void)
 static u32 defworld_list_head = 0;
 u32 v6_worldhead(void) { return defworld_list_head; }
 
+// savestate restore: the head isn't saved, find the world no other world links to
+void v6_worldhead_rebuild(void)
+{
+    u32 w[16];
+    int n = 0;
+    for (int i = 0; i < MAX_SCRIPTS; i++)
+    {
+        sAlisScriptLive *e = alis.live_scripts[i];
+        u16 id = e && e->vram_org ? get_0x16_screen_id(e->vram_org) : 0;
+        for (u32 b = id ? alis.basemain + id : 0; b && b < alis.finent && n < 16; b = xread32(b + 0xb4))
+        {
+            int k = 0;
+            while (k < n && w[k] != b)
+                k++;
+            
+            if (k < n)
+                break;
+            
+            w[n++] = b;
+        }
+    }
+
+    defworld_list_head = 0;
+    for (int i = 0; i < n && !defworld_list_head; i++)
+    {
+        int linked = 0;
+        for (int j = 0; j < n; j++)
+            linked |= xread32(w[j] + 0xb4) == w[i];
+        
+        if (!linked)
+            defworld_list_head = w[i];
+    }
+}
+
 // Codopname no. 146 opcode 0x91 cdefworld
 static void cdefworld(void)
 {
@@ -5852,6 +5913,9 @@ static void cfindmat_v6(void)
         u16 w = alis.platform.version >= 60 ? get_0x16_screen_id(tgt_vram) : get_0x22_cworld(tgt_vram);
         if (tgt_vram != 0 && w == world)
         {
+            if (tabent_full(tabidx))
+                break;
+            
             alis.matent[tabidx] = 0;
             alis.tablent[tabidx] = entidx;
             tabidx++;
@@ -5885,6 +5949,9 @@ static void cfindtyp(void)
             u32 tgt_vram = xread32(alis.atent + entidx);
             if (tgt_vram != 0 && tgt_vram != alis.script->vram_org && memcmp(alis.mem + tgt_vram + 0x3c, name, 8) == 0)
             {
+                if (tabent_full(tabidx))
+                    break;
+                
                 alis.matent[tabidx] = 0;
                 alis.tablent[tabidx] = entidx;
                 tabidx++;
@@ -5931,6 +5998,9 @@ static void cfindtyp(void)
         u32 tgt_vram = xread32(alis.atent + entidx);
         if (id == get_0x10_script_id(tgt_vram) && alis.script->vram_org != tgt_vram)
         {
+            if (tabent_full(tabidx))
+                break;
+            
             alis.matent[tabidx] = 0;
             alis.tablent[tabidx] = entidx;
             tabidx ++;
@@ -6213,7 +6283,7 @@ static void clistent(void)
         return;
     }
     
-    while ((entidx = xread16(alis.atent + 4 + entidx)) != 0)
+    while ((entidx = xread16(alis.atent + 4 + entidx)) != 0 && !tabent_full(tabidx))
     {
         alis.matent[tabidx] = 0;
         alis.tablent[tabidx] = entidx;
@@ -7642,6 +7712,9 @@ static void cfindcla(void)
             u32 tgt_vram = xread32(alis.atent + entidx);
             if (tgt_vram != 0 && (s16)alis.varD7 == xread16(tgt_vram + 0x46))
             {
+                if (tabent_full(tabidx))
+                    break;
+                
                 alis.matent[tabidx] = 0;
                 alis.tablent[tabidx] = entidx;
                 tabidx++;
@@ -7666,6 +7739,9 @@ static void cfindcla(void)
         u32 tgt_vram = xread32(alis.atent + entidx);
         if ((s8)alis.varD7 == (s8)xread8(tgt_vram + veradd) && alis.script->vram_org != tgt_vram)
         {
+            if (tabent_full(tabidx))
+                break;
+            
             alis.matent[tabidx] = 0;
             alis.tablent[tabidx] = entidx;
             tabidx ++;

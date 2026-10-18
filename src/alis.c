@@ -1331,6 +1331,11 @@ void alis_load_state(void)
     }
 #endif
 
+    if (alis.platform.version >= 60)
+    {
+        v6_worldhead_rebuild();
+    }
+
     sys_init_timers();
 
     sys_enable_mouse(enable_mouse);

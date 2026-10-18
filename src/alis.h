@@ -292,8 +292,8 @@ typedef struct {
     u32             valnorme;
     s16             valchamp;
     s16 *           ptrent;
-    s16             tablent[128];
-    s16             matent[128];
+    s16             tablent[256];   // NOTE: Deus can exceed 128 entities
+    s16             matent[256];
 
     s32             atent;      // 0x224f0
     s32             debent;     // 0x2261c
