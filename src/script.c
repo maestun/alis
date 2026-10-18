@@ -174,6 +174,9 @@ s8 tfibo[16] = {
     0x01, 0x02, 0x03, 0x05,
     0x08, 0x0D, 0x15, 0x22 };
 
+// main header fields are read before the platform readers are set up
+static u32 hdr32le(const u8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24; }
+
 void script_guess_game(const char * script_path)
 {
     alis.platform.uid = 0;
@@ -188,13 +191,13 @@ void script_guess_game(const char * script_path)
         u32 input_sz = (u32)ftell(fp);
         rewind(fp);
         
-        if (input_sz > 24)
+        if (input_sz > 0x24)
         {
             // Try v6.0+ format detection first:
             // v6.0 scripts have an 8-byte name field at offset 0x08,
             // and the main script has "main" there.
-            u8 header_buf[24];
-            fread(header_buf, 1, 24, fp);
+            u8 header_buf[0x24];
+            fread(header_buf, 1, 0x24, fp);
 
             u8 is_v60 = (memcmp(header_buf + 8, "main", 4) == 0 && header_buf[12] == 0);
             rewind(fp);
@@ -205,10 +208,20 @@ void script_guess_game(const char * script_path)
 
             if(is_v60)
             {
-                // v6.0+ format: first dword is total file size, name at offset 0x08
-                // VM specs are not in the old location; use placeholder UID
-                // TODO: distinguish between v6.0+ games
-                alis.platform.uid = alis.platform.kind == EPlatform3DO ? EGameRobinsonsRequiem3DO : EGameDeus;
+                // v6.0+: version byte at +0x06, the same in all of a game's scripts
+                u32 specs = hdr32le(header_buf + 0x10);
+                switch (header_buf[6])
+                {
+                    case 0x3c: alis.platform.uid = alis.platform.kind == EPlatform3DO ? EGameRobinsonsRequiem3DO
+                                   : hdr32le(header_buf + 0x20) == 0 ? EGameManualRRQ : EGameDeus; break;
+                    case 0x48:
+                    case 0x4a: alis.platform.uid = EGameTimeWarriors; break;
+                    case 0x5f: alis.platform.uid = EGameAsghan; break;
+                    case 0x61: alis.platform.uid = EGameTournamentOfWarriors; break;
+                    case 0x71: alis.platform.uid = specs == 700 ? EGameLesVisiteurs : EGameArabianNights; break;
+                    case 0xe0: alis.platform.uid = EGameInspectorGadget; break;
+                    default:   alis.platform.uid = EGameUnknown; break;
+                }
             }
             else if(is_main(check))
             {
@@ -390,7 +403,7 @@ void script_guess_game(const char * script_path)
                                                      break;
                     //#######################################################################################
                     case EGameTimeWarriors:          strcpy(alis.platform.name, "Time Warriors");
-                                                     alis.platform.version = 72;  // 7.2 [0x48]
+                                                     alis.platform.version = header_buf[6];  // 7.2 [0x48], 7.4 [0x4a]
                                                      alis.basemem = 0x22400;
                                                      break;
                     //#######################################################################################
