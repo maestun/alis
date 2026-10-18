@@ -122,8 +122,7 @@ const u32               k_frame_ticks = (1000 / 50);
 extern SDL_keysym       button;
 extern SDL_Event        event;
 extern SDL_AudioSpec    *audio_spec;
-extern SDL_Rect         dirty_rects[256];
-extern SDL_Rect         dirty_mouse_rect;
+extern rect_t           dirty_mouse_rect;
 
 extern u8               shift;
 extern mouse_t          mouse;
@@ -144,7 +143,6 @@ extern u32              isr_step;
 extern u32              isr_counter;
 
 volatile u8 dirty_pal = 1;   // written from Timer-C ISR context (itroutine fade steps)
-u8 dirty_len = 0;
 
 static u32 render_calls = 0;
 
@@ -903,10 +901,24 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
         return 0;
     }
 
+#if ALIS_NATIVE_PLANAR
+    // Deus needs 640x480
+    int vga = monitor_type == MONITOR_VGA || pl->kind == EPlatform3DO;
+    if (pl->version >= 60 && (machine_type != MCH_FALCON || !vga))
+    {
+        printf("\n%s needs a Falcon with a VGA monitor.\n", pl->name[0] ? pl->name : "This game");
+        return 0;
+    }
+#endif
+
     // Hardware buffers, sized by the same code that allocates them:
     //   2 screen buffers (+256 each for the alignment slack alloc_screen_buffers adds)
     //   + the DMA sound ring (a few KB) + slack for TOS's own housekeeping.
     u32 st_need = 2u * (screen_size + 256u) + 16u * 1024u;
+#if ALIS_NATIVE_PLANAR
+    if (pl->version >= 60)
+        st_need += 2u * 640u * 480u + 256u;   // v6_alloc
+#endif
 
     u32 overhead = (pl->version >= 30 ? 1024u : 512u) * 1024u;
 
@@ -945,6 +957,12 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
 
     return 0;
 }
+
+#if ALIS_NATIVE_PLANAR
+static u8 *v6_mem;     // ST-RAM, both v6 screens
+static int v6_alloc(void);
+static void v6_free(void);
+#endif
 
 static int setup_video_mode(void)
 {
@@ -1042,11 +1060,22 @@ static u16  *film16_back  = NULL; // off-screen buffer (keyframes decode here, t
 static void *film16_base  = NULL; // physical screen base to restore on film end
 static long  film16_mode  = -1;   // Videl mode to restore
 
+void sys_film16_end(void);
+
 int sys_film16_begin(u16 w, u16 h)
 {
     if (machine_type != MCH_FALCON)
         return 0;                               // Falcon only
     
+    if (w > 320)
+    {
+        // no 640-wide BPS16 on VGA: planar path
+        if (g_fli16_screen)
+            sys_film16_end();
+
+        return 0;
+    }
+
     if (g_fli16_screen)
         return 1;                               // already 16-bit (kept across a video sequence)
 
@@ -1136,6 +1165,18 @@ u8 *sys_get_framebuffer(int index)
 {
     if (index != 0 && index != 1)
         return NULL;
+
+#if ALIS_NATIVE_PLANAR
+    // v6 composes chunky in fast RAM, see v6_present
+    if (alis.platform.version >= 60)
+    {
+        if (!v6_mem && !v6_alloc())
+            dbglog("v6_alloc FAILED\n");
+
+        return NULL;
+    }
+#endif
+
     if (compose_buf[index])
         return compose_buf[index];
 #if ALIS_NATIVE_PLANAR && ALIS_SINGLE_BUF_CANVAS
@@ -1540,7 +1581,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound)
     logopen();
     dbglog("=== ALIS native Atari backend ===\n");
 
-    dirty_mouse_rect = (SDL_Rect){0, 0, 16, 16};
+    dirty_mouse_rect = (rect_t){0, 0, 16, 16};
 
     width = pl->width;
     height = pl->height;
@@ -3117,8 +3158,316 @@ static void canvas_publish(void)
 }
 #endif
 
+#if ALIS_NATIVE_PLANAR
+// ---- v6 (Deus) presenter --------------------------------------------------------------
+// The v6 VM composes 8-bit chunky in fast RAM (sys_get_framebuffer returns NULL). 640 wide frames
+// are shown in BPS8 planar, 320 wide frames and 320 films in BPS16. Game frames convert
+// only the rects image.c reports, films the rows that differ from a chunky shadow. Falcon VGA only.
+#define V6_SCR_SZ (640u * 480u)
+#if defined(ALIS_FLI_FALCON16)
+#define V6_FILM16 (g_fli16_screen != NULL)
+#else
+#define V6_FILM16 0
+#endif
+static u8  *v6_scr[2];
+static u8  *v6_shadow[2];       // chunky content of each screen
+static u16  v6_lut[256];        // BPS16: palette index -> RGB565
+static u16  v6_w, v6_h;         // current mode, 0 = not set
+static int  v6_back;
+static u8   v6_bfull[2];        // screen needs a full redraw
+#define V6_PEND_MAX 64
+static s16  v6_pend[2][V6_PEND_MAX][4];
+static u8   v6_npend[2];
+static const u8 *v6_src;        // frame shown last, a new source redraws in full
+
+static int v6_alloc(void)
+{
+    v6_mem = (u8 *)Mxalloc((long)(2 * V6_SCR_SZ + 256), MX_STRAM);
+    if (v6_mem == NULL || (long)v6_mem <= 0)
+    {
+        v6_mem = NULL;
+        return 0;
+    }
+
+    u8 *b = (u8 *)(((u32)v6_mem + 255) & ~255UL);
+    for (int i = 0; i < 2; i++)
+    {
+        v6_scr[i] = b + i * V6_SCR_SZ;
+        v6_shadow[i] = (u8 *)malloc(V6_SCR_SZ);
+        if (v6_shadow[i] == NULL)
+            return 0;
+    }
+
+    return 1;
+}
+
+static void v6_free(void)
+{
+    if (v6_mem)
+        Mfree(v6_mem);
+
+    v6_mem = NULL;
+    for (int i = 0; i < 2; i++)
+    {
+        free(v6_shadow[i]);
+        v6_shadow[i] = NULL;
+    }
+}
+
+static void v6_setmode(u16 w, u16 h, u32 *palette)
+{
+    int hi = w > 320;
+    if (v6_w == 0 || hi != (v6_w > 320))
+    {
+        u16 mode = (u16)(old_vmode & (VGA | PAL));
+        mode |= hi ? (BPS8 | COL80) : BPS16;
+        if (!hi && (mode & VGA))
+            mode |= VERTFLAG;   // VGA 320x240 line doubled, RGB 320x200 as is
+        
+        memset(v6_scr[0], 0, 2 * V6_SCR_SZ);
+        Vsync();
+        Setscreen(-1, v6_scr[0], -1);
+        VsetMode(mode);
+        v6_back = 1;
+        if (hi)
+            set_palette(palette, 256);
+
+        dbglog("v6_setmode: %ux%u mode=0x%x\n", (unsigned)w, (unsigned)h, (unsigned)mode);
+    }
+    else
+    {
+        memset(v6_scr[0], 0, 2 * V6_SCR_SZ);
+    }
+
+    v6_w = w;
+    v6_h = h;
+    v6_bfull[0] = v6_bfull[1] = 1;
+}
+
+static int v6_rowdiff(const u8 *a, const u8 *b, u32 n)
+{
+    const u32 *p = (const u32 *)a, *q = (const u32 *)b;
+    for (n >>= 2; n; n--)
+    {
+        if (*p++ != *q++)
+            return 1;
+    }
+
+    return 0;
+}
+
+// rects not yet in screen b, overflow = full redraw
+static void v6_pend_add(int b, const rect_t *r)
+{
+    if (v6_bfull[b])
+        return;
+
+    if (v6_npend[b] >= V6_PEND_MAX)
+    {
+        v6_bfull[b] = 1;
+        return;
+    }
+
+    s16 *p = v6_pend[b][v6_npend[b]++];
+    p[0] = r->x;
+    p[1] = r->y;
+    p[2] = r->x + r->w - 1;
+    p[3] = r->y + r->h - 1;
+}
+
+static void v6_convert(const u8 *src, const u32 *rgb, u8 *scr, u16 w, int hi, s32 x1, s32 y1, s32 x2, s32 y2)
+{
+    extern void chunky8_to_planar(const u8 *idx8, s32 w, s32 h, int flip, u8 *dst);
+    if (hi)
+    {
+        x1 &= ~15;
+        x2 |= 15;
+    }
+
+    for (s32 y = y1; y <= y2; y++)
+    {
+        const u8 *row = src + y * w + x1;
+        if (hi)
+        {
+            chunky8_to_planar(row, x2 - x1 + 1, 1, 0, scr + y * w + x1);
+            continue;
+        }
+
+        u16 *d = (u16 *)scr + y * 320 + x1;
+        if (rgb)
+        {
+            const u32 *c = rgb + y * w + x1;
+            for (s32 x = x1; x <= x2; x++, c++)
+                *d++ = (u16)(((*c >> 8) & 0xf800) | ((*c >> 5) & 0x07e0) | ((*c >> 3) & 0x1f));
+
+            continue;
+        }
+
+        for (s32 x = x1; x <= x2; x++)
+            *d++ = v6_lut[*row++];
+    }
+}
+
+static void v6_present(const u8 *src, const u32 *rgb, u16 w, u16 h, u32 *palette, int track)
+{
+    if (rgb && w > 320)
+        return;
+
+    if (w != v6_w || h != v6_h)
+        v6_setmode(w, h, palette);
+
+    if (rgb)
+        src = (const u8 *)rgb;
+
+    if (src != v6_src)
+    {
+        v6_src = src;
+        v6_bfull[0] = v6_bfull[1] = 1;
+    }
+
+    int hi = w > 320;
+    if (hi)
+    {
+        if (image.ftopal)
+        {
+            image.ftopal = 0;
+            dirty_pal = 1;
+        }
+
+        if (dirty_pal && !atari_timerc_installed)
+        {
+            set_palette(palette, 256);
+            dirty_pal = 0;
+        }
+    }
+    else if (!rgb)
+    {
+        for (int i = 0; i < 256; i++)
+        {
+            sColorARGB *c = (sColorARGB *)&palette[i];
+            u16 v = (u16)(((c->r >> 3) << 11) | ((c->g >> 2) << 5) | (c->b >> 3));
+            if (v6_lut[i] != v)
+            {
+                v6_lut[i] = v;
+                v6_bfull[0] = v6_bfull[1] = 1;
+            }
+        }
+    }
+
+    u8 *scr = v6_scr[v6_back];
+    int b = v6_back, changed = 0;
+    if (track)
+    {
+        if (dirty_len == DIRTY_ALL)
+        {
+            v6_bfull[0] = v6_bfull[1] = 1;
+        }
+        else
+        {
+            for (u8 i = 0; i < dirty_len; i++)
+            {
+                v6_pend_add(0, &dirty_rects[i]);
+                v6_pend_add(1, &dirty_rects[i]);
+            }
+        }
+    }
+
+    if (v6_bfull[b])
+    {
+        v6_convert(src, rgb, scr, w, hi, 0, 0, w - 1, h - 1);
+        if (!rgb)
+            memcpy(v6_shadow[b], src, (u32)w * h);
+
+        changed = 1;
+    }
+    else if (track)
+    {
+        for (u8 i = 0; i < v6_npend[b]; i++)
+        {
+            s16 *r = v6_pend[b][i];
+            v6_convert(src, rgb, scr, w, hi, r[0], r[1], r[2], r[3]);
+        }
+
+        changed = v6_npend[b] != 0;
+    }
+    else
+    {
+        u8 *sh = v6_shadow[b];
+        for (u32 y = 0; y < h; y++)
+        {
+            const u8 *row = src + y * w;
+            u8 *srow = sh + y * w;
+            if (v6_rowdiff(row, srow, w))
+            {
+                v6_convert(src, NULL, scr, w, hi, 0, y, w - 1, y);
+                memcpy(srow, row, w);
+                changed = 1;
+            }
+        }
+    }
+
+    v6_bfull[b] = 0;
+    v6_npend[b] = 0;
+    if (!changed)
+        return;
+
+    g_flip_base = scr;
+    Supexec(videl_setbase_super);
+    Vsync();
+    v6_back ^= 1;
+}
+
+static void v6_render(pixelbuf_t buffer)
+{
+    g_cursor_front = NULL;          // v6 draws its own cursor into the frame
+    if (bfilm.type == eAlisVideoFLIC || bfilm.type == eAlisVideoCleanup)
+    {
+        // 320 films draw themselves in 16 bit, 640 films leave a chunky frame in vgalogic
+        if (!V6_FILM16 && vgalogic)
+            v6_present(vgalogic, NULL, bfilm.width, bfilm.height, buffer.palette, 0);
+
+        if (bfilm.type == eAlisVideoCleanup)
+        {
+            bfilm.type = eAlisVideoNone;
+            if (!V6_FILM16)
+                vgalogic_free();
+        }
+
+        dirty_len = 0;
+        return;
+    }
+
+#if defined(ALIS_FLI_FALCON16)
+    if (g_fli16_screen)
+    {
+        // hold the last film frame until the game shows something new
+        if (dirty_len == 0)
+            return;
+
+        sys_film16_end();
+        v6_bfull[0] = v6_bfull[1] = 1;
+        
+        // the film's palette is in the CLUT
+        if (v6_w > 320)
+            set_palette(buffer.palette, 256);
+    }
+#endif
+
+    v6_present(buffer.data, buffer.rgb, buffer.w, buffer.h, buffer.palette, 1);
+    dirty_len = 0;
+}
+#endif
+
 void sys_render(pixelbuf_t buffer)
 {
+
+#if ALIS_NATIVE_PLANAR
+    if (v6_mem)
+    {
+        v6_render(buffer);
+        return;
+    }
+#endif
 
     render_calls++;
 
@@ -3676,6 +4025,9 @@ void sys_deinit(void)
     Vsync();                 // SDL1 order: restoreMode -> vsync -> palette
     gem_restore_palette();   // VDI logical palette, while the workstation is still open
     free_screen_buffers();
+#if ALIS_NATIVE_PLANAR
+    v6_free();
+#endif
 
     // From here the etv_term handler must do nothing but hand off down the chain.
     atari_cleanup_done = 1;

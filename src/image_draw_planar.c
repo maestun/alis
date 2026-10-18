@@ -46,12 +46,6 @@ extern void mac_update_pos(s16 *x, s16 *y);
 
 #include "image_atari.h"
 
-#if ALIS_SDL_VER < 2
-# include <SDL/SDL.h>
-extern u8 dirty_len;
-extern SDL_Rect dirty_rects[256];
-#endif
-
 // ===========================================================================
 // Planar helpers — word-at-a-time operations
 // Modeled after the original Falcon blitter routines (rrq-falcon.asm)
@@ -291,31 +285,15 @@ static inline void cdestofen_span_opaque_c(
 // Drawing functions
 // ===========================================================================
 
-static void dirty_rect(s16 x, s16 y, s16 w, s16 h)
-{
-#if ALIS_SDL_VER < 2
-    if (dirty_len > 0xfd)
-    {
-        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-        dirty_len = 0xff;
-    }
-    else
-    {
-        dirty_rects[dirty_len] = (SDL_Rect){ .x = x, .y = y, .w = w, .h = h };
-        dirty_len++;
-    }
-#endif
-}
-
 void draw_pixel(s16 x0, s16 y0)
 {
     planar_put_pixel(image.logic, x0, y0, image.inkcolor);
-    dirty_rect(x0, y0, 1, 1);
+    dirty_add(x0, y0, 1, 1);
 }
 
 void draw_line(s16 x0, s16 y0, s16 x1, s16 y1)
 {
-    dirty_rect(min(x0, x1), min(y0, y1), abs(x1 - x0) + 1, abs(y1 - y0) + 1);
+    dirty_add(min(x0, x1), min(y0, y1), abs(x1 - x0) + 1, abs(y1 - y0) + 1);
     s32 dx = abs(x1 - x0);
     s32 sx = x0 < x1 ? 1 : -1;
     s32 dy = -abs(y1 - y0);
@@ -363,7 +341,7 @@ void draw_boxf(s16 x1, s16 y1, s16 x2, s16 y2)
         return;
     tmpx = x2 - x1;
 
-    dirty_rect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+    dirty_add(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
 
     if (tmpx <= 0)
         return;
@@ -1027,7 +1005,7 @@ void planar_linepal_enable(void)
     if (image.logic)
         planar_linepal_stamp_buf(image.logic,  chunks, h, stride);
     g_used_planes = 6;                                     // planes 0-5 now carry data
-    dirty_rect(0, 0, alis.platform.width, alis.platform.height);
+    dirty_add(0, 0, alis.platform.width, alis.platform.height);
 }
 
 // clinepal disabled: clear the bank planes in both buffers and restore the copy depth.
@@ -1055,7 +1033,7 @@ void planar_linepal_disable(void)
     }
 
     g_used_planes = g_planar_nplanes;
-    dirty_rect(0, 0, alis.platform.width, alis.platform.height);
+    dirty_add(0, 0, alis.platform.width, alis.platform.height);
 }
 
 #endif /* ALIS_NATIVE_PLANAR */

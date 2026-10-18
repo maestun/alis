@@ -46,12 +46,19 @@ static void show(const u32 *fb, int fw, int fh)
     for (int y = 0; y < h; y++)
         memcpy(image.rgbphysic + y * W, fb + y * fw, w * sizeof(u32));
     
+    dirty_all();
     sys_unlock_renderer();
+#if ALIS_SDL_VER < 2
+    sys_poll_event();
+#endif
 }
 
 // Any new key or click stops the film (the 3DO player stops on the pad's X button).
 static int skipped(u8 *armed)
 {
+    if (alis.state == eAlisStateStopped)
+        return 1;
+
     u8 k = io_inkey();
     mouse_t m = sys_consume_mouse();
     if (!k && !m.lb && !m.rb)
@@ -174,6 +181,7 @@ stop:
         for (size_t i = 0; i < n; i++)
             image.rgbphysic[i] = image.rgblogic[i] = 0xff000000u;
         
+        dirty_all();
         sys_unlock_renderer();
     }
 

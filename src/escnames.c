@@ -1914,10 +1914,10 @@ static void sg_load(u32 flags)
             u16 pid = xread16(prev + 0x3a);
             sAlisScriptLive *caller = alis.script;
             s16 d5 = alis.varD5;
-            alis.script = ENTSCR(pid);
+            ALIS_SET_SCRIPT(ENTSCR(pid));
             alis.varD5 = pid;
             sAlisScriptLive *e = script_live(prog);
-            alis.script = caller;
+            ALIS_SET_SCRIPT(caller);
             alis.varD5 = d5;
             if (e == NULL)
                 continue;

@@ -139,7 +139,7 @@ extern u16 v6x_mousergb[0x400];
 extern u32 v6ips_warm;
 int  v6ts_push(u16 id, u32 mat);    // found-entity stack push
 extern s16 v6xclipx1, v6xclipy1, v6xclipx2, v6xclipy2;  // v6 clip set
-extern u8  v6xdirty;            // v6 whole-frame dirty flag
+extern u8  v6xdirty;            // v6 repaint the whole frame next draw
 
 // v6 put chain
 void put_v6(u32 elem);          // orchestrator

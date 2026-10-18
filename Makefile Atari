@@ -20,6 +20,14 @@ SRC_DIRS = ./src
 # Program version header from git (scripts/gen_version.sh); rewritten only when it changes.
 VERSION_GEN := $(shell sh scripts/gen_version.sh src/version.h)
 
+# CPU target: make -f "Makefile Atari" CPU=-mcfv4e for ColdFire (SDL1 only)
+CPU ?= -m68020-60
+LIB_DIR := /opt/cross-mint/lib
+ifneq ($(CPU),-m68020-60)
+# multilib SDL/GEM: the generic 68000 libs don't run on ColdFire
+LIB_DIR := $(LIB_DIR)/$(shell $(CC) $(CPU) -print-multi-directory)
+endif
+
 # SDL library variant selector. We ship three pre-built libSDL variants
 # in /opt/cross-mint/lib (and per-multilib subdirs) for A/B testing the
 # Atari XBIOS phantom-keypress bug:
@@ -34,7 +42,7 @@ SDL_LIB = -lSDL
 else
 SDL_LIB = -lSDL_$(SDL_VARIANT)
 endif
-SDL_FLAGS = -L/opt/cross-mint/lib $(SDL_LIB) -lGEM -lm
+SDL_FLAGS = -L$(LIB_DIR) $(SDL_LIB) -lGEM -lm
 ifdef USE_NATIVE_ATARI
 SDL_FLAGS = -L/opt/cross-mint/lib -lGEM -lm   # native uses SDL headers for types only
 endif
@@ -87,10 +95,10 @@ CPPFLAGS := $(INC_FLAGS) -MMD -MP
 #CFLAGS := -O2 -fomit-frame-pointer -std=c99 -DALIS_SDL_VER=1 -DNDEBUG=1 -DALIS_SND_INTERPOLATE_TYPE=0
 
 ifdef USE_NATIVE_ATARI
-CFLAGS := -O3 -funroll-loops -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_USE_NATIVE_ATARI=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
+CFLAGS := -O3 -funroll-loops -fomit-frame-pointer $(CPU) -std=c99 -DALIS_SDL_VER=1 -DALIS_USE_NATIVE_ATARI=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
 else
 #CFLAGS := -O3 -funroll-loops -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1 -DALIS_MEM_NATIVE_ENDIAN=1
-CFLAGS := -O3 -funroll-loops -fomit-frame-pointer -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
+CFLAGS := -O3 -funroll-loops -fomit-frame-pointer $(CPU) -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
 #CFLAGS := -g -fno-omit-frame-pointer -O3 -m68020-60 -std=c99 -DALIS_SDL_VER=1 -DALIS_SND_INTERPOLATE_TYPE=0 -DNDEBUG=1
 endif
 
@@ -151,8 +159,7 @@ endif
 
 CFLAGS += -DALIS_DSP_MIXER=1
 
-LDFLAGS := -m68020-60
-#LDFLAGS := -mcfv4e
+LDFLAGS := $(CPU)
 
 # --- Auto-clean on config change ---------------------------------------------
 # make only recompiles when a *source* file changes, not when build flags do. So
@@ -161,7 +168,7 @@ LDFLAGS := -m68020-60
 # dirty_pal/dirty_len, giving "multiple definition" at link. We stamp the config
 # toggles to build/.build_sig; if they changed since the last build, wipe build/
 # so everything recompiles cleanly. (Skipped for the `clean` goal.)
-BUILD_SIG      := native=$(USE_NATIVE_ATARI);16bpp=$(FALCON_16BPP);fli16=$(FLI16);regvars=$(VM_REGVARS);extra=$(EXTRA_CFLAGS)
+BUILD_SIG      := cpu=$(CPU);native=$(USE_NATIVE_ATARI);16bpp=$(FALCON_16BPP);fli16=$(FLI16);regvars=$(VM_REGVARS);extra=$(EXTRA_CFLAGS)
 BUILD_SIG_FILE := $(BUILD_DIR)/.build_sig
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
   BUILD_SIG_OLD := $(shell cat $(BUILD_SIG_FILE) 2>/dev/null)

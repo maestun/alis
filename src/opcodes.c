@@ -12449,6 +12449,10 @@ static int s_conv_planar_ok = 0;
 
 static int conv_planar_allowed_for(const char *name)
 {
+    // v6 composes chunky, see v6_present
+    if (alis.platform.version >= 60)
+        return 0;
+
     if (!alis.platform.is_little_endian)
         return 1;                       // BE data: 3D resources carry their own formats, convert all
 
@@ -12558,22 +12562,20 @@ void chunky8_to_planar(const u8 *idx8, s32 w, s32 h, int flip, u8 *dst)
                 {
                     s32 i = 0;
                     for (; i < n; i++)
-                    {
                         px[i] = row[base + i];
-                        for (; i < 16; i++)
-                            px[i] = 0;
-                    }
+
+                    for (; i < 16; i++)
+                        px[i] = 0;
                 }
                 else
                 {
                     s32 i = 0;
                     const u8 *r = row + (w - 1 - base);
                     for (; i < n; i++)
-                    {
                         px[i] = r[-i];
-                        for (; i < 16; i++)
-                            px[i] = 0;
-                    }
+
+                    for (; i < 16; i++)
+                        px[i] = 0;
                 }
 
                 kalms16_8(px, pw);

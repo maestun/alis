@@ -225,8 +225,7 @@ SDL_Surface             *surface;
 extern SDL_keysym       button;
 extern SDL_Event        event;
 extern SDL_AudioSpec    *audio_spec;
-extern SDL_Rect         dirty_rects[256];
-extern SDL_Rect         dirty_mouse_rect;
+extern rect_t           dirty_mouse_rect;
 extern volatile u8      dirty_pal;
 extern u8               dirty_len;
 
@@ -275,6 +274,8 @@ s32 surface_stride = 0;      // surface pitch in pixels (surface->pitch / bpp)
 // SDL granted SDL_DOUBLEBUF. Only then do SDL's Atari drivers page-swap on Vsync;
 // otherwise rects are drawn into the visible screen. See sdl1_set_8bpp_mode().
 static int use_flip = 0;
+static u8  flip_reset;   // mode changed: drop the previous page's rects
+static u8  sdl1_truecolor;   // game draws into pixelbuf.rgb (RRQ 3DO)
 
 // `surface` is the render target, `display` the SDL screen (same when scale==1).
 // scale>1: display is width*scale × height*scale*1.2, SoftStretched on flush.
@@ -355,6 +356,9 @@ static long atari_restore_hw_vectors_supexec(void)
     return 0;
 }
 
+static u8   atari_timera_installed;
+static long atari_timera_uninstall_supexec(void);
+
 // etv_term ($408) handler, called in user mode at termination (even SIGKILL).
 // Order (as ScummVM critical_restore): stop audio DMA (it reads our soon-freed
 // memory), restore HW vectors, silence YM, unhook Timer C, SDL_Quit last.
@@ -380,6 +384,9 @@ void atari_etv_term_handler(void)
 
     // Abnormal exit: clean up here, then restore (not call) SDL's chain.
     Buffoper(0);
+    if (atari_timera_installed)
+        Supexec(atari_timera_uninstall_supexec);
+
     Supexec(atari_restore_hw_vectors_supexec);
     sys_deinit_psg();
     if (atari_old_etv_timer)
@@ -438,8 +445,13 @@ void atari_timera_c_callback(void)
     __asm__ volatile(
         "move.w %%sr,%0\n\t"                  // save SR (entered at IPL 6)
         "move.w %0,%%d0\n\t"
+#if defined(__mcoldfire__)
+        "andi.l #0xF8FF,%%d0\n\t"
+        "ori.l  #0x0500,%%d0\n\t"
+#else
         "andi.w #0xF8FF,%%d0\n\t"             // clear IPL field
         "ori.w  #0x0500,%%d0\n\t"             // IPL = 5 → only the ACIA/MFP
+#endif
         "move.w %%d0,%%sr\n\t"                //   (IPL 6) preempts, not VBL/HBL
         : "=&d"(saved_sr) : : "d0", "cc", "memory");
 
@@ -632,6 +644,116 @@ static SDL_Surface *sdl1_set_8bpp_mode(s32 w, s32 h)
 }
 #endif
 
+// creates display and surface at width x height, v6 games switch mode at runtime.
+static void sdl1_open_video(void)
+{
+    if (surface)
+        surface->pixels = prev_pixels;
+
+    if (surface && surface != display)
+        SDL_FreeSurface(surface);
+
+    // ×1.2 aspect correction only when scaling.
+    s32 disp_w, disp_h;
+    if (opt_scale > 1)
+    {
+        disp_w = (s32)width  * opt_scale;
+        disp_h = (s32)height * opt_scale * 12 / 10;
+        display_sx_num = opt_scale;        display_sx_den = 1;
+        display_sy_num = opt_scale * 12;   display_sy_den = 10;
+    }
+    else
+    {
+        disp_w = (s32)width;
+        disp_h = (s32)height;
+        display_sx_num = 1;  display_sx_den = 1;
+        display_sy_num = 1;  display_sy_den = 1;
+    }
+
+#if defined(__TOS__) || defined(__atarist__)
+    if (sdl1_truecolor)
+    {
+        display = SDL_SetVideoMode(disp_w, disp_h, 16, SDL_HWSURFACE|SDL_DOUBLEBUF);
+        if (display == NULL)
+            display = SDL_SetVideoMode(disp_w, disp_h, 16, SDL_HWSURFACE);
+
+        if (display == NULL)
+            display = SDL_SetVideoMode(disp_w, disp_h, 0, SDL_HWSURFACE|SDL_ANYFORMAT);
+
+        if (display == NULL || display->format->BitsPerPixel < 16)
+        {
+            printf("\nThis game needs a %dx%d true colour (16 or 32 bit) video mode,\nwhich could not be opened.\n\nPress any key to quit.\n", (int)disp_w, (int)disp_h);
+            fflush(stdout);
+            Cconin();
+            SDL_Quit();
+            exit(1);
+        }
+    }
+    else
+    {
+# if defined(ALIS_FALCON_16BPP) && ALIS_FALCON_16BPP
+        // 16-bit Videl truecolor surface (chunky, no c2p)
+        display = SDL_SetVideoMode(disp_w, disp_h, 16, SDL_HWSURFACE);
+        if (display == NULL)  // fall back to native if the driver won't give 16bpp
+            display = sdl1_set_8bpp_mode(disp_w, disp_h);
+# else
+        display = sdl1_set_8bpp_mode(disp_w, disp_h);
+# endif
+    }
+#else
+    display = SDL_SetVideoMode(disp_w, disp_h, 32, SDL_SWSURFACE);
+#endif
+    if (display == NULL)
+    {
+        fprintf(stderr, "   Could not create %dx%d window: %s\n", disp_w, disp_h, SDL_GetError());
+        exit(-1);
+    }
+
+    if (opt_scale > 1)
+    {
+        // Memory back buffer at native resolution, same pixel format as display
+        surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, display->format->BitsPerPixel, display->format->Rmask, display->format->Gmask, display->format->Bmask, display->format->Amask);
+        if (surface == NULL)
+        {
+            fprintf(stderr, "   Could not create %dx%d back buffer: %s\n", (int)width, (int)height, SDL_GetError());
+            exit(-1);
+        }
+
+        if (display->format->BitsPerPixel == 8 && display->format->palette)
+        {
+            SDL_SetColors(surface, display->format->palette->colors, 0, 256);
+        }
+    }
+    else
+    {
+        surface = display;  // alias — no scaling
+    }
+
+    // The scaled path goes through SDL_SoftStretch and never uses SDL_DOUBLEBUF
+    flip_reset = 1;
+    use_flip = (display == surface) && ((display->flags & SDL_DOUBLEBUF) == SDL_DOUBLEBUF);
+
+    surface_y_offset = surface->pitch ? (surface->offset / surface->pitch) : 0;
+    prev_pixels = (u8 *)surface->pixels - surface->offset;
+    surface_stride = surface->pitch / (surface->format->BitsPerPixel / 8);
+
+    host.pixelbuf.surface_h     = (u16)surface->h;
+    host.pixelbuf.surface_y_off = (u16)surface_y_offset;
+}
+
+// Switches to w x h when it differs from the current mode, returns 1 if it did
+static int sdl1_fit(u32 w, u32 h)
+{
+    if (w == width && h == height)
+        return 0;
+
+    width = w;
+    height = h;
+    sdl1_open_video();
+    dirty_pal = 1;
+    return 1;
+}
+
 // Savestate load: block the audio callback (SDL) or the Timer-A feed (own audio)
 void sys_isr_pause(int on)
 {
@@ -662,10 +784,17 @@ void sys_isr_pause(int on)
 
 void sys_init(sPlatform *pl, int fullscreen, int mutesound)
 {
-    dirty_mouse_rect = (SDL_Rect){ .x = host.pixelbuf.w, .y = host.pixelbuf.h, .w = 0, .h = 0 };
+    dirty_mouse_rect = (rect_t){ .x = host.pixelbuf.w, .y = host.pixelbuf.h, .w = 0, .h = 0 };
 
     width = pl->width;
     height = pl->height;
+    sdl1_truecolor = pl->bpp > 8;
+    if (sdl1_truecolor && width > 320)
+    {
+        // RRQ 3DO switches to 320x200 at start, which fits the Falcon true colour modes
+        width = 320;
+        height = 200;
+    }
 
 #if defined(__atarist__) || defined(__TOS__)
     // Save HW vectors before SDL_Init so etv_term can restore them.
@@ -735,73 +864,7 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound)
     if (opt_scale > 4)
         opt_scale = 4;
 
-    // ×1.2 aspect correction only when scaling.
-    s32 disp_w, disp_h;
-    if (opt_scale > 1)
-    {
-        disp_w = (s32)width  * opt_scale;
-        disp_h = (s32)height * opt_scale * 12 / 10;
-        display_sx_num = opt_scale;        display_sx_den = 1;
-        display_sy_num = opt_scale * 12;   display_sy_den = 10;
-    }
-    else
-    {
-        disp_w = (s32)width;
-        disp_h = (s32)height;
-        display_sx_num = 1;  display_sx_den = 1;
-        display_sy_num = 1;  display_sy_den = 1;
-    }
-
-#if defined(__TOS__) || defined(__atarist__)
-# if defined(ALIS_FALCON_16BPP) && ALIS_FALCON_16BPP
-    // 16-bit Videl truecolor surface (chunky, no c2p).
-    display = SDL_SetVideoMode(disp_w, disp_h, 16, SDL_HWSURFACE);
-    if (display == NULL)  // fall back to native if the driver won't give 16bpp
-        display = sdl1_set_8bpp_mode(disp_w, disp_h);
-# else
-    display = sdl1_set_8bpp_mode(disp_w, disp_h);
-# endif
-#else
-    display = SDL_SetVideoMode(disp_w, disp_h, 32, SDL_SWSURFACE);
-#endif
-    if (display == NULL)
-    {
-        fprintf(stderr, "   Could not create %dx%d window: %s\n", disp_w, disp_h, SDL_GetError());
-        exit(-1);
-    }
-
-    if (opt_scale > 1)
-    {
-        // Memory back buffer at native resolution, same pixel format as display.
-        surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height,
-                                       display->format->BitsPerPixel,
-                                       display->format->Rmask, display->format->Gmask,
-                                       display->format->Bmask, display->format->Amask);
-        if (surface == NULL)
-        {
-            fprintf(stderr, "   Could not create %dx%d back buffer: %s\n", (int)width, (int)height, SDL_GetError());
-            exit(-1);
-        }
-
-        if (display->format->BitsPerPixel == 8 && display->format->palette)
-        {
-            SDL_SetColors(surface, display->format->palette->colors, 0, 256);
-        }
-    }
-    else
-    {
-        surface = display;  // alias — no scaling
-    }
-
-    // The scaled path goes through SDL_SoftStretch and never uses SDL_DOUBLEBUF.
-    use_flip = (display == surface) && ((display->flags & SDL_DOUBLEBUF) == SDL_DOUBLEBUF);
-
-    surface_y_offset = surface->pitch ? (surface->offset / surface->pitch) : 0;
-    prev_pixels = (u8 *)surface->pixels - surface->offset;
-    surface_stride = surface->pitch / (surface->format->BitsPerPixel / 8);
-
-    host.pixelbuf.surface_h     = (u16)surface->h;
-    host.pixelbuf.surface_y_off = (u16)surface_y_offset;
+    sdl1_open_video();
 
     printf("  Surface: %dx%d pitch=%d offset=%d (requested %dx%d, y_offset=%d)\n", surface->w, surface->h, surface->pitch, surface->offset, (int)width, (int)height, (int)surface_y_offset);
     printf("  Present: %s\n", use_flip ? "SDL_DOUBLEBUF page flip (vsynced)" : "single buffer (no vsync)");
@@ -1298,25 +1361,13 @@ void sys_poll_event(void)
         s16 width = mouse.x + 16 > host.pixelbuf.w ? host.pixelbuf.w - mouse.x : 16;
         s16 height = mouse.y + 16 > host.pixelbuf.h ? host.pixelbuf.h - mouse.y : 16;
 
-        SDL_Rect new_dirty_rect = (SDL_Rect){ .x = mouse.x, .y = mouse.y, .w = width, .h = height };
-        if (!(new_dirty_rect.x == dirty_mouse_rect.x && new_dirty_rect.y == dirty_mouse_rect.y && new_dirty_rect.w == dirty_mouse_rect.w && new_dirty_rect.h == dirty_mouse_rect.h))
+        if (mouse.x != dirty_mouse_rect.x || mouse.y != dirty_mouse_rect.y || width != dirty_mouse_rect.w || height != dirty_mouse_rect.h)
         {
-            if (dirty_len > 0xfc)
-            {
-                dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-                dirty_len = 0xff;
-            }
-            else
-            {
-                if (dirty_mouse_rect.w > 0 && dirty_mouse_rect.h > 0)
-                {
-                    dirty_rects[dirty_len] = dirty_mouse_rect;
-                    dirty_len++;
-                }
-                
-                dirty_rects[dirty_len] = dirty_mouse_rect = new_dirty_rect;
-                dirty_len++;
-            }
+            if (dirty_mouse_rect.w > 0 && dirty_mouse_rect.h > 0)
+                dirty_add(dirty_mouse_rect.x, dirty_mouse_rect.y, dirty_mouse_rect.w, dirty_mouse_rect.h);
+
+            dirty_mouse_rect = (rect_t){ .x = mouse.x, .y = mouse.y, .w = width, .h = height };
+            dirty_add(mouse.x, mouse.y, width, height);
         }
     }
     
@@ -1520,7 +1571,7 @@ static void __attribute__((noinline)) render_s512(pixelbuf_t buffer)
                         dirty_len++;
                     
                     ry = l;
-                    dirty_rects[dirty_len] = (SDL_Rect){ .x = px1, .y = l, .w = px2 - px1 + 1, .h = 1 };
+                    dirty_rects[dirty_len] = (rect_t){ .x = px1, .y = l, .w = px2 - px1 + 1, .h = 1 };
                 }
             }
             else if (ry >= 0)
@@ -1535,7 +1586,7 @@ static void __attribute__((noinline)) render_s512(pixelbuf_t buffer)
         
         if (dirty_len == 0)
         {
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+            dirty_rects[0] = (rect_t){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
             dirty_len = 1;
         }
 
@@ -1550,6 +1601,37 @@ static void __attribute__((noinline)) render_s512(pixelbuf_t buffer)
     #undef S512_PIX
     #undef BP4_IDX
     #undef ST_PAL9
+}
+
+// True colour frame (ARGB) -> 16/32-bit surface, dirty rects only
+static void sdl1_blit_rgb(const pixelbuf_t *buffer)
+{
+    SDL_PixelFormat *f = surface->format;
+    int fast = f->BitsPerPixel == 16 ? f->Rmask == 0xf800 && f->Gmask == 0x07e0 : f->Rmask == 0xff0000 && f->Gmask == 0xff00;
+    for (int i = 0; i < dirty_len; i++)
+    {
+        rect_t r = dirty_rects[i];
+        for (int y = r.y; y < r.y + r.h; y++)
+        {
+            const u32 *src = buffer->rgb + y * buffer->w + r.x;
+            u8 *row = (u8 *)surface->pixels + (y + surface_y_offset) * surface->pitch;
+            if (f->BitsPerPixel == 16)
+            {
+                u16 *dst = (u16 *)row + r.x;
+                for (int x = 0; x < r.w; x++)
+                {
+                    u32 c = src[x];
+                    dst[x] = fast ? (u16)(((c >> 8) & 0xf800) | ((c >> 5) & 0x07e0) | ((c >> 3) & 0x1f)) : (u16)SDL_MapRGB(f, c >> 16, c >> 8, c);
+                }
+            }
+            else
+            {
+                u32 *dst = (u32 *)row + r.x;
+                for (int x = 0; x < r.w; x++)
+                    dst[x] = fast ? src[x] : SDL_MapRGB(f, src[x] >> 16, src[x] >> 8, src[x]);
+            }
+        }
+    }
 }
 
 void sys_render(pixelbuf_t buffer)
@@ -1649,7 +1731,7 @@ void sys_render(pixelbuf_t buffer)
         #undef HAM_PIX16
         #undef HAM_PIX8
 
-        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+        dirty_rects[0] = (rect_t){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
         dirty_len = 1;
     }
     else if (bfilm.type == eAlisVideoS512)
@@ -1659,27 +1741,52 @@ void sys_render(pixelbuf_t buffer)
     else
     {
         u8 *data = buffer.data;
-        if (bfilm.type == eAlisVideoFLIC)
-        {
-            data = vgalogic;
-            
-            if (image.ftopal)
-                dirty_pal = 1;
-        }
-        else if (bfilm.type == eAlisVideoCleanup)
+        if (bfilm.type == eAlisVideoFLIC || bfilm.type == eAlisVideoCleanup)
         {
             data = vgalogic;
             
             if (image.ftopal)
                 dirty_pal = 1;
 
-            bfilm.type = eAlisVideoNone;
+            // v6 films have their own size
+            if (alis.platform.version >= 60)
+            {
+                buffer.w = bfilm.width;
+                buffer.h = bfilm.height;
+                if (sdl1_fit(buffer.w, buffer.h) || dirty_len == DIRTY_ALL)
+                {
+                    dirty_rects[0] = (rect_t){ .x = 0, .y = 0, .w = buffer.w, .h = buffer.h };
+                    dirty_len = 1;
+                }
+            }
+
+            if (bfilm.type == eAlisVideoCleanup)
+                bfilm.type = eAlisVideoNone;
         }
-        
+        else if (alis.platform.version >= 60)
+        {
+            static u32 shownpal[256];
+            if (sdl1_fit(buffer.w, buffer.h))
+                dirty_all();
+
+            if (memcmp(shownpal, buffer.palette, sizeof(shownpal)))
+            {
+                memcpy(shownpal, buffer.palette, sizeof(shownpal));
+                dirty_pal = 1;
+            }
+        }
+
+        if (dirty_len == DIRTY_ALL)
+            dirty_len = 1;
+
         if (dirty_len == 0 && dirty_pal == 0)
             return;
 
-        if (surface->format->BitsPerPixel == 8)
+        if (buffer.rgb)
+        {
+            sdl1_blit_rgb(&buffer);
+        }
+        else if (surface->format->BitsPerPixel == 8)
         {
             if (dirty_pal)
             {
@@ -1696,7 +1803,7 @@ void sys_render(pixelbuf_t buffer)
         {
             if (dirty_pal)
             {
-                dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+                dirty_rects[0] = (rect_t){ .x = 0, .y = 0, .w = buffer.w, .h = buffer.h };
                 dirty_len = 1;
                 dirty_pal = 0;
            }
@@ -1725,7 +1832,7 @@ void sys_render(pixelbuf_t buffer)
 
             for (int i = 0; i < dirty_len; i++)
             {
-                SDL_Rect r = dirty_rects[i];
+                rect_t r = dirty_rects[i];
                 u8 *src = data + r.x + r.y * buffer.w;
                 s32 src_skip = buffer.w - r.w;
                 s32 dst_skip = surface_stride - r.w;
@@ -1896,15 +2003,21 @@ void sys_render(pixelbuf_t buffer)
     // dirty_rects) and only on presented frames.
     if (use_flip)
     {
-        static SDL_Rect prev_rects[256];
+        static rect_t   prev_rects[DIRTY_MAX];
         static int      prev_len = 0;
+        if (flip_reset)
+        {
+            flip_reset = 0;
+            prev_len = 0;
+        }
+
         int             cur_len  = dirty_len;
 
         if (cur_len + prev_len > 254)
         {
             // No room to carry both frames -- repaint the whole screen, and
             // record that as the previous frame so the next one is correct too.
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+            dirty_rects[0] = (rect_t){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
             dirty_len = 1;
             prev_rects[0] = dirty_rects[0];
             prev_len = 1;
@@ -1916,7 +2029,7 @@ void sys_render(pixelbuf_t buffer)
             for (int i = 0; i < prev_len; i++)
                 dirty_rects[dirty_len++] = prev_rects[i];
 
-            memcpy(prev_rects, dirty_rects, (size_t)cur_len * sizeof(SDL_Rect));
+            memcpy(prev_rects, dirty_rects, (size_t)cur_len * sizeof(rect_t));
             prev_len = cur_len;
         }
     }
@@ -1932,12 +2045,12 @@ void sys_render(pixelbuf_t buffer)
             changed = 0;
             for (int __i = 0; __i < (int)dirty_len; __i++)
             {
-                SDL_Rect *__a = &dirty_rects[__i];
+                rect_t *__a = &dirty_rects[__i];
                 int __ax2 = __a->x + __a->w;
                 int __ay2 = __a->y + __a->h;
                 for (int __j = __i + 1; __j < (int)dirty_len; __j++)
                 {
-                    SDL_Rect *__b = &dirty_rects[__j];
+                    rect_t *__b = &dirty_rects[__j];
                     int __bx2 = __b->x + __b->w;
                     int __by2 = __b->y + __b->h;
                     // Touch/overlap: left edge of one within 1 of right edge
@@ -1970,15 +2083,17 @@ void sys_render(pixelbuf_t buffer)
     if (display != surface)
     {
         // Stretch each dirty rect from back buffer to scaled display.
-        SDL_Rect scaled_rects[256];
+        SDL_Rect scaled_rects[DIRTY_MAX];
         for (int i = 0; i < dirty_len; i++)
         {
+            rect_t *r = &dirty_rects[i];
+            SDL_Rect src = { r->x, r->y, r->w, r->h };
             SDL_Rect dst;
-            dst.x = (Sint16)((s32)dirty_rects[i].x * display_sx_num / display_sx_den);
-            dst.y = (Sint16)((s32)dirty_rects[i].y * display_sy_num / display_sy_den);
-            dst.w = (Uint16)((s32)dirty_rects[i].w * display_sx_num / display_sx_den);
-            dst.h = (Uint16)((s32)dirty_rects[i].h * display_sy_num / display_sy_den);
-            SDL_SoftStretch(surface, &dirty_rects[i], display, &dst);
+            dst.x = (Sint16)((s32)r->x * display_sx_num / display_sx_den);
+            dst.y = (Sint16)((s32)r->y * display_sy_num / display_sy_den);
+            dst.w = (Uint16)((s32)r->w * display_sx_num / display_sx_den);
+            dst.h = (Uint16)((s32)r->h * display_sy_num / display_sy_den);
+            SDL_SoftStretch(surface, &src, display, &dst);
             scaled_rects[i] = dst;
         }
 
@@ -1986,7 +2101,11 @@ void sys_render(pixelbuf_t buffer)
     }
     else
     {
-        SDL_UpdateRects(surface, dirty_len, dirty_rects);
+        SDL_Rect rects[DIRTY_MAX];
+        for (int i = 0; i < dirty_len; i++)
+            rects[i] = (SDL_Rect){ dirty_rects[i].x, dirty_rects[i].y, dirty_rects[i].w, dirty_rects[i].h };
+
+        SDL_UpdateRects(surface, dirty_len, rects);
     }
 
     dirty_len = 0;

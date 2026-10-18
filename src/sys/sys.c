@@ -49,20 +49,36 @@
 extern const u32 k_event_ticks;
 extern const u32 k_frame_ticks;
 
+rect_t dirty_rects[DIRTY_MAX];
+u8     dirty_len = 0;
+
+void dirty_all(void)
+{
+    dirty_rects[0] = (rect_t){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+    dirty_len = DIRTY_ALL;
+}
+
+void dirty_add(s16 x, s16 y, u16 w, u16 h)
+{
+    if (dirty_len >= DIRTY_ALL - 1)
+    {
+        dirty_all();
+        return;
+    }
+
+    dirty_rects[dirty_len++] = (rect_t){ .x = x, .y = y, .w = w, .h = h };
+}
+
 #if ALIS_SDL_VER == 1
 
 #include <SDL/SDL.h>
 
 SDL_keysym button = { 0, 0, 0, 0 };
-SDL_Rect dirty_rects[256];
-SDL_Rect dirty_mouse_rect;
-// The native build defines these in sys_atari.c.
+rect_t dirty_mouse_rect;
 #if !defined(ALIS_USE_NATIVE_ATARI)
 volatile u8 dirty_pal = 1;
-u8 dirty_len = 0;
 #else
 extern volatile u8 dirty_pal;   // defined in sys_atari.c (Timer-C ISR writes it)
-extern u8 dirty_len;
 #endif
 
 #define SDLK_KP_0   SDLK_KP0
@@ -356,12 +372,24 @@ volatile u8 g_psg_isr_context = 0;
 #if defined(__TOS__) || defined(__atarist__)
 // Direct YM2149 access: $FFFF8800 = register-select / read-data, $FFFF8802 = write-data.
 // Mask to IPL 7 so the select+data pair can't be split by another MFP source.
+// Mask to IPL 7, return the old SR.
+static inline unsigned short psg_ipl7(void)
+{
+    unsigned short sr;
+#if defined(__mcoldfire__)
+    unsigned long t;
+    __asm__ volatile("move.w %%sr,%0\n\tmove.l %0,%1\n\tori.l #0x0700,%1\n\tmove.w %1,%%sr" : "=&d"(sr), "=&d"(t) : : "cc", "memory");
+#else
+    __asm__ volatile("move.w %%sr,%0\n\tori.w #0x0700,%%sr" : "=d"(sr) : : "cc", "memory");
+#endif
+    return sr;
+}
+
 static inline void psg_hw_write(u8 reg, u8 val)
 {
     volatile u8 *sel = (volatile u8 *)0xFFFF8800UL;
     volatile u8 *dat = (volatile u8 *)0xFFFF8802UL;
-    unsigned short sr;
-    __asm__ volatile("move.w %%sr,%0\n\tori.w #0x0700,%%sr" : "=d"(sr) : : "cc", "memory");
+    unsigned short sr = psg_ipl7();
     *sel = reg; *dat = val;
     __asm__ volatile("move.w %0,%%sr" : : "d"(sr) : "cc", "memory");
 }
@@ -369,8 +397,7 @@ static inline void psg_hw_write(u8 reg, u8 val)
 static inline u8 psg_hw_read(u8 reg)
 {
     volatile u8 *sel = (volatile u8 *)0xFFFF8800UL;
-    unsigned short sr; u8 v;
-    __asm__ volatile("move.w %%sr,%0\n\tori.w #0x0700,%%sr" : "=d"(sr) : : "cc", "memory");
+    unsigned short sr = psg_ipl7(); u8 v;
     *sel = reg; v = *sel;
     __asm__ volatile("move.w %0,%%sr" : : "d"(sr) : "cc", "memory");
     return v;
@@ -1676,11 +1703,6 @@ void sys_set_mouse(u16 x, u16 y)
     mouse.y = y;
 }
 
-bool rect_equals(const SDL_Rect *x, const SDL_Rect *y)
-{
-    return x && y && x->x == y->x && x->y == y->y && x->w == y->w && x->h == y->h;
-}
-
 void sys_enable_mouse(u8 enable)
 {
     
@@ -1688,23 +1710,11 @@ void sys_enable_mouse(u8 enable)
     s16 width = mouse.x + 16 > host.pixelbuf.w ? host.pixelbuf.w - mouse.x : 16;
     s16 height = mouse.y + 16 > host.pixelbuf.h ? host.pixelbuf.h - mouse.y : 16;
 
-    SDL_Rect new_dirty_rect = (SDL_Rect){ .x = mouse.x, .y = mouse.y, .w = width, .h = height };
-    if (dirty_len > 0xfc)
-    {
-        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-        dirty_len = 0xff;
-    }
-    else
-    {
-        if (dirty_mouse_rect.w > 0 && dirty_mouse_rect.h > 0)
-        {
-            dirty_rects[dirty_len] = dirty_mouse_rect;
-            dirty_len++;
-        }
-        
-        dirty_rects[dirty_len] = dirty_mouse_rect = new_dirty_rect;
-        dirty_len++;
-    }
+    if (dirty_mouse_rect.w > 0 && dirty_mouse_rect.h > 0)
+        dirty_add(dirty_mouse_rect.x, dirty_mouse_rect.y, dirty_mouse_rect.w, dirty_mouse_rect.h);
+
+    dirty_mouse_rect = (rect_t){ .x = mouse.x, .y = mouse.y, .w = width, .h = height };
+    dirty_add(mouse.x, mouse.y, width, height);
 #endif
 
     mouse.enabled = enable;
@@ -2210,6 +2220,37 @@ static u8 io_keyon_live(u8 code);
 
 u8 io_keyon(u8 code)
 {
+#if defined(ALIS_USE_NATIVE_ATARI)
+#define KSC(sc) (g_ikbd_pressed[sc] ? 1 : 0)
+    switch (code)
+    {
+    case 0x1b: return KSC(0x01);
+    case 0xc8: return KSC(0x48) | KSC(0x68);
+    case 0xd0: return KSC(0x50) | KSC(0x6e);
+    case 0xcb: return KSC(0x4b) | KSC(0x6a);
+    case 0xcd: return KSC(0x4d) | KSC(0x6c);
+    case 0xc7: return KSC(0x47);
+    case 0xd2: return KSC(0x52);
+    case 0xd3: return KSC(0x53);
+    case 0xe0: return KSC(0x2a);
+    case 0xe1: return KSC(0x36);
+    case 0xe2: return KSC(0x1d);
+    case 0xe3: return KSC(0x38);
+    case 0xe4: return KSC(0x3a);
+    default:
+        if (code >= 0xbb && code <= 0xc4)
+            return KSC(0x3b + (code - 0xbb));
+
+        for (int sc = 1; sc < 128; sc++)
+        {
+            if (atari_sc_ascii[sc] == code && g_ikbd_pressed[sc])
+                return 1;
+        }
+
+        return 0;
+    }
+#undef KSC
+#else
 #if ALIS_SDL_VER == 1
     const u8 *ks = SDL_GetKeyState(NULL);
 #define KDN(sdl2, sdl1) ks[sdl1]
@@ -2270,6 +2311,7 @@ u8 io_keyon(u8 code)
         return 0;
     }
 #undef KDN
+#endif
 }
 
 // joystick only, no arrows/numpad emulation (v1.0 reads the IKBD joystick byte)
@@ -2443,7 +2485,11 @@ time_t sys_get_time(void)
 
 u32 sys_msec(void)
 {
+#if defined(ALIS_USE_NATIVE_ATARI)
+    return sys_ticks();
+#else
     return (u32)SDL_GetTicks();
+#endif
 }
 
 u16 sys_get_model(void)

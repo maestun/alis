@@ -454,9 +454,10 @@ u8 alis_init(sPlatform platform)
 
     alis.v6ips = 0x10;  // static init (oips reads it +1)
 
+    EPalFormat pal_format = image.pal_format;
     memset(&image, 0, sizeof(image));
-    
-    
+    image.pal_format = pal_format;
+
     dos_pal_reset();
     switch (alis.platform.kind)
     {
@@ -1274,6 +1275,7 @@ void alis_load_state(void)
     // 3D renderer host state is not saved: reopen the 3D screens on their saved arenas
     if (alis.platform.version >= 60)
     {
+        v6xdirty = 1;
         for (u16 o = screen.ptscreen; o != 0; o = xread16(alis.basemain + o + 0x5c))
         {
             u32 scr = alis.basemain + o;
@@ -1726,7 +1728,7 @@ void alis_main_V6(void)
 
         alis.restart_loop = 0;
 
-        alis.script = ENTSCR(alis.varD5);
+        ALIS_SET_SCRIPT(ENTSCR(alis.varD5));
 
         xwrite16(alis.script->vram_org + 0x20, 0);
 
@@ -1837,7 +1839,7 @@ v6_next_entity:
         alis.varD5 = xread16(alis.atent + 4 + alis.varD5);
         if (alis.varD5 == 0)
         {
-            alis.script = alis.main;
+            ALIS_SET_SCRIPT(alis.main);
             draw();
 #if ALIS_USE_THREADS <= 0
             sys_poll_event();

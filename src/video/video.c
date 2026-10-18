@@ -121,6 +121,7 @@ void endfilm(void)
 {
     flstofen(-1);
     bfilm.type = eAlisVideoNone;
+    v6xdirty = 1;
     // 16-bit film path stays in 16-bit mode holding the last frame (as the original);
     // sys_render restores planar on the first game draw.
 }

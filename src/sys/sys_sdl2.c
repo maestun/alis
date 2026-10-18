@@ -360,7 +360,6 @@ u8 sys_start(void)
     
     while (alis.state && !failure)
     {
-
         // wait so image is drawn and keyboard is polled at 120 fps
         usleep(k_event_ticks);
         sys_poll_event();
@@ -561,7 +560,7 @@ void sys_poll_event(void)
 
 void sys_render(pixelbuf_t buffer)
 {
-    
+    dirty_len = 0;
     SDL_SemWait(render_sem);
 
     // v6 runtime resolution switch

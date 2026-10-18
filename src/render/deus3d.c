@@ -4873,7 +4873,6 @@ void v6x_mode6(u32 s)
     xwrite16(s + 0x7a, sav_w);
     xwrite16(s + 0x6c, sav_y2);
     xwrite16(s + 0x6a, sav_x2);
-    v6xdirty = 1;
 }
 
 s32 v6x_walkzoff;

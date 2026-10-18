@@ -48,7 +48,6 @@
 
 extern u16 pal16[256];   // 8-bit palette index -> RGB565 (built in sys_atari.c)
 extern void mac_update_pos(s16 *x, s16 *y);
-extern u8 dirty_len;     // native uses this only as a flip gate (see sys_render)
 
 // Offload solid fills to the Falcon BLiTTER above this area (smaller fills aren't
 // worth the Supexec setup). Toggle the whole thing with -DALIS_USE_BLITTER=0.
@@ -1048,8 +1047,7 @@ void draw_boxf(s16 x1, s16 y1, s16 x2, s16 y2)
         return;
     
     s16 tmpx = x2 - x1;
-    if (dirty_len < 0xfe)
-        dirty_len++;                     // native uses dirty_len only as a flip gate
+    dirty_add(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
     
     u16 c = pal16[image.inkcolor];
     s16 hgt = y2 - y1 + 1;

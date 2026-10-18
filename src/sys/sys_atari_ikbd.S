@@ -47,15 +47,28 @@
 	.globl	SYM(g_ikbd_new)
 	.globl	SYM(g_mouse_down)
 
+#if defined(__mcoldfire__)
+#define AND_JOY(r) and.l #0x8f,r
+#else
+#define AND_JOY(r) and.b #0x8f,r
+#endif
+
 	.text
 SYM(atari_ikbd_kbdvec):
 	clr.l	d1
 	move.b	d0,d1				| d1 = scancode (cc set from the byte)
 	bmi.b	ikbd_break			| bit 7 set -> key release
 	lea	SYM(g_ikbd_pressed),a0
+#if defined(__mcoldfire__)
+	moveq	#-1,d0				| no Scc to memory
+	move.b	d0,(a0,d1.l)
+	move.b	d1,SYM(g_ikbd_cur)
+	move.b	d0,SYM(g_ikbd_new)
+#else
 	st.b	(a0,d1.l)			| pressed[scancode] = 0xff
 	move.b	d1,SYM(g_ikbd_cur)		| remember last key pressed
 	st.b	SYM(g_ikbd_new)			| ...until io_inkey has reported it once
+#endif
 	rts
 ikbd_break:
 	and.l	#0x7f,d1
@@ -69,6 +82,29 @@ ikbd_break:
 // into g_mouse_dx/dy (never zeroed: atari_mouse_vbl integrates them with a
 // last-seen pattern) and latch the button bits. Only d0 is touched.
 SYM(atari_ikbd_mousevec):
+#if defined(__mcoldfire__)
+	move.l	d0,-(sp)			| no byte/word ALU ops to memory
+	move.l	d1,-(sp)
+	move.b	(a0),d0
+	and.l	#3,d0
+	move.b	d0,SYM(g_mouse_buttons)
+	move.b	SYM(g_mouse_down),d1
+	or.l	d0,d1
+	move.b	d1,SYM(g_mouse_down)
+	move.b	1(a0),d0
+	extb.l	d0
+	move.w	SYM(g_mouse_dx),d1
+	add.l	d0,d1
+	move.w	d1,SYM(g_mouse_dx)
+	move.b	2(a0),d0
+	extb.l	d0
+	move.w	SYM(g_mouse_dy),d1
+	add.l	d0,d1
+	move.w	d1,SYM(g_mouse_dy)
+	move.l	(sp)+,d1
+	move.l	(sp)+,d0
+	rts
+#else
 	move.l	d0,-(sp)
 	move.b	(a0),d0				| status byte
 	and.b	#3,d0				| keep right(bit0)+left(bit1)
@@ -82,6 +118,7 @@ SYM(atari_ikbd_mousevec):
 	add.w	d0,SYM(g_mouse_dy)
 	move.l	(sp)+,d0
 	rts
+#endif
 
 // IKBD joystick packet handler, hooked into joyvec (Kbdvbase()->joyvec).
 // a0 -> [header 0xFE/0xFF, joystick 0, joystick 1]; byte = %f000rldu. While
@@ -90,10 +127,10 @@ SYM(atari_ikbd_mousevec):
 SYM(atari_ikbd_joyvec):
 	move.l	d0,-(sp)
 	move.b	1(a0),d0
-	and.b	#0x8f,d0
+	AND_JOY(d0)
 	move.b	d0,SYM(g_joy0)
 	move.b	2(a0),d0
-	and.b	#0x8f,d0
+	AND_JOY(d0)
 	move.b	d0,SYM(g_joy1)
 	move.l	(sp)+,d0
 	rts

@@ -25,12 +25,6 @@
 #include "rrq3d.h"
 #include "rrq3d_dos.h"
 
-#if ALIS_SDL_VER < 2
-# include <SDL/SDL.h>
-extern SDL_Rect dirty_rects[256];
-extern u8 dirty_len;
-#endif
-
 // Shared globals defined in rrq3d.c
 extern u8 fprectop;
 extern u8 fprectopa;
@@ -80,18 +74,7 @@ void vgatofen_dos(void)
             chunky8_to_planar(src_row, w, 1, 0, dst_row);
         }
 #endif
-#if ALIS_SDL_VER < 2
-        if (dirty_len > 0xfd)
-        {
-            dirty_rects[0] = (SDL_Rect){0,0,host.pixelbuf.w,host.pixelbuf.h};
-            dirty_len = 0xff;
-        }
-        else
-        {
-            dirty_rects[dirty_len] = (SDL_Rect){ x0, image.clipy1, w, image.clipy2 - image.clipy1 + 1 };
-            dirty_len++;
-        }
-#endif
+        dirty_add(x0, image.clipy1, w, image.clipy2 - image.clipy1 + 1);
         return;
     }
 #endif
@@ -106,18 +89,7 @@ void vgatofen_dos(void)
         }
     }
 
-#if ALIS_SDL_VER < 2
-    if (dirty_len > 0xfd)
-    {
-        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-        dirty_len = 0xff;
-    }
-    else
-    {
-        dirty_rects[dirty_len] = (SDL_Rect){ .x = image.clipx1, .y = image.clipy1, .w = image.clipx2 - image.clipx1 + 1, .h = image.clipy2 - image.clipy1 + 1 };
-        dirty_len++;
-    }
-#endif
+    dirty_add(image.clipx1, image.clipy1, image.clipx2 - image.clipx1 + 1, image.clipy2 - image.clipy1 + 1);
 }
 
 void clrvga_dos(void)

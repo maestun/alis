@@ -38,8 +38,6 @@
 #if ALIS_SDL_VER < 2
 # include <SDL/SDL.h>
 extern volatile u8 dirty_pal;   // set from the Timer-C ISR (itroutine) on native
-extern SDL_Rect dirty_rects[256];
-extern u8 dirty_len;
 #endif
 
 u16 moduly;
@@ -2455,6 +2453,8 @@ void put_v6(u32 elem)
     }
 }
 
+static void v6dirty_sprite(u32 s, u32 sp);
+
 void killsprite_v6(u32 sp)
 {
     u32 prev = v6sp_prev(sp);
@@ -2469,7 +2469,12 @@ void killsprite_v6(u32 sp)
     if (alis.ferase && !(flags & 0x80) && (state == 0x32 || state == 0x34 || state == 0x38 || state == 0x39))
     {
         u32 world = alis.basemain + v6sp_screen(sp);
-        (void)world;
+        for (u16 id = screen.ptscreen; id != 0; id = xread16(alis.basemain + id + 0x5c))
+        {
+            u32 s = alis.basemain + id;
+            if (xread32(s + 0x5e) == world && !(xread8(s + 0x58) & 0x40))
+                v6dirty_sprite(s, sp);
+        }
     }
 
     xwrite16(sp + 0x2e, 0);
@@ -3214,6 +3219,7 @@ void oldfen(void)
 }
 
 #define V6_DIRTY_MAX 200
+#define V6_DIRTY_3D  -2     // whole 3D view
 typedef struct { s16 x1, y1, x2, y2; u32 area; s16 id; u16 scene; } sV6Dirty;
 static sV6Dirty v6dirty[V6_DIRTY_MAX];
 static s16 v6dirty_tail = 0;
@@ -3295,6 +3301,9 @@ void v6dirty_add(s16 x1, s16 y1, s16 x2, s16 y2, s16 id, u16 scene)
         u32 best = 0xffffffffu;
         for (int i = 0; i < v6dirty_tail; i++)
         {
+            if (v6dirty[i].id == V6_DIRTY_3D)
+                continue;
+
             s16 ux1 = nx1 < v6dirty[i].x1 ? nx1 : v6dirty[i].x1;
             s16 ux2 = nx2 > v6dirty[i].x2 ? nx2 : v6dirty[i].x2;
             s16 uy1 = ny1 < v6dirty[i].y1 ? ny1 : v6dirty[i].y1;
@@ -3337,9 +3346,35 @@ void v6dirty_add(s16 x1, s16 y1, s16 x2, s16 y2, s16 id, u16 scene)
         }
         else
         {
-            ALIS_DEBUG(EDebugError, "v6 dirty ring overflow (>%d)\n", V6_DIRTY_MAX);
+            v6xdirty = 1;
         }
     }
+}
+
+// sprite bounds clipped to its screen
+static void v6dirty_sprite(u32 s, u32 sp)
+{
+    v6dirty_set_window((s16)xread16(s + 0x66), (s16)xread16(s + 0x68), (s16)xread16(s + 0x6a), (s16)xread16(s + 0x6c));
+    v6dirty_add((s16)xread16(sp + 0x44), (s16)xread16(sp + 0x46), (s16)xread16(sp + 0x48), (s16)xread16(sp + 0x4a), (s16)xread16(sp + 0x4e), (u16)(s - alis.basemain));
+}
+
+// 3D views add their whole clip, unaligned and never merged into
+static void v6dirty_add3d(u32 s)
+{
+    if (v6dirty_tail >= V6_DIRTY_MAX - 1)
+    {
+        v6xdirty = 1;
+        return;
+    }
+
+    sV6Dirty *d = &v6dirty[v6dirty_tail++];
+    d->x1 = (s16)xread16(s + 0x66);
+    d->y1 = (s16)xread16(s + 0x68);
+    d->x2 = (s16)xread16(s + 0x6a);
+    d->y2 = (s16)xread16(s + 0x6c);
+    d->area = (u32)(u16)(d->x2 - d->x1) * (u16)(d->y2 - d->y1);
+    d->id = V6_DIRTY_3D;
+    d->scene = (u16)(s - alis.basemain);
 }
 
 void setphysic(void)
@@ -3751,18 +3786,8 @@ void destofen(sSprite *sprite)
         bmp.y2 -= (pos.y2 - image.blocy2);
     }
     
-#if ALIS_SDL_VER < 2
-    if (dirty_len > 0xfd)
-    {
-        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-        dirty_len = 0xff;
-    }
-    else if (bmp.x2 > 0 && bmp.y2 > 0)
-    {
-        dirty_rects[dirty_len] = (SDL_Rect){ .x = pos.x1 + bmp.x1, .y = pos.y1 + bmp.y1, .w = bmp.x2, .h = bmp.y2 };
-        dirty_len++;
-    }
-#endif
+    if (bmp.x2 > 0 && bmp.y2 > 0)
+        dirty_add(pos.x1 + bmp.x1, pos.y1 + bmp.y1, bmp.x2, bmp.y2);
     
     bmp.x2 += bmp.x1;
     bmp.y2 += bmp.y1;
@@ -3944,18 +3969,9 @@ void fentotv(void)
     // Single buffer: nothing to copy, but the window (cleared areas included) must be presented.
     if (image.logic == image.physic)
     {
-#if ALIS_SDL_VER < 2
-        if (dirty_len > 0xfd)
-        {
-            dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-            dirty_len = 0xff;
-        }
-        else if (image.fenx2 >= image.fenx1 && image.feny2 >= image.feny1)
-        {
-            dirty_rects[dirty_len] = (SDL_Rect){ .x = image.fenx1, .y = image.feny1, .w = image.fenx2 - image.fenx1 + 1, .h = image.feny2 - image.feny1 + 1 };
-            dirty_len++;
-        }
-#endif
+        if (image.fenx2 >= image.fenx1 && image.feny2 >= image.feny1)
+            dirty_add(image.fenx1, image.feny1, image.fenx2 - image.fenx1 + 1, image.feny2 - image.feny1 + 1);
+
         return;
     }
 
@@ -4784,6 +4800,7 @@ void resize_screen(s16 w, s16 h)
     host.pixelbuf.w = w;
     host.pixelbuf.h = h;
     host.pixelbuf.data = image.physic;
+    v6xdirty = 1;
 
     sys_unlock_renderer();
 
@@ -4792,7 +4809,7 @@ void resize_screen(s16 w, s16 h)
 
 static u8  v6xdrawinv;
 s16 v6xclipx1, v6xclipy1, v6xclipx2, v6xclipy2;
-u8  v6xdirty;
+u8  v6xdirty = 1;
 static s16 v6x_textwalk(u32 sp, int draw, s16 *outh);
 
 static void v6x_depscreen(u32 s)
@@ -5186,6 +5203,7 @@ static void v6x_affiscr(u32 s)
     if (xread8(s + 0x5a) == 6)
     {
         v6x_mode6(s);
+        v6dirty_add3d(s);
         xwrite8(s + 0x58, xread8(s + 0x58) & 0x7f);
         return;
     }
@@ -5193,7 +5211,7 @@ static void v6x_affiscr(u32 s)
     if (xread8(s + 0x5a) == 5 && alis.platform.uid == EGameRobinsonsRequiem3DO)
     {
         r3do_land(s);
-        v6xdirty = 1;
+        v6dirty_add3d(s);
         xwrite8(s + 0x58, xread8(s + 0x58) & 0x7f);
         return;
     }
@@ -5233,10 +5251,13 @@ static void v6x_affiscr(u32 s)
                 continue;
             }
 
+            if (!(fl & 0x80))
+                v6dirty_sprite(s, cur);
+
             v6x_deptopix(s, cur);
             v6x_rangesprite(s, cur);
+            v6dirty_sprite(s, cur);
             v6sp_set_flags(cur, v6sp_flags(cur) & 0x7e);
-            v6xdirty = 1;
         }
     }
 
@@ -5445,34 +5466,69 @@ static void v6x_blit(u32 sp)
     u8 opaque = xread8(descr + 0x1b) & 1;
     u8 *src = alis.mem + descr + 0x20;
 
+    s32 n = cx2 - cx1 + 1;
     for (s32 yy = cy1; yy <= cy2; yy++)
     {
         u8 *dst = image.logic + yy * W + cx1;
-        s32 sy = yy - y1;
-        for (s32 xx = cx1; xx <= cx2; xx++, dst++)
+        const u8 *s = src + (yy - y1) * bw;
+        if (flip)
         {
-            s32 sx = flip ? (x2 - xx) : (xx - x1);
-            u8 pix = src[sy * bw + sx];
-            if (pix != 0 || opaque)
-                *dst = pix;
+            s += x2 - cx1;
+            for (s32 i = 0; i < n; i++, s--)
+            {
+                if (*s || opaque)
+                    dst[i] = *s;
+            }
+        }
+        else if (opaque)
+        {
+            memcpy(dst, s + cx1 - x1, n);
+        }
+        else
+        {
+            s += cx1 - x1;
+            for (s32 i = 0; i < n; i++)
+            {
+                if (s[i])
+                    dst[i] = s[i];
+            }
         }
     }
 }
 
-static void v6x_composite(void)
+// repaint one dirty rect, every screen it touches back to front
+static void v6x_repaint(s16 rx1, s16 ry1, s16 rx2, s16 ry2, u16 own)
 {
+    u8 r3do = alis.platform.uid == EGameRobinsonsRequiem3DO;
     for (u16 id = screen.ptscreen; id != 0; id = xread16(alis.basemain + id + 0x5c))
     {
         u32 s = alis.basemain + id;
         if (xread8(s + 0x58) & 0x40)
             continue;
 
-        if (xread8(s + 0x5a) == 6)
+        s16 cx1 = (s16)xread16(s + 0x66);
+        s16 cy1 = (s16)xread16(s + 0x68);
+        s16 cx2 = (s16)xread16(s + 0x6a);
+        s16 cy2 = (s16)xread16(s + 0x6c);
+        if (cx1 > rx2 || cy1 > ry2 || cx2 < rx1 || cy2 < ry1)
+            continue;
+
+        u8 type = xread8(s + 0x5a);
+        if (type == 6 || (type == 5 && r3do))
         {
-            v6xclipx1 = (s16)xread16(s + 0x66);
-            v6xclipy1 = (s16)xread16(s + 0x68);
-            v6xclipx2 = (s16)xread16(s + 0x6a);
-            v6xclipy2 = (s16)xread16(s + 0x6c);
+            if (own != 0 && own != id)
+                continue;
+
+            v6xclipx1 = cx1;
+            v6xclipy1 = cy1;
+            v6xclipx2 = cx2;
+            v6xclipy2 = cy2;
+            if (type == 5)
+            {
+                r3do_flush(s);
+                continue;
+            }
+
             if (xread16(s + 0x116) != 0)
             {
                 v6x_skyfill(s);
@@ -5486,97 +5542,151 @@ static void v6x_composite(void)
             continue;
         }
 
-        if (xread8(s + 0x5a) == 5 && alis.platform.uid == EGameRobinsonsRequiem3DO)
-        {
-            r3do_flush(s);
-            continue;
-        }
-
-        v6xclipx1 = (s16)xread16(s + 0x66);
-        v6xclipy1 = (s16)xread16(s + 0x68);
-        v6xclipx2 = (s16)xread16(s + 0x6a);
-        v6xclipy2 = (s16)xread16(s + 0x6c);
-
-        if (!(xread8(s + 0x59) & 0x40) && alis.platform.uid != EGameRobinsonsRequiem3DO)
+        v6xclipx1 = cx1 > rx1 ? cx1 : rx1;
+        v6xclipy1 = cy1 > ry1 ? cy1 : ry1;
+        v6xclipx2 = cx2 < rx2 ? cx2 : rx2;
+        v6xclipy2 = cy2 < ry2 ? cy2 : ry2;
+        if (!(xread8(s + 0x59) & 0x40) && !r3do)
             v6x_fill(xread8(s + 0x13b));
-        
+
         u32 node = xread32(s + 0x5e);
         if (node == 0)
             continue;
-        
-        int nblit = 0, nskip = 0;
-        u32 sp = xread32(node + 0x38);
-        while (sp != 0 && sp != xread32(sp + 0x38))
+
+        for (u32 sp = xread32(node + 0x38); sp != 0 && sp != xread32(sp + 0x38); sp = xread32(sp + 0x38))
         {
             if ((s16)xread16(sp + 0x4c) >= 0 && !(v6sp_flags(sp) & 0x80) && !(xread8(sp + 0x24) & 0x40))
-            {
                 v6x_blit(sp);
-                nblit++;
+        }
+    }
+}
+
+typedef struct { s32 x1, y1, x2, y2; } sV6Box;
+static sV6Box v6x_cur = { 0, 0, -1, -1 };
+static sV6Box v6x_newcur;
+static u8 v6x_curhit;
+static u16 v6x_mousegen, v6x_curgen;
+
+static int v6x_clampbox(sV6Box *b)
+{
+    if (b->x1 < 0)
+        b->x1 = 0;
+
+    if (b->y1 < 0)
+        b->y1 = 0;
+
+    if (b->x2 >= alis.platform.width)
+        b->x2 = alis.platform.width - 1;
+
+    if (b->y2 >= alis.platform.height)
+        b->y2 = alis.platform.height - 1;
+
+    return b->x1 <= b->x2 && b->y1 <= b->y2;
+}
+
+// logic -> physic for one rect
+static void v6x_copy(sV6Box b)
+{
+    if (!v6x_clampbox(&b))
+        return;
+
+    s32 W = alis.platform.width, n = b.x2 - b.x1 + 1;
+    for (s32 y = b.y1; y <= b.y2; y++)
+    {
+        memcpy(image.physic + y * W + b.x1, image.logic + y * W + b.x1, n);
+        if (image.rgblogic)
+            memcpy(image.rgbphysic + y * W + b.x1, image.rgblogic + y * W + b.x1, n * sizeof(u32));
+    }
+
+    if (b.x1 <= v6x_newcur.x2 && b.x2 >= v6x_newcur.x1 && b.y1 <= v6x_newcur.y2 && b.y2 >= v6x_newcur.y1)
+        v6x_curhit = 1;
+
+    dirty_add(b.x1, b.y1, b.x2 - b.x1 + 1, b.y2 - b.y1 + 1);
+}
+
+static void v6x_drawcursor(sV6Box b)
+{
+    s32 W = alis.platform.width;
+    s32 mx = b.x1, my = b.y1;
+    for (s32 yy = 0; yy <= b.y2 - my; yy++)
+    {
+        for (s32 xx = 0; xx <= b.x2 - mx; xx++)
+        {
+            if (alis.platform.uid == EGameRobinsonsRequiem3DO)
+            {
+                u16 c = v6x_mousergb[yy * 0x20 + xx];
+                if (c)
+                    image.rgbphysic[(my + yy) * W + mx + xx] = rgb555(c & 0x7fff);
+
+                continue;
+            }
+
+            u8 c = v6x_mousebuf[yy * 0x20 + xx];
+            if (c == 0)
+                continue;
+
+            if (image.rgbphysic)
+            {
+                image.rgbphysic[(my + yy) * W + mx + xx] = pal_argb(c);
             }
             else
             {
-                nskip++;
+                image.physic[(my + yy) * W + mx + xx] = c;
             }
-
-            sp = xread32(sp + 0x38);
         }
     }
 
-    memcpy(image.physic, image.logic, (size_t)((u32)alis.platform.width * (u32)alis.platform.height));
-    if (image.rgblogic)
-        memcpy(image.rgbphysic, image.rgblogic, (size_t)alis.platform.width * alis.platform.height * sizeof(u32));
+    dirty_add(b.x1, b.y1, b.x2 - b.x1 + 1, b.y2 - b.y1 + 1);
+}
 
+// repaint the dirty rects in logic, then copy only them to physic
+static void v6x_composite(void)
+{
+    s32 W = alis.platform.width, H = alis.platform.height;
+    v6x_newcur = (sV6Box){ 0, 0, -1, -1 };
     if (alis.desmouse != NULL && v6x_mouseh > 0)
     {
         mouse_t mouse = sys_get_mouse();
-        if (!mouse.enabled)
-            goto nocursor;
-        
-        s32 W = alis.platform.width, H = alis.platform.height;
-        s32 mx = mouse.x, my = mouse.y;
-        s32 rows = v6x_mouseh;
-        if (my >= H - rows)
-            rows = H - my;
-        
-        s32 cols = v6x_mousew;
-        if (mx >= W - cols)
-            cols = W - mx;
-        
-        if (rows > 0 && cols > 0 && mx >= 0 && my >= 0)
+        if (mouse.enabled && mouse.x >= 0 && mouse.y >= 0)
         {
-            for (s32 yy = 0; yy < rows; yy++)
-            {
-                if (alis.platform.uid == EGameRobinsonsRequiem3DO)
-                {
-                    for (s32 xx = 0; xx < cols; xx++)
-                    {
-                        if (v6x_mousergb[yy * 0x20 + xx])
-                            image.rgbphysic[(my + yy) * W + mx + xx] = rgb555(v6x_mousergb[yy * 0x20 + xx] & 0x7fff);
-                    }
-                    continue;
-                }
-                
-                const u8 *row = v6x_mousebuf + yy * 0x20;
-                u8 *dst = image.physic + (my + yy) * W + mx;
-                for (s32 xx = 0; xx < cols; xx++)
-                {
-                    if (row[xx] != 0)
-                    {
-                        if (image.rgbphysic)
-                        {
-                            image.rgbphysic[(my + yy) * W + mx + xx] = pal_argb(row[xx]);
-                        }
-                        else
-                        {
-                            dst[xx] = row[xx];
-                        }
-                    }
-                }
-            }
+            v6x_newcur = (sV6Box){ mouse.x, mouse.y, mouse.x + v6x_mousew - 1, mouse.y + v6x_mouseh - 1 };
+            if (!v6x_clampbox(&v6x_newcur))
+                v6x_newcur = (sV6Box){ 0, 0, -1, -1 };
         }
     }
 
-nocursor:;
+    u8 moved = memcmp(&v6x_newcur, &v6x_cur, sizeof(sV6Box)) != 0 || v6x_mousegen != v6x_curgen;
+    v6x_curhit = 0;
+    if (v6xdirty)
+    {
+        v6xdirty = 0;
+        v6x_repaint(0, 0, W - 1, H - 1, 0);
+        v6x_copy((sV6Box){ 0, 0, W - 1, H - 1 });
+    }
+    else
+    {
+        for (s16 i = 0; i < v6dirty_tail; i++)
+        {
+            sV6Dirty *d = &v6dirty[i];
+            v6x_repaint(d->x1, d->y1, d->x2, d->y2, d->scene);
+        }
+
+        for (s16 i = 0; i < v6dirty_tail; i++)
+        {
+            sV6Dirty *d = &v6dirty[i];
+            v6x_copy((sV6Box){ d->x1, d->y1, d->x2, d->y2 });
+        }
+
+        if (moved && v6x_cur.x1 <= v6x_cur.x2)
+            v6x_copy(v6x_cur);
+    }
+
+    if (v6x_newcur.x1 <= v6x_newcur.x2 && (moved || v6x_curhit))
+        v6x_drawcursor(v6x_newcur);
+
+    v6x_cur = v6x_newcur;
+    v6x_curgen = v6x_mousegen;
+    v6dirty_tail = 0;
 }
 
 u8  v6x_mousebuf[0x400];
@@ -5585,6 +5695,7 @@ u16 v6x_mousergb[0x400];
 
 void v6x_defmouse(u32 desc)
 {
+    v6x_mousegen++;
     if (alis.platform.uid == EGameRobinsonsRequiem3DO)
     {
         s32 w, h;
@@ -5629,23 +5740,7 @@ static void v6x_draw(void)
         v6x_affiscr(s);
     }
 
-    {
-        static s32 lastmx = -1, lastmy = -1;
-        mouse_t mouse = sys_get_mouse();
-        if (mouse.x != lastmx || mouse.y != lastmy)
-        {
-            lastmx = mouse.x;
-            lastmy = mouse.y;
-            if (alis.desmouse != NULL)
-                v6xdirty = 1;
-        }
-    }
-
-    if (v6xdirty)
-    {
-        v6xdirty = 0;
-        v6x_composite();
-    }
+    v6x_composite();
 }
 
 void affiscr_v6_record(u16 scene, u16 head)
@@ -5968,18 +6063,7 @@ void draw_box(s16 x1,s16 y1,s16 x2,s16 y2)
         mac_update_pos(&x2, &y2);
     }
 
-#if ALIS_SDL_VER < 2
-    if (dirty_len > 0xfd)
-    {
-        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-        dirty_len = 0xff;
-    }
-    else
-    {
-        dirty_rects[dirty_len] = (SDL_Rect){ .x = x1, .y = y1, .w = x2 - x1 + 1, .h = y2 - y1 + 1 };
-        dirty_len++;
-    }
-#endif
+    dirty_add(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
 
     draw_line(x1, y1, x2, y1);
     draw_line(x2, y1, x2, y2);
@@ -6003,18 +6087,7 @@ void draw_boxf(s16 x1,s16 y1,s16 x2,s16 y2)
         return;
     tmpx = x2 - x1;
 
-#if ALIS_SDL_VER < 2
-    if (dirty_len > 0xfd)
-    {
-        dirty_rects[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
-        dirty_len = 0xff;
-    }
-    else
-    {
-        dirty_rects[dirty_len] = (SDL_Rect){ .x = x1, .y = y1, .w = x2 - x1 + 1, .h = y2 - y1 + 1 };
-        dirty_len++;
-    }
-#endif
+    dirty_add(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
 
     for (s16 y = y1; y <= y2; y++)
     {

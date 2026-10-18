@@ -81,8 +81,16 @@ static void tables(void)
         return;
     
     done = 1;
+    // rotation recurrence: cos() is an fcos the 68040/060 lack (Line-F under plain TOS)
+    double c = 1, s = 0;
+    const double C = 0.99999882345170187925, S = 0.00153398018628476550;   // cos, sin(pi / 2048)
     for (int i = 0; i < 0x1000; i++)
-        costab[i] = (s32)(4096 * cos(i * 3.14159265358979323846 / 2048));
+    {
+        costab[i] = (s32)(4096 * c);
+        double t = c * C - s * S;
+        s = s * C + c * S;
+        c = t;
+    }
     
     costab[2048] = -4095;
     costab[2532] = -3017;

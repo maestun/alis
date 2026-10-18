@@ -136,6 +136,15 @@ typedef struct {
     u32 *   palette;
     u32 *   rgb;            // true-colour frame (ARGB, w*h); when set, data/palette are ignored
 } pixelbuf_t;
+
+// Screen areas changed since the backend last presented
+typedef struct { s16 x, y; u16 w, h; } rect_t;
+#define DIRTY_MAX 256
+#define DIRTY_ALL 0xff      // dirty_len value: dirty_rects[0] covers the whole frame
+extern rect_t   dirty_rects[DIRTY_MAX];
+extern u8       dirty_len;
+void    dirty_add(s16 x, s16 y, u16 w, u16 h);
+void    dirty_all(void);
 void    sys_render(pixelbuf_t buffer);
 
 // Falcon BLiTTER offload (native only; no-ops elsewhere). sys_blit_frame_sync()

@@ -44,11 +44,8 @@
 # include <SDL2/SDL.h>
 #endif
 
-// Dirty-rect state: SDL1 + native Atari only (SDL2 renders full-frame).
 #if ALIS_SDL_VER < 2
 extern volatile u8 dirty_pal;
-extern SDL_Rect dirty_rects[256];
-extern u8 dirty_len;
 #endif
 
 extern void dbglog(const char *fmt, ...);
@@ -97,7 +94,7 @@ void fli_blackdata(void)
 {
     memset(vgalogic, 0, bfilm.width * bfilm.height);
 #if ALIS_SDL_VER < 2
-    dirty_rects[0] = (SDL_Rect){ .x = image.fenx1, .y = image.feny1, .w = bfilm.width, .h = bfilm.height };
+    dirty_rects[0] = (rect_t){ .x = image.fenx1, .y = image.feny1, .w = bfilm.width, .h = bfilm.height };
     dirty_len = 0xff;
 #endif
 }
@@ -110,7 +107,7 @@ void fli_data(u8 *addr)
         memcpy(ptr, addr, bfilm.width);
     }
 #if ALIS_SDL_VER < 2
-    dirty_rects[0] = (SDL_Rect){ .x = image.fenx1, .y = image.feny1, .w = bfilm.width, .h = bfilm.height };
+    dirty_rects[0] = (rect_t){ .x = image.fenx1, .y = image.feny1, .w = bfilm.width, .h = bfilm.height };
     dirty_len = 0xff;
 #endif
 }
@@ -120,7 +117,7 @@ void fli_data(u8 *addr)
 
 // Reference decoder, parameterised on target buffer + dirty state (flag-off path).
 #if !defined(ALIS_FLI_OPT)
-static void fli_decomp_ref(u8 *addr, u8 partial, u8 *vga, SDL_Rect *dr, u8 *dlp)
+static void fli_decomp_ref(u8 *addr, u8 partial, u8 *vga, rect_t *dr, u8 *dlp)
 {
     u8 dirty_len = *dlp;
     u32 index = 0;
@@ -168,12 +165,12 @@ static void fli_decomp_ref(u8 *addr, u8 partial, u8 *vga, SDL_Rect *dr, u8 *dlp)
 #if ALIS_SDL_VER < 2
             if (dirty_len > 0xfd)
             {
-                dr[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+                dr[0] = (rect_t){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
                 dirty_len = 0xff;
             }
             else
             {
-                dr[dirty_len] = (SDL_Rect){.x = image.fenx1 + (index + col) % bfilm.width, .y = image.feny1 + (index + col) / bfilm.width, .w = count, .h = 1 };
+                dr[dirty_len] = (rect_t){.x = image.fenx1 + (index + col) % bfilm.width, .y = image.feny1 + (index + col) / bfilm.width, .w = count, .h = 1 };
                 dirty_len++;
             }
 #endif
@@ -191,12 +188,12 @@ static void fli_decomp_ref(u8 *addr, u8 partial, u8 *vga, SDL_Rect *dr, u8 *dlp)
 #if ALIS_SDL_VER < 2
                 if (dirty_len > 0xfd)
                 {
-                    dr[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+                    dr[0] = (rect_t){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
                     dirty_len = 0xff;
                 }
                 else
                 {
-                    dr[dirty_len] = (SDL_Rect){.x = image.fenx1 + (index + col) % bfilm.width, .y = image.feny1 + (index + col) / bfilm.width, .w = count, .h = 1 };
+                    dr[dirty_len] = (rect_t){.x = image.fenx1 + (index + col) % bfilm.width, .y = image.feny1 + (index + col) / bfilm.width, .w = count, .h = 1 };
                     dirty_len++;
                 }
 #endif
@@ -249,7 +246,7 @@ static inline void fli_copy_run(u8 *d, const u8 *s, u32 n)
 
 // `partial` is a compile-time constant in each entry point.
 static inline __attribute__((always_inline)) void
-fli_decomp_impl(u8 *addr, u8 partial, u8 *vga, SDL_Rect *dr, u8 *dlp)
+fli_decomp_impl(u8 *addr, u8 partial, u8 *vga, rect_t *dr, u8 *dlp)
 {
     const u16 W = bfilm.width;
 #if ALIS_SDL_VER < 2
@@ -314,12 +311,12 @@ fli_decomp_impl(u8 *addr, u8 partial, u8 *vga, SDL_Rect *dr, u8 *dlp)
 #if ALIS_SDL_VER < 2
             if (dl > 0xfd)
             {
-                dr[0] = (SDL_Rect){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
+                dr[0] = (rect_t){ .x = 0, .y = 0, .w = host.pixelbuf.w, .h = host.pixelbuf.h };
                 dl = 0xff;
             }
             else
             {
-                dr[dl] = (SDL_Rect){ .x = fx + col, .y = fy + line, .w = count, .h = 1 };
+                dr[dl] = (rect_t){ .x = fx + col, .y = fy + line, .w = count, .h = 1 };
                 dl++;
             }
 #endif
@@ -333,8 +330,8 @@ fli_decomp_impl(u8 *addr, u8 partial, u8 *vga, SDL_Rect *dr, u8 *dlp)
 }
 
 #define FLI_OPT_ATTR __attribute__((noinline, optimize("no-tree-loop-distribute-patterns,no-unroll-loops,no-peel-loops")))
-FLI_OPT_ATTR static void fli_decomp_brun(u8 *a, u8 *vga, SDL_Rect *dr, u8 *dlp) { fli_decomp_impl(a, 0, vga, dr, dlp); }
-FLI_OPT_ATTR static void fli_decomp_lc  (u8 *a, u8 *vga, SDL_Rect *dr, u8 *dlp) { fli_decomp_impl(a, 1, vga, dr, dlp); }
+FLI_OPT_ATTR static void fli_decomp_brun(u8 *a, u8 *vga, rect_t *dr, u8 *dlp) { fli_decomp_impl(a, 0, vga, dr, dlp); }
+FLI_OPT_ATTR static void fli_decomp_lc  (u8 *a, u8 *vga, rect_t *dr, u8 *dlp) { fli_decomp_impl(a, 1, vga, dr, dlp); }
 #endif /* ALIS_FLI_OPT */
 
 void fli_decomp(u8 *addr, u8 partial)
@@ -505,6 +502,13 @@ void fli_palette256(u8 *addr)
     while (--packets);
 
     image.ftopal = 0xff;
+
+#if defined(ALIS_FLI_FALCON16)
+    extern u16 *g_fli16_screen;
+    extern void fli16_build_lut(void);
+    if (g_fli16_screen)
+        fli16_build_lut();
+#endif
 }
 
 void fli_ss2(u8 *addr)
