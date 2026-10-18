@@ -3109,7 +3109,7 @@ nextlight: ;
         sl->depth = (s16)v6x3d_ae94;
 }
 
-static int v6x3d_project(u32 mv, sV6Slot *out, int *clippable)
+static int v6x3d_project(u32 mv, sV6Slot *out, int *clippable, sV6Ctx *base)
 {
     v6x3d_cntverts++;
     u8 f6 = xread8(mv + 6);
@@ -3119,7 +3119,7 @@ static int v6x3d_project(u32 mv, sV6Slot *out, int *clippable)
     s16 vx = (s16)xread16(mv + 0);
     s16 vy = (s16)xread16(mv + 2);
     s16 vz = (s16)xread16(mv + 4);
-    sV6Ctx *c = (f6 & 1) ? &v6tf_parentctx : &v6tf_objcam;
+    sV6Ctx *c = ((f6 & 1) && base == &v6tf_objcam) ? &v6tf_parentctx : base;
     int ret = 1, clip = 0;
 
     s32 zf = (s32)c->m[1][0]*vx + (s32)c->m[1][1]*vy + (s32)c->m[1][2]*vz + ((c->t[1] + c->params[1]) << 15);
@@ -3411,11 +3411,12 @@ static int v6x3d_pipeA(u32 r)
         {
             v6x3d_vbits[ix >> 3] |= (u8)(1 << (ix & 7));
             int clippable;
-            if (v6x3d_project(mv, sl, &clippable))
+            if (v6x3d_project(mv, sl, &clippable, &v6tf_objcam))
             {
                 v6x3d_vbits[ix >> 3] &= (u8)~(1 << (ix & 7));
                 if (clippable)
                     v6x3d_cliptri(r, flags);
+                
                 return 0;
             }
 
@@ -4065,7 +4066,7 @@ static void v6x3d_pipeB_centered(u32 r, u16 flags)
         xwrite16(tmp + 4, (u16)(s16)((((s32)(s16)xread16(v + 4) * b548) >> 8) - cz));
         xwrite16(tmp + 6, xread16(v + 6));
         int clippable;
-        if (v6x3d_project(tmp, sl, &clippable))
+        if (v6x3d_project(tmp, sl, &clippable, &v6tf_light))
             return;
         
         xwrite8(tmp + 8, xread8(v + 8));
@@ -4164,8 +4165,7 @@ static int v6x3d_pipeB(u32 r)
     {
         if (k == 3 && (flags & 0x404) && !(flags & 0x800))
         {
-            sV6Slot *s0 = &v6x3d_vcache[i0], *s1 = &v6x3d_vcache[i1],
-                    *s2 = &v6x3d_vcache[i2];
+            sV6Slot *s0 = &v6x3d_vcache[i0], *s1 = &v6x3d_vcache[i1], *s2 = &v6x3d_vcache[i2];
             s32 cross = (s32)(s16)(s1->sx - s0->sx) * (s16)(s2->sy - s0->sy) - (s32)(s16)(s1->sy - s0->sy) * (s16)(s2->sx - s0->sx);
             if (cross > 0)
                 return 0;
@@ -4178,11 +4178,12 @@ static int v6x3d_pipeB(u32 r)
         {
             v6x3d_vbits[ix >> 3] |= (u8)(1 << (ix & 7));
             int clippable;
-            if (v6x3d_project(mv, sl, &clippable))
+            if (v6x3d_project(mv, sl, &clippable, &v6tf_objcam))
             {
                 v6x3d_vbits[ix >> 3] &= (u8)~(1 << (ix & 7));
                 if (clippable)
                     v6x3d_clipquad(r, flags);
+                
                 return 0;
             }
 
@@ -4308,8 +4309,7 @@ static void v6x3d_object(u32 e, u32 s)
 
     v6x3d_lat.fogsel = v6costab[((u16)xread16(s + 0x176)) >> 4];
     v6x3d_lat.ae48 = xread32(s + 0x16a) << sh;
-    v6x3d_lat.ae50 = (xread32(model + 0x68) != 0 ? xread32(s + 0x15a)
-                                                 : xread32(s + 0x152)) << sh;
+    v6x3d_lat.ae50 = (xread32(model + 0x68) != 0 ? xread32(s + 0x15a) : xread32(s + 0x152)) << sh;
     v6x3d_lat.ae4c = xread32(s + 0x156) << sh;
     v6x3d_lat.ae3c = xread32(s + 0x146) << sh;
     v6x3d_lat.ae44 = xread32(s + 0x14a) << sh;
