@@ -108,7 +108,11 @@ void debprot(void)
 void invdigit(u8 *sample)
 {
     u8 type = sample[0];
-    if (type == 2)
+    
+    // Ishar 1 ST plays MV1
+    // samples stay as stored, 0xFF marks loop end / release end
+    u8 mv1st = (type == 2 && alis.platform.kind == EPlatformAtari && alis.platform.uid == EGameIshar_1);
+    if (type == 2 && !mv1st)
     {
         if (read32(sample + 0xc) != 0)
         {
@@ -131,20 +135,35 @@ void invdigit(u8 *sample)
     
     if (alis.platform.kind == EPlatformMac)
     {
+        // instruments are stored at 1/3 level
         if (sample[0] == 2)
         {
-            for (int i = 0; i < length; i++)
+            static u8 mac3[256];
+            if (mac3[0] == 0)
             {
-                smpdata[i] += 0x80;
-                if (smpdata[i] == 0)
-                    smpdata[i] = 1;
+                for (int i = 0; i < 256; i++)
+                {
+                    s32 v = (s8)i * 3;
+                    v = v < -128 ? -128 : v > 127 ? 127 : v;
+                    mac3[i] = v ? (u8)v : 1;
+                }
             }
+
+            for (int i = 0; i < length; i++)
+                smpdata[i] = mac3[smpdata[i]];
         }
     }
     else if (alis.platform.kind == EPlatformAtari)
     {
         for (int i = 0; i < length; i++)
         {
+            // MV1 marker -> end of sample
+            if (mv1st && smpdata[i] == 0xff)
+            {
+                smpdata[i] = 0;
+                continue;
+            }
+
             if (sample[0] == 2)
                 smpdata[i] *= 2;
 
