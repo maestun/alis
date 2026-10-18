@@ -9410,7 +9410,37 @@ static void cdarkpal(void)
     s16 darkpac = alis.varD7;
     readexec_opername();
     s16 darkpan = alis.varD7;
-    
+
+    if (alis.platform.uid == EGameDeus)
+    {
+        s32 first = (u16)darkpac, last = (u16)darkpan;
+        if (last > 0xff)
+            last = 0xff;
+
+        if (last - first + 1 <= 0)
+            return;
+
+        for (s32 i = first; i <= last; i++)
+        {
+            image.dkpalet[i * 3 + 0] = darkpar;
+            image.dkpalet[i * 3 + 1] = darkpav;
+            image.dkpalet[i * 3 + 2] = darkpab;
+        }
+
+        image.dkpalet[0] = image.dkpalet[1] = image.dkpalet[2] = 0;
+        image.fdarkpal = 0;
+        for (int i = 3; i < 3 + 0x2fd; i++)
+        {
+            if (image.dkpalet[i] != 0x100)
+            {
+                image.fdarkpal = 1;
+                break;
+            }
+        }
+        
+        return;
+    }
+
     s16 val0 = 0x3c;
     s16 val1 = 0x3f;
     s16 val2 = 0x40;
