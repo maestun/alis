@@ -31,6 +31,8 @@
 #include <string.h>
 
 sAudio audio = {};
+s16 muright[kMuBufLen];
+u8 mustereo;
 
 volatile sFliAudioChunk fli_audio_queue[FLI_AUDIO_QUEUE_SIZE] = {{0}};
 volatile u8 fli_audio_q_head = 0;

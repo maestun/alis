@@ -218,11 +218,11 @@ void sys_init(sPlatform *pl, int fullscreen, int mutesound)
     SDL_zero(*desired_spec);
     desired_spec->freq = 44100;
     desired_spec->format = AUDIO_S16;
-    desired_spec->channels = 1;
+    desired_spec->channels = 2;
     desired_spec->samples = desired_spec->freq / 50; // 20 ms
     desired_spec->callback = sys_audio_callback_S16MSB;
     desired_spec->userdata = NULL;
-    desired_spec->size = desired_spec->samples * 2;
+    desired_spec->size = desired_spec->samples * 2 * 2;
     
     if ((audio_id = SDL_OpenAudioDevice(NULL, 0, desired_spec, audio_spec, 0)) <= 0 )
     {

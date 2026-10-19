@@ -37,8 +37,8 @@ void mv2_checkport(u32 noteat, sAudioVoice *voice);
 void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx);
 void mv2_checkcom(u32 noteat, u16 *volsam);
 void mv2_checkefft(sAudioVoice *voice);
-void mv2_soundcal(sAudioVoice *voice, const bool first);
-void mv2_soundcal_c(sAudioVoice *voice, const bool first);
+void mv2_soundcal(sAudioVoice *voice, s16 *dst, const bool first);
+void mv2_soundcal_c(sAudioVoice *voice, s16 *dst, const bool first);
 void mv2_stopmusic(void);
 void mv2_onmusic(void);
 
@@ -268,6 +268,28 @@ void mv2_calculvol(void)
         mv2a.prevmuvol = -1;
 }
 
+// Stereo mix, default amiga paula layout (voices 0,3 left / 1,2 right)
+// falcon's own 0,2 / 1,3. 30% cross-feed
+static void mv2_soundcal_stereo(void)
+{
+    u8 l2 = alis.platform.kind == EPlatformFalcon ? 2 : 3;
+    s16 *l = audio.muadresse;
+    s16 *r = muright;
+    memset(r, 0, audio.mutaloop * 2);
+    mv2_soundcal(&mv2a.voices[0], l, true);
+    mv2_soundcal(&mv2a.voices[1], r, true);
+    mv2_soundcal(&mv2a.voices[l2], l, false);
+    mv2_soundcal(&mv2a.voices[5 - l2], r, false);
+
+    for (u32 i = 0; i < audio.mutaloop; i++)
+    {
+        s32 a = l[i] + ((r[i] * 77) >> 8);
+        s32 b = r[i] + ((l[i] * 77) >> 8);
+        l[i] = a < -32768 ? -32768 : a > 32767 ? 32767 : a;
+        r[i] = b < -32768 ? -32768 : b > 32767 ? 32767 : b;
+    }
+}
+
 void mv2_soundrout(void)
 {
     u16 prevmuspeed = mv2a.muspeed;
@@ -368,8 +390,17 @@ f_soundroutc:
 
                 // A stale voice can yield a wild offset that bus-errors the DSP
                 // feed: out of VM range → NULL → silent.
-                u32 offX = smpendX - 0x10 - voice->longsam1;
+                u32 offX = voice->startsam1 - voice->longsam1;
                 u32 ramsz = alis.platform.ram_sz;
+
+                // looped: attack up to loop end, then loop +8, +0xc
+                u32 replen = lengthX;
+                if ((s32)voice->longsam2 > 0 && voice->startsam2 >= offX && voice->startsam2 <= smpendX)
+                {
+                    lengthX = voice->startsam2 + 1 - offX;
+                    replen = voice->longsam2;
+                }
+
                 s8 *maddr = (offX <= ramsz && lengthX <= ramsz - offX)
                           ? (s8 *)(alis.mem + offX) : NULL;
 
@@ -378,9 +409,9 @@ f_soundroutc:
                     lengthX,                                               // sample length (bytes)
                     freq,                                                  // 16.16 phase step (rel host_freq)
                     (s16)volsam,                                           // f_volume() result
-                    (voice->longsam2 > 0) ? 2 : 1,                       // 1=one-shot, 2=loop
+                    ((s32)voice->longsam2 > 0) ? 2 : 1,                  // 1=one-shot, 2=loop
                     0,                                                   // MV2 restarts on address change only
-                    lengthX                                              // loop whole sample (MV2's existing behavior)
+                    replen                                               // loop length
                 );
             }
         }
@@ -389,10 +420,17 @@ f_soundroutc:
         {
             // CPU fallback: original mixing path
             memset(audio.muadresse, 0, audio.mutaloop * 2);
-            mv2_soundcal(&mv2a.voices[0], true);
-            mv2_soundcal(&mv2a.voices[1], false);
-            mv2_soundcal(&mv2a.voices[2], false);
-            mv2_soundcal(&mv2a.voices[3], false);
+            if (mustereo)
+            {
+                mv2_soundcal_stereo();
+            }
+            else
+            {
+                mv2_soundcal(&mv2a.voices[0], audio.muadresse, true);
+                mv2_soundcal(&mv2a.voices[1], audio.muadresse, false);
+                mv2_soundcal(&mv2a.voices[2], audio.muadresse, false);
+                mv2_soundcal(&mv2a.voices[3], audio.muadresse, false);
+            }
         }
     }
 }
@@ -475,11 +513,25 @@ void mv2_soundins(sAudioVoice *voice, s16 newfreq, u16 instidx)
     if (type == 2)
     {
         voice->sample = sample - 0x10;
-        voice->startsam1 = sample + 0x10;
-        voice->longsam1 = xread32(sample - 0xe) - 0x20;
+        // the original reverses samples and reads start + longsam, we read forward as end - longsam
+        u32 len = xread32(sample - 0xe);
+        u32 lend = xread32(sample - 4);
+        if (lend > len - 0x20)
+            lend = len - 0x20;
+
+        // loop is +8, raw +0xc as in the DOS versions
+        if (lend)
+            lend += 0x10;
+
+        voice->longsam2 = lend - xread32(sample - 8);
+        voice->startsam2 = sample + lend - 1;
+
+        // attack runs up to the loop end, so the wrap is seamless
+        u32 aend = ((s32)voice->longsam2 > 0) ? lend : len - 0x20;
+        voice->startsam1 = sample + aend - 1;
+        voice->longsam1 = aend;
         voice->volsam = 0x40;
-        voice->startsam2 = ((xread32(sample - 0xe) - 0x10) - xread32(sample - 4)) + sample;
-        voice->longsam2 = xread32(sample - 4) - xread32(sample - 8);
+        voice->frqto = 0;
     }
     else if (type == 5 || type == 6)
     {
@@ -689,7 +741,7 @@ void f_updatevoice(sAudioVoice *voice, u32 smpstart, u32 smplength)
 
 // Pure-C mixer (the original decompiled body): the non-Atari fallback and the
 // reference behaviour the asm loop must match. Keep it unchanged.
-void mv2_soundcal_c(sAudioVoice *voice, const bool first)
+void mv2_soundcal_c(sAudioVoice *voice, s16 *dst, const bool first)
 {
     u32 freq;
     s16 freqsam = voice->freqsam;
@@ -720,7 +772,7 @@ void mv2_soundcal_c(sAudioVoice *voice, const bool first)
     u8 volsam2 = volsam >> 8;
     s16 vol_fixed = (s16)((u32)volsam2);
 
-    u16 frqto = 0;
+    u16 frqto = voice->frqto;
 
     u32 sample = voice->sample;
     u32 lengthX = xread32(sample + 2) - 0x11;
@@ -728,10 +780,11 @@ void mv2_soundcal_c(sAudioVoice *voice, const bool first)
     if (!sample || smpendX > alis.finmem)
         return;   // no sample, or a stale header (script data moved)
 
+    if (startsam1 < sample + 0x10 || startsam1 > smpendX)
+        return;
+
     u8 * const mem_base = alis.mem;
-    s16 * const dst = audio.muadresse;
     const u32 mutaloop = audio.mutaloop;
-    const u32 end_adj = smpendX - 0x10;
     
     u32 step_full = ((u32)frqhi << 16) | frqlo;
 
@@ -757,7 +810,7 @@ void mv2_soundcal_c(sAudioVoice *voice, const bool first)
                     break;
             }
 
-            dst[index] = (s16)((s8)mem_base[end_adj - longsam1] * vol_fixed);
+            dst[index] = (s16)((s8)mem_base[startsam1 - longsam1] * vol_fixed);
         }
     }
     else
@@ -782,7 +835,7 @@ void mv2_soundcal_c(sAudioVoice *voice, const bool first)
                     break;
             }
 
-            s16 scaled_val = (s16)((s8)mem_base[end_adj - longsam1] * vol_fixed);
+            s16 scaled_val = (s16)((s8)mem_base[startsam1 - longsam1] * vol_fixed);
             int total = dst[index] + scaled_val;
             if (total < -32768)
                 total = -32768;
@@ -796,6 +849,7 @@ void mv2_soundcal_c(sAudioVoice *voice, const bool first)
 
     voice->longsam1 = longsam1;
     voice->startsam1 = startsam1;
+    voice->frqto = frqto;
 }
 
 // ============================================================================
@@ -806,7 +860,7 @@ void mv2_soundcal_c(sAudioVoice *voice, const bool first)
 
 #if defined(ALIS_MV2_MIX_ASM) && ALIS_MV2_MIX_ASM && defined(ALIS_USE_NATIVE_ATARI)
 
-struct mv2_asm_ctx { u32 longsam2; u32 startsam2; u32 startsam1; };
+struct mv2_asm_ctx { u32 longsam2; u32 startsam2; u32 startsam1; const u8 *rb2; u32 frq; };
 
 // Runs the per-sample DDA over [dst, dst+mutaloop) into dst. Returns final
 // longsam1; writes final startsam1 into ctx->startsam1. `first` picks the
@@ -817,7 +871,7 @@ static u32 mv2_soundcal_asm(s16 *dst, u32 mutaloop, const u8 *read_base,
                             int first, struct mv2_asm_ctx *ctx)
 {
     u32 ls1 = longsam1;
-    u32 frq = 0;                       // frqto (starts 0)
+    u32 frq = ctx->frq;                // frqto
     u16 flo = (u16)(step_full & 0xffff);
     u16 fhi = (u16)(step_full >> 16);
     u16 vol = (u16)vol_fixed;
@@ -831,7 +885,7 @@ static u32 mv2_soundcal_asm(s16 *dst, u32 mutaloop, const u8 *read_base,
         "   subx.w  %[fhi],%[ls1]              \n"  // ls1_lo -= frqhi - X ; C = phase_switch
         "   bcs     3f                         \n"  // sample stepped -> reload
         "1: move.l  %[ls1],%[s1]               \n"  // s1 = longsam1
-        "   neg.l   %[s1]                      \n"  // s1 = -longsam1  (index = end_adj-longsam1)
+        "   neg.l   %[s1]                      \n"  // s1 = -longsam1  (index = startsam1-longsam1)
         "   move.b  %[rb]@(0,%[s1]:l),%[s1]    \n"  // s1 = (s8) sample byte
         "   ext.w   %[s1]                      \n"
         "   muls.w  %[vol],%[s1]               \n"  // * vol_fixed (product fits s16)
@@ -840,14 +894,15 @@ static u32 mv2_soundcal_asm(s16 *dst, u32 mutaloop, const u8 *read_base,
         "   bra     9f                         \n"
         "3: move.l  %[ctx]@(4),%[s1]           \n"  // s1 = startsam2
         "   move.l  %[s1],%[ctx]@(8)           \n"  // ctx->startsam1 = startsam2
+        "   move.l  %[ctx]@(12),%[rb]          \n"  // read base -> loop end
         "   move.l  %[ctx]@,%[ls1]             \n"  // longsam1 = longsam2 ; sets Z
         "   beq     9f                         \n"  // longsam2==0 -> break (no write)
         "   bra     1b                         \n"  // else write with new longsam1
         "9:                                    \n"
         : [ls1]"+d"(ls1), [frq]"+d"(frq), [cnt]"+d"(cnt), [dp]"+a"(dst),
-          [s1]"=&d"(s1), [s2]"=&d"(s2)
+          [s1]"=&d"(s1), [s2]"=&d"(s2), [rb]"+a"(read_base)
         : [flo]"d"(flo), [fhi]"d"(fhi), [vol]"d"(vol),
-          [rb]"a"(read_base), [ctx]"a"(ctx)
+          [ctx]"a"(ctx)
         : "cc", "memory"
         );
     }
@@ -876,25 +931,27 @@ static u32 mv2_soundcal_asm(s16 *dst, u32 mutaloop, const u8 *read_base,
         "   bra     9f                         \n"
         "3: move.l  %[ctx]@(4),%[s1]           \n"
         "   move.l  %[s1],%[ctx]@(8)           \n"
+        "   move.l  %[ctx]@(12),%[rb]          \n"
         "   move.l  %[ctx]@,%[ls1]             \n"
         "   beq     9f                         \n"
         "   bra     1b                         \n"
         "9:                                    \n"
         : [ls1]"+d"(ls1), [frq]"+d"(frq), [cnt]"+d"(cnt), [dp]"+a"(dst),
-          [s1]"=&d"(s1), [s2]"=&d"(s2)
+          [s1]"=&d"(s1), [s2]"=&d"(s2), [rb]"+a"(read_base)
         : [flo]"d"(flo), [fhi]"d"(fhi), [vol]"d"(vol),
-          [rb]"a"(read_base), [ctx]"a"(ctx)
+          [ctx]"a"(ctx)
         : "cc", "memory"
         );
     }
 
-    (void)frq; (void)cnt; (void)s1; (void)s2;
+    ctx->frq = (u16)frq;
+    (void)cnt; (void)s1; (void)s2;
     return ls1;
 }
 
 // Computes the mixer setup exactly as mv2_soundcal_c(), then runs the pinned asm
 // loop (or, flag-off / non-Atari, defers to mv2_soundcal_c).
-void mv2_soundcal(sAudioVoice *voice, const bool first)
+void mv2_soundcal(sAudioVoice *voice, s16 *dst, const bool first)
 {
     // --- setup: identical to mv2_soundcal_c() ---
     u32 freq;
@@ -932,10 +989,11 @@ void mv2_soundcal(sAudioVoice *voice, const bool first)
     if (!sample || smpendX > alis.finmem)
         return;   // no sample, or a stale header (script data moved)
 
+    if (startsam1 < sample + 0x10 || startsam1 > smpendX)
+        return;
+
     u8 * const mem_base = alis.mem;
-    s16 * const dst = audio.muadresse;
     const u32 mutaloop = audio.mutaloop;
-    const u32 end_adj = smpendX - 0x10;
 
     u32 step_full = ((u32)frqhi << 16) | frqlo;
     (void)freq;   // step reset on reload is a no-op (see header)
@@ -947,21 +1005,22 @@ void mv2_soundcal(sAudioVoice *voice, const bool first)
         return;
     }
 
-    const u8 *read_base = mem_base + end_adj;   // read_base[-(s32)longsam1] == mem_base[end_adj-longsam1]
+    const u8 *read_base = mem_base + startsam1;   // read_base[-(s32)longsam1] == mem_base[startsam1-longsam1]
 
-    struct mv2_asm_ctx ctx = { longsam2, startsam2, startsam1 };
+    struct mv2_asm_ctx ctx = { longsam2, startsam2, startsam1, mem_base + startsam2, voice->frqto };
     longsam1 = mv2_soundcal_asm(dst, mutaloop, read_base,
                                 vol_fixed, step_full, longsam1, first, &ctx);
 
     voice->longsam1 = longsam1;
     voice->startsam1 = ctx.startsam1;
+    voice->frqto = (u16)ctx.frq;
 }
 
 #else  // !ALIS_MV2_MIX_ASM || !native: pure C
 
-void mv2_soundcal(sAudioVoice *voice, const bool first)
+void mv2_soundcal(sAudioVoice *voice, s16 *dst, const bool first)
 {
-    mv2_soundcal_c(voice, first);
+    mv2_soundcal_c(voice, dst, first);
 }
 
 #endif

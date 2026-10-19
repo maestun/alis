@@ -90,6 +90,9 @@ void usage(void)
             "\t--native-timing           Run DOS/Mac data at their port's rates (DOS 70 Hz frames,\n"
             "\t                          60 Hz music; Mac 60 Hz) instead of the ST's 50 Hz\n"
             "\n"
+            "Audio:\n"
+            "\t--mono                    Mono music (MV2 plays stereo by default)\n"
+            "\n"
             "Display scaling (1.2 vertical aspect, like CRT):\n"
 #if ALIS_SDL_VER > 1
             "\t--1x                      Native 1x window, no aspect correction\n"
@@ -199,6 +202,10 @@ int main(int argc, char *argv[])
             {
                 extern int atari_audio_stereo;
                 atari_audio_stereo = 1;
+            }
+            else if (strcmp(cmd, "--mono") == 0)
+            {
+                opt_mono = 1;
             }
             else if (strcmp(cmd, "--native-timing") == 0)
             {

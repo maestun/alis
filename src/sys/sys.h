@@ -58,6 +58,9 @@ extern u32 sys_timeclock_hz;
 
 // Frame / palette-fade and music-sequencer rates (50 Hz, or the port's own with --native-timing).
 extern int opt_native_timing;
+
+// --mono: MV2 music in mono even on a stereo output
+extern int opt_mono;
 u32 sys_pace_hz(void);
 u32 sys_music_hz(void);
 

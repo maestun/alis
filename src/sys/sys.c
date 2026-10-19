@@ -182,6 +182,7 @@ u32             sys_sfx_tick_hz = 50;
 // The games were made on the ST, so frames, palette fades and music run at its 50 Hz;
 // --native-timing uses the port's own rates instead (DOS: VGA refresh, Mac: 60 Hz ticks).
 int             opt_native_timing = 0;
+int             opt_mono = 0;
 
 u32 sys_pace_hz(void)
 {
@@ -938,6 +939,10 @@ MIX_RUN(mix_run_s8, s8, (s8)((s16)(s0 + ((s16)buf[bi] << 8)) >> 8))
 #undef MIX_RUN
 #endif
 
+// MV2 stereo: per-frame right - left music difference
+#define kRDiffLen 4096
+static s32 mrdiff[kRDiffLen];
+
 // sys_audio_callback_S16MSB — 16-bit signed big-endian stereo/mono output.
 // Used when SDL's negotiated native format is AUDIO_S16MSB (Falcon DMA,
 // desktop SDL, most common path).
@@ -967,6 +972,15 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
         if (adv >= 2) audio_buffer[(idx) + 1] = __wfs;           \
     } while (0)
 
+    // MV2 stereo: the sfx mixers copy left into right, so right gets (right - left) music afterwards
+    mustereo = adv >= 2 && !opt_mono;
+    int mst = mustereo && audio.soundrout == mv2_soundrout;
+    #define WRITE_MUSIC_FRAME(idx, k) do {                       \
+        WRITE_AUDIO_FRAME(idx, audio.muadresse[k]);              \
+        if (mst && (idx) / adv < kRDiffLen)                      \
+            mrdiff[(idx) / adv] = muright[k] - audio.muadresse[k]; \
+    } while (0)
+
     // handle music
 
     if (audio.muflag > 0)
@@ -979,11 +993,11 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
         if (audio.smpidx)
         {
             int smpcopy = min(audio.smpidx, smprem);
-            s16 *music_buffer = (audio.muadresse + (buflen - audio.smpidx));
+            int music_base = buflen - audio.smpidx;
 
             int music_index = 0;
             for (int audio_index = 0; music_index < smpcopy; audio_index+=adv, music_index++)
-                WRITE_AUDIO_FRAME(audio_index, music_buffer[music_index]);
+                WRITE_MUSIC_FRAME(audio_index, music_base + music_index);
 
             smpidx += music_index;
             smprem -= music_index;
@@ -999,7 +1013,7 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
 
             int music_index = 0;
             for (int audio_index = smpidx * adv; music_index < smpcopy; audio_index+=adv, music_index++)
-                WRITE_AUDIO_FRAME(audio_index, audio.muadresse[music_index]);
+                WRITE_MUSIC_FRAME(audio_index, music_index);
 
             smpidx += music_index;
             smprem -= music_index;
@@ -1008,6 +1022,8 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
         }
     }
     
+    int mframes = mst ? min(smpidx, kRDiffLen) : 0;
+
     if (audio.muflag == 0)
         audio.working = 0;
 
@@ -1271,6 +1287,7 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
     }
     
     #undef WRITE_AUDIO_FRAME
+    #undef WRITE_MUSIC_FRAME
 
 #if !defined(__TOS__) && !defined(__atarist__)
     // The OPL/PSG paths above write only the first channel; duplicate it.
@@ -1280,6 +1297,12 @@ void sys_audio_callback_S16MSB(void *userdata, u8 *s, s32 buffer_length)
             audio_buffer[buffer_index + o] = audio_buffer[buffer_index];
     }
 #endif
+
+    for (int f = 0; f < mframes; f++)
+    {
+        s32 v = (s16)audio_buffer[f * adv + 1] + mrdiff[f];
+        audio_buffer[f * adv + 1] = (u16)(v < -32768 ? -32768 : v > 32767 ? 32767 : v);
+    }
 
     if (alis.platform.version >= 60)
         v6snd_render((s16 *)audio_buffer, buffer_length / adv, adv, audio_spec->freq);
@@ -1316,6 +1339,15 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
         if (adv >= 2) audio_buffer[(idx) + 1] = __wfs;             \
     } while (0)
 
+    // MV2 stereo: the sfx mixers copy left into right, so right gets (right - left) music afterwards
+    mustereo = adv >= 2 && !opt_mono;
+    int mst = mustereo && audio.soundrout == mv2_soundrout;
+    #define WRITE_MUSIC_FRAME(idx, k) do {                         \
+        WRITE_AUDIO_FRAME(idx, audio.muadresse[k]);                \
+        if (mst && (idx) / adv < kRDiffLen)                        \
+            mrdiff[(idx) / adv] = muright[k] - audio.muadresse[k]; \
+    } while (0)
+
     // handle music — mixer output is s16 in audio.muadresse
 
     if (audio.muflag > 0)
@@ -1337,10 +1369,10 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
             if (!chip_only)
             {
                 fresh = 0;
-                s16 *music_buffer = (audio.muadresse + (buflen - audio.smpidx));
+                int music_base = buflen - audio.smpidx;
                 int music_index = 0;
                 for (int audio_index = 0; music_index < smpcopy; audio_index+=adv, music_index++)
-                    WRITE_AUDIO_FRAME(audio_index, music_buffer[music_index]);
+                    WRITE_MUSIC_FRAME(audio_index, music_base + music_index);
             }
 
             smpidx += smpcopy;
@@ -1360,7 +1392,7 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
                 fresh = 0;
                 int music_index = 0;
                 for (int audio_index = smpidx * adv; music_index < smpcopy; audio_index+=adv, music_index++)
-                    WRITE_AUDIO_FRAME(audio_index, audio.muadresse[music_index]);
+                    WRITE_MUSIC_FRAME(audio_index, music_index);
             }
 
             smpidx += smpcopy;
@@ -1369,6 +1401,8 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
             audio.smpidx = buflen - smpcopy;
         }
     }
+
+    int mframes = mst ? min(smpidx, kRDiffLen) : 0;
 
     if (audio.muflag == 0)
         audio.working = 0;
@@ -1640,6 +1674,7 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
     }
 
     #undef WRITE_AUDIO_FRAME
+    #undef WRITE_MUSIC_FRAME
 
 #if !defined(__TOS__) && !defined(__atarist__)
     // The OPL/PSG paths above write only the first channel; duplicate it.
@@ -1649,6 +1684,12 @@ void sys_audio_callback_S8(void *userdata, u8 *s, s32 buffer_length)
             audio_buffer[buffer_index + o] = audio_buffer[buffer_index];
     }
 #endif
+
+    for (int f = 0; f < mframes; f++)
+    {
+        s32 v = audio_buffer[f * adv + 1] + (mrdiff[f] >> 8);
+        audio_buffer[f * adv + 1] = (s8)(v < -128 ? -128 : v > 127 ? 127 : v);
+    }
 }
 
 // =============================================================================

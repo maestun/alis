@@ -97,7 +97,7 @@ typedef struct {
     u8 type;
     u8 delta;
     u16 loopsam;
-    u16 unknown1;
+    u16 frqto;
     u16 unknown2;
     u16 unknown3;
     
@@ -190,6 +190,11 @@ typedef struct {
 } sAudio;
 
 extern sAudio audio;
+
+// MV2 stereo
+// right half of the music mix, muadresse holds the left
+extern s16 muright[kMuBufLen];
+extern u8 mustereo;
 
 #define V6SND_SFXCHANNELS   4
 #define V6SND_CHANNELS      8
