@@ -183,6 +183,8 @@ u32             sys_sfx_tick_hz = 50;
 // --native-timing uses the port's own rates instead (DOS: VGA refresh, Mac: 60 Hz ticks).
 int             opt_native_timing = 0;
 int             opt_mono = 0;
+int             opt_load_state = 0;
+u8              sys_vblcursor = 0;
 
 u32 sys_pace_hz(void)
 {

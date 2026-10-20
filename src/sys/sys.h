@@ -61,6 +61,12 @@ extern int opt_native_timing;
 
 // --mono: MV2 music in mono even on a stereo output
 extern int opt_mono;
+
+// --load-state: start from alis.state
+extern int opt_load_state;
+
+// the platform draws the v6 cursor itself (native Falcon hi-res, at VBL)
+extern u8 sys_vblcursor;
 u32 sys_pace_hz(void);
 u32 sys_music_hz(void);
 

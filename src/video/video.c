@@ -76,9 +76,20 @@ u8 *pvgalogic = NULL;
 u8 *vgalogic = NULL;
 u8 *vgalogic_df = NULL;
 u32 vgalogic_sz = 0;
+static u8 vgalogic_borrowed;    // pvgalogic is image.physic_alloc (not ours to free)
 
 int vgalogic_alloc(void)
 {
+#if defined(ALIS_NATIVE_PLANAR)
+    // v6: draw() is suspended during films and repaints after, physic is
+    // allocated for 640x480, we borrow it instead of using separate film buffer
+    if (!pvgalogic && alis.platform.version >= 60 && image.physic_alloc && image.physic_alloc != image.logic_alloc && image_buf_cap >= 0x40 + 640u * 480u)
+    {
+        pvgalogic = image.physic_alloc;
+        vgalogic_borrowed = 1;
+        vgalogic_sz = image_buf_cap;
+    }
+#endif
     if (!pvgalogic && !(pvgalogic = calloc(1, kVgaLogicSize)))
         return 0;
     
@@ -95,6 +106,9 @@ int vgalogic_fit(u32 need)
     if (!pvgalogic || need <= vgalogic_sz)
         return pvgalogic != NULL;
     
+    if (vgalogic_borrowed)
+        return 0;
+    
     u8 *p = calloc(1, need);
     if (!p)
         return 0;
@@ -110,7 +124,10 @@ int vgalogic_fit(u32 need)
 
 void vgalogic_free(void)
 {
-    free(pvgalogic);
+    if (!vgalogic_borrowed)
+        free(pvgalogic);
+    
+    vgalogic_borrowed = 0;
     pvgalogic = vgalogic = vgalogic_df = NULL;
     vgalogic_sz = 0;
 }

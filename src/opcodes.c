@@ -8319,7 +8319,8 @@ void iniback(int addr)
     (void)addr;
     if (image.bgcache_alloc)
         free(image.bgcache_alloc);
-    image.bgcache_alloc = (u8 *)malloc(image.buffer_alloc_size);
+    
+    image.bgcache_alloc = (u8 *)malloc(image_buf_cap);
     if (image.bgcache_alloc == NULL)
     {
         image.sback = 0;
@@ -12130,9 +12131,9 @@ void killent(u16 killent)
     }
 }
 
-static void v6_relocate_prog(u32 start, u32 length, u32 fin)
+// pointers into (lo, hi) move by delta, fonts in the removed range below lo are dropped
+static void v6_relocate_prog(u32 lo, u32 hi, s32 delta)
 {
-    u32 end = start + length;
     for (u32 w = defworld_list_head; w != 0; w = xread32(w + 0xb4))
     {
         for (u32 e = xread32(w + 0x38); e != xread32(e + 0x38); e = xread32(e + 0x38))
@@ -12140,22 +12141,23 @@ static void v6_relocate_prog(u32 start, u32 length, u32 fin)
             if ((xread8(e + 0x24) & 0x40) || v6sp_state(e) == '8')
                 continue;
             u32 p = xread32(e + 0x50);
-            if ((v6sp_state(e) == '0' || v6sp_state(e) == ':') && p >= end && p < fin)
-                xwrite32(e + 0x50, p - length);
+            if ((v6sp_state(e) == '0' || v6sp_state(e) == ':') && p >= lo && p < hi)
+                xwrite32(e + 0x50, p + delta);
+            
             p = xread32(e + 0x3c);
-            if (p >= end && p < fin)
-                xwrite32(e + 0x3c, p - length);
+            if (p >= lo && p < hi)
+                xwrite32(e + 0x3c, p + delta);
         }
     }
 
     for (int i = 0; i < 16; i++)
     {
         u32 g = alis.v6xfonts[i].glyphslot;
-        if (g >= end && g < fin)
+        if (g >= lo && g < hi)
         {
-            alis.v6xfonts[i].glyphslot = g - length;
+            alis.v6xfonts[i].glyphslot = g + delta;
         }
-        else if (g >= start && g < end)
+        else if (delta < 0 && g >= lo + delta && g < lo)
         {
             alis.v6xfonts[i].glyphslot = 0;
         }
@@ -12311,7 +12313,7 @@ void shrinkprog(s32 start, s32 length, u16 id)
 {
     s32 oldfin = alis.finprog;
     if (alis.platform.version >= 60)
-        v6_relocate_prog(start, length, oldfin);
+        v6_relocate_prog(start + length, oldfin, -length);
 
     // Shift [start+length, finprog) down by `length` to close the gap.
     if (alis.finprog - length > start)
@@ -12530,6 +12532,72 @@ int growprog(s32 start, s32 length)
                     sprite->data  += length;
             }
         }
+    }
+
+    return 1;
+}
+
+// v6 entities and programs share the arena, as the DOS pool
+// when entities outgrow their area, move the programs (and everything above the area) up
+u32 v6_enttop(void)
+{
+    return ((alis.debent + alis.specs.max_allocatable_vram) | 0xf) + 1;
+}
+
+int v6_growent(u32 need)
+{
+    u32 top = v6_enttop();
+    if (alis.finent + need <= top)
+        return 1;
+
+    u32 d = (alis.finent + need - top + 0xffff) & ~0xffff;
+    if (alis.finprog + d > alis.finmem)
+        d = (alis.finent + need - top + 0xf) & ~0xf;
+
+    if (alis.finprog + d > alis.finmem)
+        return 0;
+
+    u32 fin = alis.finprog;
+    v6_relocate_prog(top, fin, d);
+    memmove(alis.mem + top + d, alis.mem + top, fin - top);
+    alis.finprog += d;
+    alis.debprog += d;
+    alis.specs.max_allocatable_vram += d;
+#if defined(ALIS_NATIVE_PLANAR)
+    planar_tab_flush();
+#endif
+#if defined(ALIS_NATIVE_16BPP)
+    sprite_cache_flush();
+#endif
+#if defined(ALIS_RRQ_ASM_ZOOM) && ALIS_RRQ_ASM_ZOOM && !defined(ALIS_NO_ZOOM_TRIM)
+    zoom_rows_flush();
+#endif
+    if (alis.desmouse && alis.desmouse >= alis.mem + top && alis.desmouse < alis.mem + fin)
+        alis.desmouse += d;
+
+    audio_relocate(top, top, d);
+    v6x3d_heapmoved = 1;
+    for (int i = 0; i < alis.nbprog; i++)
+    {
+        if (alis.loaded_scripts[i]->data_org >= top)
+        {
+            alis.loaded_scripts[i]->data_org += d;
+            ATPROG_SET(i, ATPROG(i) + d);
+        }
+    }
+
+    // dormant entities rebase on wake (v6_wake)
+    for (u16 e = xread16(alis.atent + 4); e != 0; e = xread16(alis.atent + e + 4))
+    {
+        sAlisScriptLive *sc = ENTSCR(e);
+        u32 vram = sc->vram_org;
+        if ((xread8(V6_FARSLEEP(vram)) & V6_DORMANT) || get_0x14_script_org_offset(vram) < top)
+            continue;
+
+        sc->pc += d;
+        sc->pc_org += d;
+        set_0x14_script_org_offset(vram, get_0x14_script_org_offset(vram) + d);
+        set_0x08_script_ret_offset(vram, get_0x08_script_ret_offset(vram) + d);
     }
 
     return 1;

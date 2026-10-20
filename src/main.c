@@ -93,6 +93,9 @@ void usage(void)
             "Audio:\n"
             "\t--mono                    Mono music (MV2 plays stereo by default)\n"
             "\n"
+            "Savestate:\n"
+            "\t--load-state              Start from alis.state in the data folder\n"
+            "\n"
             "Display scaling (1.2 vertical aspect, like CRT):\n"
 #if ALIS_SDL_VER > 1
             "\t--1x                      Native 1x window, no aspect correction\n"
@@ -206,6 +209,10 @@ int main(int argc, char *argv[])
             else if (strcmp(cmd, "--mono") == 0)
             {
                 opt_mono = 1;
+            }
+            else if (strcmp(cmd, "--load-state") == 0)
+            {
+                opt_load_state = 1;
             }
             else if (strcmp(cmd, "--native-timing") == 0)
             {

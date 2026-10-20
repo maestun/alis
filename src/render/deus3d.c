@@ -20,6 +20,7 @@
 //
 
 #include "deus3d.h"
+#include "../fixmath.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -898,19 +899,18 @@ static int v6x3d_cull_vs(const s32 sph[4], u32 elem)
         P[2] = xread32(e2 + 0x14);
     }
 
-    s32 d, q;
-    s64 p;
-    d = (P[0] - sph[0]) >> 1;
-    p = (s64)d * d; if (p > 0x7fffffffLL) return 0;
-    q = (s32)p;
-    d = (P[1] - sph[1]) >> 1;
-    p = (s64)d * d; if (p > 0x7fffffffLL) return 0;
-    q += (s32)p;
-    d = (P[2] - sph[2]) >> 1;
-    p = (s64)d * d; if (p > 0x7fffffffLL) return 0;
-    q += (s32)p;
+    u32 q = 0;
+    for (int i = 0; i < 3; i++)
+    {
+        s32 d = (P[i] - sph[i]) >> 1;
+        if (d > 46340 || d < -46340)
+            return 0;
+
+        q += (u32)(d * d);
+    }
+
     u32 R = ((u32)(u16)xread16(elem + 0x40) + (u32)sph[3]) >> 1;
-    return (u32)(R * R) > (u32)q;
+    return R * R > q;
 }
 
 static s32 v6col_pw[4];
@@ -1822,16 +1822,26 @@ static void v6x3d_emit(void)
             for (int s = 0; s < 2; s++)
             {
                 sV6RastEdge *E = &w->e[s];
-                s64 den = (s64)E->i * E->c800r + E->rdy;
+                s64 den = fx_mul64(E->i, E->c800r) + E->rdy;
                 if (den <= 0)
                     den = 1;
-                s64 q = ((s64)E->i << 22) / den;
-                if (q > 0x7fffffff)
-                    q = 0x7fffffff;
-                s32 t = (s32)q;
-                s32 vv = (s32)((s64)E->v15 + (s64)t * E->dv4);
-                s32 uu = (s32)((s64)E->u15 + (s64)t * E->du4);
-                s32 zz = (s32)((s64)E->z15 + (s64)t * E->dz4);
+
+                // i < 512 and den < 2^31: (i << 22) / den < 2^31, so divs.l needs no saturation
+                s32 t;
+                if ((u32)E->i < 512 && den <= 0x7fffffff)
+                {
+                    t = fx_div64((s64)E->i << 22, (s32)den);
+                }
+                else
+                {
+                    s64 q = ((s64)E->i << 22) / den;
+                    t = q > 0x7fffffff ? 0x7fffffff : (s32)q;
+                }
+
+                // only the low 32 bits are kept, 32-bit products are exact
+                s32 vv = (s32)((u32)E->v15 + (u32)t * (u32)E->dv4);
+                s32 uu = (s32)((u32)E->u15 + (u32)t * (u32)E->du4);
+                s32 zz = (s32)((u32)E->z15 + (u32)t * (u32)E->dz4);
                 if (s == 0)
                 {
                     row->lv15 = vv;
@@ -1958,6 +1968,74 @@ static void v6x3d_span_flat(int first, int end)
     }
 }
 
+// plain textured run: n >= 1 pixels, keyed skips texel 0. Same uvb/uS arithmetic as the generic loops
+static u32 v6x3d_run(u8 *dst, const u8 *tex, const u8 *fog, u32 uvb, u32 step, u16 uS, u16 duS, u32 mask, int W, s32 n, int keyed)
+{
+#if defined(ALIS_USE_NATIVE_ATARI) && defined(__m68k__) && !defined(__mcoldfire__)
+    u8 *e = dst + n;
+    u32 uU = (u32)uS << 16, duU = (u32)duS << 16, x, y;
+    if (keyed)
+    {
+        __asm__ volatile (
+        "0: bfextu  %[b]{#16:#8},%[x]          \n"  // v
+        "   lsl.l   %[w],%[x]                  \n"
+        "   bfextu  %[u]{#0:%[w]},%[y]         \n"  // u = top W bits of uS
+        "   or.l    %[y],%[x]                  \n"
+        "   move.l  %[b],%[y]                  \n"
+        "   swap    %[y]                       \n"
+        "   andi.l  #0xff00,%[y]               \n"  // band
+        "   move.b  %[t]@(0,%[x]:l),%[y]       \n"  // texel
+        "   beq     1f                         \n"
+        "   move.b  %[f]@(0,%[y]:l),%[d]@      \n"
+        "1: addq.l  #1,%[d]                    \n"
+        "   add.l   %[s],%[b]                  \n"
+        "   add.l   %[du],%[u]                 \n"
+        "   and.l   %[m],%[b]                  \n"
+        "   cmpa.l  %[e],%[d]                  \n"
+        "   bne     0b                         \n"
+        : [d]"+a"(dst), [b]"+d"(uvb), [u]"+d"(uU), [x]"=&d"(x), [y]"=&d"(y)
+        : [e]"a"(e), [t]"a"(tex), [f]"a"(fog), [s]"d"(step), [du]"d"(duU), [m]"d"(mask), [w]"d"(W)
+        : "cc", "memory"
+        );
+    }
+    else
+    {
+        __asm__ volatile (
+        "0: bfextu  %[b]{#16:#8},%[x]          \n"
+        "   lsl.l   %[w],%[x]                  \n"
+        "   bfextu  %[u]{#0:%[w]},%[y]         \n"
+        "   or.l    %[y],%[x]                  \n"
+        "   move.l  %[b],%[y]                  \n"
+        "   swap    %[y]                       \n"
+        "   andi.l  #0xff00,%[y]               \n"
+        "   move.b  %[t]@(0,%[x]:l),%[y]       \n"
+        "   move.b  %[f]@(0,%[y]:l),%[d]@+     \n"
+        "   add.l   %[s],%[b]                  \n"
+        "   add.l   %[du],%[u]                 \n"
+        "   and.l   %[m],%[b]                  \n"
+        "   cmpa.l  %[e],%[d]                  \n"
+        "   bne     0b                         \n"
+        : [d]"+a"(dst), [b]"+d"(uvb), [u]"+d"(uU), [x]"=&d"(x), [y]"=&d"(y)
+        : [e]"a"(e), [t]"a"(tex), [f]"a"(fog), [s]"d"(step), [du]"d"(duU), [m]"d"(mask), [w]"d"(W)
+        : "cc", "memory"
+        );
+    }
+#else
+    for (; n > 0; n--, dst++)
+    {
+        u32 idx = (((uvb >> 8) & 0xff) << W) | ((u32)uS >> (16 - W));
+        u8 texel = tex[idx];
+        if (!keyed || texel)
+            *dst = fog[((uvb >> 16) & 0xff00) | texel];
+
+        uvb += step;
+        uS = (u16)(uS + duS);
+        uvb &= mask;
+    }
+#endif
+    return uvb;
+}
+
 static void v6x3d_span_tex(int first, int end)
 {
     u32 fl = v6x3d_ae98;
@@ -2065,6 +2143,14 @@ static void v6x3d_span_tex(int first, int end)
         u32 uvb  = (((u32)band << 16) | v0) & mask;
         u32 step = ((u32)(u16)dband << 16) | (u16)dv;
         u8 bconst = (u8)(band >> 8);
+        if (!half && !blk && !mix)
+        {
+            if (units > 0)
+                v6x3d_run(dst, tex, fog, uvb, interp ? step : step & 0xffff, uS, duS, mask, W, units, keyed);
+
+            continue;
+        }
+
         u8 al = 0, ah = 0;
         for (s32 nn = units; nn > 0; nn--)
         {
@@ -2159,13 +2245,17 @@ static void v6x3d_span_tex(int first, int end)
     }
 }
 
-static s32 v6p_at(s64 aL, s64 aR, s32 d, s32 len, s64 zL, s64 zR)
+static s32 v6p_at(s32 aL, s32 aR, s32 d, s32 len, s32 zL, s32 zR)
 {
-    s64 den = (s64)(len - d) * zR + (s64)d * zL;
+    s64 t = fx_mul64(d, zL);
+    s64 den = fx_mul64(len - d, zR) + t;
     if (den <= 0)
         den = 1;
-    
-    return (s32)(aL + (s64)d * zL * (aR - aL) / den);
+
+    if (den <= 0x7fffffff && (u64)t <= (u64)den)
+        return aL + fx_div64(fx_mul64((s32)t, aR - aL), (s32)den);
+
+    return (s32)(aL + t * (aR - aL) / den);
 }
 
 static s16 v6p_step(s32 delta, s32 cw)
@@ -2272,9 +2362,9 @@ static void v6x3d_span_persp(int first, int end)
         if (lenE == done)
             lenE = done + 1;
 
-        s64 uL = (u32)row->lu15 >> 7, uR = (u32)row->ru15 >> 7;
-        s64 vL = (u32)row->lv15 >> 7, vR = (u32)row->rv15 >> 7;
-        s64 zL = (s32)(row->lz15 >> 8), zR = (s32)(row->rz15 >> 8);
+        s32 uL = (u32)row->lu15 >> 7, uR = (u32)row->ru15 >> 7;
+        s32 vL = (u32)row->lv15 >> 7, vR = (u32)row->rv15 >> 7;
+        s32 zL = (s32)(row->lz15 >> 8), zR = (s32)(row->rz15 >> 8);
         s32 u0 = v6p_at(uL, uR, done, lenE, zL, zR);
         s32 v0 = v6p_at(vL, vR, done, lenE, zL, zR);
         s32 chunk = 0;
@@ -2295,6 +2385,17 @@ static void v6x3d_span_persp(int first, int end)
             u16 duS = (u16)(du << (8 - W));
             u32 uvb  = (((u32)band << 16) | (u16)v0) & mask;
             u32 step = ((u32)(u16)dband << 16) | (u16)dv;
+            if (!half && !blk && !mix)
+            {
+                uvb = v6x3d_run(dst, tex, fog, uvb, step, uS, duS, mask, W, cw, keyed);
+                dst += cw;
+                band = (u16)(uvb >> 16);
+                u0 = u1; v0 = v1;
+                done += cw;
+                left -= cw;
+                continue;
+            }
+
             for (s32 nn = cw; nn > 0; nn--)
             {
                 u32 idx = (((uvb >> 8) & 0xff) << W) | ((u32)uS >> (16 - W));

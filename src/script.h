@@ -207,6 +207,8 @@ void node_free(u16 n);
 void node_setname(u16 n, const char *name);
 u16 node_find(const char *name);
 sAlisScriptData *node_prog(u16 n);
+u32 v6_enttop(void);
+int v6_growent(u32 need);
 void node_swap(u16 a, u16 b);
 void scrnode_set(u32 scr, u16 field, u16 node);
 u16 scrnode_get(u32 scr, u16 field);

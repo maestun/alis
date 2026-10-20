@@ -135,9 +135,10 @@ void v6x_defmouse(u32 desc);
 void v6x_focangle(u32 scr);
 extern u16 v6x_mousew, v6x_mouseh;
 extern u8 v6x_mousebuf[0x400];
+extern u16 v6x_mousegen;        // bumped when the v6 cursor changes
 extern u16 v6x_mousergb[0x400];
 extern u32 v6ips_warm;
-int  v6ts_push(u16 id, u32 mat);    // found-entity stack push
+int  v6ts_push(u16 id, u32 mat);// found-entity stack push
 extern s16 v6xclipx1, v6xclipy1, v6xclipx2, v6xclipy2;  // v6 clip set
 extern u8  v6xdirty;            // v6 repaint the whole frame next draw
 
@@ -200,7 +201,7 @@ typedef struct {
     u8 *logic;
     u8 *physic_alloc;       // raw malloc base for physic (for free)
     u8 *logic_alloc;        // raw malloc base for logic  (for free)
-    u32 buffer_alloc_size;  // sizeof(physic_alloc) == sizeof(logic_alloc)
+    u32 buffer_alloc_size;  // bytes in use of physic_alloc / logic_alloc
 
     s16 logx1;
     s16 logx2;
@@ -449,6 +450,7 @@ typedef struct {
 } sImage;
 
 extern sImage image;
+extern u32 image_buf_cap;        // allocated bytes of physic_alloc / logic_alloc (not saved)
 
 void inisprit(void);
 
@@ -505,6 +507,7 @@ void resize_screen(s16 w, s16 h);
 void rgb_alloc(s32 w, s32 h);
 u16 *cel_decode(u32 descr, s32 *w, s32 *h);
 void r3do_land(u32 scr);
+int r3do_empty(void);
 void r3do_flush(u32 scr);
 void r3do_polar(u32 vram, s32 dx, s32 dy, s32 dz);
 s32 r3do_maptest(u32 scr, s32 X, s32 Y, const s32 mn[3], const s32 mx[3], int walking, u32 *mat);

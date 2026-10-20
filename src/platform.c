@@ -101,12 +101,16 @@ static u32 pl_original_ram(const sPlatform *pl)
 }
 
 // Arena bounds: *pref = the tier above; *floor = 2x the original machine's RAM (8-bit sprites),
-// or *pref when the original isn't listed.
+// 8 MB less for the v6 16 MB tier, or *pref when the original isn't listed.
 void pl_arena_range(const sPlatform *pl, u32 *floor, u32 *pref)
 {
     u32 orig = pl_original_ram(pl);
     *pref  = pl_compute_ram_size(pl);
     *floor = (orig && 2 * orig < *pref) ? 2 * orig : *pref;
+
+    // v6 16 MB tier (Deus): the original needed 8 MB
+    if (pl->version >= 60 && *pref > 0x1000000)
+        *floor = *pref - 0x800000;
 }
 
 // omodel memory class (ST data) the original would report for an arena of `ram_sz`:

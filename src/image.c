@@ -75,6 +75,8 @@ u8 ega_palette[] = {
 u8 masks[4] = { 0b11000000, 0b00110000, 0b00001100, 0b00000011 };
 u8 rots[4] = { 6, 4, 2, 0 };
 
+u32 image_buf_cap;
+
 sImage image = {
     .backprof = 0,
     .numelem = 0,
@@ -4762,29 +4764,42 @@ void resize_screen(s16 w, s16 h)
 
     sys_lock_renderer();
 
-    u8 *oldphys = image.physic_alloc;
-    u8 *oldlog  = image.logic_alloc;
-
+    // same layout as alis_init, +w+2: the v6 2x2 span banks may overrun by pitch+1 bytes
     u32 off = (u32)host.pixelbuf.surface_h * (u32)w;
     image.buffer_alloc_size = (u32)w * ((u32)h + 2 * host.pixelbuf.surface_h) + (u32)w + 2;
-    image.physic_alloc = (u8 *)calloc(1, image.buffer_alloc_size);
-    image.logic_alloc  = alis.platform.dbl_buf ? (u8 *)calloc(1, image.buffer_alloc_size) : image.physic_alloc;
+    if (image.buffer_alloc_size > image_buf_cap)
+    {
+        if (image.logic_alloc != image.physic_alloc)
+            free(image.logic_alloc);
+
+        free(image.physic_alloc);
+        image_buf_cap = image.buffer_alloc_size;
+        image.physic_alloc = (u8 *)malloc(image_buf_cap);
+        image.logic_alloc  = alis.platform.dbl_buf ? (u8 *)malloc(image_buf_cap) : image.physic_alloc;
+        if (image.bgcache_alloc)
+        {
+            free(image.bgcache_alloc);
+            image.bgcache_alloc = (u8 *)malloc(image_buf_cap);
+        }
+    }
+
+    memset(image.physic_alloc, 0, image.buffer_alloc_size);
+    if (image.logic_alloc != image.physic_alloc)
+        memset(image.logic_alloc, 0, image.buffer_alloc_size);
+
     image.physic = image.physic_alloc + off;
     image.logic  = image.logic_alloc + off;
 
-    if (oldlog != oldphys)
-        free(oldlog);
-    
-    free(oldphys);
-
     if (image.bgcache_alloc)
     {
-        free(image.bgcache_alloc);
-        image.bgcache_alloc = (u8 *)calloc(1, image.buffer_alloc_size);
-        image.backmap = image.bgcache_alloc ? image.bgcache_alloc + off : NULL;
+        memset(image.bgcache_alloc, 0, image.buffer_alloc_size);
+        image.backmap = image.bgcache_alloc + off;
         image.backlarg = w;
-        if (image.backmap == NULL)
-            image.sback = 0;
+    }
+    else if (image.backmap)                         // regrow failed
+    {
+        image.backmap = NULL;
+        image.sback = 0;
     }
 
     alis.platform.width  = w;
@@ -5210,8 +5225,16 @@ static void v6x_affiscr(u32 s)
 
     if (xread8(s + 0x5a) == 5 && alis.platform.uid == EGameRobinsonsRequiem3DO)
     {
+        // empty view is repainted once, not every frame
+        static u32 lastscr;
+        static u8 lastempty;
         r3do_land(s);
-        v6dirty_add3d(s);
+        u8 empty = r3do_empty();
+        if (!empty || !lastempty || s != lastscr || (xread8(s + 0x58) & 0x80))
+            v6dirty_add3d(s);
+
+        lastscr = s;
+        lastempty = empty;
         xwrite8(s + 0x58, xread8(s + 0x58) & 0x7f);
         return;
     }
@@ -5335,27 +5358,58 @@ u16 *cel_decode(u32 descr, s32 *pw, s32 *ph)
     return px;
 }
 
+// decodes only the clipped rows, one at a time
 static void cel_blit(u32 descr, s32 x1, s32 y1, s32 x2, s32 cx1, s32 cy1, s32 cx2, s32 cy2, int flip)
 {
-    s32 w, h;
-    u16 *px = cel_decode(descr, &w, &h);
-    if (!px)
+    const u8 *base = alis.mem + descr;
+    s32 w = (s16)read16(base + 0x10);
+    s32 h = (s16)read16(base + 0x12);
+    if (w <= 0 || h <= 0)
         return;
-    
-    s32 W = alis.platform.width;
-    for (s32 yy = cy1 > y1 ? cy1 : y1; yy <= cy2 && yy < y1 + h; yy++)
+
+    u8 flags = base[0x1b];
+    u16 plut[32];
+    const u8 *row = base + 0x20;
+    if (flags & 2)
     {
-        const u16 *src = px + (yy - y1) * w;
-        u32 *d = image.rgblogic + yy * W;
-        for (s32 xx = cx1; xx <= cx2; xx++)
-        {
-            s32 sx = flip ? (x2 - xx) : (xx - x1);
-            if (sx >= 0 && sx < w && src[sx])
-                d[xx] = rgb555(src[sx] & 0x7fff);
-        }
+        for (int i = 0; i < 32; i++)
+            plut[i] = (u16)(row[i * 2] << 8 | row[i * 2 + 1]);
+
+        row += 64;
     }
 
-    free(px);
+    static u16 *rb;
+    static s32 rbw;
+    if (w > rbw)
+    {
+        free(rb);
+        rb = (u16 *)malloc((size_t)w * sizeof(u16));
+        rbw = rb ? w : 0;
+        if (!rb)
+            return;
+    }
+
+    const u8 *end = base + read32(base + 4);
+    s32 W = alis.platform.width;
+    for (s32 y = 0; y < h && row < end && y1 + y <= cy2; y++)
+    {
+        const u8 *next = row + (((row[0] << 8 | row[1]) & 0x3ff) + 2) * 4;
+        s32 yy = y1 + y;
+        if (yy >= cy1)
+        {
+            memset(rb, 0, (size_t)w * sizeof(u16));
+            cel_row(row + 2, next, (flags & 2) ? plut : NULL, rb, w);
+            u32 *d = image.rgblogic + yy * W;
+            for (s32 xx = cx1; xx <= cx2; xx++)
+            {
+                s32 sx = flip ? (x2 - xx) : (xx - x1);
+                if (sx >= 0 && sx < w && rb[sx])
+                    d[xx] = rgb555(rb[sx] & 0x7fff);
+            }
+        }
+
+        row = next;
+    }
 }
 
 // solid fill of the current clip window in the logic buffer
@@ -5565,7 +5619,8 @@ typedef struct { s32 x1, y1, x2, y2; } sV6Box;
 static sV6Box v6x_cur = { 0, 0, -1, -1 };
 static sV6Box v6x_newcur;
 static u8 v6x_curhit;
-static u16 v6x_mousegen, v6x_curgen;
+u16 v6x_mousegen;
+static u16 v6x_curgen;
 
 static int v6x_clampbox(sV6Box *b)
 {
@@ -5593,9 +5648,15 @@ static void v6x_copy(sV6Box b)
     s32 W = alis.platform.width, n = b.x2 - b.x1 + 1;
     for (s32 y = b.y1; y <= b.y2; y++)
     {
-        memcpy(image.physic + y * W + b.x1, image.logic + y * W + b.x1, n);
+        // 3DO draws and shows only the RGB buffers
         if (image.rgblogic)
+        {
             memcpy(image.rgbphysic + y * W + b.x1, image.rgblogic + y * W + b.x1, n * sizeof(u32));
+        }
+        else
+        {
+            memcpy(image.physic + y * W + b.x1, image.logic + y * W + b.x1, n);
+        }
     }
 
     if (b.x1 <= v6x_newcur.x2 && b.x2 >= v6x_newcur.x1 && b.y1 <= v6x_newcur.y2 && b.y2 >= v6x_newcur.y1)
@@ -5677,11 +5738,12 @@ static void v6x_composite(void)
             v6x_copy((sV6Box){ d->x1, d->y1, d->x2, d->y2 });
         }
 
-        if (moved && v6x_cur.x1 <= v6x_cur.x2)
+        if (moved && v6x_cur.x1 <= v6x_cur.x2 && !sys_vblcursor)
             v6x_copy(v6x_cur);
     }
 
-    if (v6x_newcur.x1 <= v6x_newcur.x2 && (moved || v6x_curhit))
+    // native Falcon hi-res draws the cursor at VBL instead
+    if (v6x_newcur.x1 <= v6x_newcur.x2 && (moved || v6x_curhit) && !sys_vblcursor)
         v6x_drawcursor(v6x_newcur);
 
     v6x_cur = v6x_newcur;

@@ -46,6 +46,7 @@
 	.globl	SYM(g_joy1)
 	.globl	SYM(g_ikbd_new)
 	.globl	SYM(g_mouse_down)
+	.globl	SYM(g_ikbd_hit)
 
 #if defined(__mcoldfire__)
 #define AND_JOY(r) and.l #0x8f,r
@@ -64,10 +65,14 @@ SYM(atari_ikbd_kbdvec):
 	move.b	d0,(a0,d1.l)
 	move.b	d1,SYM(g_ikbd_cur)
 	move.b	d0,SYM(g_ikbd_new)
+	lea	SYM(g_ikbd_hit),a0
+	move.b	d0,(a0,d1.l)
 #else
 	st.b	(a0,d1.l)			| pressed[scancode] = 0xff
 	move.b	d1,SYM(g_ikbd_cur)		| remember last key pressed
 	st.b	SYM(g_ikbd_new)			| ...until io_inkey has reported it once
+	lea	SYM(g_ikbd_hit),a0
+	st.b	(a0,d1.l)			| hit[scancode]: latched until the poll clears it
 #endif
 	rts
 ikbd_break:
@@ -138,6 +143,8 @@ SYM(atari_ikbd_joyvec):
 	.bss
 	.even
 SYM(g_ikbd_pressed):
+	ds.b	128
+SYM(g_ikbd_hit):
 	ds.b	128
 SYM(g_ikbd_cur):
 	ds.b	1

@@ -80,13 +80,13 @@
 		DD000004000000000000DD04 /* deus3d.c in Sources */ = {isa = PBXBuildFile; fileRef = DD000001000000000000DD01 /* deus3d.c */; };
 		DD000007000000000000DD07 /* patches.c in Sources */ = {isa = PBXBuildFile; fileRef = DD000005000000000000DD05 /* patches.c */; };
 		DD000008000000000000DD08 /* patches.c in Sources */ = {isa = PBXBuildFile; fileRef = DD000005000000000000DD05 /* patches.c */; };
-		F42A3B612373D73C43C5EF75 /* music_v0.c in Sources */ = {isa = PBXBuildFile; fileRef = D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */; };
 		EE000020000000000000EE20 /* fli.c in Sources */ = {isa = PBXBuildFile; fileRef = EE000001000000000000EE01 /* fli.c */; };
 		EE000021000000000000EE21 /* fli.c in Sources */ = {isa = PBXBuildFile; fileRef = EE000001000000000000EE01 /* fli.c */; };
 		EE000022000000000000EE22 /* fls.c in Sources */ = {isa = PBXBuildFile; fileRef = EE000002000000000000EE02 /* fls.c */; };
 		EE000023000000000000EE23 /* fls.c in Sources */ = {isa = PBXBuildFile; fileRef = EE000002000000000000EE02 /* fls.c */; };
 		EE000024000000000000EE24 /* cinepak.c in Sources */ = {isa = PBXBuildFile; fileRef = EE000003000000000000EE03 /* cinepak.c */; };
 		EE000025000000000000EE25 /* cinepak.c in Sources */ = {isa = PBXBuildFile; fileRef = EE000003000000000000EE03 /* cinepak.c */; };
+		F42A3B612373D73C43C5EF75 /* music_v0.c in Sources */ = {isa = PBXBuildFile; fileRef = D1BE97AC7A55EBBD5A02F6BF /* music_v0.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -142,6 +142,7 @@
 		6879D5832A942A4F0067C22A /* channel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = channel.c; sourceTree = "<group>"; };
 		6879D5912AADB5E30067C22A /* audio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = audio.h; sourceTree = "<group>"; };
 		6879D5922AADB5E30067C22A /* audio.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = audio.c; sourceTree = "<group>"; };
+		6890640E3087EAC200977570 /* fixmath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fixmath.h; sourceTree = "<group>"; };
 		689A3B8C2F66335500006594 /* rrq3d.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rrq3d.c; sourceTree = "<group>"; };
 		689FD7483016C9BF00F771DF /* sys_atari_dma_sound.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sys_atari_dma_sound.h; sourceTree = "<group>"; };
 		689FD7493016C9BF00F771DF /* sys_atari_dma_sound.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sys_atari_dma_sound.c; sourceTree = "<group>"; };
@@ -306,41 +307,6 @@
 			path = sys;
 			sourceTree = "<group>";
 		};
-		EE000010000000000000EE10 /* render */ = {
-			isa = PBXGroup;
-			children = (
-				DD000002000000000000DD02 /* deus3d.h */,
-				DD000001000000000000DD01 /* deus3d.c */,
-				68E1856D2E909A0000C4F075 /* rrq3d.h */,
-				689A3B8C2F66335500006594 /* rrq3d.c */,
-				BB000002000000000000BB02 /* rrq3d_dos.h */,
-				BB000001000000000000BB01 /* rrq3d_dos.c */,
-				BB000009000000000000BB09 /* rrq3d_3do.c */,
-				BB000004000000000000BB04 /* rrq3d_68k.h */,
-				BB000003000000000000BB03 /* rrq3d_68k.c */,
-				689FD74D3016C9BF00F771DF /* rrq3d_atari.S */,
-				689FD74E3016C9BF00F771DF /* rrq3d_atari_glue.h */,
-				689FD74F3016C9BF00F771DF /* rrq3d_atari_glue.c */,
-				EE000005000000000000EE05 /* v6atantab.h */,
-				EE000006000000000000EE06 /* v6costab.h */,
-			);
-			path = render;
-			sourceTree = "<group>";
-		};
-		EE000011000000000000EE11 /* video */ = {
-			isa = PBXGroup;
-			children = (
-				6838DE392B57685B005078DD /* video.h */,
-				6838DE3A2B57685B005078DD /* video.c */,
-				EE000001000000000000EE01 /* fli.c */,
-				EE000002000000000000EE02 /* fls.c */,
-				BB00000C000000000000BB0C /* film3do.c */,
-				EE000004000000000000EE04 /* cinepak.h */,
-				EE000003000000000000EE03 /* cinepak.c */,
-			);
-			path = video;
-			sourceTree = "<group>";
-		};
 		8B9C400D250921E900C947F9 /* alis */ = {
 			isa = PBXGroup;
 			children = (
@@ -360,6 +326,7 @@
 				8B9C4042250A6AC200C947F9 /* debug.h */,
 				8B9C4043250A6AC200C947F9 /* debug.c */,
 				0981CBCF250B46970097F862 /* escnames.c */,
+				6890640E3087EAC200977570 /* fixmath.h */,
 				8B9C4016250A247D00C947F9 /* opcodes.c */,
 				0981CBD0250B46970097F862 /* opernames.c */,
 				68AC2DA22A5F52B60046C6EB /* platform.h */,
@@ -398,6 +365,41 @@
 				AA000005000000000000AA05 /* emuadpcm.c */,
 			);
 			path = emu8950;
+			sourceTree = "<group>";
+		};
+		EE000010000000000000EE10 /* render */ = {
+			isa = PBXGroup;
+			children = (
+				DD000002000000000000DD02 /* deus3d.h */,
+				DD000001000000000000DD01 /* deus3d.c */,
+				68E1856D2E909A0000C4F075 /* rrq3d.h */,
+				689A3B8C2F66335500006594 /* rrq3d.c */,
+				BB000002000000000000BB02 /* rrq3d_dos.h */,
+				BB000001000000000000BB01 /* rrq3d_dos.c */,
+				BB000009000000000000BB09 /* rrq3d_3do.c */,
+				BB000004000000000000BB04 /* rrq3d_68k.h */,
+				BB000003000000000000BB03 /* rrq3d_68k.c */,
+				689FD74D3016C9BF00F771DF /* rrq3d_atari.S */,
+				689FD74E3016C9BF00F771DF /* rrq3d_atari_glue.h */,
+				689FD74F3016C9BF00F771DF /* rrq3d_atari_glue.c */,
+				EE000005000000000000EE05 /* v6atantab.h */,
+				EE000006000000000000EE06 /* v6costab.h */,
+			);
+			path = render;
+			sourceTree = "<group>";
+		};
+		EE000011000000000000EE11 /* video */ = {
+			isa = PBXGroup;
+			children = (
+				6838DE392B57685B005078DD /* video.h */,
+				6838DE3A2B57685B005078DD /* video.c */,
+				EE000001000000000000EE01 /* fli.c */,
+				EE000002000000000000EE02 /* fls.c */,
+				BB00000C000000000000BB0C /* film3do.c */,
+				EE000004000000000000EE04 /* cinepak.h */,
+				EE000003000000000000EE03 /* cinepak.c */,
+			);
+			path = video;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

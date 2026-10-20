@@ -871,7 +871,8 @@ sAlisScriptData * script_init(const char * name, u8 * data, u32 data_sz)
         return NULL;
     }
 
-    memcpy(alis.mem + script->data_org, data, data_sz);
+    if (alis.mem + script->data_org != data)
+        memcpy(alis.mem + script->data_org, data, data_sz);
 
     // get insert point
     insert = search_insert(alis.nbprog, script->header.id);
@@ -1295,6 +1296,19 @@ s32 get_context_size(void)
 
 sAlisScriptLive *script_live(sAlisScriptData * prog)
 {
+    // Deus entity room comes from the shared arena, 3DO is using fixed pool, perror 0x23 when full
+    if (alis.platform.uid == EGameDeus || alis.platform.kind == EPlatform3DO)
+    {
+        u8 *pd = alis.mem + prog->data_org;
+        u32 need = swap16(pd + 0x34) + swap16(pd + 0x36) + get_context_size() + (u16)swap32(pd + 0x30);
+        if (alis.platform.kind == EPlatform3DO ? alis.finent + need > v6_enttop() : !v6_growent(need))
+        {
+            ALIS_DEBUG(EDebugError, "Out of VM memory creating '%s' entity\n", prog->name);
+            alis_fatal = "Out of game memory: this machine has too little RAM for this game.";
+            return NULL;
+        }
+    }
+
     u16 newent = alis.platform.version >= 60 ? node_take(1) : (u16)alis.dernent;
     if (newent == 0 && alis.platform.version >= 60)
         return NULL;
@@ -1533,7 +1547,15 @@ sAlisScriptData * script_load(const char * script_path)
         if (alis.platform.version >= 60)
         {
             unpack_sz = input_sz;
-            u8 * unpack_buf = (u8 *)malloc(1024 + unpack_sz * sizeof(u8));
+            // read straight into the arena where script_init puts it
+            u8 *in_arena = alis.mem && alis.finprog <= alis.finmem && unpack_sz <= alis.finmem - alis.finprog ? alis.mem + alis.finprog : NULL;
+            u8 * unpack_buf = in_arena ? in_arena : (u8 *)malloc(1024 + unpack_sz * sizeof(u8));
+            if (!unpack_buf)
+            {
+                fclose(fp);
+                alis_fatal = "Out of memory loading a script.";
+                return NULL;
+            }
             memset(unpack_buf, 0, unpack_sz);
 
             fread(unpack_buf, sizeof(u8), unpack_sz, fp);
@@ -1546,7 +1568,9 @@ sAlisScriptData * script_load(const char * script_path)
 
             script = script_init(strrchr(script_path, kPathSeparator) + 1, unpack_buf, unpack_sz);
 
-            free(unpack_buf);
+            if (!in_arena)
+                free(unpack_buf);
+            
             fclose(fp);
         }
         else

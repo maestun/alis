@@ -987,7 +987,11 @@ void ofree(void)
     }
     else
     {
-        if (alis.varD7 == 0)
+        if (alis.platform.uid == EGameDeus && (alis.varD7 == 0 || alis.varD7 == 1))
+        {
+            alis.varD7 = (alis.finmem - alis.finprog + v6_enttop() - alis.finent) / 1000;
+        }
+        else if (alis.varD7 == 0)
         {
             alis.varD7 = (alis.finmem - alis.finprog) / 1000;
         }

@@ -165,6 +165,7 @@ static short    gem_scr_w = 0, gem_scr_h = 0;   // full screen, from v_opnvwk
 static u16      machine_type;       // MCH_ST, MCH_STE, MCH_TT, MCH_FALCON
 static u16      monitor_type;       // MONITOR_VGA, MONITOR_RGB, etc.
 static u8       cpu_family;         // _CPU cookie: 0/20/30/40/60
+u8              sys_mul64;          // 64-bit muls.l / divs.l usable (020-040, fixmath.h)
 
 // --audio= backend (0=auto, 1=DSP, 2=DMA). Here only 1 on a Falcon selects the DSP mixer;
 // everything else uses DMA sound.
@@ -721,6 +722,7 @@ static void detect_machine(void)
 
     machine_type = (u16)(cookie_mch >> 16);
     cpu_family   = (u8)cookie_cpu;       // 0/20/30/40/60 — sizes the Falcon DMA rate
+    sys_mul64    = cpu_family >= 20 && cpu_family < 60;
     // Runtime flag must follow ALIS_USE_BLITTER (planar callers test g_hw_blitter).
     g_hw_blitter = (machine_type == MCH_FALCON) && ALIS_USE_BLITTER;
 
@@ -793,8 +795,30 @@ static void restore_video_state(void)
     }
 }
 
+#if ALIS_NATIVE_PLANAR
+static u8 *v6_mem;
+static u8 *v6_scr[2];
+static int v6_back;
+static int v6_alloc(void);
+#endif
+
 static int alloc_screen_buffers(void)
 {
+#if ALIS_NATIVE_PLANAR
+    // v6 shows its own screens (v6_setmode): alias them instead of 2 more ST-RAM buffers
+    if (alis.platform.version >= 60 && (v6_mem || v6_alloc()))
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            screen_mem[i] = NULL;
+            screen_buf[i] = v6_scr[i];
+            memset(screen_buf[i], 0, screen_size);
+        }
+
+        back_buf = 1;
+        return 1;
+    }
+#endif
     for (int i = 0; i < 2; i++)
     {
         screen_mem[i] = (u8 *)Mxalloc(screen_size + 256, MX_STRAM);
@@ -917,10 +941,10 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
     u32 st_need = 2u * (screen_size + 256u) + 16u * 1024u;
 #if ALIS_NATIVE_PLANAR
     if (pl->version >= 60)
-        st_need += 2u * 640u * 480u + 256u;   // v6_alloc
+        st_need += 2u * 640u * 480u + 256u - 2u * (screen_size + 256u);
 #endif
 
-    u32 overhead = (pl->version >= 30 ? 1024u : 512u) * 1024u;
+    u32 overhead = (pl->version >= 60 ? 1792u : pl->version >= 30 ? 1024u : 512u) * 1024u;
 
     u32 st_free   = sys_stram_avail();
     u32 fast_free = sys_fastram_avail();
@@ -959,8 +983,6 @@ u32 sys_size_arena(const sPlatform *pl, u32 floor, u32 pref)
 }
 
 #if ALIS_NATIVE_PLANAR
-static u8 *v6_mem;     // ST-RAM, both v6 screens
-static int v6_alloc(void);
 static void v6_free(void);
 #endif
 
@@ -1084,14 +1106,27 @@ int sys_film16_begin(u16 w, u16 h)
     s32 sh = (monitor_type == MONITOR_VGA) ? 240 : height;
     u32 sw = width;                              // 320 — screen row stride (pixels)
     u32 sz = sw * (u32)sh * 2;
-    film16_mem = (u8 *)Mxalloc((long)(2 * sz + 256), MX_STRAM);
-    if (film16_mem == NULL || (long)film16_mem <= 0)
+    u16 *fb = NULL;
+#if ALIS_NATIVE_PLANAR
+    if (alis.platform.version >= 60 && v6_mem && 2 * sz <= 640u * 480u)
     {
-        film16_mem = NULL;
-        return 0;
+        void *phys = Physbase();
+        u8 *s = v6_scr[v6_back] != phys ? v6_scr[v6_back] : v6_scr[v6_back ^ 1];
+        if (s != phys)
+            fb = (u16 *)s;
     }
+#endif
+    if (!fb)
+    {
+        film16_mem = (u8 *)Mxalloc((long)(2 * sz + 256), MX_STRAM);
+        if (film16_mem == NULL || (long)film16_mem <= 0)
+        {
+            film16_mem = NULL;
+            return 0;
+        }
 
-    u16 *fb = (u16 *)(((u32)film16_mem + 255) & ~255UL);
+        fb = (u16 *)(((u32)film16_mem + 255) & ~255UL);
+    }
     memset(fb, 0, 2 * sz);
     film16_front = fb;
     film16_back  = (u16 *)((u8 *)fb + sz);
@@ -1533,9 +1568,10 @@ void sys_audio_callback_S8(void *userdata, u8 *stream, s32 len);
 extern void atari_ikbd_kbdvec(void);
 extern void atari_ikbd_mousevec(void);
 extern volatile u8 g_ikbd_pressed[128];
+extern volatile u8 g_ikbd_hit[128];
 extern volatile u8 g_ikbd_cur;
-extern volatile s16 g_mouse_dx, g_mouse_dy;   // IKBD relative deltas (sys_atari_ikbd.S)
-extern volatile u8  g_mouse_buttons;          // bit0=right, bit1=left
+extern volatile s16 g_mouse_dx, g_mouse_dy;     // IKBD relative deltas (sys_atari_ikbd.S)
+extern volatile u8  g_mouse_buttons;            // bit0=right, bit1=left
 extern void atari_ikbd_joyvec(void);
 static void *ikbd_old_kbdvec;
 static void *ikbd_old_mousevec;
@@ -1829,33 +1865,30 @@ void sys_poll_event(void)
     }
 
     // No Pause/F11/F12 on Atari keyboards: Shift+F1 = save (F11), Shift+F2 = load (F12),
-    // Shift+F10 = quit (Pause). Raw scancodes (F1=0x3b + shift), edge-triggered.
+    // Shift+F10 = quit (Pause). Presses are latched by the ISR, so a tap
+    // between two slow frames still counts.
     {
-        static u8 hk_f1, hk_f2, hk_f10;
-        u8 sh  = (g_ikbd_pressed[0x2a] || g_ikbd_pressed[0x36]) ? 1 : 0;   // L/R shift
-        u8 f1  = sh && g_ikbd_pressed[0x3b];
-        u8 f2  = sh && g_ikbd_pressed[0x3c];
-        u8 f10 = sh && g_ikbd_pressed[0x44];
-
-        if (f1 && !hk_f1)
+        volatile u8 *hit = g_ikbd_hit;
+        u8 sh  = g_ikbd_pressed[0x2a] || g_ikbd_pressed[0x36] || hit[0x2a] || hit[0x36];
+        if (sh && hit[0x3b])
         {
             ALIS_DEBUG(EDebugSystem, "INTERRUPT: Save state (Shift+F1).\n");
             alis.state = eAlisStateSave;
         }
 
-        if (f2 && !hk_f2)
+        if (sh && hit[0x3c])
         {
             ALIS_DEBUG(EDebugSystem, "INTERRUPT: Load state (Shift+F2).\n");
             alis.state = eAlisStateLoad;
         }
 
-        if (f10 && !hk_f10)
+        if (sh && hit[0x44])
         {
             ALIS_DEBUG(EDebugSystem, "INTERRUPT: Quit by user request (Shift+F10).\n");
             alis.state = eAlisStateStopped;
         }
 
-        hk_f1 = f1; hk_f2 = f2; hk_f10 = f10;
+        hit[0x2a] = hit[0x36] = hit[0x3b] = hit[0x3c] = hit[0x44] = 0;
     }
 
     // Mouse buttons only; position is integrated by atari_mouse_vbl.
@@ -2140,6 +2173,10 @@ void sys_cursor_hold(int on)
 // (b) erases/redraws the cursor on the FRONT buffer. draw() holds g_cursor_lock
 // around the oldfen-copy/uncopy window and the flip; the handler skips those ticks.
 // ---------------------------------------------------------------------------
+#if ALIS_NATIVE_PLANAR
+static int v6cur_vbl(void);
+#endif
+
 static void atari_mouse_vbl(void)
 {
     // (a) integrate deltas at tick rate
@@ -2165,6 +2202,10 @@ static void atari_mouse_vbl(void)
     }
 
     // (b) move the on-screen cursor
+#if ALIS_NATIVE_PLANAR
+    if (v6cur_vbl())
+        return;
+#endif
     if (g_cursor_lock || g_isr_paused)
         return;
     
@@ -3169,16 +3210,152 @@ static void canvas_publish(void)
 #else
 #define V6_FILM16 0
 #endif
-static u8  *v6_scr[2];
-static u8  *v6_shadow[2];       // chunky content of each screen
 static u16  v6_lut[256];        // BPS16: palette index -> RGB565
 static u16  v6_w, v6_h;         // current mode, 0 = not set
-static int  v6_back;
 static u8   v6_bfull[2];        // screen needs a full redraw
 #define V6_PEND_MAX 64
 static s16  v6_pend[2][V6_PEND_MAX][4];
 static u8   v6_npend[2];
 static const u8 *v6_src;        // frame shown last, a new source redraws in full
+
+// v6 cursor drawn at VBL on the shown screen, so it moves at VBL rate
+static u16  v6cur_pl[32][2][8], v6cur_mk[32][2], v6cur_px[32][32];
+static s16  v6cur_w, v6cur_h;
+static u16  v6cur_gen = 0xffff;
+static u8   v6cur_hi;
+static struct { s16 x0, y, n, h, mx, my; u8 drawn; u16 bg[32 * 32]; } v6cs[2];
+static u8 *volatile v6cur_front;    // shown screen the VBL may draw on, NULL = off
+static volatile u8  v6cur_lock;     // v6_render owns the screens
+
+static void v6cur_build(int hi)
+{
+    int rgb = alis.platform.uid == EGameRobinsonsRequiem3DO;
+    v6cur_gen = v6x_mousegen;
+    v6cur_hi = (u8)hi;
+    v6cur_w = v6x_mousew > 32 ? 32 : v6x_mousew;
+    v6cur_h = v6x_mouseh > 32 ? 32 : v6x_mouseh;
+    memset(v6cur_pl, 0, sizeof(v6cur_pl));
+    memset(v6cur_mk, 0, sizeof(v6cur_mk));
+    for (int y = 0; y < v6cur_h; y++)
+    {
+        for (int x = 0; x < v6cur_w; x++)
+        {
+            u16 c = rgb ? v6x_mousergb[y * 0x20 + x] : v6x_mousebuf[y * 0x20 + x];
+            if (c == 0)
+                continue;
+
+            u16 bit = (u16)(0x8000 >> (x & 15));
+            v6cur_mk[y][x >> 4] |= bit;
+            if (rgb)
+            {
+                v6cur_px[y][x] = (u16)((c & 0x7fe0) << 1 | (c & 0x1f));
+            }
+            else if (!hi)
+            {
+                v6cur_px[y][x] = v6_lut[c];
+            }
+            else
+            {
+                for (int p = 0; p < 8; p++)
+                {
+                    if (c & (1 << p))
+                        v6cur_pl[y][x >> 4][p] |= bit;
+                }
+            }
+        }
+    }
+}
+
+static void v6cur_restore(int f)
+{
+    u16 *fb = (u16 *)v6_scr[f];
+    const u16 *bg = v6cs[f].bg;
+    for (int y = 0; y < v6cs[f].h; y++)
+    {
+        u16 *row = fb + (s32)(v6cs[f].y + y) * 320 + v6cs[f].x0;
+        for (int c = 0; c < v6cs[f].n; c++)
+            row[c] = *bg++;
+    }
+
+    v6cs[f].drawn = 0;
+}
+
+// ISR-safe: memory only
+static void v6cur_draw(int f, s16 mx, s16 my)
+{
+    s16 w = v6cur_w, h = v6cur_h;
+    if (mx + w > (s16)v6_w)
+        w = (s16)v6_w - mx;
+
+    if (my + h > (s16)v6_h)
+        h = (s16)v6_h - my;
+
+    if (w <= 0 || h <= 0)
+        return;
+
+    int sh = mx & 15, cx = mx >> 4;
+    int x0 = v6cur_hi ? cx * 8 : mx, n = v6cur_hi ? (((mx + w - 1) >> 4) - cx + 1) * 8 : w;
+    u16 *fb = (u16 *)v6_scr[f], *bg = v6cs[f].bg;
+    for (int y = 0; y < h; y++)
+    {
+        u16 *row = fb + (s32)(my + y) * 320 + x0;
+        for (int c = 0; c < n; c++)
+            *bg++ = row[c];
+
+        if (!v6cur_hi)
+        {
+            u32 m = (u32)v6cur_mk[y][0] << 16 | v6cur_mk[y][1];
+            for (int x = 0; x < w; x++, m <<= 1)
+            {
+                if (m & 0x80000000u)
+                    row[x] = v6cur_px[y][x];
+            }
+
+            continue;
+        }
+
+        // the two 16-pixel halves shifted right by sh across 3 chunks
+        u16 a = v6cur_mk[y][0], b = v6cur_mk[y][1];
+        u16 mw[3] = { (u16)(a >> sh), (u16)((u32)a << (16 - sh) | b >> sh), (u16)((u32)b << (16 - sh)) };
+        for (int p = 0; p < 8; p++)
+        {
+            a = v6cur_pl[y][0][p];
+            b = v6cur_pl[y][1][p];
+            u16 dw[3] = { (u16)(a >> sh), (u16)((u32)a << (16 - sh) | b >> sh), (u16)((u32)b << (16 - sh)) };
+            for (int c = 0; c < n / 8; c++)
+                row[c * 8 + p] = (u16)((row[c * 8 + p] & ~mw[c]) | dw[c]);
+        }
+    }
+
+    v6cs[f].x0 = (s16)x0;
+    v6cs[f].y = my;
+    v6cs[f].n = (s16)n;
+    v6cs[f].h = h;
+    v6cs[f].mx = mx;
+    v6cs[f].my = my;
+    v6cs[f].drawn = 1;
+}
+
+// VBL: 1 if the v6 cursor is active (the planar cursor code then stays out)
+static int v6cur_vbl(void)
+{
+    u8 *front = v6cur_front;
+    if (front == NULL)
+        return 0;
+
+    if (v6cur_lock || g_isr_paused)
+        return 1;
+
+    int f = front == v6_scr[0] ? 0 : 1;
+    int show = mouse.enabled && alis.desmouse != NULL && v6cur_h > 0;
+    if (v6cs[f].drawn && (!show || v6cs[f].mx != mouse.x || v6cs[f].my != mouse.y))
+        v6cur_restore(f);
+
+    if (show && !v6cs[f].drawn)
+        v6cur_draw(f, mouse.x, mouse.y);
+
+    return 1;
+}
 
 static int v6_alloc(void)
 {
@@ -3193,9 +3370,6 @@ static int v6_alloc(void)
     for (int i = 0; i < 2; i++)
     {
         v6_scr[i] = b + i * V6_SCR_SZ;
-        v6_shadow[i] = (u8 *)malloc(V6_SCR_SZ);
-        if (v6_shadow[i] == NULL)
-            return 0;
     }
 
     return 1;
@@ -3207,11 +3381,6 @@ static void v6_free(void)
         Mfree(v6_mem);
 
     v6_mem = NULL;
-    for (int i = 0; i < 2; i++)
-    {
-        free(v6_shadow[i]);
-        v6_shadow[i] = NULL;
-    }
 }
 
 static void v6_setmode(u16 w, u16 h, u32 *palette)
@@ -3242,18 +3411,7 @@ static void v6_setmode(u16 w, u16 h, u32 *palette)
     v6_w = w;
     v6_h = h;
     v6_bfull[0] = v6_bfull[1] = 1;
-}
-
-static int v6_rowdiff(const u8 *a, const u8 *b, u32 n)
-{
-    const u32 *p = (const u32 *)a, *q = (const u32 *)b;
-    for (n >>= 2; n; n--)
-    {
-        if (*p++ != *q++)
-            return 1;
-    }
-
-    return 0;
+    v6cs[0].drawn = v6cs[1].drawn = 0;
 }
 
 // rects not yet in screen b, overflow = full redraw
@@ -3261,6 +3419,13 @@ static void v6_pend_add(int b, const rect_t *r)
 {
     if (v6_bfull[b])
         return;
+
+    for (u8 i = 0; i < v6_npend[b]; i++)
+    {
+        s16 *q = v6_pend[b][i];
+        if (r->x >= q[0] && r->y >= q[1] && r->x + r->w - 1 <= q[2] && r->y + r->h - 1 <= q[3])
+            return;
+    }
 
     if (v6_npend[b] >= V6_PEND_MAX)
     {
@@ -3308,7 +3473,7 @@ static void v6_convert(const u8 *src, const u32 *rgb, u8 *scr, u16 w, int hi, s3
     }
 }
 
-static void v6_present(const u8 *src, const u32 *rgb, u16 w, u16 h, u32 *palette, int track)
+static void v6_present(const u8 *src, const u32 *rgb, u16 w, u16 h, u32 *palette)
 {
     if (rgb && w > 320)
         return;
@@ -3356,7 +3521,6 @@ static void v6_present(const u8 *src, const u32 *rgb, u16 w, u16 h, u32 *palette
 
     u8 *scr = v6_scr[v6_back];
     int b = v6_back, changed = 0;
-    if (track)
     {
         if (dirty_len == DIRTY_ALL)
         {
@@ -3372,15 +3536,24 @@ static void v6_present(const u8 *src, const u32 *rgb, u16 w, u16 h, u32 *palette
         }
     }
 
+    if (v6cs[b].drawn)
+    {
+        if (v6_bfull[b])
+        {
+            v6cs[b].drawn = 0;
+        }
+        else
+        {
+            v6cur_restore(b);
+        }
+    }
+
     if (v6_bfull[b])
     {
         v6_convert(src, rgb, scr, w, hi, 0, 0, w - 1, h - 1);
-        if (!rgb)
-            memcpy(v6_shadow[b], src, (u32)w * h);
-
         changed = 1;
     }
-    else if (track)
+    else
     {
         for (u8 i = 0; i < v6_npend[b]; i++)
         {
@@ -3390,22 +3563,6 @@ static void v6_present(const u8 *src, const u32 *rgb, u16 w, u16 h, u32 *palette
 
         changed = v6_npend[b] != 0;
     }
-    else
-    {
-        u8 *sh = v6_shadow[b];
-        for (u32 y = 0; y < h; y++)
-        {
-            const u8 *row = src + y * w;
-            u8 *srow = sh + y * w;
-            if (v6_rowdiff(row, srow, w))
-            {
-                v6_convert(src, NULL, scr, w, hi, 0, y, w - 1, y);
-                memcpy(srow, row, w);
-                changed = 1;
-            }
-        }
-    }
-
     v6_bfull[b] = 0;
     v6_npend[b] = 0;
     if (!changed)
@@ -3417,14 +3574,67 @@ static void v6_present(const u8 *src, const u32 *rgb, u16 w, u16 h, u32 *palette
     v6_back ^= 1;
 }
 
+static void v6_render_frame(pixelbuf_t buffer);
+
 static void v6_render(pixelbuf_t buffer)
 {
-    g_cursor_front = NULL;          // v6 draws its own cursor into the frame
+    g_cursor_front = NULL;
+    v6cur_lock = 1;
+    v6cur_front = NULL;
+    sys_vblcursor = 0;
+    v6_render_frame(buffer);
+    if (v6_w && !V6_FILM16 && bfilm.type == eAlisVideoNone)
+    {
+        int hi = v6_w > 320;
+        if (v6cur_gen != v6x_mousegen || v6cur_hi != hi)
+        {
+            for (int f = 0; f < 2; f++)
+            {
+                if (v6cs[f].drawn)
+                    v6cur_restore(f);
+            }
+
+            v6cur_build(hi);
+        }
+        else if (!hi)
+        {
+            v6cur_build(hi);
+        }
+
+        v6cur_front = v6_scr[v6_back ^ 1];
+        sys_vblcursor = 1;
+    }
+
+    v6cur_lock = 0;
+}
+
+static void v6_render_frame(pixelbuf_t buffer)
+{
     if (bfilm.type == eAlisVideoFLIC || bfilm.type == eAlisVideoCleanup)
     {
-        // 320 films draw themselves in 16 bit, 640 films leave a chunky frame in vgalogic
+        // 320 films draw themselves in 16 bit, 640 films leave a chunky frame in vgalogic;
+        // its 1-row decoder rects -> one box in film coords (no shadow row-diff)
         if (!V6_FILM16 && vgalogic)
-            v6_present(vgalogic, NULL, bfilm.width, bfilm.height, buffer.palette, 0);
+        {
+            if (dirty_len != DIRTY_ALL && dirty_len)
+            {
+                s32 x1 = 0x7fff, y1 = 0x7fff, x2 = -1, y2 = -1;
+                for (u8 i = 0; i < dirty_len; i++)
+                {
+                    const rect_t *r = &dirty_rects[i];
+                    s32 a = r->x - image.fenx1, c = r->y - image.feny1;
+                    if (a < x1) x1 = a;  if (a + r->w - 1 > x2) x2 = a + r->w - 1;
+                    if (c < y1) y1 = c;  if (c + r->h - 1 > y2) y2 = c + r->h - 1;
+                }
+                if (x1 < 0) x1 = 0;  if (x2 >= bfilm.width) x2 = bfilm.width - 1;
+                if (y1 < 0) y1 = 0;  if (y2 >= bfilm.height) y2 = bfilm.height - 1;
+                dirty_len = 0;
+                if (x1 <= x2 && y1 <= y2)
+                    dirty_rects[dirty_len++] = (rect_t){ .x = (s16)x1, .y = (s16)y1,
+                                                         .w = (u16)(x2 - x1 + 1), .h = (u16)(y2 - y1 + 1) };
+            }
+            v6_present(vgalogic, NULL, bfilm.width, bfilm.height, buffer.palette);
+        }
 
         if (bfilm.type == eAlisVideoCleanup)
         {
@@ -3453,7 +3663,7 @@ static void v6_render(pixelbuf_t buffer)
     }
 #endif
 
-    v6_present(buffer.data, buffer.rgb, buffer.w, buffer.h, buffer.palette, 1);
+    v6_present(buffer.data, buffer.rgb, buffer.w, buffer.h, buffer.palette);
     dirty_len = 0;
 }
 #endif

@@ -275,7 +275,7 @@ void alis_load_main(void)
             alis.specs.script_data_tab_len = MAX_SCRIPTS;
             alis.specs.script_vram_tab_len = sprite_count + 0x10;  // node count (DOS inisprit 0000e28f)
             alis.specs.mem_cap = 0;
-            alis.specs.max_allocatable_vram = 0x200000;
+            alis.specs.max_allocatable_vram = alis.platform.uid == EGameDeus ? 0x40000 : alis.platform.kind == EPlatform3DO ? 0x30000 : 0x200000;
             alis.specs.vram_to_data_offset = ((u32)sprite_count + 3) * 0x30;
 
             ALIS_DEBUG(EDebugInfo, "v6.0+ main script: sprite_count=%d\n", sprite_count);
@@ -521,17 +521,29 @@ u8 alis_init(sPlatform platform)
     memset(image.spritemem, 0x0, kSpriteMemSize);
 
     image.buffer_alloc_size = alis.platform.width * (alis.platform.height + 2 * host.pixelbuf.surface_h);
+    image_buf_cap = image.buffer_alloc_size;
+    if (alis.platform.version >= 60)
+    {
+        // v6 switches 320 <-> 640x480 (cvideo)
+        // allocate the largest once, resize_screen reuses it
+        u32 big = 640u * (480u + 2u * host.pixelbuf.surface_h) + 640u + 2u;
+        if (image_buf_cap < big)
+            image_buf_cap = big;
+    }
     // Prefer platform framebuffers (native Atari: ST-RAM, VIDEL can't scan TT-RAM); NULL -> malloc.
     u8 *fb = sys_get_framebuffer(0);
-    image.physic_alloc = fb ? fb : (u8 *)malloc(image.buffer_alloc_size);
+    image.physic_alloc = fb ? fb : (u8 *)malloc(image_buf_cap);
     image.logic_alloc = image.physic_alloc;
-    memset(image.physic_alloc, 0, image.buffer_alloc_size);
+    if (fb)
+        image_buf_cap = image.buffer_alloc_size;
+    
+    memset(image.physic_alloc, 0, image_buf_cap);
 
     if (alis.platform.dbl_buf)
     {
         u8 *fb = sys_get_framebuffer(1);
-        image.logic_alloc = fb ? fb : (u8 *)malloc(image.buffer_alloc_size);
-        memset(image.logic_alloc, 0, image.buffer_alloc_size);
+        image.logic_alloc = fb ? fb : (u8 *)malloc(image_buf_cap);
+        memset(image.logic_alloc, 0, image_buf_cap);
     }
 
     image.physic = image.physic_alloc + host.pixelbuf.surface_h * alis.platform.width;
@@ -679,6 +691,7 @@ void alis_deinit(void)
     rgb_alloc(0, 0);
 
     image.buffer_alloc_size = 0;
+    image_buf_cap = 0;
 }
 
 extern sMV1Audio mv1a;
@@ -1859,6 +1872,8 @@ int alis_thread(void *data)
     alis.cstopret = 0;
     alis.varD5 = 0;
 
+    if (opt_load_state)
+        alis.state = eAlisStateLoad;
 
     if (alis.platform.version < 30)
     {

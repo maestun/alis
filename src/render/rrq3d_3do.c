@@ -52,18 +52,22 @@ typedef struct cel3d {
 #define BUCKETS 0x280
 #define TEXMAX  128
 
-static s32 costab[0x1000];
-static s32 recip[0x8000];
+// big tables on the heap at first use (not in every build's .bss)
+static s32 *costab;                                     // [0x1000]
+static s32 *recip;                                      // [0x8000] 0x40000 / i
 static const u32 pixctab[15] = {
     0, 0x03000300, 0x08000800, 0x02000200, 0x10001000, 0x0b000b00, 0x18001800, 0x01000100,
     0x13001300, 0x0a000a00, 0x1b001b00, 0x05000500, 0x12001200, 0x09000900, 0x1a001a00 };
 
-static cel3d pool[CELCAP];
+static cel3d *pool;                                     // [CELCAP]
 static cel3d *bucket[BUCKETS];
 static int ncel, maxbucket = -1, drewland;
-static pt3d cache[TILECAP];
-static s32 spans[TILECAP][2];
-static struct { u32 img; s32 w, h; u16 *px; } tex[TEXMAX];
+static pt3d *cache;                                     // [TILECAP]
+static s32 (*spans)[2];                                 // [TILECAP]
+// decoded cels kept across frames; sig checks the source is unchanged (scripts may move or unload)
+#define TEXBYTES 0x80000
+static struct { u32 img, len; u8 sig[48]; s32 w, h; u16 *px; } tex[TEXMAX];
+static u32 texbytes;
 
 // '--far' doubles the view distance, 3DOs cel and tile limits grow with the area
 static s32 viewfar(u32 scr)  { return (s32)xread32(scr + 0x146) * (image.ddrawdist ? FARMUL : 1); }
@@ -74,12 +78,22 @@ static int ntex;
 static inline s32 mulw(s32 a, s32 b) { return (s32)((u32)a * (u32)b); }
 static inline s32 sdiv(s32 d, s32 n) { return d ? n / d : 0; }
 
-static void tables(void)
+static int tables(void)
 {
     static int done;
     if (done)
-        return;
-    
+        return 1;
+
+    costab = calloc(0x1000, sizeof(s32));
+    recip  = calloc(0x8000, sizeof(s32));
+    pool   = calloc(CELCAP, sizeof(cel3d));
+    cache  = calloc(TILECAP, sizeof(pt3d));
+    spans  = calloc(TILECAP, sizeof(*spans));
+    if (!costab || !recip || !pool || !cache || !spans)
+    {
+        alis_fatal = "Out of memory for the 3D tables.";
+        return 0;
+    }
     done = 1;
     // rotation recurrence: cos() is an fcos the 68040/060 lack (Line-F under plain TOS)
     double c = 1, s = 0;
@@ -96,6 +110,7 @@ static void tables(void)
     costab[2532] = -3017;
     for (int i = 1; i < 0x8000; i++)
         recip[i] = 0x40000 / i;
+    return 1;
 }
 
 static void rot(mat3d *m, int a, int b, s32 ang)
@@ -343,7 +358,8 @@ static void elemmat(mat3d *m, u32 e)
 // move an entity by d turned by itd own angles
 void r3do_polar(u32 vram, s32 dx, s32 dy, s32 dz)
 {
-    tables();
+    if (!tables())
+        return;
     mat3d m;
     mat7778(&m, vram, xread32(vram + 8));
     for (int r = 0; r < 3; r++)
@@ -526,15 +542,12 @@ skip:
 
 void r3do_land(u32 scr)
 {
-    tables();
+    if (!tables())
+        return;
     memset(bucket, 0, sizeof(bucket));
     ncel = 0;
     maxbucket = -1;
     drewland = 0;
-    for (int i = 0; i < ntex; i++)
-        free(tex[i].px);
-    
-    ntex = 0;
 
     s16 owner = xread16(scr + 0xc4);
     if (owner == 0)
@@ -750,56 +763,78 @@ void r3do_land(u32 scr)
     }
 }
 
-static const u16 *texget(u32 img, s32 *w, s32 *h)
+static void texsig(u32 img, u32 len, u8 *sig)
+{
+    if (len < 16 || img + len > alis.platform.ram_sz)
+        len = 16;
+
+    memcpy(sig, alis.mem + img, 32);
+    memcpy(sig + 32, alis.mem + img + len - 16, 16);
+}
+
+static void texflush(void)
 {
     for (int i = 0; i < ntex; i++)
+        free(tex[i].px);
+
+    ntex = 0;
+    texbytes = 0;
+}
+
+static const u16 *texget(u32 img, s32 *w, s32 *h)
+{
+    u32 len = read32(alis.mem + img + 4);
+    u8 sig[48];
+    texsig(img, len, sig);
+    int slot = -1;
+    for (int i = 0; i < ntex; i++)
     {
-        if (tex[i].img == img)
+        if (tex[i].img != img)
+            continue;
+
+        if (tex[i].len == len && memcmp(tex[i].sig, sig, sizeof(sig)) == 0)
         {
             *w = tex[i].w;
             *h = tex[i].h;
             return tex[i].px;
         }
-    }
-    
-    u16 *px = cel_decode(img, w, h);
-    if (px && ntex < TEXMAX)
-    {
-        tex[ntex].img = img;
-        tex[ntex].w = *w;
-        tex[ntex].h = *h;
-        tex[ntex++].px = px;
-    }
-    else if (px)
-    {
-        free(px);
-        px = NULL;
+
+        // stale: same address, different cel
+        free(tex[i].px);
+        texbytes -= (u32)(tex[i].w * tex[i].h) * 2;
+        slot = i;
+        break;
     }
 
+    u16 *px = cel_decode(img, w, h);
+    if (!px)
+    {
+        if (slot >= 0)
+            tex[slot] = tex[--ntex];
+
+        return NULL;
+    }
+
+    u32 sz = (u32)(*w * *h) * 2;
+    if (slot < 0 && (ntex >= TEXMAX || texbytes + sz > TEXBYTES))
+        texflush();
+
+    if (slot < 0)
+        slot = ntex++;
+
+    tex[slot].img = img;
+    tex[slot].len = len;
+    memcpy(tex[slot].sig, sig, sizeof(sig));
+    tex[slot].w = *w;
+    tex[slot].h = *h;
+    tex[slot].px = px;
+    texbytes += sz;
     return px;
 }
 
 static inline u32 rgb5(u32 r, u32 g, u32 b)
 {
     return 0xff000000u | ((r << 3 | r >> 2) << 16) | ((g << 3 | g >> 2) << 8) | (b << 3 | b >> 2);
-}
-
-static inline u32 pixc_apply(u16 s, u32 pixc)
-{
-    static const int dfs[4] = { 16, 2, 4, 8 };
-    int mf = ((pixc >> 10) & 7) + 1, df = dfs[(pixc >> 8) & 3];
-    int av = ((pixc >> 6) & 3) == 1 ? (pixc >> 1) & 0x1f : 0;
-    int c[3] = { (s >> 10) & 0x1f, (s >> 5) & 0x1f, s & 0x1f };
-    for (int i = 0; i < 3; i++)
-    {
-        int v = c[i] * mf / df + av;
-        if (pixc & 1)
-            v >>= 1;
-        
-        c[i] = v > 31 ? 31 : v;
-    }
-
-    return rgb5(c[0], c[1], c[2]);
 }
 
 static float edge(const s32 *p, int a, int b)
@@ -923,40 +958,353 @@ static s32 celtexel(const cel3d *c, const celmap *m, s32 w, s32 h, s32 xx, s32 y
     return texel(u, v, w, h);
 }
 
-static void drawcel(const cel3d *c, s32 cx1, s32 cy1, s32 cx2, s32 cy2)
+// pixc as a per-channel table (5-bit in, 8-bit out, already shifted into ARGB; alpha in red)
+static u32 pixlut[3][32], pixlutc = 1;
+
+// 3DO PIXC per channel: min(31, c * mf / df + av) (halved if bit 0); df is a power of two
+static void pixc_lut(u32 pixc)
+{
+    if (pixc == pixlutc)
+        return;
+
+    static const u8 dsh[4] = { 4, 1, 2, 3 };
+    pixlutc = pixc;
+    u32 mf = ((pixc >> 10) & 7) + 1, sh = dsh[(pixc >> 8) & 3];
+    u32 av = ((pixc >> 6) & 3) == 1 ? (pixc >> 1) & 0x1f : 0;
+    for (u32 i = 0; i < 32; i++)
+    {
+        u32 v = ((i * mf) >> sh) + av;
+        if (pixc & 1)
+            v >>= 1;
+
+        if (v > 31)
+            v = 31;
+
+        u32 e = v << 3 | v >> 2;
+        pixlut[0][i] = 0xff000000u | e << 16;
+        pixlut[1][i] = e << 8;
+        pixlut[2][i] = e;
+    }
+}
+
+// one quad edge stepped per scanline: x in 24.8, u/v in texels 16.16
+typedef struct { s32 y0, y1, x, dx, u, du, v, dv; } celedge;
+
+__attribute__((noinline)) static int celedge_set(celedge *e, const s32 *a, const s32 *b, s32 ua, s32 va, s32 ub, s32 vb, s32 ystart)
+{
+    if (a[1] == b[1])
+        return 0;
+
+    if (a[1] > b[1])
+    {
+        const s32 *t = a; a = b; b = t;
+        s32 k = ua; ua = ub; ub = k;
+        k = va; va = vb; vb = k;
+    }
+
+    s32 dy = b[1] - a[1];
+    e->y0 = a[1];
+    e->y1 = b[1];
+    e->dx = (s32)(((s64)(b[0] - a[0]) << 8) / dy);
+    e->du = (ub - ua) / dy;
+    e->dv = (vb - va) / dy;
+    // first scanline centre at or below the top vertex, or the clip top
+    s32 y = ystart > a[1] ? ystart : a[1];
+    s32 k = y - a[1];
+    e->x = (a[0] << 8) + e->dx * k + e->dx / 2;
+    e->u = ua + e->du * k + e->du / 2;
+    e->v = va + e->dv * k + e->dv / 2;
+    return 1;
+}
+
+// texture row pointers of the cel being drawn (asm span loop indexes them instead of multiplying)
+#define CELROWS 512
+static const u16 *celrows[CELROWS];
+
+#if defined(ALIS_USE_NATIVE_ATARI) && defined(__m68k__) && !defined(__mcoldfire__)
+// n >= 1 texels, u/v in range: d[i] = pixc(tex[v][u]) unless transparent
+static void celrun(u32 *d, s32 u, s32 du, s32 v, s32 dv, s32 n)
+{
+    const u16 *const *rows = celrows;
+    const u32 *lut = &pixlut[0][0];
+    s32 t, c, o;
+    const u16 *row;
+    n--;
+    __asm__ volatile (
+    "0: move.l  %[v],%[t]                  \n"
+    "   swap    %[t]                       \n"
+    "   move.l  %[rows]@(0,%[t]:w:4),%[row] \n"  // row = rows[v >> 16]
+    "   move.l  %[u],%[t]                  \n"
+    "   swap    %[t]                       \n"
+    "   move.w  %[row]@(0,%[t]:w:2),%[t]   \n"  // texel, 0 = transparent
+    "   beq     1f                         \n"
+    "   move.w  %[t],%[c]                  \n"
+    "   and.w   #31,%[c]                   \n"
+    "   move.l  %[lut]@(256,%[c]:w:4),%[o] \n"  // blue
+    "   lsr.w   #5,%[t]                    \n"
+    "   move.w  %[t],%[c]                  \n"
+    "   and.w   #31,%[c]                   \n"
+    "   or.l    %[lut]@(128,%[c]:w:4),%[o] \n"  // green
+    "   lsr.w   #5,%[t]                    \n"
+    "   and.w   #31,%[t]                   \n"
+    "   or.l    %[lut]@(0,%[t]:w:4),%[o]   \n"  // red + alpha
+    "   move.l  %[o],%[d]@                 \n"
+    "1: addq.l  #4,%[d]                    \n"
+    "   add.l   %[du],%[u]                 \n"
+    "   add.l   %[dv],%[v]                 \n"
+    "   dbf     %[n],0b                    \n"
+    : [d]"+a"(d), [u]"+d"(u), [v]"+d"(v), [n]"+d"(n),
+      [t]"=&d"(t), [c]"=&d"(c), [o]"=&d"(o), [row]"=&a"(row)
+    : [rows]"a"(rows), [lut]"a"(lut), [du]"d"(du), [dv]"d"(dv)
+    : "cc", "memory"
+    );
+}
+#endif
+
+static inline void celpix(u32 *d, const u16 *px, s32 w, s32 h, s32 u, s32 v)
+{
+    s32 tu = u < 0 ? 0 : u >= w << 16 ? w - 1 : u >> 16;
+    s32 tv = v < 0 ? 0 : v >= h << 16 ? h - 1 : v >> 16;
+    u16 t = px[tv * w + tu];
+    if (t)
+        *d = pixlut[0][(t >> 10) & 0x1f] | pixlut[1][(t >> 5) & 0x1f] | pixlut[2][t & 0x1f];
+}
+
+// one textured span [xs, xe) on row y, clipped to [cx1, cx2]; the ends (overlap pixels) are
+// clamped, the rest runs unclamped
+__attribute__((optimize("no-unroll-loops"))) static void celspan(const u16 *px, s32 w, s32 h, s32 y, s32 xs, s32 xe, s32 u, s32 v, s32 du, s32 dv, s32 cx1, s32 cx2)
+{
+    u32 U = (u32)w << 16, V = (u32)h << 16;
+    if (xs < cx1)
+    {
+        u += du * (cx1 - xs);
+        v += dv * (cx1 - xs);
+        xs = cx1;
+    }
+
+    if (xe > cx2 + 1)
+        xe = cx2 + 1;
+
+    s32 n = xe - xs;
+    u32 *d = image.rgblogic + y * alis.platform.width + xs;
+    for (int k = 0; k < 2 && n > 0 && ((u32)u >= U || (u32)v >= V); k++, n--, d++, u += du, v += dv)
+        celpix(d, px, w, h, u, v);
+
+    for (int k = 0; k < 2 && n > 0 && ((u32)(u + du * (n - 1)) >= U || (u32)(v + dv * (n - 1)) >= V); k++, n--)
+        celpix(d + n - 1, px, w, h, u + du * (n - 1), v + dv * (n - 1));
+
+    if (n <= 0)
+        return;
+
+    if ((u32)u >= U || (u32)v >= V || (u32)(u + du * (n - 1)) >= U || (u32)(v + dv * (n - 1)) >= V)
+    {
+        for (; n > 0; n--, d++, u += du, v += dv)
+            celpix(d, px, w, h, u, v);
+
+        return;
+    }
+
+#if defined(ALIS_USE_NATIVE_ATARI) && defined(__m68k__) && !defined(__mcoldfire__)
+    if (h <= CELROWS)
+    {
+        celrun(d, u, du, v, dv, n);
+        return;
+    }
+#endif
+
+    for (; n > 0; n--, d++, u += du, v += dv)
+    {
+        u16 t = px[(v >> 16) * w + (u >> 16)];
+        if (t)
+            *d = pixlut[0][(t >> 10) & 0x1f] | pixlut[1][(t >> 5) & 0x1f] | pixlut[2][t & 0x1f];
+    }
+}
+
+// cel being drawn
+static struct { const u16 *px; s32 w, h, cx1, cy1, cx2, cy2, ytop, ybot, ymin, ymax; } cc;
+
+// span between edges l and r (any order) on row y, plus the overlap row above/below the cel
+__attribute__((noinline)) static void celrow(const celedge *l, const celedge *r, s32 y)
+{
+    if (l->x > r->x)
+    {
+        const celedge *t = l; l = r; r = t;
+    }
+
+    // 1 pixel overlap all round hides T-junction cracks between terrain quads (old 1.5 px margin)
+    s32 xs = ((l->x - 128 + 255) >> 8) - 1, xe = ((r->x - 128 + 255) >> 8) + 1;
+    s32 span = (r->x - l->x) >> 4;
+    s32 du = span > 0 ? (s32)(((r->u - l->u) << 4) / span) : 0;
+    s32 dv = span > 0 ? (s32)(((r->v - l->v) << 4) / span) : 0;
+    s32 f = (xs << 8) + 128 - l->x;
+    s32 u = l->u + (du >> 8) * f, v = l->v + (dv >> 8) * f;
+    celspan(cc.px, cc.w, cc.h, y, xs, xe, u, v, du, dv, cc.cx1, cc.cx2);
+    if (y == cc.ymin && y - 1 >= cc.cy1 && cc.ymin == cc.ytop)
+        celspan(cc.px, cc.w, cc.h, y - 1, xs, xe, u, v, du, dv, cc.cx1, cc.cx2);
+
+    if (y == cc.ymax - 1 && y + 1 <= cc.cy2 && cc.ymax == cc.ybot)
+        celspan(cc.px, cc.w, cc.h, y + 1, xs, xe, u, v, du, dv, cc.cx1, cc.cx2);
+}
+
+static inline void celstep(celedge *e)
+{
+    e->x += e->dx;
+    e->u += e->du;
+    e->v += e->dv;
+}
+
+static const u8 celcu[4] = { 0, 1, 1, 0 }, celcv[4] = { 0, 0, 1, 1 };
+
+// edge from corner i to corner n, starting at row y; 0 if horizontal
+static int celedge_at(celedge *e, const s32 *p, int i, int n, s32 y)
+{
+    s32 U = (cc.w << 16) - 1, V = (cc.h << 16) - 1;
+    return celedge_set(e, p + i * 2, p + n * 2, celcu[i] ? U : 0, celcv[i] ? V : 0, celcu[n] ? U : 0, celcv[n] ? V : 0, y);
+}
+
+// convex quad: one left and one right chain from the top corner
+__attribute__((noinline, optimize("no-unroll-loops"))) static void celconvex(const s32 *p)
+{
+    int top = 0;
+    for (int i = 1; i < 4; i++)
+    {
+        if (p[i * 2 + 1] < p[top * 2 + 1])
+            top = i;
+    }
+
+    celedge a, b;
+    int ai = top, bi = top;
+    s32 y = cc.ymin;
+    a.y1 = b.y1 = y - 0x8000;
+    while (y < cc.ymax)
+    {
+        // next edge on each chain once the current one ends (horizontal ones are skipped)
+        for (int k = 0; k < 4 && y >= a.y1; k++)
+        {
+            int n = (ai + 3) & 3;
+            if (!celedge_at(&a, p, ai, n, y) || a.y1 <= y)
+                a.y1 = y - 0x8000;
+
+            ai = n;
+        }
+
+        for (int k = 0; k < 4 && y >= b.y1; k++)
+        {
+            int n = (bi + 1) & 3;
+            if (!celedge_at(&b, p, bi, n, y) || b.y1 <= y)
+                b.y1 = y - 0x8000;
+
+            bi = n;
+        }
+
+        if (y >= a.y1 || y >= b.y1)
+            return;
+
+        s32 end = a.y1 < b.y1 ? a.y1 : b.y1;
+        if (end > cc.ymax)
+            end = cc.ymax;
+
+        for (; y < end; y++)
+        {
+            celrow(&a, &b, y);
+            celstep(&a);
+            celstep(&b);
+        }
+    }
+}
+
+// concave or bowtie quad: even-odd over all four edges
+__attribute__((noinline, optimize("no-unroll-loops"))) static void celgeneral(const s32 *p)
+{
+    celedge e[4];
+    int ne = 0;
+    for (int i = 0; i < 4; i++)
+        ne += celedge_at(&e[ne], p, i, (i + 1) & 3, cc.ymin);
+
+    for (s32 y = cc.ymin; y < cc.ymax; y++)
+    {
+        celedge *x[4];
+        int nx = 0;
+        for (int i = 0; i < ne; i++)
+        {
+            if (y < e[i].y0 || y >= e[i].y1)
+                continue;
+
+            int k = nx++;
+            while (k > 0 && x[k - 1]->x > e[i].x)
+            {
+                x[k] = x[k - 1];
+                k--;
+            }
+
+            x[k] = &e[i];
+        }
+
+        for (int k = 0; k + 1 < nx; k += 2)
+            celrow(x[k], x[k + 1], y);
+
+        for (int i = 0; i < ne; i++)
+        {
+            if (y >= e[i].y0 && y < e[i].y1)
+                celstep(&e[i]);
+        }
+    }
+}
+
+// 3DO MapCel quad, scanline filled; u/v exact on the edges, linear across each span. Pixel
+// centres decide coverage, so shared edges leave no seams.
+__attribute__((noinline)) static void drawcel(const cel3d *c, s32 cx1, s32 cy1, s32 cx2, s32 cy2)
 {
     s32 w, h;
     const u16 *px = texget(c->img, &w, &h);
     if (!px)
         return;
-    
-    celmap m;
-    celsetup(c, &m);
-    s32 x1, y1, x2, y2;
-    celbox(c, &x1, &y1, &x2, &y2);
-    x1 -= 2, y1 -= 2, x2 += 2, y2 += 2;
-    if (x1 < cx1)
-        x1 = cx1;
-    
-    if (y1 < cy1)
-        y1 = cy1;
-    
-    if (x2 > cx2)
-        x2 = cx2;
-    
-    if (y2 > cy2)
-        y2 = cy2;
-    
-    s32 W = alis.platform.width;
-    for (s32 yy = y1; yy <= y2; yy++)
+
+    const s32 *p = c->p;
+    s32 area = 0, ymin = p[1], ymax = p[1];
+    int pos = 0, neg = 0;
+    for (int i = 0; i < 4; i++)
     {
-        u32 *d = image.rgblogic + yy * W;
-        for (s32 xx = x1; xx <= x2; xx++)
-        {
-            s32 t = celtexel(c, &m, w, h, xx, yy);
-            if (t >= 0 && px[t])
-                d[xx] = pixc_apply(px[t] & 0x7fff, c->pixc);
-        }
+        const s32 *a = p + i * 2, *b = p + ((i + 1) & 3) * 2, *d = p + ((i + 2) & 3) * 2;
+        area += a[0] * b[1] - b[0] * a[1];
+        s32 z = (b[0] - a[0]) * (d[1] - b[1]) - (b[1] - a[1]) * (d[0] - b[0]);
+        pos |= z > 0;
+        neg |= z < 0;
+        if (a[1] < ymin)
+            ymin = a[1];
+
+        if (a[1] > ymax)
+            ymax = a[1];
+    }
+
+    if (area == 0 || (area < 0 && !c->accw))
+        return;
+
+    cc.ytop = ymin;
+    cc.ybot = ymax;
+    cc.ymin = ymin < cy1 ? cy1 : ymin;
+    cc.ymax = ymax > cy2 + 1 ? cy2 + 1 : ymax;
+    if (cc.ymin >= cc.ymax)
+        return;
+
+    cc.px = px;
+    cc.w = w;
+    cc.h = h;
+    cc.cx1 = cx1;
+    cc.cy1 = cy1;
+    cc.cx2 = cx2;
+    cc.cy2 = cy2;
+    pixc_lut(c->pixc);
+    for (s32 i = 0; i < h && i < CELROWS; i++)
+        celrows[i] = px + i * w;
+
+    if (pos && neg)
+    {
+        celgeneral(p);
+    }
+    else
+    {
+        celconvex(p);
     }
 }
 
@@ -1006,9 +1354,26 @@ u32 r3do_pick(u32 scr, s32 x, s32 y, s32 w3[3], u32 *aux, u32 *img)
     return best->owner;
 }
 
+// nothing to draw since the last r3do_land
+int r3do_empty(void)
+{
+    return !drewland && maxbucket < 0;
+}
+
+__attribute__((noinline)) static void fogfill(u32 col, s32 x1, s32 y1, s32 x2, s32 y2)
+{
+    s32 W = alis.platform.width;
+    for (s32 yy = y1; yy <= y2; yy++)
+    {
+        u32 *d = image.rgblogic + yy * W + x1;
+        for (s32 n = x2 - x1 + 1; n > 0; n--)
+            *d++ = col;
+    }
+}
+
 void r3do_flush(u32 scr)
 {
-    if (!image.rgblogic)
+    if (!image.rgblogic || !tables())
         return;
     
     s32 W = alis.platform.width, H = alis.platform.height;
@@ -1029,12 +1394,7 @@ void r3do_flush(u32 scr)
     if (drewland)
     {
         u32 g = (alis.fog3do > 0xff ? 0xff : alis.fog3do) >> 3;
-        u32 col = rgb5(g, g, g);
-        for (s32 yy = y1; yy <= y2; yy++)
-        {
-            for (s32 xx = x1; xx <= x2; xx++)
-                image.rgblogic[yy * W + xx] = col;
-        }
+        fogfill(rgb5(g, g, g), x1, y1, x2, y2);
     }
 
     for (int b = maxbucket; b >= 0; b--)

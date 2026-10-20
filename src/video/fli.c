@@ -361,9 +361,8 @@ void fli_decomp(u8 *addr, u8 partial)
 typedef s8 fli_audio_slot_t[FLI_AUDIO_CHUNK_MAX];
 static fli_audio_slot_t *fli_audio_copybuf = NULL;
 
-// Scratch for downconverting Deus's 16-bit (0x1300) FLI audio to 8-bit; the queue copies it out.
-#define FLI_DC_BYTES (128 * 1024)
-static s8 *fli_dc_buf = NULL;
+// Scratch for downconverting Deus's 16-bit (0x1300) FLI audio to 8-bit, one queue slot at a time
+static s8 fli_dc_buf[FLI_AUDIO_CHUNK_MAX];
 
 // Push one per-frame audio chunk onto the FLI audio queue. The audio callback splices queued
 // chunks back-to-back on channel 3 (no per-frame channel reset -> no clicking) and runfilm paces
@@ -392,15 +391,8 @@ void fli_audio(u8 *nextaddr, u8 *addr, s16 type)
         // Deus's single audio track is 16-bit signed LE PCM. The 8-bit channel mixer can't play it
         // directly, so downconvert into this slot's scratch buffer and queue that
         // sample_len is the 8-bit sample count
-        if (fli_dc_buf == NULL && (fli_dc_buf = (s8 *)malloc(FLI_DC_BYTES)) == NULL)
-            return;
-        u32 nsamp = length / 2;
-        if (nsamp > FLI_DC_BYTES)
-            nsamp = FLI_DC_BYTES;
-        for (u32 i = 0; i < nsamp; i++)
-            fli_dc_buf[i] = (s8)addr[i * 2 + 1];   // high byte of little-endian s16
-        sample_addr = fli_dc_buf;
-        sample_len  = nsamp;
+        sample_addr = NULL;
+        sample_len  = length / 2;
     }
     else
     {
@@ -424,7 +416,22 @@ void fli_audio(u8 *nextaddr, u8 *addr, s16 type)
         freq = (s16)f;
     }
 
-    fli_audio_push(sample_addr, sample_len, freq);
+    if (sample_addr)
+    {
+        fli_audio_push(sample_addr, sample_len, freq);
+        return;
+    }
+    for (u32 done = 0; done < sample_len; )
+    {
+        u32 n = sample_len - done > FLI_AUDIO_CHUNK_MAX ? FLI_AUDIO_CHUNK_MAX : sample_len - done;
+        for (u32 i = 0; i < n; i++)
+            fli_dc_buf[i] = (s8)addr[(done + i) * 2 + 1];
+        
+        if (fli_audio_push(fli_dc_buf, n, freq) < n)
+            break;
+        
+        done += n;
+    }
 }
 
 // Queue samples on channel 3 for gapless playback; returns how many fit
