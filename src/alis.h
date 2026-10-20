@@ -74,6 +74,7 @@ extern const u32 kVirtualRAMSize;
 #define ALIS_SCR_WCAZ    (alis.platform.version >= 30 ? 0x28 : -1)
 
 #define ALIS_SCR_ADDR    (alis.platform.version >= 30 ? 0x32 : 0x8)
+#define ALIS_SCR_GROUP   (alis.platform.version >= 30 ? 0x30 : 0x6)
 
 #define ALIS_SCR_WCX2    (alis.platform.version >= 30 ? 0x34 : 0x9)
 #define ALIS_SCR_WCY2    (alis.platform.version >= 30 ? 0x38 : 0xa)

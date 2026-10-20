@@ -2311,6 +2311,24 @@ static void cdelforme_v6(void)
     v6put.fadddes = 0;
 }
 
+static s32 formptr(s32 base, s32 idx2)
+{
+    s16 off = xread16(base + idx2);
+    return base + (alis.platform.kind == EPlatformPC && alis.platform.version < 30 ? (s32)(u16)off : (s32)off);
+}
+
+static int formkind(s32 hdr)
+{
+    if (alis.platform.uid == EGameLeFeticheMaya)
+        return xread16(hdr) != 0;
+
+    if (alis.platform.kind != EPlatformPC && xread16(hdr) == 0)
+        return 0;
+
+    u8 b = xread8(hdr);
+    return alis.platform.kind != EPlatformPC && b == 0 ? -1 : b;
+}
+
 u8 multifirm(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 a4)
 {
     u16 length = xread8(ent_formedata - 1);
@@ -2333,7 +2351,7 @@ u8 multifirm(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 a4)
 
 s32 traitfirm(s32 ent_vram, s32 formedata, s32 ent_baseform, s32 forme)
 {
-    s32 ent_formedata = xread16(ent_baseform + forme) + ent_baseform;
+    s32 ent_formedata = formptr(ent_baseform, forme);
     s16 test = alis.platform.kind == EPlatformPC ? (s8)xread8(ent_formedata) : xread16(ent_formedata);
     if (test < 0)
     {
@@ -2354,7 +2372,7 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
         return 1;
     }
     
-    u8 bits = xread8(ent_formedata - 2);
+    int bits = formkind(ent_formedata - 2);
     if (bits == 0)
     {
         tmpx1 = (s8)xread8(ent_formedata + 2);
@@ -2377,7 +2395,7 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
     }
     else
     {
-        ALIS_DEBUG(EDebugWarning, "Unexpected form data!");
+        ALIS_DEBUG(EDebugInfo, "\n    Form type %.2x: no hit", xread8(ent_formedata - 2));
         return 1;
     }
 
@@ -2438,7 +2456,7 @@ s32 monofirm(s32 ent_vram, s32 ent_formedata)
 
 s32 traitform(s32 ent_vram, s32 ent_formedata, s32 ent_baseform, s32 ent_wforme2x)
 {
-    s32 formedata = xread16(alis.baseform + ent_wforme2x) + alis.baseform;
+    s32 formedata = formptr(alis.baseform, ent_wforme2x);
     s16 test = alis.platform.kind == EPlatformPC ? (s8)xread16(formedata) : xread16(formedata);
     if (test < 0)
     {
@@ -2472,7 +2490,7 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
 {
     s16 frmx, frmy, frmz;
     
-    u8 bits = xread8(formedata - 2);
+    int bits = formkind(formedata - 2);
     if (bits == 0)
     {
         frmx = (s8)xread8(formedata + 2);
@@ -2497,7 +2515,7 @@ s32 monoform(s32 ent_vram, s32 ent_formedata, s32 formedata, s32 ent_baseform, s
     }
     else
     {
-        ALIS_DEBUG(EDebugWarning, "Unexpected form data!");
+        ALIS_DEBUG(EDebugInfo, "\n    Form type %.2x: no hit", xread8(formedata - 2));
         return 1;
     }
 
@@ -2741,21 +2759,34 @@ void clipform(void)
         s32 val = get_0x14_script_org_offset(alis.script->vram_org);
         s32 addr = xread32(val + 0xe) + val;
         alis.baseform = xread32(addr + 6) + addr;
-        s32 formedata = (u16)xread16(alis.baseform + (u32)alis.wforme * 2) + alis.baseform;
+        s32 formedata = formptr(alis.baseform, (u32)alis.wforme * 2);
         s16 entidx = (s16)alis_first_ent();     // v6: skip the null sentinel
 
         ALIS_DEBUG(EDebugInfo, "\nChecking: %s (%.2x)", alis.script->name, alis.wforme);
-        
+
+        // form index past the script's form count (+0xa)
+        // perror 0x10 in the Falcon builds, skipped here
+        u8 range = alis.wforme < (u16)xread16(addr + 0xa);
+        if (!range)
+            ALIS_DEBUG(EDebugWarning, "%s: form %d out of range\n", alis.script->name, alis.wforme);
+
         do
         {
             s32 ent_vram = xread32(alis.atent + entidx);
-            if (xread16(ent_vram + 6) == xread16(alis.script->vram_org + 6) && -1 < get_0x1a_cforme(ent_vram) && alis.script->vram_org != ent_vram)
+            if (range && xread16(ent_vram + ALIS_SCR_GROUP) == xread16(alis.script->vram_org + ALIS_SCR_GROUP) && -1 < get_0x1a_cforme(ent_vram) && alis.script->vram_org != ent_vram)
             {
                 s32 ent_val = get_0x14_script_org_offset(ent_vram);
                 s32 ent_addr = xread32(ent_val + 0xe) + ent_val;
                 s32 ent_baseform = xread32(ent_addr + 6) + ent_addr;
+                if (get_0x1a_cforme(ent_vram) >= (u16)xread16(ent_addr + 0xa))
+                {
+                    ALIS_DEBUG(EDebugWarning, "%s: form %d out of range\n", ENTSCR(entidx)->name, get_0x1a_cforme(ent_vram));
+                    entidx = xread16(alis.atent + 4 + entidx);
+                    continue;   // to the while test
+                }
+
                 s32 ent_wforme2x = get_0x1a_cforme(ent_vram) * 2;
-                s32 ent_formedata = xread16(ent_baseform + ent_wforme2x) + ent_baseform;
+                s32 ent_formedata = formptr(ent_baseform, ent_wforme2x);
                 
                 sAlisScriptLive *sc = ENTSCR(entidx);
                 ALIS_DEBUG(EDebugInfo, "\n  to: %s", sc->name);
@@ -2788,7 +2819,6 @@ void clipform(void)
                     alis.matent[index] = alis.goodmat;
                     alis.tablent[index] = entidx;
                     alis.ptrent ++;
-                    formedata += 2;
 
                     if (alis.fallent == 0)
                     {
@@ -3824,7 +3854,7 @@ static void findent(u8 bytyp, u8 near)
     {
         u32 tgt_vram = xread32(alis.atent + entidx);
         if ((bytyp ? alis.varD7 == (s16)get_0x10_script_id(tgt_vram) : (xread8(tgt_vram + 0xc) & (u8)alis.matmask) != 0)
-            && (!near || xread16(tgt_vram + 6) == xread16(src_vram + 6)) && src_vram != tgt_vram
+            && (!near || xread16(tgt_vram + ALIS_SCR_GROUP) == xread16(src_vram + ALIS_SCR_GROUP)) && src_vram != tgt_vram
             && (!near || !calcnear(src_vram, tgt_vram, &value)) && tabidx < 127)
         {
             alis.tablent[tabidx++] = entidx;
