@@ -1061,6 +1061,8 @@ static int setup_video_mode(void)
         Setscreen(-1, screen_buf[0], ST_LOW >> 8);
     }
 
+    // hide the VT52 cursor, EmuTOS re-enables it on a mode change
+    Cursconf(0, 0);
     return 1;
 }
 
@@ -1140,6 +1142,7 @@ int sys_film16_begin(u16 w, u16 h)
     
     Setscreen(-1, film16_front, -1);
     VsetMode(mode);
+    Cursconf(0, 0);
 
     g_fli16_stride = sw;
     g_fli16_screen = film16_front;               // delta target = displayed front (arm last)
@@ -1183,6 +1186,7 @@ void sys_film16_end(void)
     Vsync();
     Setscreen(-1, film16_base, -1);
     VsetMode((u16)film16_mode);
+    Cursconf(0, 0);
     if (film16_mem)
     {
         Mfree((long)film16_mem);
@@ -3397,6 +3401,7 @@ static void v6_setmode(u16 w, u16 h, u32 *palette)
         Vsync();
         Setscreen(-1, v6_scr[0], -1);
         VsetMode(mode);
+        Cursconf(0, 0);
         v6_back = 1;
         if (hi)
             set_palette(palette, 256);
