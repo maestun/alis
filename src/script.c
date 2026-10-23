@@ -526,23 +526,19 @@ static void all_tosigned(u8 *data)
     if (count <= 0)
         return;
     
-    u8 *done[count];
-    s16 ndone = 0;
-
     for (s16 i = 0; i < count; i++)
     {
-        u8 *smp = tab + (u16)read16(tab + i * 2);
+        u16 off = read16(tab + i * 2);
+        u8 *smp = tab + off;
         if (smp[0] != 1)
             continue;
 
         s16 j = 0;
-        while (j < ndone && done[j] != smp)
+        while (j < i && (u16)read16(tab + j * 2) != off)
             j++;
         
-        if (j < ndone)
+        if (j < i)
             continue;
-        
-        done[ndone++] = smp;
 
         u16 len = (smp[1] << 8) | smp[2];
         for (u16 k = 0; k < len; k++)
@@ -558,23 +554,19 @@ static void all_tochunky(u8 *data)
     if (count <= 0)
         return;
     
-    u8 *done[count];
-    s16 ndone = 0;
-
     for (s16 i = 0; i < count; i++)
     {
-        u8 *bmp = tab + (s16)read16(tab + i * 2);
+        u16 off = read16(tab + i * 2);
+        u8 *bmp = tab + (s16)off;
         if (bmp[0] != 0)
             continue;
 
         s16 j = 0;
-        while (j < ndone && done[j] != bmp)
+        while (j < i && (u16)read16(tab + j * 2) != off)
             j++;
         
-        if (j < ndone)
+        if (j < i)
             continue;
-        
-        done[ndone++] = bmp;
 
         tochunky(bmp);
     }

@@ -27,7 +27,9 @@
 #include "mem.h"
 #include "utils.h"
 #include "sys/sys.h"
+#ifndef _MSC_VER
 #include <strings.h>
+#endif
 
 // ============================================================================
 #pragma mark - Additions

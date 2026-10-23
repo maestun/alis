@@ -34,12 +34,12 @@ PACK_PUSH typedef struct PACK_ATTR {
     u16 to_next;            // 0x04
     u16 link;               // 0x06
     u32 newad : 24;         // 0x08
-    s8 newf : 8;            // 0x08 + 3
+    s32 newf : 8;           // 0x08 + 3 (s32: MSVC packs only same-size bitfields)
     s16 newx;               // 0x0c
     s16 newy;               // 0x0e
     s16 newd;               // 0x10
     u32 data : 24;          // 0x12
-    u8 flaginvx : 8;        // 0x12 + 3 // +0 on big endian machines
+    u32 flaginvx : 8;       // 0x12 + 3 // +0 on big endian machines
     s16 depx;               // 0x16
     s16 depy;               // 0x18
     s16 depz;               // 0x1a
@@ -60,6 +60,7 @@ PACK_PUSH typedef struct PACK_ATTR {
 } sSprite; PACK_POP
 
 #define SPRITE_SZ 0x36      // sprite record size / free-pool stride (was 0x30 before `prev` at 0x34)
+_Static_assert(sizeof(sSprite) == SPRITE_SZ && offsetof(sSprite, newx) == 0x0c && offsetof(sSprite, depx) == 0x16, "sSprite layout");
 #define V6_SLOT_STRIDE  0x50
 
 static inline u32  v6el_prev(u32 e)               { return xread32(e + 0x00); }

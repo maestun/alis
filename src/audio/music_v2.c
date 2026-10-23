@@ -793,8 +793,8 @@ void mv2_soundcal_c(sAudioVoice *voice, s16 *dst, const bool first)
         for (u32 index = 0; index < mutaloop; index++)
         {
             u32 acc_before = ((u32)(u16)longsam1 << 16) | frqto;
-            u32 acc_after;
-            int phase_switch = __builtin_sub_overflow(acc_before, step_full, &acc_after);
+            u32 acc_after = acc_before - step_full;
+            int phase_switch = acc_before < step_full;
 
             frqto = (u16)acc_after;
             longsam1 = ((longsam1 >> 16) - (u32)phase_switch) << 16 | (u32)(acc_after >> 16);
@@ -818,8 +818,8 @@ void mv2_soundcal_c(sAudioVoice *voice, s16 *dst, const bool first)
         for (u32 index = 0; index < mutaloop; index++)
         {
             u32 acc_before = ((u32)(u16)longsam1 << 16) | frqto;
-            u32 acc_after;
-            s32 phase_switch = __builtin_sub_overflow(acc_before, step_full, &acc_after);
+            u32 acc_after = acc_before - step_full;
+            s32 phase_switch = acc_before < step_full;
 
             frqto = (u16)acc_after;
             longsam1 = ((longsam1 >> 16) - (u32)phase_switch) << 16 | (u32)(acc_after >> 16);

@@ -25,7 +25,9 @@
 #include "platform.h"
 #include "utils.h"
 #include <string.h>
+#ifndef _MSC_VER
 #include <strings.h>  // for strncasecmp
+#endif
 
 // TODO: Manhattan Dealers (Operation: Cleanstreets in the US), the first game on the ALIS engine, is different.
 // Atari ST: it uses 'OO' file extension and the main script is in 'man.sng' (not 'OO'!),
